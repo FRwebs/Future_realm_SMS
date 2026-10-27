@@ -1,61 +1,448 @@
-@import "../styles/tokens.css";
+/* Web fonts. A remote @import must come before every other rule, so it lives here and not inside the layered tokens file. */
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Manrope:wght@400;500;600;700;800&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap");
 
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import '../styles/tokens.css' layer(base);
 
-body {
-  min-height: 100vh;
-  background: var(--color-bg-base);
-  color: var(--color-text-primary);
-  font-family: var(--font-body);
-  font-size: 13.5px;
-  line-height: 1.6;
-  transition: background-color 200ms ease, color 200ms ease;
+@import 'tailwindcss';
+
+@theme {
+  --color-primary-50: rgb(var(--color-primary-50-rgb));
+  --color-primary-100: rgb(var(--color-primary-100-rgb));
+  --color-primary-200: rgb(var(--color-primary-200-rgb));
+  --color-primary-300: rgb(var(--color-primary-300-rgb));
+  --color-primary-400: rgb(var(--color-primary-400-rgb));
+  --color-primary-500: rgb(var(--color-primary-500-rgb));
+  --color-primary-600: rgb(var(--color-primary-600-rgb));
+  --color-primary-700: rgb(var(--color-primary-700-rgb));
+  --color-primary-800: rgb(var(--color-primary-800-rgb));
+  --color-primary-900: rgb(var(--color-primary-900-rgb));
+
+  --color-brand-50: rgb(var(--color-primary-50-rgb));
+  --color-brand-100: rgb(var(--color-primary-100-rgb));
+  --color-brand-200: rgb(var(--color-primary-200-rgb));
+  --color-brand-300: rgb(var(--color-primary-300-rgb));
+  --color-brand-400: rgb(var(--color-primary-400-rgb));
+  --color-brand-500: rgb(var(--color-primary-500-rgb));
+  --color-brand-600: rgb(var(--color-primary-600-rgb));
+  --color-brand-700: rgb(var(--color-primary-700-rgb));
+  --color-brand-800: rgb(var(--color-primary-800-rgb));
+  --color-brand-900: rgb(var(--color-primary-900-rgb));
+
+  --color-ink: rgb(var(--color-ink-rgb));
+  --color-sand: rgb(var(--color-slate-50-rgb));
+  --color-amber: rgb(var(--color-amber-rgb));
+  --color-danger: rgb(var(--color-red-rgb));
+
+  --shadow-panel: 0 10px 24px -14px rgba(13, 35, 21, 0.16);
+
+  --background-image-dashboard-grid: none;
 }
 
-html,
-body {
-  background-color: var(--color-bg-base);
-  color: var(--color-text-primary);
+/*
+  The default border color has changed to `currentcolor` in Tailwind CSS v4,
+  so we've added these compatibility styles to make sure everything still
+  looks the same as it did with Tailwind CSS v3.
+
+  If we ever want to remove these styles, we need to add an explicit border
+  color utility to any element that depends on these defaults.
+*/
+@layer base {
+  *,
+  ::after,
+  ::before,
+  ::backdrop,
+  ::file-selector-button {
+    border-color: var(--color-gray-200, currentcolor);
+  }
 }
 
-a {
-  color: inherit;
-  text-decoration: none;
+@utility app-skeleton {
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--color-bg-subtle) 78%, transparent) 0%,
+    color-mix(in srgb, var(--color-bg-elevated) 94%, transparent) 50%,
+    color-mix(in srgb, var(--color-bg-subtle) 78%, transparent) 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite linear;
 }
 
-* {
+@utility app-skeleton-invert {
+  /* Same shimmer, inverted for placement on dark ink surfaces (e.g. ModuleHero). */
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0.06) 0%,
+    rgba(255, 255, 255, 0.16) 50%,
+    rgba(255, 255, 255, 0.06) 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite linear;
+}
+
+@utility panel-row {
+  /*
+   * A row of module panels. The mockup lays each row out with an explicit column
+   * template ("1.55fr 1fr"); that ratio is carried in --panel-cols and only takes
+   * effect once there is room for it, so narrow screens stack instead.
+   */
+  grid-template-columns: 1fr;
+  min-width: 0;
+
+  /*
+   * Grid children default to min-width:auto, so a panel holding a wide table
+   * would otherwise force the whole page grid out to that table's min width and
+   * stretch every other panel to match.
+   */
+  & > * {
+    min-width: 0;
+  }
+
+  @media (min-width: 1024px) {
+    grid-template-columns: var(--panel-cols, 1fr);
+  }
+}
+
+@utility kpi-row {
+  /*
+   * A KPI strip. The mockup states how many cards go across (`per`), so that
+   * count is honoured once there is room and steps down on narrower screens
+   * rather than being left to auto-fit.
+   */
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+
+  @media (min-width: 768px) {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  @media (min-width: 1280px) {
+    grid-template-columns: repeat(var(--kpi-per, 4), minmax(0, 1fr));
+  }
+}
+
+@utility tile-grid {
+  /*
+   * A tile grid. The mockup states how many go across; below lg they stack so a
+   * tile never gets narrower than its icon plus two words.
+   */
+  grid-template-columns: 1fr;
+
+  @media (min-width: 1024px) {
+    grid-template-columns: repeat(var(--tile-per, 2), minmax(0, 1fr));
+  }
+}
+
+@utility surface-card {
+  @apply rounded-[14px] border;
   border-color: var(--color-border-default);
-  box-sizing: border-box;
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--color-bg-surface) 98%, transparent),
+    color-mix(in srgb, var(--color-bg-elevated) 96%, transparent)
+  );
+  box-shadow: var(--shadow-sm);
+
+  /* The Back Office's cards are flat: white, a hairline border, no shadow. */
+  [data-portal='super_admin'] & {
+    background: var(--color-bg-surface);
+    box-shadow: none;
+  }
 }
 
-button,
-a,
-input,
-select,
-textarea,
-label,
-[role="button"] {
-  -webkit-tap-highlight-color: transparent;
+@utility surface-hero {
+  @apply overflow-hidden rounded-(--radius-hero) border;
+  border-color: var(--color-border-default);
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--color-bg-surface) 96%, transparent),
+    color-mix(in srgb, var(--color-bg-subtle) 98%, transparent)
+  );
+  box-shadow: var(--shadow-sm);
 }
 
-button:focus:not(:focus-visible),
-a:focus:not(:focus-visible),
-[role="button"]:focus:not(:focus-visible) {
-  outline: none;
+@utility section-eyebrow {
+  @apply text-[10.5px] font-semibold uppercase tracking-[0.14em];
+  color: var(--color-text-muted);
+}
+
+@utility portal-page {
+  @apply mx-auto grid w-full max-w-[1480px] gap-5;
+}
+
+@utility portal-hero {
+  @apply surface-hero px-5 py-5 md:px-6 md:py-6;
+}
+
+@utility portal-hero-grid {
+  @apply grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(280px,0.36fr)] lg:items-end;
+}
+
+@utility portal-title {
+  @apply font-(--font-heading) text-[26px] font-extrabold leading-tight tracking-tight md:text-[32px];
+  color: var(--color-text-primary);
+}
+
+@utility portal-copy {
+  @apply max-w-3xl text-[13px] leading-6 md:text-[13.5px];
+  color: var(--color-text-secondary);
+}
+
+@utility portal-panel {
+  @apply surface-card p-5 md:p-6;
+}
+
+@utility portal-panel-header {
+  @apply flex flex-col gap-2 md:flex-row md:items-start md:justify-between;
+}
+
+@utility portal-stat {
+  @apply surface-card relative overflow-hidden p-4 transition-all duration-150 hover:border-(--color-border-strong);
+}
+
+@utility portal-stat-label {
+  @apply text-[10.5px] font-semibold uppercase tracking-[0.14em];
+  color: var(--color-text-muted);
+}
+
+@utility portal-stat-value {
+  @apply mt-2 font-(--font-heading) text-[24px] font-extrabold leading-none tracking-tight;
+  color: var(--color-text-primary);
+}
+
+@utility portal-stat-note {
+  @apply mt-2 text-[12px] leading-5;
+  color: var(--color-text-secondary);
+}
+
+@utility portal-action-tile {
+  @apply rounded-[12px] border px-4 py-3 transition-all duration-150;
+  border-color: var(--color-border-default);
+  background: var(--color-bg-surface);
+  color: var(--color-text-primary);
+
+  &:hover {
+    border-color: var(--color-border-strong);
+    background: var(--color-accent-primary-dim);
+    color: var(--color-text-primary);
+  }
+}
+
+@utility portal-muted-tile {
+  @apply rounded-[12px] border px-4 py-3;
+  border-color: var(--color-border-default);
+  background: var(--color-bg-subtle);
+}
+
+@utility btn-primary {
+  /* Primary buttons use the same ink-green as the sidebar (the mockup's
+     brand color), hovering to the standard teal accent. */
+  @apply inline-flex items-center justify-center gap-2 rounded-[10px] border px-4 text-[13px] font-semibold transition-all duration-150 disabled:cursor-not-allowed disabled:opacity-60;
+  height: 40px;
+  color: #ffffff;
+  border-color: #0d2315;
+  background: #0d2315;
   box-shadow: none;
+
+  &:hover {
+    background: #12796a;
+    border-color: #12796a;
+  }
 }
 
-button:focus-visible,
-a:focus-visible,
-[role="button"]:focus-visible {
-  outline: 2px solid rgba(18, 121, 106, 0.45);
-  outline-offset: 3px;
+@utility btn-secondary {
+  @apply inline-flex items-center justify-center gap-2 rounded-[10px] border px-4 text-[13px] font-semibold transition-all duration-150;
+  height: 40px;
+  color: var(--color-text-primary);
+  border-color: var(--color-border-default);
+  background: var(--color-bg-surface);
+
+  &:hover {
+    color: var(--color-text-accent);
+    border-color: var(--color-accent-primary);
+    background: var(--color-accent-primary-dim);
+  }
 }
 
-::selection {
-  background: var(--color-accent-primary-dim);
+@utility btn-destructive {
+  @apply inline-flex items-center justify-center gap-2 rounded-[10px] border px-4 text-[13px] font-semibold text-white transition-all duration-150 disabled:cursor-not-allowed disabled:opacity-60;
+  height: 40px;
+  border-color: var(--color-danger);
+  background: var(--color-danger);
+
+  &:hover {
+    filter: brightness(0.94);
+  }
+}
+
+@utility btn-ghost {
+  @apply inline-flex items-center justify-center gap-2 rounded-[10px] px-4 text-[13px] font-semibold transition-all duration-150;
+  height: 40px;
+  color: var(--color-text-secondary);
+  background: transparent;
+
+  &:hover {
+    background: var(--color-bg-elevated);
+    color: var(--color-text-primary);
+  }
+}
+
+@utility btn-link {
+  @apply inline-flex items-center gap-1.5 text-[13px] font-semibold transition-colors duration-150;
+  color: var(--color-text-accent);
+
+  &:hover {
+    color: var(--color-accent-primary-hover);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+}
+
+@utility icon-btn {
+  @apply inline-flex items-center justify-center rounded-xl border transition-all duration-150;
+  height: 36px;
+  width: 36px;
+  color: var(--color-text-secondary);
+  background: var(--color-bg-elevated);
+  border-color: var(--color-border-default);
+
+  &:hover {
+    background: var(--color-bg-overlay);
+    color: var(--color-text-accent);
+    border-color: var(--color-accent-primary);
+  }
+}
+
+@utility field-label {
+  @apply mb-1.5 block text-[12px] font-semibold uppercase tracking-[0.18em];
+  color: var(--color-text-secondary);
+}
+
+@utility field-control {
+  @apply w-full rounded-[10px] border px-4 text-[13px] font-medium outline-hidden transition-all duration-150;
+  min-height: 44px;
+  color: var(--color-text-primary);
+  background: var(--color-bg-subtle);
+  border-color: var(--color-border-default);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.02);
+
+  &:hover {
+    border-color: var(--color-border-strong);
+  }
+
+  &:focus {
+    background: var(--color-bg-surface);
+    border-color: var(--color-border-focus);
+    box-shadow: 0 0 0 3px var(--color-accent-primary-dim);
+  }
+
+  &:disabled {
+    background: var(--color-bg-elevated);
+    color: var(--color-text-muted);
+    cursor: not-allowed;
+  }
+}
+
+@utility field-textarea {
+  @apply field-control py-3;
+  min-height: 96px;
+  resize: vertical;
+}
+
+@utility field-select {
+  @apply field-control appearance-none pr-10;
+}
+
+@utility empty-state {
+  @apply flex flex-col items-center justify-center rounded-2xl border border-dashed px-6 py-10 text-center;
+  border-color: var(--color-border-strong);
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--color-bg-surface) 96%, transparent),
+    color-mix(in srgb, var(--color-bg-elevated) 86%, transparent)
+  );
+}
+
+@utility skeleton-line {
+  background: linear-gradient(
+    90deg,
+    var(--color-bg-elevated) 0%,
+    var(--color-bg-overlay) 50%,
+    var(--color-bg-elevated) 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite linear;
+  @apply rounded-md;
+  height: 12px;
+}
+
+@utility skeleton-block {
+  background: linear-gradient(
+    90deg,
+    var(--color-bg-elevated) 0%,
+    var(--color-bg-overlay) 50%,
+    var(--color-bg-elevated) 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite linear;
+  @apply rounded-2xl;
+}
+
+@layer utilities {
+  body {
+    min-height: 100vh;
+    background: var(--color-bg-base);
+    color: var(--color-text-primary);
+    font-family: var(--font-body);
+    font-size: 13.5px;
+    line-height: 1.6;
+    transition:
+      background-color 200ms ease,
+      color 200ms ease;
+  }
+
+  html,
+  body {
+    background-color: var(--color-bg-base);
+    color: var(--color-text-primary);
+  }
+
+  a {
+    color: inherit;
+    text-decoration: none;
+  }
+
+  * {
+    border-color: var(--color-border-default);
+    box-sizing: border-box;
+  }
+
+  button,
+  a,
+  input,
+  select,
+  textarea,
+  label,
+  [role='button'] {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  button:focus:not(:focus-visible),
+  a:focus:not(:focus-visible),
+  [role='button']:focus:not(:focus-visible) {
+    outline: none;
+    box-shadow: none;
+  }
+
+  button:focus-visible,
+  a:focus-visible,
+  [role='button']:focus-visible {
+    outline: 2px solid rgba(18, 121, 106, 0.45);
+    outline-offset: 3px;
+  }
+
+  ::selection {
+    background: var(--color-accent-primary-dim);
+  }
 }
 
 @layer base {
@@ -90,240 +477,242 @@ a:focus-visible,
   }
 }
 
-.app-body {
-  background-color: var(--color-bg-base);
-  color: var(--color-text-primary);
-  font-family: var(--font-body);
-}
+@layer utilities {
+  .app-body {
+    background-color: var(--color-bg-base);
+    color: var(--color-text-primary);
+    font-family: var(--font-body);
+  }
 
-@keyframes shimmer {
-  0% {
-    background-position: -200% 0;
+  @keyframes shimmer {
+    0% {
+      background-position: -200% 0;
+    }
+    100% {
+      background-position: 200% 0;
+    }
   }
-  100% {
-    background-position: 200% 0;
-  }
-}
 
-@keyframes trend-card-shine {
-  0%,
-  45% {
-    transform: translateX(-120%);
-    opacity: 0;
+  @keyframes trend-card-shine {
+    0%,
+    45% {
+      transform: translateX(-120%);
+      opacity: 0;
+    }
+    55% {
+      opacity: 0.82;
+    }
+    100% {
+      transform: translateX(520%);
+      opacity: 0;
+    }
   }
-  55% {
-    opacity: 0.82;
-  }
-  100% {
-    transform: translateX(520%);
-    opacity: 0;
-  }
-}
 
-@keyframes trend-card-pulse {
-  0%,
-  100% {
-    box-shadow: 0 0 0 rgba(45, 107, 60, 0);
+  @keyframes trend-card-pulse {
+    0%,
+    100% {
+      box-shadow: 0 0 0 rgba(45, 107, 60, 0);
+    }
+    50% {
+      box-shadow: 0 0 12px rgba(45, 107, 60, 0.35);
+    }
   }
-  50% {
-    box-shadow: 0 0 12px rgba(45, 107, 60, 0.35);
-  }
-}
 
-@keyframes trend-card-dot-pulse {
-  0%,
-  100% {
-    opacity: 0.72;
-    transform: scale(1);
+  @keyframes trend-card-dot-pulse {
+    0%,
+    100% {
+      opacity: 0.72;
+      transform: scale(1);
+    }
+    50% {
+      opacity: 1;
+      transform: scale(1.45);
+    }
   }
-  50% {
-    opacity: 1;
-    transform: scale(1.45);
-  }
-}
 
-@keyframes trend-card-refresh-spin {
-  from {
-    transform: rotate(0deg);
+  @keyframes trend-card-refresh-spin {
+    from {
+      transform: rotate(0deg);
+    }
+    to {
+      transform: rotate(360deg);
+    }
   }
-  to {
-    transform: rotate(360deg);
-  }
-}
 
-@keyframes trend-card-sparkline-draw {
-  from {
-    stroke-dashoffset: 320;
+  @keyframes trend-card-sparkline-draw {
+    from {
+      stroke-dashoffset: 320;
+    }
+    to {
+      stroke-dashoffset: 0;
+    }
   }
-  to {
-    stroke-dashoffset: 0;
-  }
-}
 
-/* Opacity intentionally omitted: .page-shell-enter's own children (see
+  /* Opacity intentionally omitted: .page-shell-enter's own children (see
    `.page-shell-enter > *` below) already fade in from 0, staggered. Fading the
    wrapper too compounds into a longer blank gap at the start of every page
    navigation, which reads as a flicker/refresh rather than a smooth transition. */
-@keyframes page-shell-enter {
-  from {
-    transform: translateY(10px);
+  @keyframes page-shell-enter {
+    from {
+      transform: translateY(10px);
+    }
+    to {
+      transform: translateY(0);
+    }
   }
-  to {
-    transform: translateY(0);
-  }
-}
 
-@keyframes page-section-enter {
-  from {
-    opacity: 0;
-    transform: translateY(16px);
+  @keyframes page-section-enter {
+    from {
+      opacity: 0;
+      transform: translateY(16px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
   }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
 
-@keyframes overlay-fade-in {
-  from {
-    opacity: 0;
+  @keyframes overlay-fade-in {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
   }
-  to {
-    opacity: 1;
-  }
-}
 
-@keyframes panel-slide-in-right {
-  from {
-    opacity: 0;
-    transform: translateX(24px);
+  @keyframes panel-slide-in-right {
+    from {
+      opacity: 0;
+      transform: translateX(24px);
+    }
+    to {
+      opacity: 1;
+      transform: translateX(0);
+    }
   }
-  to {
-    opacity: 1;
-    transform: translateX(0);
-  }
-}
 
-@keyframes modal-rise-in {
-  from {
-    opacity: 0;
-    transform: translateY(12px) scale(0.985);
+  @keyframes modal-rise-in {
+    from {
+      opacity: 0;
+      transform: translateY(12px) scale(0.985);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
   }
-  to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
-}
 
-@keyframes popover-fade-in {
-  from {
-    opacity: 0;
-    transform: translateY(6px) scale(0.98);
+  @keyframes popover-fade-in {
+    from {
+      opacity: 0;
+      transform: translateY(6px) scale(0.98);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
   }
-  to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
-}
 
-@keyframes fade-up {
-  from {
-    opacity: 0;
-    transform: translateY(18px);
+  @keyframes fade-up {
+    from {
+      opacity: 0;
+      transform: translateY(18px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
   }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
 
-@keyframes lp-bar-rise {
-  from {
-    transform: scaleY(0.2);
-    opacity: 0;
+  @keyframes lp-bar-rise {
+    from {
+      transform: scaleY(0.2);
+      opacity: 0;
+    }
+    to {
+      transform: scaleY(1);
+      opacity: 1;
+    }
   }
-  to {
-    transform: scaleY(1);
-    opacity: 1;
-  }
-}
 
-/* ============================================================
+  /* ============================================================
    Landing page (marketing)
    ============================================================ */
-.lp-mini-bar {
-  transform-origin: bottom;
-  animation: lp-bar-rise 720ms cubic-bezier(0.22, 1, 0.36, 1) both;
-}
-
-@media (prefers-reduced-motion: reduce) {
   .lp-mini-bar {
-    animation: none !important;
-  }
-}
-
-.trend-card-sparkline-path {
-  stroke-dasharray: 320;
-  stroke-dashoffset: 320;
-  animation: trend-card-sparkline-draw 800ms ease-out forwards;
-}
-
-.trend-card-shine {
-  background: linear-gradient(
-    90deg,
-    transparent 0%,
-    rgba(255, 255, 255, 0.62) 50%,
-    transparent 100%
-  );
-  animation: trend-card-shine 3s ease-in-out infinite;
-}
-
-.trend-card-top-bar {
-  animation: trend-card-pulse 3s ease-in-out infinite;
-}
-
-.trend-card-pulse-dot {
-  transform-origin: center;
-  animation: trend-card-dot-pulse 2.4s ease-in-out infinite;
-}
-
-.trend-card-refresh {
-  animation: trend-card-refresh-spin 700ms ease-out 1;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  * {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
-    scroll-behavior: auto !important;
+    transform-origin: bottom;
+    animation: lp-bar-rise 720ms cubic-bezier(0.22, 1, 0.36, 1) both;
   }
 
-  .trend-card-sparkline-path,
-  .trend-card-shine,
-  .trend-card-top-bar,
-  .trend-card-pulse-dot,
+  @media (prefers-reduced-motion: reduce) {
+    .lp-mini-bar {
+      animation: none !important;
+    }
+  }
+
+  .trend-card-sparkline-path {
+    stroke-dasharray: 320;
+    stroke-dashoffset: 320;
+    animation: trend-card-sparkline-draw 800ms ease-out forwards;
+  }
+
+  .trend-card-shine {
+    background: linear-gradient(
+      90deg,
+      transparent 0%,
+      rgba(255, 255, 255, 0.62) 50%,
+      transparent 100%
+    );
+    animation: trend-card-shine 3s ease-in-out infinite;
+  }
+
+  .trend-card-top-bar {
+    animation: trend-card-pulse 3s ease-in-out infinite;
+  }
+
+  .trend-card-pulse-dot {
+    transform-origin: center;
+    animation: trend-card-dot-pulse 2.4s ease-in-out infinite;
+  }
+
   .trend-card-refresh {
-    animation: none !important;
+    animation: trend-card-refresh-spin 700ms ease-out 1;
   }
 
-  .page-shell-enter,
-  .page-shell-enter > *,
-  .overlay-enter,
-  .panel-enter-right,
-  .modal-enter,
-  .popover-enter {
-    animation: none !important;
-  }
+  @media (prefers-reduced-motion: reduce) {
+    * {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
 
-  .app-skeleton,
-  .app-skeleton-invert {
-    animation: none !important;
-  }
+    .trend-card-sparkline-path,
+    .trend-card-shine,
+    .trend-card-top-bar,
+    .trend-card-pulse-dot,
+    .trend-card-refresh {
+      animation: none !important;
+    }
 
-  .trend-card-bar {
-    transition-duration: 0ms !important;
-    transition-delay: 0ms !important;
+    .page-shell-enter,
+    .page-shell-enter > *,
+    .overlay-enter,
+    .panel-enter-right,
+    .modal-enter,
+    .popover-enter {
+      animation: none !important;
+    }
+
+    .app-skeleton,
+    .app-skeleton-invert {
+      animation: none !important;
+    }
+
+    .trend-card-bar {
+      transition-duration: 0ms !important;
+      transition-delay: 0ms !important;
+    }
   }
 }
 
@@ -333,332 +722,6 @@ a:focus-visible,
   :root[data-theme-editor-shadows="off"] *::after {
     box-shadow: none !important;
     text-shadow: none !important;
-  }
-
-  .app-skeleton {
-    background:
-      linear-gradient(
-        90deg,
-        color-mix(in srgb, var(--color-bg-subtle) 78%, transparent) 0%,
-        color-mix(in srgb, var(--color-bg-elevated) 94%, transparent) 50%,
-        color-mix(in srgb, var(--color-bg-subtle) 78%, transparent) 100%
-      );
-    background-size: 200% 100%;
-    animation: shimmer 1.5s infinite linear;
-  }
-
-  /* Same shimmer, inverted for placement on dark ink surfaces (e.g. ModuleHero). */
-  .app-skeleton-invert {
-    background:
-      linear-gradient(
-        90deg,
-        rgba(255, 255, 255, 0.06) 0%,
-        rgba(255, 255, 255, 0.16) 50%,
-        rgba(255, 255, 255, 0.06) 100%
-      );
-    background-size: 200% 100%;
-    animation: shimmer 1.5s infinite linear;
-  }
-
-  /*
-   * A row of module panels. The mockup lays each row out with an explicit column
-   * template ("1.55fr 1fr"); that ratio is carried in --panel-cols and only takes
-   * effect once there is room for it, so narrow screens stack instead.
-   */
-  .panel-row {
-    grid-template-columns: 1fr;
-    min-width: 0;
-  }
-
-  /*
-   * Grid children default to min-width:auto, so a panel holding a wide table
-   * would otherwise force the whole page grid out to that table's min width and
-   * stretch every other panel to match.
-   */
-  .panel-row > * {
-    min-width: 0;
-  }
-
-  @media (min-width: 1024px) {
-    .panel-row {
-      grid-template-columns: var(--panel-cols, 1fr);
-    }
-  }
-
-  /*
-   * A KPI strip. The mockup states how many cards go across (`per`), so that
-   * count is honoured once there is room and steps down on narrower screens
-   * rather than being left to auto-fit.
-   */
-  .kpi-row {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  @media (min-width: 768px) {
-    .kpi-row {
-      grid-template-columns: repeat(3, minmax(0, 1fr));
-    }
-  }
-
-  @media (min-width: 1280px) {
-    .kpi-row {
-      grid-template-columns: repeat(var(--kpi-per, 4), minmax(0, 1fr));
-    }
-  }
-
-  /*
-   * A tile grid. The mockup states how many go across; below lg they stack so a
-   * tile never gets narrower than its icon plus two words.
-   */
-  .tile-grid {
-    grid-template-columns: 1fr;
-  }
-
-  @media (min-width: 1024px) {
-    .tile-grid {
-      grid-template-columns: repeat(var(--tile-per, 2), minmax(0, 1fr));
-    }
-  }
-
-  .surface-card {
-    @apply rounded-[14px] border;
-    border-color: var(--color-border-default);
-    background:
-      linear-gradient(180deg, color-mix(in srgb, var(--color-bg-surface) 98%, transparent), color-mix(in srgb, var(--color-bg-elevated) 96%, transparent));
-    box-shadow: var(--shadow-sm);
-  }
-
-  /* The Back Office's cards are flat: white, a hairline border, no shadow. */
-  [data-portal="super_admin"] .surface-card {
-    background: var(--color-bg-surface);
-    box-shadow: none;
-  }
-
-  .surface-hero {
-    @apply overflow-hidden rounded-[var(--radius-hero)] border;
-    border-color: var(--color-border-default);
-    background:
-      linear-gradient(135deg, color-mix(in srgb, var(--color-bg-surface) 96%, transparent), color-mix(in srgb, var(--color-bg-subtle) 98%, transparent));
-    box-shadow: var(--shadow-sm);
-  }
-
-  .section-eyebrow {
-    @apply text-[10.5px] font-semibold uppercase tracking-[0.14em];
-    color: var(--color-text-muted);
-  }
-
-  .portal-page {
-    @apply mx-auto grid w-full max-w-[1480px] gap-5;
-  }
-
-  .portal-hero {
-    @apply surface-hero px-5 py-5 md:px-6 md:py-6;
-  }
-
-  .portal-hero-grid {
-    @apply grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(280px,0.36fr)] lg:items-end;
-  }
-
-  .portal-title {
-    @apply font-[var(--font-heading)] text-[26px] font-extrabold leading-tight tracking-tight md:text-[32px];
-    color: var(--color-text-primary);
-  }
-
-  .portal-copy {
-    @apply max-w-3xl text-[13px] leading-6 md:text-[13.5px];
-    color: var(--color-text-secondary);
-  }
-
-  .portal-panel {
-    @apply surface-card p-5 md:p-6;
-  }
-
-  .portal-panel-header {
-    @apply flex flex-col gap-2 md:flex-row md:items-start md:justify-between;
-  }
-
-  .portal-stat {
-    @apply surface-card relative overflow-hidden p-4 transition-all duration-150 hover:border-[var(--color-border-strong)];
-  }
-
-  .portal-stat-label {
-    @apply text-[10.5px] font-semibold uppercase tracking-[0.14em];
-    color: var(--color-text-muted);
-  }
-
-  .portal-stat-value {
-    @apply mt-2 font-[var(--font-heading)] text-[24px] font-extrabold leading-none tracking-tight;
-    color: var(--color-text-primary);
-  }
-
-  .portal-stat-note {
-    @apply mt-2 text-[12px] leading-5;
-    color: var(--color-text-secondary);
-  }
-
-  .portal-action-tile {
-    @apply rounded-[12px] border px-4 py-3 transition-all duration-150;
-    border-color: var(--color-border-default);
-    background: var(--color-bg-surface);
-    color: var(--color-text-primary);
-  }
-
-  .portal-action-tile:hover {
-    border-color: var(--color-border-strong);
-    background: var(--color-accent-primary-dim);
-    color: var(--color-text-primary);
-  }
-
-  .portal-muted-tile {
-    @apply rounded-[12px] border px-4 py-3;
-    border-color: var(--color-border-default);
-    background: var(--color-bg-subtle);
-  }
-
-  /* Primary buttons use the same ink-green as the sidebar (the mockup's
-     brand color), hovering to the standard teal accent. */
-  .btn-primary {
-    @apply inline-flex items-center justify-center gap-2 rounded-[10px] border px-4 text-[13px] font-semibold transition-all duration-150 disabled:cursor-not-allowed disabled:opacity-60;
-    height: 40px;
-    color: #ffffff;
-    border-color: #0d2315;
-    background: #0d2315;
-    box-shadow: none;
-  }
-
-  .btn-primary:hover {
-    background: #12796a;
-    border-color: #12796a;
-  }
-
-  .btn-secondary {
-    @apply inline-flex items-center justify-center gap-2 rounded-[10px] border px-4 text-[13px] font-semibold transition-all duration-150;
-    height: 40px;
-    color: var(--color-text-primary);
-    border-color: var(--color-border-default);
-    background: var(--color-bg-surface);
-  }
-
-  .btn-secondary:hover {
-    color: var(--color-text-accent);
-    border-color: var(--color-accent-primary);
-    background: var(--color-accent-primary-dim);
-  }
-
-  .btn-destructive {
-    @apply inline-flex items-center justify-center gap-2 rounded-[10px] border px-4 text-[13px] font-semibold text-white transition-all duration-150 disabled:cursor-not-allowed disabled:opacity-60;
-    height: 40px;
-    border-color: var(--color-danger);
-    background: var(--color-danger);
-  }
-
-  .btn-destructive:hover {
-    filter: brightness(0.94);
-  }
-
-  .btn-ghost {
-    @apply inline-flex items-center justify-center gap-2 rounded-[10px] px-4 text-[13px] font-semibold transition-all duration-150;
-    height: 40px;
-    color: var(--color-text-secondary);
-    background: transparent;
-  }
-
-  .btn-ghost:hover {
-    background: var(--color-bg-elevated);
-    color: var(--color-text-primary);
-  }
-
-  .btn-link {
-    @apply inline-flex items-center gap-1.5 text-[13px] font-semibold transition-colors duration-150;
-    color: var(--color-text-accent);
-  }
-
-  .btn-link:hover {
-    color: var(--color-accent-primary-hover);
-    text-decoration: underline;
-    text-underline-offset: 2px;
-  }
-
-  .icon-btn {
-    @apply inline-flex items-center justify-center rounded-xl border transition-all duration-150;
-    height: 36px;
-    width: 36px;
-    color: var(--color-text-secondary);
-    background: var(--color-bg-elevated);
-    border-color: var(--color-border-default);
-  }
-
-  .icon-btn:hover {
-    background: var(--color-bg-overlay);
-    color: var(--color-text-accent);
-    border-color: var(--color-accent-primary);
-  }
-
-  .field-label {
-    @apply mb-1.5 block text-[12px] font-semibold uppercase tracking-[0.18em];
-    color: var(--color-text-secondary);
-  }
-
-  .field-control {
-    @apply w-full rounded-[10px] border px-4 text-[13px] font-medium outline-none transition-all duration-150;
-    min-height: 44px;
-    color: var(--color-text-primary);
-    background: var(--color-bg-subtle);
-    border-color: var(--color-border-default);
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.02);
-  }
-
-  .field-control:hover {
-    border-color: var(--color-border-strong);
-  }
-
-  .field-control:focus {
-    background: var(--color-bg-surface);
-    border-color: var(--color-border-focus);
-    box-shadow: 0 0 0 3px var(--color-accent-primary-dim);
-  }
-
-  .field-control:disabled {
-    background: var(--color-bg-elevated);
-    color: var(--color-text-muted);
-    cursor: not-allowed;
-  }
-
-  .field-textarea {
-    @apply field-control py-3;
-    min-height: 96px;
-    resize: vertical;
-  }
-
-  .field-select {
-    @apply field-control appearance-none pr-10;
-  }
-
-  .empty-state {
-    @apply flex flex-col items-center justify-center rounded-2xl border border-dashed px-6 py-10 text-center;
-    border-color: var(--color-border-strong);
-    background: linear-gradient(180deg, color-mix(in srgb, var(--color-bg-surface) 96%, transparent), color-mix(in srgb, var(--color-bg-elevated) 86%, transparent));
-  }
-
-  .skeleton-line,
-  .skeleton-block {
-    background: linear-gradient(
-      90deg,
-      var(--color-bg-elevated) 0%,
-      var(--color-bg-overlay) 50%,
-      var(--color-bg-elevated) 100%
-    );
-    background-size: 200% 100%;
-    animation: shimmer 1.5s infinite linear;
-  }
-
-  .skeleton-line {
-    @apply rounded-md;
-    height: 12px;
-  }
-
-  .skeleton-block {
-    @apply rounded-2xl;
   }
 }
 /* Sidebar scrollbar: hidden until hover */

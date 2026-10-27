@@ -97,7 +97,7 @@ export function ImpersonateUserDialog({ userId, userName }: ImpersonateUserDialo
       >
         <div className="grid gap-5">
           <label className="grid gap-2">
-            <span className="text-[11px] font-bold uppercase tracking-[0.12em] text-[var(--color-text-muted)]">Reason for impersonation</span>
+            <span className="text-[11px] font-bold uppercase tracking-[0.12em] text-(--color-text-muted)">Reason for impersonation</span>
             <textarea
               required
               value={reason}
@@ -111,18 +111,18 @@ export function ImpersonateUserDialog({ userId, userName }: ImpersonateUserDialo
           </label>
 
           <label className="grid gap-2">
-            <span className="text-[11px] font-bold uppercase tracking-[0.12em] text-[var(--color-text-muted)]">School approval to act (optional)</span>
+            <span className="text-[11px] font-bold uppercase tracking-[0.12em] text-(--color-text-muted)">School approval to act (optional)</span>
             <input value={elevationId} onChange={(event) => { setElevationId(event.target.value); setConfirming(false); }} className="field-control" placeholder="Approval reference from Users → Support Access — leave empty for a read-only session" />
           </label>
 
           {confirming ? (
-            <div className="rounded-[11px] border border-[var(--color-warning-dim)] bg-[var(--color-warning-dim)] px-4 py-3 text-[11.5px] font-semibold text-[var(--color-warning)]">
+            <div className="rounded-[11px] border border-(--color-warning-dim) bg-(--color-warning-dim) px-4 py-3 text-[11.5px] font-semibold text-(--color-warning)">
               This creates a time-boxed, fully-logged session — read-only unless you entered a school approval — and tells the school's leadership it has begun.
             </div>
           ) : null}
 
           {error ? (
-            <div className="rounded-[11px] border border-[var(--color-danger-dim)] bg-[var(--color-danger-dim)] px-4 py-3 text-[11.5px] font-semibold text-[var(--color-danger)]">
+            <div className="rounded-[11px] border border-(--color-danger-dim) bg-(--color-danger-dim) px-4 py-3 text-[11.5px] font-semibold text-danger">
               {error}
             </div>
           ) : null}

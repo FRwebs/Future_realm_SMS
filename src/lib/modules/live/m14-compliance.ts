@@ -74,7 +74,7 @@ export function complianceTab(c: Compliance): TabContent {
       {
         type: "facts", title: "How a return is produced here", tuck: "How a return is produced", sub: "The same for every body.", per: 1,
         facts: [
-          ["Built from", "Live data at the moment you generate it", "Never a cached or rounded figure"],
+          ["Built from", "Live data at the moment you generate it", "Never a cached or rounded-sm figure"],
           ["Format", "A file you can open in a spreadsheet", "Upload it to the body's portal or template"],
           ["Validation", "Run before anything is produced", "A return with a gap tells you rather than filing short"],
           ["Archived", "Every generated copy is kept", "With who generated it and when"],

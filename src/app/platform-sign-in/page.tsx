@@ -87,7 +87,7 @@ export default async function PlatformSignInPage() {
         <div>
           <div className="mb-10 flex items-center gap-[11px] md:mb-[57.5px]">
             <span
-              className="font-[family-name:var(--font-heading)] text-[17px] font-extrabold tracking-[-0.02em] text-white"
+              className="font-(family-name:--font-heading) text-[17px] font-extrabold tracking-[-0.02em] text-white"
             >
               FutureRealm
             </span>
@@ -101,7 +101,7 @@ export default async function PlatformSignInPage() {
           </div>
 
           <h1
-            className="max-w-[432px] font-[family-name:var(--font-heading)] text-[28px] font-bold leading-[1.18] tracking-[-0.015em] text-white md:text-[34px]"
+            className="max-w-[432px] font-(family-name:--font-heading) text-[28px] font-bold leading-[1.18] tracking-[-0.015em] text-white md:text-[34px]"
           >
             The control center behind every school on the platform.
           </h1>
@@ -120,7 +120,7 @@ export default async function PlatformSignInPage() {
                 className="rounded-[13px] px-[14.5px] py-[13.5px]"
                 style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.13)" }}
               >
-                <div className="font-[family-name:var(--font-heading)] text-[20px] font-bold leading-none text-white">
+                <div className="font-(family-name:--font-heading) text-[20px] font-bold leading-none text-white">
                   {stat.value}
                 </div>
                 <div className="mt-[5.5px] text-[10px]" style={{ color: "rgba(255,255,255,0.6)" }}>

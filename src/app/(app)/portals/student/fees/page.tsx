@@ -21,12 +21,12 @@ export default async function StudentFeesPage() {
   return (
     <div className="portal-page">
       <section className="surface-hero p-6 md:p-7">
-        <Link href="/portals/student" className="text-[13px] font-semibold text-[var(--color-text-accent)]">Back to student portal</Link>
-        <h1 className="mt-3 font-[var(--font-heading)] text-[26px] font-black text-[var(--color-text-primary)]">My fees</h1>
-        <p className="mt-2 text-[13px] leading-6 text-[var(--color-text-secondary)]">
+        <Link href="/portals/student" className="text-[13px] font-semibold text-(--color-text-accent)">Back to student portal</Link>
+        <h1 className="mt-3 font-(--font-heading) text-[26px] font-black text-(--color-text-primary)">My fees</h1>
+        <p className="mt-2 text-[13px] leading-6 text-(--color-text-secondary)">
           Read-only invoice and payment summary. Financial edits are restricted to the bursary/accounting team.
         </p>
-        <p className="mt-5 font-[var(--font-heading)] text-[24px] font-bold text-[var(--color-text-primary)]">{formatCurrency(outstanding)} outstanding</p>
+        <p className="mt-5 font-(--font-heading) text-[24px] font-bold text-(--color-text-primary)">{formatCurrency(outstanding)} outstanding</p>
       </section>
 
       <TableCard
@@ -43,18 +43,18 @@ export default async function StudentFeesPage() {
       />
 
       <section className="surface-card p-6">
-        <h2 className="font-[var(--font-heading)] text-[18px] font-bold text-[var(--color-text-primary)]">Payment history</h2>
+        <h2 className="font-(--font-heading) text-[18px] font-bold text-(--color-text-primary)">Payment history</h2>
         <div className="mt-5 grid gap-3">
           {fees.flatMap((invoice) => invoice.payments ?? []).map((payment) => (
-            <article key={payment.id} className="rounded-[10px] bg-[var(--color-bg-subtle)] p-4 text-[13px] text-[var(--color-text-secondary)]">
-              <p className="font-semibold text-[var(--color-text-primary)]">{payment.reference}</p>
+            <article key={payment.id} className="rounded-[10px] bg-(--color-bg-subtle) p-4 text-[13px] text-(--color-text-secondary)">
+              <p className="font-semibold text-(--color-text-primary)">{payment.reference}</p>
               <p>{formatCurrency(payment.amount)} · {payment.method} · {payment.status}</p>
               {payment.receiptNumber ? <p>Receipt: {payment.receiptNumber}</p> : null}
               <p>{payment.paidAt ? formatDate(payment.paidAt) : "Pending confirmation"}</p>
             </article>
           ))}
           {fees.flatMap((invoice) => invoice.payments ?? []).length === 0 ? (
-            <p className="text-[13px] text-[var(--color-text-secondary)]">No payment records are visible yet.</p>
+            <p className="text-[13px] text-(--color-text-secondary)">No payment records are visible yet.</p>
           ) : null}
         </div>
       </section>

@@ -64,7 +64,7 @@ export function BrandingPreview({ branding }: { branding: Branding }) {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="text-[11.5px] font-semibold text-[var(--color-text-accent)] hover:underline"
+        className="text-[11.5px] font-semibold text-(--color-text-accent) hover:underline"
       >
         Preview
       </button>
@@ -77,7 +77,7 @@ export function BrandingPreview({ branding }: { branding: Branding }) {
         size="report"
         footer={
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-[14.5px]">
-            <p className="max-w-[378px] text-pretty text-[10.5px] leading-[1.5] text-[#5f6e65]">
+            <p className="max-w-[378px] text-pretty text-[10.5px] leading-normal text-[#5f6e65]">
               A preview is a drawing, not a check. It cannot tell you whether the logo file loads for a parent on a slow
               connection, or whether the school owns the mark.
             </p>
@@ -102,7 +102,7 @@ export function BrandingPreview({ branding }: { branding: Branding }) {
             <div className="overflow-hidden rounded-[11px] border border-[#DEE8E2]">
               <div className="flex items-center gap-[13px] px-[16px] py-[14px]" style={{ background: primary }}>
                 {branding.logoUrl ? (
-                  // eslint-disable-next-line @next/next/no-img-element
+                   
                   <img src={branding.logoUrl} alt="" className="h-[34px] w-[34px] flex-none rounded-[7px] bg-white/90 object-contain" />
                 ) : (
                   <div className="flex h-[34px] w-[34px] flex-none items-center justify-center rounded-[7px] bg-white/20 text-[12px] font-bold text-white">
@@ -110,7 +110,7 @@ export function BrandingPreview({ branding }: { branding: Branding }) {
                   </div>
                 )}
                 <div className="min-w-0">
-                  <p className="truncate font-[var(--font-heading)] text-[14px] font-extrabold text-white">{branding.schoolName}</p>
+                  <p className="truncate font-(--font-heading) text-[14px] font-extrabold text-white">{branding.schoolName}</p>
                   <p className="text-[10px] text-white/70">Report Card · {SAMPLE.term}</p>
                 </div>
                 <span className="ml-auto flex-none rounded-full px-[9px] py-[3px] text-[9.5px] font-bold text-white" style={{ background: secondary }}>
@@ -126,7 +126,7 @@ export function BrandingPreview({ branding }: { branding: Branding }) {
                       {["Subject", "CA", "Exam", "Total", "Grade"].map((head) => (
                         <th
                           key={head}
-                          className="border-b border-[#EDF3EF] px-[7px] py-[6px] text-left text-[9px] font-bold uppercase tracking-[0.05em]"
+                          className="border-b border-[#EDF3EF] px-[7px] py-[6px] text-left text-[9px] font-bold uppercase tracking-wider"
                           style={{ color: primary }}
                         >
                           {head}
@@ -164,7 +164,7 @@ export function BrandingPreview({ branding }: { branding: Branding }) {
             <div className="overflow-hidden rounded-[11px] border border-[#DEE8E2]">
               <div className="flex items-center gap-[11px] px-[16px] py-[11px]" style={{ background: primary }}>
                 {branding.logoUrl ? (
-                  // eslint-disable-next-line @next/next/no-img-element
+                   
                   <img src={branding.logoUrl} alt="" className="h-[22px] w-[22px] flex-none rounded-[5px] bg-white/90 object-contain" />
                 ) : (
                   <div className="h-[22px] w-[22px] flex-none rounded-[5px] bg-white/20" />
@@ -196,7 +196,7 @@ export function BrandingPreview({ branding }: { branding: Branding }) {
             ].map(([label, value]) => (
               <div key={label} className="flex items-start gap-[11px] py-[6.5px]">
                 <div className="min-w-[171px] flex-none text-pretty text-[11.5px] font-semibold text-[#0D2315]">{label}</div>
-                <div className="text-pretty text-[11px] leading-[1.5] text-[#5D6B63]">{value}</div>
+                <div className="text-pretty text-[11px] leading-normal text-[#5D6B63]">{value}</div>
               </div>
             ))}
           </section>

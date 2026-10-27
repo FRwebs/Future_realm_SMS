@@ -130,10 +130,10 @@ function UptimeTab({ data }: { data: SuperAdminInfraMonitoring }) {
         getRowKey={(row) => row.metric}
         columns={[
           { key: "metric", header: "Metric", render: (row) => row.metric },
-          { key: "current", header: "Current", render: (row) => <span className="font-bold text-[var(--color-text-primary)]">{row.current}</span> },
-          { key: "warning", header: "Warning", render: (row) => <span className="text-[var(--color-text-muted)]">{row.warning}</span> },
-          { key: "critical", header: "Critical", render: (row) => <span className="text-[var(--color-text-muted)]">{row.critical}</span> },
-          { key: "action", header: "Action on breach", render: (row) => <span className="text-[11px] text-[var(--color-text-secondary)]">{row.action}</span> },
+          { key: "current", header: "Current", render: (row) => <span className="font-bold text-(--color-text-primary)">{row.current}</span> },
+          { key: "warning", header: "Warning", render: (row) => <span className="text-(--color-text-muted)">{row.warning}</span> },
+          { key: "critical", header: "Critical", render: (row) => <span className="text-(--color-text-muted)">{row.critical}</span> },
+          { key: "action", header: "Action on breach", render: (row) => <span className="text-[11px] text-(--color-text-secondary)">{row.action}</span> },
           { key: "status", header: "Status", render: (row) => <StatusBadge status={row.status} tone={statusTone(row.status)} /> }
         ]}
         footnote="CPU is the one-minute load average over core count; DB time is a live round-trip; page load comes from a beacon each browser sends after a page finishes loading. None of it is a load-test ceiling — it is what the platform is doing now."
@@ -164,8 +164,8 @@ function SyncQueueTab({ data }: { data: SuperAdminInfraMonitoring }) {
             { key: "school", header: "School", render: (row) => row.schoolName },
             { key: "queued", header: "Queued", render: (row) => row.queued },
             { key: "oldest", header: "Oldest record", render: (row) => `${row.oldestAgeHours}h` },
-            { key: "refused", header: "Refused", render: (row) => (row.refused ? <span className="font-semibold text-[var(--color-danger)]">{row.refused}</span> : 0) },
-            { key: "conflicts", header: "Conflicts", render: (row) => (row.conflicts ? <span className="font-semibold text-[var(--color-warning)]">{row.conflicts}</span> : 0) },
+            { key: "refused", header: "Refused", render: (row) => (row.refused ? <span className="font-semibold text-danger">{row.refused}</span> : 0) },
+            { key: "conflicts", header: "Conflicts", render: (row) => (row.conflicts ? <span className="font-semibold text-(--color-warning)">{row.conflicts}</span> : 0) },
             { key: "status", header: "Status", render: (row) => <StatusBadge status={row.status} tone={statusTone(row.status)} /> }
           ]}
           footnote="A queue age above 2 hours means a group of schools has been offline for an extended period — they may need proactive outreach rather than a server fix. Refused means the server turned an entry down (for example a closed register); a conflict means the school already holds a different value and someone must choose."
@@ -181,9 +181,9 @@ function SyncQueueTab({ data }: { data: SuperAdminInfraMonitoring }) {
           ]}
           getRowKey={(row) => row.metric}
           columns={[
-            { key: "metric", header: "Metric", render: (row) => <span className="text-[var(--color-text-secondary)]">{row.metric}</span> },
-            { key: "warning", header: "Warning", render: (row) => <span className="text-[var(--color-text-muted)]">{row.warning}</span> },
-            { key: "critical", header: "Critical", render: (row) => <span className="text-[var(--color-text-muted)]">{row.critical}</span> }
+            { key: "metric", header: "Metric", render: (row) => <span className="text-(--color-text-secondary)">{row.metric}</span> },
+            { key: "warning", header: "Warning", render: (row) => <span className="text-(--color-text-muted)">{row.warning}</span> },
+            { key: "critical", header: "Critical", render: (row) => <span className="text-(--color-text-muted)">{row.critical}</span> }
           ]}
         />
       </div>
@@ -209,8 +209,8 @@ async function DeliveryTab({ data }: { data: SuperAdminInfraMonitoring }) {
         description="Infrastructure-level, distinct from Communications' campaign tracking — this answers whether the send actually went through, not whether the message resonated. Failure rate is failed ÷ attempted over the last 30 days; messages still waiting, or simulated before delivery was real, are not counted as either."
         items={data.deliveryHealth}
         columns={[
-          { key: "channel", header: "Channel", render: (item) => <span className="font-semibold text-[var(--color-text-primary)]">{item.channel}</span> },
-          { key: "total", header: "Messages", render: (item) => <div><p>{item.total}</p><p className="text-[10px] text-[var(--color-text-muted)]">{item.sent ?? 0} sent · {item.failed ?? 0} failed · {item.queued ?? 0} waiting{item.simulated ? ` · ${item.simulated} simulated` : ""}</p></div> },
+          { key: "channel", header: "Channel", render: (item) => <span className="font-semibold text-(--color-text-primary)">{item.channel}</span> },
+          { key: "total", header: "Messages", render: (item) => <div><p>{item.total}</p><p className="text-[10px] text-(--color-text-muted)">{item.sent ?? 0} sent · {item.failed ?? 0} failed · {item.queued ?? 0} waiting{item.simulated ? ` · ${item.simulated} simulated` : ""}</p></div> },
           { key: "failure", header: "Failure rate", render: (item) => `${item.failureRate}%` },
           { key: "warning", header: "Warning", render: (item) => thresholds[item.channel]?.warning ?? "—" },
           { key: "critical", header: "Critical", render: (item) => thresholds[item.channel]?.critical ?? "—" },
@@ -219,7 +219,7 @@ async function DeliveryTab({ data }: { data: SuperAdminInfraMonitoring }) {
             header: "Top failure reason",
             render: (item) => {
               const top = topReason(item.channel);
-              return top ? <span className="text-[11.5px] text-[var(--color-text-secondary)]">{top.reason} <span className="text-[var(--color-text-muted)]">({top.count})</span></span> : <span className="text-[var(--color-text-muted)]">None recorded</span>;
+              return top ? <span className="text-[11.5px] text-(--color-text-secondary)">{top.reason} <span className="text-(--color-text-muted)">({top.count})</span></span> : <span className="text-(--color-text-muted)">None recorded</span>;
             }
           },
           { key: "status", header: "Status", render: (item) => <StatusBadge status={item.status} tone={statusTone(item.status)} /> }
@@ -233,7 +233,7 @@ async function DeliveryTab({ data }: { data: SuperAdminInfraMonitoring }) {
         items={failures?.reasons ?? []}
         getRowKey={(row) => `${row.channel}:${row.reason}`}
         columns={[
-          { key: "reason", header: "Reason", render: (row) => <span className="text-[var(--color-text-primary)]">{row.reason}</span> },
+          { key: "reason", header: "Reason", render: (row) => <span className="text-(--color-text-primary)">{row.reason}</span> },
           { key: "channel", header: "Channel", render: (row) => row.channel },
           { key: "count", header: "Messages", render: (row) => row.count },
           { key: "share", header: "Share of failures", render: (row) => (failures?.failed ? `${Math.round((row.count / failures.failed) * 100)}%` : "-") }
@@ -247,10 +247,10 @@ async function DeliveryTab({ data }: { data: SuperAdminInfraMonitoring }) {
         description="Health of the external providers the delivery pipeline depends on — checked live, on this page load, from environment configuration and the delivery figures above."
         items={data.integrations}
         columns={[
-          { key: "name", header: "Integration", render: (item) => <span className="font-semibold text-[var(--color-text-primary)]">{item.name}</span> },
+          { key: "name", header: "Integration", render: (item) => <span className="font-semibold text-(--color-text-primary)">{item.name}</span> },
           { key: "freq", header: "Check", render: (item) => item.checkFrequency },
           { key: "last", header: "Last checked", render: () => "Just now — this page load" },
-          { key: "onfail", header: "On failure", render: (item) => <span className="text-[11.5px] text-[var(--color-text-secondary)]">{item.onFailure}</span> },
+          { key: "onfail", header: "On failure", render: (item) => <span className="text-[11.5px] text-(--color-text-secondary)">{item.onFailure}</span> },
           { key: "status", header: "Status", render: (item) => <StatusBadge status={item.status} tone={statusTone(item.status)} /> }
         ]}
       />
@@ -289,7 +289,7 @@ async function ComputationTab() {
         items={comp?.bySchool ?? []}
         getRowKey={(row) => row.school}
         columns={[
-          { key: "school", header: "School", render: (row) => <span className="font-semibold text-[var(--color-text-primary)]">{row.school}</span> },
+          { key: "school", header: "School", render: (row) => <span className="font-semibold text-(--color-text-primary)">{row.school}</span> },
           { key: "runs", header: "Runs", render: (row) => row.runs },
           { key: "records", header: "Records", render: (row) => row.records.toLocaleString() },
           { key: "duration", header: "Duration (median)", render: (row) => (row.medianMs == null ? "-" : row.medianMs >= 1000 ? `${(row.medianMs / 1000).toFixed(1)}s` : `${row.medianMs}ms`) },
@@ -308,7 +308,7 @@ async function ComputationTab() {
           columns={[
             { key: "school", header: "School", render: (row) => row.school },
             { key: "section", header: "Assessment section", render: (row) => row.section },
-            { key: "total", header: "Weights total", render: (row) => <span className="font-bold text-[var(--color-danger)]">{row.total}</span> }
+            { key: "total", header: "Weights total", render: (row) => <span className="font-bold text-danger">{row.total}</span> }
           ]}
           footnote="Results for these sections cannot be trusted until the weights are corrected to total 100."
         />
@@ -340,8 +340,8 @@ async function ComputationTab() {
           />
         }
         columns={[
-          { key: "school", header: "School", render: (row) => <span className="font-semibold text-[var(--color-text-primary)]">{row.school}</span> },
-          { key: "reason", header: "Reason", render: (row) => <span className="text-[var(--color-text-secondary)]">{row.reason}</span> },
+          { key: "school", header: "School", render: (row) => <span className="font-semibold text-(--color-text-primary)">{row.school}</span> },
+          { key: "reason", header: "Reason", render: (row) => <span className="text-(--color-text-secondary)">{row.reason}</span> },
           { key: "at", header: "When", render: (row) => formatDate(row.at) }
         ]}
         footnote={comp?.regression?.failures.length ? `Failing now: ${comp.regression.failures.map((failure) => failure.name).join("; ")}. A failure also opens a High security incident.` : undefined}
@@ -373,10 +373,10 @@ function BackupsTab({ data }: { data: SuperAdminInfraMonitoring }) {
         ]}
         getRowKey={(row) => row.type}
         columns={[
-          { key: "type", header: "Backup type", render: (row) => <span className="font-semibold text-[var(--color-text-primary)]">{row.type}</span> },
+          { key: "type", header: "Backup type", render: (row) => <span className="font-semibold text-(--color-text-primary)">{row.type}</span> },
           { key: "frequency", header: "Frequency", render: (row) => row.frequency },
           { key: "retention", header: "Retention", render: (row) => row.retention },
-          { key: "verification", header: "Verification", render: (row) => <span className="text-[11.5px] text-[var(--color-text-secondary)]">{row.verification}</span> },
+          { key: "verification", header: "Verification", render: (row) => <span className="text-[11.5px] text-(--color-text-secondary)">{row.verification}</span> },
           { key: "last", header: "Last run", render: (row) => row.last }
         ]}
         footnote={`Archives are written to ${backups.region ?? "this server"}. Keeping them on the same machine as the database does not protect against losing that machine — point BACKUP_DIR at separate storage for that.`}
@@ -391,8 +391,8 @@ function BackupsTab({ data }: { data: SuperAdminInfraMonitoring }) {
           { key: "scope", header: "Type", render: (item) => item.scope.replaceAll("_", " ") },
           { key: "school", header: "Target", render: (item) => item.school },
           { key: "size", header: "Size", render: (item) => (item.sizeMb ? `${item.sizeMb} MB` : "-") },
-          { key: "verified", header: "Verified", render: (item) => (item.verified ? <span className="font-semibold text-[var(--color-success)]">{item.restoreTested ? "Restored" : "Read back"}</span> : <span className="text-[var(--color-text-muted)]">No</span>) },
-          { key: "note", header: "Detail", render: (item) => <span className="text-[11px] text-[var(--color-text-secondary)]">{item.note ?? item.reason ?? "-"}</span> },
+          { key: "verified", header: "Verified", render: (item) => (item.verified ? <span className="font-semibold text-(--color-success)">{item.restoreTested ? "Restored" : "Read back"}</span> : <span className="text-(--color-text-muted)">No</span>) },
+          { key: "note", header: "Detail", render: (item) => <span className="text-[11px] text-(--color-text-secondary)">{item.note ?? item.reason ?? "-"}</span> },
           { key: "status", header: "Status", render: (item) => <StatusBadge status={item.status} tone={ok(item.status) ? "success" : "danger"} /> }
         ]}
         emptyState="No backups have been logged yet."
@@ -410,7 +410,7 @@ async function FlagStatusTab() {
       description={
         <>
           Read-only infrastructure view of every flag&apos;s current rollout stage. Manage rollouts from{" "}
-          <Link href="/super-admin/feature-flags?tab=flags" className="font-semibold text-[var(--color-text-accent)] underline">
+          <Link href="/super-admin/feature-flags?tab=flags" className="font-semibold text-(--color-text-accent) underline">
             Feature & Tier Management
           </Link>
           .
@@ -419,7 +419,7 @@ async function FlagStatusTab() {
       items={flags ?? []}
       emptyState="No feature flags have been configured."
       columns={[
-        { key: "name", header: "Flag", render: (item) => <div><p className="font-semibold text-[var(--color-text-primary)]">{item.name}</p><p className="text-xs text-[var(--color-text-muted)]">{item.key}</p></div> },
+        { key: "name", header: "Flag", render: (item) => <div><p className="font-semibold text-(--color-text-primary)">{item.name}</p><p className="text-xs text-(--color-text-muted)">{item.key}</p></div> },
         { key: "rollout", header: "Rollout", render: (item) => <StatusBadge status={item.rolloutStatus} tone={item.rolloutStatus === "FULL" ? "success" : item.rolloutStatus === "OFF" ? "neutral" : "warning"} /> },
         { key: "pct", header: "Percent", render: (item) => `${item.rolloutPercent}%` },
         { key: "pilot", header: "Pilot schools", render: (item) => item.pilotSchoolCount },

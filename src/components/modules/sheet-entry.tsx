@@ -17,7 +17,7 @@ import { INK, MUTED, toneOf } from "@/lib/modules/tones";
  */
 
 const PER = 15;
-const SHELL = "min-w-0 overflow-hidden rounded-[14px] border bg-[var(--color-bg-surface)] px-[18px] pb-[12px]";
+const SHELL = "min-w-0 overflow-hidden rounded-[14px] border bg-(--color-bg-surface) px-[18px] pb-[12px]";
 
 type Cells = Record<string, Record<string, string>>;
 
@@ -180,14 +180,14 @@ export function SheetEntry({ panel, openDrawer }: { panel: SheetEntryPanel; open
       ) : null}
 
       <section className={SHELL} style={{ borderColor: "#DEE8E2" }} aria-label={`Score grid · ${panel.subject}, ${panel.arm}`}>
-        <div className="-mx-[18px] flex flex-wrap items-start justify-between gap-[14px] border-b px-[18px] pb-[12px] pt-[14px]" style={{ borderColor: "#EDF3EF" }}>
+        <div className="mx-[-18px] flex flex-wrap items-start justify-between gap-[14px] border-b px-[18px] pb-[12px] pt-[14px]" style={{ borderColor: "#EDF3EF" }}>
           <div className="min-w-0 flex-[1_1_260px]">
             <h3 className="text-[12.5px] font-semibold" style={{ color: INK }}>Score grid · {panel.subject}, {panel.arm}</h3>
-            <p className="mt-[3.5px] text-[10.5px] leading-[1.5]" style={{ color: MUTED }}>Every column head carries its maximum. Type a mark, or A for absent.</p>
+            <p className="mt-[3.5px] text-[10.5px] leading-normal" style={{ color: MUTED }}>Every column head carries its maximum. Type a mark, or A for absent.</p>
           </div>
           <p className="text-right text-[10.5px] leading-[1.45]" style={{ color: MUTED }}>{panel.rows.length} children · {panel.status}</p>
         </div>
-        <div className="-mx-[18px] flex flex-wrap items-center gap-[8px] border-b px-[18px] py-[10px]" style={{ borderColor: "#EDF3EF", background: "#FAFCFB" }}>
+        <div className="mx-[-18px] flex flex-wrap items-center gap-[8px] border-b px-[18px] py-[10px]" style={{ borderColor: "#EDF3EF", background: "#FAFCFB" }}>
           <input value={query} onChange={(event) => { setQuery(event.target.value); setPage(0); }} placeholder="Find a child by name or admission number" aria-label="Find a child" className="min-w-[200px] flex-1 rounded-[9px] border bg-white px-[11px] py-[7px] text-[11.5px]" style={{ borderColor: "#DEE8E2" }} />
           <select value={filter} onChange={(event) => { setFilter(event.target.value); setPage(0); }} aria-label="State" className="rounded-[9px] border bg-white px-[10px] py-[7px] text-[11.5px]" style={{ borderColor: "#DEE8E2" }}>
             {["All", "Scored", "Blank", "Out of range"].map((option) => <option key={option} value={option}>{option === "All" ? "State · All" : option}</option>)}
@@ -196,7 +196,7 @@ export function SheetEntry({ panel, openDrawer }: { panel: SheetEntryPanel; open
           <button type="button" disabled={locked || busy} onClick={preview} className="rounded-[8px] px-[11px] py-[6.5px] text-[10.5px] font-semibold text-white disabled:opacity-50" style={{ background: INK }}>Preview the whole sheet</button>
         </div>
 
-        <div className="-mx-[18px] overflow-x-auto">
+        <div className="mx-[-18px] overflow-x-auto">
           <table className="w-full border-collapse text-left" style={{ minWidth: 520 + panel.columns.length * 74 }}>
             <thead>
               <tr style={{ background: "#F7FAF8" }}>
@@ -255,8 +255,8 @@ export function SheetEntry({ panel, openDrawer }: { panel: SheetEntryPanel; open
           </table>
         </div>
 
-        <div className="-mx-[18px] -mb-[12px] flex flex-wrap items-center justify-between gap-[10px] border-t px-[18px] py-[10px]" style={{ borderColor: "#EDF3EF", background: "#F7FAF8" }}>
-          <p className="max-w-[560px] text-[10.5px] leading-[1.5]" style={{ color: MUTED }}>A = absent, excluded from the average. A blank cell is not a zero — it is a score that has not been entered.</p>
+        <div className="mx-[-18px] mb-[-12px] flex flex-wrap items-center justify-between gap-[10px] border-t px-[18px] py-[10px]" style={{ borderColor: "#EDF3EF", background: "#F7FAF8" }}>
+          <p className="max-w-[560px] text-[10.5px] leading-normal" style={{ color: MUTED }}>A = absent, excluded from the average. A blank cell is not a zero — it is a score that has not been entered.</p>
           <div className="flex flex-wrap items-center gap-[6px]">
             {pages > 1 ? (
               <>

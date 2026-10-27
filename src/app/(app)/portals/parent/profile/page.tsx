@@ -21,21 +21,21 @@ export default async function ParentProfilePage() {
   return (
     <div className="portal-page">
       <section className="surface-hero p-6 md:p-7">
-        <Link href={"/portals/parent" as Route} className="text-[13px] font-semibold text-[var(--color-text-accent)]">Back to parent portal</Link>
-        <h1 className="mt-3 font-[var(--font-heading)] text-[26px] font-black text-[var(--color-text-primary)]">Parent profile</h1>
-        <p className="mt-2 text-[13px] leading-6 text-[var(--color-text-secondary)]">
+        <Link href={"/portals/parent" as Route} className="text-[13px] font-semibold text-(--color-text-accent)">Back to parent portal</Link>
+        <h1 className="mt-3 font-(--font-heading) text-[26px] font-black text-(--color-text-primary)">Parent profile</h1>
+        <p className="mt-2 text-[13px] leading-6 text-(--color-text-secondary)">
           Contact details are read-only unless the school enables profile update requests.
         </p>
       </section>
       <section className="surface-card p-6">
-        <h2 className="font-[var(--font-heading)] text-[18px] font-bold text-[var(--color-text-primary)]">{profile.parentName}</h2>
-        <div className="mt-5 grid gap-3 text-[13px] text-[var(--color-text-secondary)] md:grid-cols-2">
-          <p><span className="font-semibold text-[var(--color-text-primary)]">Relationship:</span> {profile.relationship ?? "Guardian"}</p>
-          <p><span className="font-semibold text-[var(--color-text-primary)]">Phone:</span> {profile.phone ?? "Not recorded"}</p>
-          <p><span className="font-semibold text-[var(--color-text-primary)]">Email:</span> {profile.email ?? "Not recorded"}</p>
-          <p><span className="font-semibold text-[var(--color-text-primary)]">Address:</span> {profile.address ?? "Not recorded"}</p>
-          <p><span className="font-semibold text-[var(--color-text-primary)]">SMS enabled:</span> {profile.canReceiveSms ? "Yes" : "No"}</p>
-          <p><span className="font-semibold text-[var(--color-text-primary)]">Email enabled:</span> {profile.canReceiveEmail ? "Yes" : "No"}</p>
+        <h2 className="font-(--font-heading) text-[18px] font-bold text-(--color-text-primary)">{profile.parentName}</h2>
+        <div className="mt-5 grid gap-3 text-[13px] text-(--color-text-secondary) md:grid-cols-2">
+          <p><span className="font-semibold text-(--color-text-primary)">Relationship:</span> {profile.relationship ?? "Guardian"}</p>
+          <p><span className="font-semibold text-(--color-text-primary)">Phone:</span> {profile.phone ?? "Not recorded"}</p>
+          <p><span className="font-semibold text-(--color-text-primary)">Email:</span> {profile.email ?? "Not recorded"}</p>
+          <p><span className="font-semibold text-(--color-text-primary)">Address:</span> {profile.address ?? "Not recorded"}</p>
+          <p><span className="font-semibold text-(--color-text-primary)">SMS enabled:</span> {profile.canReceiveSms ? "Yes" : "No"}</p>
+          <p><span className="font-semibold text-(--color-text-primary)">Email enabled:</span> {profile.canReceiveEmail ? "Yes" : "No"}</p>
         </div>
       </section>
       <TableCard

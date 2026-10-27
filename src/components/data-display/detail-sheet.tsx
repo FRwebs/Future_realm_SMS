@@ -52,7 +52,7 @@ export function DetailSheet({ open, onClose, eyebrow, title, subtitle, avatarLab
   if (!open || typeof document === "undefined") return null;
 
   return createPortal(
-    <div className="fixed inset-0 z-[var(--z-modal)]">
+    <div className="fixed inset-0 z-(--z-modal)">
       <button type="button" aria-label="Close panel backdrop" onClick={onClose} className="overlay-enter fixed inset-0 bg-[rgba(13,35,21,0.5)]" />
       <div className="pointer-events-none fixed inset-y-0 right-0 flex w-full justify-end">
         <section
@@ -63,19 +63,19 @@ export function DetailSheet({ open, onClose, eyebrow, title, subtitle, avatarLab
           className="panel-enter-right pointer-events-auto relative h-full w-full max-w-[92vw] overflow-y-auto bg-[#F8FAF9] shadow-[-36px_0_81px_-27px_rgba(13,35,21,0.55)]"
           style={{ width }}
         >
-          <div className="sticky top-0 z-[2] bg-[#0D2315] px-[21.5px] py-[18px]">
+          <div className="sticky top-0 z-2 bg-[#0D2315] px-[21.5px] py-[18px]">
             <div className="flex items-start justify-between gap-[14.5px]">
               <div className="flex min-w-0 items-start gap-[11.5px]">
                 {avatarLabel ? (
-                  <div className="flex h-[38px] w-[38px] flex-none items-center justify-center rounded-[12px] bg-white/10 font-[var(--font-heading)] text-[12.5px] font-extrabold text-white">{avatarLabel}</div>
+                  <div className="flex h-[38px] w-[38px] flex-none items-center justify-center rounded-[12px] bg-white/10 font-(--font-heading) text-[12.5px] font-extrabold text-white">{avatarLabel}</div>
                 ) : null}
                 <div className="min-w-0">
                   <p className="text-[9px] font-bold uppercase tracking-[0.13em] text-white/50">{eyebrow}</p>
-                  <h2 className="mt-[4.5px] text-pretty font-[var(--font-heading)] text-[17px] font-extrabold tracking-[-0.017em] text-white">{title}</h2>
-                  {subtitle ? <p className="mt-[4.5px] text-pretty text-[11px] leading-[1.5] text-white/60">{subtitle}</p> : null}
+                  <h2 className="mt-[4.5px] text-pretty font-(--font-heading) text-[17px] font-extrabold tracking-[-0.017em] text-white">{title}</h2>
+                  {subtitle ? <p className="mt-[4.5px] text-pretty text-[11px] leading-normal text-white/60">{subtitle}</p> : null}
                 </div>
               </div>
-              <button type="button" onClick={onClose} className="flex h-[25px] w-[25px] flex-none items-center justify-center rounded-[9px] bg-white/[0.12] transition hover:bg-white/20" aria-label="Close panel">
+              <button type="button" onClick={onClose} className="flex h-[25px] w-[25px] flex-none items-center justify-center rounded-[9px] bg-white/12 transition hover:bg-white/20" aria-label="Close panel">
                 <X className="h-[12.5px] w-[12.5px] text-white" strokeWidth={2.2} />
               </button>
             </div>
@@ -95,7 +95,7 @@ export function DetailSheet({ open, onClose, eyebrow, title, subtitle, avatarLab
 
           <div className="flex flex-col gap-[12.5px] px-[21.5px] pb-[27px] pt-4">
             {children}
-            {footer ? <div className="flex flex-wrap items-center gap-2 rounded-[14px] border border-[#DEE8E2] bg-white px-[14.5px] py-[11.5px] [&>*]:min-w-0 [&_button]:flex-1 [&_button]:justify-center [&_button]:whitespace-nowrap">{footer}</div> : null}
+            {footer ? <div className="flex flex-wrap items-center gap-2 rounded-[14px] border border-[#DEE8E2] bg-white px-[14.5px] py-[11.5px] *:min-w-0 [&_button]:flex-1 [&_button]:justify-center [&_button]:whitespace-nowrap">{footer}</div> : null}
           </div>
         </section>
       </div>
@@ -111,7 +111,7 @@ export function SheetCard({ title, sub, children }: { title?: string; sub?: stri
       {title ? (
         <div className="border-b border-[#EDF3EF] px-[14.5px] pb-[10px] pt-[12.5px]">
           <p className="text-[11.5px] font-semibold text-[#0D2315]">{title}</p>
-          {sub ? <p className="mt-[2.5px] text-pretty text-[10.5px] leading-[1.5] text-[#5f6e65]">{sub}</p> : null}
+          {sub ? <p className="mt-[2.5px] text-pretty text-[10.5px] leading-normal text-[#5f6e65]">{sub}</p> : null}
         </div>
       ) : null}
       {children}

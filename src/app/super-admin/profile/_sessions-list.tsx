@@ -13,7 +13,7 @@ export function SessionsList({ sessions }: { sessions: SuperAdminInternalSession
   const [page, setPage] = useState(1);
 
   if (!sessions.length) {
-    return <p className="px-5 py-4 text-[11px] text-[var(--color-text-secondary)]">No other active sessions.</p>;
+    return <p className="px-5 py-4 text-[11px] text-(--color-text-secondary)">No other active sessions.</p>;
   }
 
   const totalPages = Math.max(1, Math.ceil(sessions.length / PAGE_SIZE));
@@ -22,14 +22,14 @@ export function SessionsList({ sessions }: { sessions: SuperAdminInternalSession
   const rangeStart = (currentPage - 1) * PAGE_SIZE + 1;
   const rangeEnd = Math.min(currentPage * PAGE_SIZE, sessions.length);
   const buttonBase =
-    "flex h-7 w-7 items-center justify-center rounded-full border border-[var(--color-border-default)] text-[var(--color-text-secondary)] transition hover:border-[var(--color-border-strong)] hover:text-[var(--color-text-primary)] disabled:cursor-not-allowed disabled:opacity-40";
+    "flex h-7 w-7 items-center justify-center rounded-full border border-(--color-border-default) text-(--color-text-secondary) transition hover:border-(--color-border-strong) hover:text-(--color-text-primary) disabled:cursor-not-allowed disabled:opacity-40";
 
   return (
     <>
       {pageRows.map((item) => (
         <div key={item.id} className="flex items-center justify-between gap-3.5 border-b border-[#F2F7F4] px-5 py-3">
           <div className="min-w-0">
-            <p className="truncate text-[11.5px] font-semibold text-[var(--color-text-primary)]">{item.device ?? "Unknown device"}</p>
+            <p className="truncate text-[11.5px] font-semibold text-(--color-text-primary)">{item.device ?? "Unknown device"}</p>
             <p className="text-pretty mt-0.5 text-[10px] text-[#5f6e65]">
               {item.ipAddress ?? "Unknown IP"} · expires {formatDate(item.expiresAt)}
             </p>
@@ -51,7 +51,7 @@ export function SessionsList({ sessions }: { sessions: SuperAdminInternalSession
 
       {totalPages > 1 ? (
         <div className="flex items-center justify-between gap-3 border-b border-[#F2F7F4] px-5 py-2.5">
-          <p className="text-[10px] text-[var(--color-text-muted)]">
+          <p className="text-[10px] text-(--color-text-muted)">
             Showing {rangeStart}–{rangeEnd} of {sessions.length}
           </p>
           <div className="flex items-center gap-1.5">
@@ -64,7 +64,7 @@ export function SessionsList({ sessions }: { sessions: SuperAdminInternalSession
             >
               <ChevronLeft className="h-3.5 w-3.5" />
             </button>
-            <p className="text-[10px] font-semibold text-[var(--color-text-primary)]">
+            <p className="text-[10px] font-semibold text-(--color-text-primary)">
               Page {currentPage} of {totalPages}
             </p>
             <button

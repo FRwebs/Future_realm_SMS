@@ -20,7 +20,7 @@ export default async function VerifyPage({ params }: { params: Promise<{ code: s
   const genuine = verdict.valid;
   return (
     <main className="mx-auto flex min-h-screen max-w-[520px] flex-col justify-center px-5 py-10">
-      <p className="text-[11px] font-bold uppercase tracking-[0.1em] text-[#67766D]">FutureRealm SMS · certificate check</p>
+      <p className="text-[11px] font-bold uppercase tracking-widest text-[#67766D]">FutureRealm SMS · certificate check</p>
       <section className="mt-3 rounded-[16px] border bg-white p-6" style={{ borderColor: genuine ? "#CFE4DB" : "#F0CFCF" }}>
         <span className="inline-flex items-center gap-2 rounded-full px-3 py-1 text-[11px] font-bold" style={genuine ? { background: "#EAF6F0", color: "#17714F" } : { background: "#FDF3F3", color: "#B23B3B" }}>
           <span className="h-[7px] w-[7px] rounded-full" style={{ background: genuine ? "#22A06B" : "#DB5555" }} />

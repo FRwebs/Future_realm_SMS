@@ -39,17 +39,17 @@ function useLoaded<T>(path: string) {
 const date = (value: string | null | undefined) => (value ? value.slice(0, 10) : "—");
 
 function Table({ head, rows, empty }: { head: string[]; rows: string[][]; empty: string }) {
-  if (!rows.length) return <p className="rounded-[11px] border border-[var(--color-border-default)] p-4 text-[11.5px] text-[var(--color-text-muted)]">{empty}</p>;
+  if (!rows.length) return <p className="rounded-[11px] border border-(--color-border-default) p-4 text-[11.5px] text-(--color-text-muted)">{empty}</p>;
   return (
-    <div className="overflow-x-auto rounded-[11px] border border-[var(--color-border-default)] bg-white">
+    <div className="overflow-x-auto rounded-[11px] border border-(--color-border-default) bg-white">
       <table className="w-full text-left text-[11.5px]">
         <thead>
-          <tr>{head.map((cell) => <th key={cell} className="px-4 py-2 text-[10px] font-bold uppercase tracking-[0.04em] text-[var(--color-text-muted)]">{cell}</th>)}</tr>
+          <tr>{head.map((cell) => <th key={cell} className="px-4 py-2 text-[10px] font-bold uppercase tracking-[0.04em] text-(--color-text-muted)">{cell}</th>)}</tr>
         </thead>
         <tbody>
           {rows.map((row, index) => (
             <tr key={index} className="border-t border-[#F2F7F4]">
-              {row.map((cell, column) => <td key={column} className={column === 0 ? "px-4 py-2 font-semibold text-[var(--color-text-primary)]" : "px-4 py-2 text-[var(--color-text-secondary)]"}>{cell}</td>)}
+              {row.map((cell, column) => <td key={column} className={column === 0 ? "px-4 py-2 font-semibold text-(--color-text-primary)" : "px-4 py-2 text-(--color-text-secondary)"}>{cell}</td>)}
             </tr>
           ))}
         </tbody>
@@ -65,14 +65,14 @@ export function VersionHistory({ id, name }: { id: string; name: string }) {
     <>
       <button type="button" onClick={sheet.show} className={SECONDARY}>View version history</button>
       <DetailSheet open={sheet.open} onClose={sheet.close} eyebrow="Version history" title={name} subtitle="Every version is kept. A superseded version stays fully usable for classes already assigned to it.">
-        {sheet.error ? <p className="text-[11.5px] text-[var(--color-danger)]">{sheet.error}</p> : null}
+        {sheet.error ? <p className="text-[11.5px] text-danger">{sheet.error}</p> : null}
         {sheet.data ? (
           <Table
             head={["Version", "State", "Effective", "Schools", "Owner"]}
             rows={sheet.data.map((row) => [`v${row.version}`, row.lifecycle.charAt(0) + row.lifecycle.slice(1).toLowerCase(), `${date(row.effectiveFrom)} → ${row.effectiveTo ? date(row.effectiveTo) : "now"}`, row.schools > 0 ? String(row.schools) : "—", row.owner ?? "—"])}
             empty="No other version exists."
           />
-        ) : !sheet.error ? <p className="text-[11.5px] text-[var(--color-text-muted)]">Loading…</p> : null}
+        ) : !sheet.error ? <p className="text-[11.5px] text-(--color-text-muted)">Loading…</p> : null}
       </DetailSheet>
     </>
   );
@@ -85,8 +85,8 @@ export function SchoolsUsing({ path, title, label = "See the schools using it" }
     <>
       <button type="button" onClick={sheet.show} className={SECONDARY}>{label}</button>
       <DetailSheet open={sheet.open} onClose={sheet.close} eyebrow="Schools" title={title} subtitle="Schools whose setup took a copy of it. A later version never changes a copy they already have.">
-        {sheet.error ? <p className="text-[11.5px] text-[var(--color-danger)]">{sheet.error}</p> : null}
-        {sheet.data ? <Table head={["School"]} rows={sheet.data.map((school) => [school.name])} empty="No school has taken it yet." /> : !sheet.error ? <p className="text-[11.5px] text-[var(--color-text-muted)]">Loading…</p> : null}
+        {sheet.error ? <p className="text-[11.5px] text-danger">{sheet.error}</p> : null}
+        {sheet.data ? <Table head={["School"]} rows={sheet.data.map((school) => [school.name])} empty="No school has taken it yet." /> : !sheet.error ? <p className="text-[11.5px] text-(--color-text-muted)">Loading…</p> : null}
       </DetailSheet>
     </>
   );
@@ -110,15 +110,15 @@ export function CardPreview({ id, name }: { id: string; name: string }) {
     <>
       <button type="button" onClick={sheet.show} className="btn-primary px-4 text-[11.5px]">Preview with sample data</button>
       <DetailSheet open={sheet.open} onClose={sheet.close} width="620px" eyebrow="Sample card" title={name} subtitle="Built from this layout’s own rules, with sample pupils and scores — nothing here belongs to a school.">
-        {sheet.error ? <p className="text-[11.5px] text-[var(--color-danger)]">{sheet.error}</p> : null}
+        {sheet.error ? <p className="text-[11.5px] text-danger">{sheet.error}</p> : null}
         {card ? (
-          <div className="grid gap-3 rounded-[11px] border border-[var(--color-border-default)] bg-white p-4 text-[11.5px]">
-            {card.header ? <div className="border-b border-[#EDF3EF] pb-2 text-center"><p className="text-[13px] font-bold text-[var(--color-text-primary)]">{card.header.school}</p><p className="text-[var(--color-text-muted)]">{card.header.term} · {card.header.session}</p></div> : null}
-            {card.identity ? <p className="text-[var(--color-text-secondary)]"><b className="text-[var(--color-text-primary)]">{card.identity.pupil}</b> · {card.identity.class} · {card.identity.admissionNumber} · present {card.identity.daysPresent} days</p> : null}
+          <div className="grid gap-3 rounded-[11px] border border-(--color-border-default) bg-white p-4 text-[11.5px]">
+            {card.header ? <div className="border-b border-[#EDF3EF] pb-2 text-center"><p className="text-[13px] font-bold text-(--color-text-primary)">{card.header.school}</p><p className="text-(--color-text-muted)">{card.header.term} · {card.header.session}</p></div> : null}
+            {card.identity ? <p className="text-(--color-text-secondary)"><b className="text-(--color-text-primary)">{card.identity.pupil}</b> · {card.identity.class} · {card.identity.admissionNumber} · present {card.identity.daysPresent} days</p> : null}
             <div className="overflow-x-auto">
               <table className="w-full text-left">
                 <thead>
-                  <tr className="text-[10px] uppercase tracking-[0.04em] text-[var(--color-text-muted)]"><th className="py-1 pr-2">Subject</th><th className="px-1">CA1</th><th className="px-1">CA2</th><th className="px-1">Exam</th><th className="px-1">Total</th><th className="px-1">Grade</th>{showAverage ? <th className="px-1">Avg</th> : null}{showPosition ? <th className="px-1">Pos</th> : null}</tr>
+                  <tr className="text-[10px] uppercase tracking-[0.04em] text-(--color-text-muted)"><th className="py-1 pr-2">Subject</th><th className="px-1">CA1</th><th className="px-1">CA2</th><th className="px-1">Exam</th><th className="px-1">Total</th><th className="px-1">Grade</th>{showAverage ? <th className="px-1">Avg</th> : null}{showPosition ? <th className="px-1">Pos</th> : null}</tr>
                 </thead>
                 <tbody>
                   {card.subjects.map((row) => (
@@ -127,14 +127,14 @@ export function CardPreview({ id, name }: { id: string; name: string }) {
                 </tbody>
               </table>
             </div>
-            {card.cumulative ? <p className="text-[var(--color-text-secondary)]">Cumulative: {card.cumulative}</p> : null}
-            {card.domains ? <p className="text-[var(--color-text-secondary)]">Behaviour: {card.domains.join(" · ")}</p> : null}
-            {card.comments ? <p className="text-[var(--color-text-secondary)]">Class teacher: {card.comments.teacher} · Principal: {card.comments.principal}</p> : null}
-            {card.feeBalance ? <p className="text-[var(--color-text-secondary)]">Fee balance: {card.feeBalance}</p> : null}
-            {card.signatures ? <p className="border-t border-[#EDF3EF] pt-2 text-[var(--color-text-muted)]">Class teacher ______________ &nbsp; Principal ______________</p> : null}
-            <p className="text-[10.5px] text-[var(--color-text-muted)]">Rules: {card.rules}</p>
+            {card.cumulative ? <p className="text-(--color-text-secondary)">Cumulative: {card.cumulative}</p> : null}
+            {card.domains ? <p className="text-(--color-text-secondary)">Behaviour: {card.domains.join(" · ")}</p> : null}
+            {card.comments ? <p className="text-(--color-text-secondary)">Class teacher: {card.comments.teacher} · Principal: {card.comments.principal}</p> : null}
+            {card.feeBalance ? <p className="text-(--color-text-secondary)">Fee balance: {card.feeBalance}</p> : null}
+            {card.signatures ? <p className="border-t border-[#EDF3EF] pt-2 text-(--color-text-muted)">Class teacher ______________ &nbsp; Principal ______________</p> : null}
+            <p className="text-[10.5px] text-(--color-text-muted)">Rules: {card.rules}</p>
           </div>
-        ) : !sheet.error ? <p className="text-[11.5px] text-[var(--color-text-muted)]">Building the sample…</p> : null}
+        ) : !sheet.error ? <p className="text-[11.5px] text-(--color-text-muted)">Building the sample…</p> : null}
       </DetailSheet>
     </>
   );

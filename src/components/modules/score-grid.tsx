@@ -105,7 +105,7 @@ export function ScoreGrid({ panel }: { panel: ScoreSheetPanel }) {
   if (!panel.students.length) {
     return (
       <section
-        className="min-w-0 overflow-hidden rounded-[14px] border bg-[var(--color-bg-surface)] px-[18px] py-[16px]"
+        className="min-w-0 overflow-hidden rounded-[14px] border bg-(--color-bg-surface) px-[18px] py-[16px]"
         style={{ borderColor: CARD_BORDER }}
       >
         <h3 className="text-[12.5px] font-semibold" style={{ color: INK }}>
@@ -120,7 +120,7 @@ export function ScoreGrid({ panel }: { panel: ScoreSheetPanel }) {
 
   return (
     <section
-      className="min-w-0 overflow-hidden rounded-[14px] border bg-[var(--color-bg-surface)]"
+      className="min-w-0 overflow-hidden rounded-[14px] border bg-(--color-bg-surface)"
       style={{ borderColor: CARD_BORDER }}
     >
       <div
@@ -132,7 +132,7 @@ export function ScoreGrid({ panel }: { panel: ScoreSheetPanel }) {
             {panel.title}
           </h3>
           {panel.sub ? (
-            <p className="mt-[3px] text-[10.5px] leading-[1.5]" style={{ color: MUTED }}>
+            <p className="mt-[3px] text-[10.5px] leading-normal" style={{ color: MUTED }}>
               {panel.sub}
             </p>
           ) : null}
@@ -246,7 +246,7 @@ export function ScoreGrid({ panel }: { panel: ScoreSheetPanel }) {
                 disabled={student.locked}
                 aria-label={`Continuous assessment for ${student.name}`}
                 onChange={(event) => setField(student.id, "ca", event.target.value)}
-                className="w-[72px] rounded-[8px] border px-[8px] py-[6px] text-[11.5px] tabular-nums outline-none focus:border-[#BFDCD1] disabled:bg-[#F7FAF8] disabled:text-[#8B9A91]"
+                className="w-[72px] rounded-[8px] border px-[8px] py-[6px] text-[11.5px] tabular-nums outline-hidden focus:border-[#BFDCD1] disabled:bg-[#F7FAF8] disabled:text-[#8B9A91]"
                 style={{ borderColor: "#DEE8E2", color: INK }}
               />
               <input
@@ -258,7 +258,7 @@ export function ScoreGrid({ panel }: { panel: ScoreSheetPanel }) {
                 disabled={student.locked}
                 aria-label={`Exam mark for ${student.name}`}
                 onChange={(event) => setField(student.id, "exam", event.target.value)}
-                className="w-[72px] rounded-[8px] border px-[8px] py-[6px] text-[11.5px] tabular-nums outline-none focus:border-[#BFDCD1] disabled:bg-[#F7FAF8] disabled:text-[#8B9A91]"
+                className="w-[72px] rounded-[8px] border px-[8px] py-[6px] text-[11.5px] tabular-nums outline-hidden focus:border-[#BFDCD1] disabled:bg-[#F7FAF8] disabled:text-[#8B9A91]"
                 style={{ borderColor: "#DEE8E2", color: INK }}
               />
               <span

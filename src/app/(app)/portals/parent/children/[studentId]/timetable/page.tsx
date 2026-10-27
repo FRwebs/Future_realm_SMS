@@ -35,10 +35,10 @@ export default async function ParentChildTimetablePage({ params }: PageProps) {
   return (
     <div className="portal-page">
       <section className="surface-hero p-6 md:p-7">
-        <Link href={`/portals/parent/children/${studentId}` as Route} className="text-[13px] font-semibold text-[var(--color-text-accent)]">Back to child overview</Link>
-        <h1 className="mt-3 font-[var(--font-heading)] text-[26px] font-black text-[var(--color-text-primary)]">Child timetable</h1>
+        <Link href={`/portals/parent/children/${studentId}` as Route} className="text-[13px] font-semibold text-(--color-text-accent)">Back to child overview</Link>
+        <h1 className="mt-3 font-(--font-heading) text-[26px] font-black text-(--color-text-primary)">Child timetable</h1>
         {timetable.departmentTrack ? (
-          <p className="mt-2 text-[13px] font-semibold text-[var(--color-text-accent)]">Senior secondary track: {timetable.departmentTrack}</p>
+          <p className="mt-2 text-[13px] font-semibold text-(--color-text-accent)">Senior secondary track: {timetable.departmentTrack}</p>
         ) : null}
       </section>
       <section className="grid gap-5 xl:grid-cols-2">
@@ -48,7 +48,7 @@ export default async function ParentChildTimetablePage({ params }: PageProps) {
           items={timetable.subjects ?? []}
           emptyState="No subject assignment is visible for this class yet."
           columns={[
-            { key: "name", header: "Subject", render: (item) => <span className="font-semibold text-[var(--color-text-primary)]">{item.name}</span> },
+            { key: "name", header: "Subject", render: (item) => <span className="font-semibold text-(--color-text-primary)">{item.name}</span> },
             { key: "code", header: "Code", render: (item) => item.code ?? "-" },
             { key: "teacher", header: "Teacher", render: (item) => item.teacherName ?? "Not assigned" },
             { key: "track", header: "Track", render: (item) => item.track ?? item.departmentName ?? "General" }
@@ -62,7 +62,7 @@ export default async function ParentChildTimetablePage({ params }: PageProps) {
           columns={[
             { key: "week", header: "Week", render: (item) => item.weekNumber },
             { key: "subject", header: "Subject", render: (item) => item.subject },
-            { key: "topic", header: "Topic", render: (item) => <span className="font-semibold text-[var(--color-text-primary)]">{item.topic}</span> },
+            { key: "topic", header: "Topic", render: (item) => <span className="font-semibold text-(--color-text-primary)">{item.topic}</span> },
             { key: "status", header: "Status", render: (item) => item.progressStatus.replaceAll("_", " ") }
           ]}
         />

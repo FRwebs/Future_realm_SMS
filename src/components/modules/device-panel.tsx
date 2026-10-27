@@ -66,7 +66,7 @@ export function DevicePanel({ title, sub }: { title?: string; sub?: string }) {
     { label: "Kept if space runs short", value: device.persisted === null ? "Not reported" : device.persisted ? "Yes" : "Not guaranteed", sub: device.persisted ? "The browser will not clear it on its own" : "The browser may clear it if the device runs short of space", tone: toneOf(device.persisted ? "positive" : "attention") },
   ];
   return (
-    <section className="min-w-0 rounded-[14px] border bg-[var(--color-bg-surface)] px-[18px] pb-[16px] pt-[14px]" style={{ borderColor: "#DEE8E2" }}>
+    <section className="min-w-0 rounded-[14px] border bg-(--color-bg-surface) px-[18px] pb-[16px] pt-[14px]" style={{ borderColor: "#DEE8E2" }}>
       <header className="flex flex-wrap items-start justify-between gap-[12px]">
         <div>
           <h3 className="text-[12.5px] font-semibold" style={{ color: INK }}>{title ?? "This device"}</h3>
@@ -111,7 +111,7 @@ export function DevicePanel({ title, sub }: { title?: string; sub?: string }) {
       <div className="mt-[12px] grid gap-[10px]" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(176px, 1fr))" }}>
         {cards.map((card) => (
           <article key={card.label} className="rounded-[14px] border px-[14px] pb-[13px] pt-[12px]" style={{ borderColor: "#DEE8E2" }}>
-            <p className="text-[9.5px] font-semibold uppercase tracking-[0.05em]" style={{ color: MUTED }}>{card.label}</p>
+            <p className="text-[9.5px] font-semibold uppercase tracking-wider" style={{ color: MUTED }}>{card.label}</p>
             <p className="mt-[8px] text-[20px] font-extrabold leading-none tracking-[-0.03em]" style={{ color: card.tone.fg }}>{card.value}</p>
             <p className="mt-[6px] text-pretty text-[10.5px] leading-[1.4]" style={{ color: MUTED }}>{card.sub}</p>
           </article>

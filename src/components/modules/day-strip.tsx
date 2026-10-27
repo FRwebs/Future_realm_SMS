@@ -76,7 +76,7 @@ export function DayStrip({ panel }: { panel: DayStripPanel }) {
   });
 
   return (
-    <section className="min-w-0 overflow-hidden rounded-[14px] border bg-[var(--color-bg-surface)] px-[18px] py-[12px]" style={{ borderColor: "#DEE8E2" }} aria-label={panel.title}>
+    <section className="min-w-0 overflow-hidden rounded-[14px] border bg-(--color-bg-surface) px-[18px] py-[12px]" style={{ borderColor: "#DEE8E2" }} aria-label={panel.title}>
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <h3 className="text-[12.5px] font-semibold" style={{ color: INK }}>{panel.title}</h3>
         {panel.sub ? <p className="text-[10.5px]" style={{ color: MUTED }}>{panel.sub}</p> : null}
@@ -89,7 +89,7 @@ export function DayStrip({ panel }: { panel: DayStripPanel }) {
           <button type="button" onClick={() => nudge(-1)} disabled={at.start} className={arrow(at.start)} aria-label="Earlier">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M14.5 5.5 8 12l6.5 6.5" /></svg>
           </button>
-          <div ref={track} className="flex min-w-0 flex-1 gap-[7px] overflow-x-auto pb-[2px] [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          <div ref={track} className="flex min-w-0 flex-1 gap-[7px] overflow-x-auto pb-[2px] [-ms-overflow-style:none] scrollbar-none [&::-webkit-scrollbar]:hidden">
             {chips}
           </div>
           <button type="button" onClick={() => nudge(1)} disabled={at.end} className={arrow(at.end)} aria-label="Later">

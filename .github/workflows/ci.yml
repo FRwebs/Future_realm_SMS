@@ -41,8 +41,67 @@ jobs:
       - run: npm run prisma:seed
       - run: npm run lint
       - run: npm run type-check
-      # Reports files and dependencies nothing uses. Advisory until the existing backlog is cleared, then drop continue-on-error.
+      # Files and dependencies nothing uses.
       - run: npm run knip
-        continue-on-error: true
       - run: npm run test
       - run: npm run build
+      - run: npm run build-storybook
+
+  # Drives the built app in a real browser: accessibility (axe) on the screens and overlays people use most, and the offline page.
+  # Advisory until it has run green on this repository once; then drop continue-on-error so it blocks like the rest.
+  e2e:
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    needs: validate
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: futurerealm_sms
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/futurerealm_sms?schema=public
+      DIRECT_URL: postgresql://postgres:postgres@localhost:5432/futurerealm_sms?schema=public
+      APP_URL: http://127.0.0.1:3000
+      NEST_API_URL: http://127.0.0.1:4000
+      API_PORT: 4000
+      JWT_SECRET: ci-secret-key
+      DEMO_MODE: false
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm install
+      - run: npx prisma migrate deploy
+      - run: npm run prisma:seed
+      - run: npm run build
+      - run: npx playwright install --with-deps chromium
+      - name: Start the API and the web app
+        run: |
+          npm run start > server.log 2>&1 &
+          for i in $(seq 1 60); do
+            curl -sf http://127.0.0.1:3000/login > /dev/null && curl -sf http://127.0.0.1:4000/api/health > /dev/null && exit 0
+            sleep 2
+          done
+          cat server.log
+          exit 1
+      - run: npm run test:a11y
+      - name: Offline page
+        run: PWA_BASE_URL=http://127.0.0.1:3000 npx playwright test tests/e2e/pwa.spec.ts
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-results
+          path: |
+            test-results
+            server.log

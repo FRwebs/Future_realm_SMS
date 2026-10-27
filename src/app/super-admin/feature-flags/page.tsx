@@ -181,7 +181,7 @@ async function PlansTab() {
     });
   const termAgo = Date.now() - 120 * 86_400_000;
   const changesThisTerm = (migrations ?? []).filter((row) => new Date(row.changedAt).getTime() >= termAgo).length;
-  const fx = (value: number | null, symbol: string) => (value === null ? <span className="text-[var(--color-text-muted)]">Set the rate</span> : `${symbol}${value.toLocaleString("en-NG", { maximumFractionDigits: 2 })}`);
+  const fx = (value: number | null, symbol: string) => (value === null ? <span className="text-(--color-text-muted)">Set the rate</span> : `${symbol}${value.toLocaleString("en-NG", { maximumFractionDigits: 2 })}`);
   const planRates = { usd: currencies.rates.usd, ghs: currencies.rates.ghs, kes: currencies.rates.kes, gbp: currencies.rates.gbp, shockPercent: currencies.shockPercent };
   const legacyCount = (plans ?? []).filter((plan) => plan.lifecycle === "LEGACY").length;
   const draftCount = (plans ?? []).filter((plan) => plan.lifecycle === "DRAFT").length;
@@ -203,7 +203,7 @@ async function PlansTab() {
       {currencies.pending ? (
         <section className="rounded-[14px] px-5 py-4" style={{ background: "var(--color-warning-dim)", border: "1px solid var(--color-warning)" }}>
           <p className="text-[11.5px] font-bold" style={{ color: "var(--color-warning)" }}>New rates for {currencies.pending.ratesFor} are held for Finance</p>
-          <p className="mt-1 text-[11px] leading-5 text-[var(--color-text-secondary)]">{currencies.pending.proposedBy} proposed ₦{currencies.pending.ngnPerUsd.toLocaleString("en-NG")} per dollar ({currencies.pending.source}). It moved {currencies.pending.moved}, past the {currencies.shockPercent}% guard. Nothing changes until it is decided; the current rates stay in force.</p>
+          <p className="mt-1 text-[11px] leading-5 text-(--color-text-secondary)">{currencies.pending.proposedBy} proposed ₦{currencies.pending.ngnPerUsd.toLocaleString("en-NG")} per dollar ({currencies.pending.source}). It moved {currencies.pending.moved}, past the {currencies.shockPercent}% guard. Nothing changes until it is decided; the current rates stay in force.</p>
           <div className="mt-3 flex gap-2">
             <ResourceActionDialog triggerLabel="Approve the new rates" title="Approve the held rates" description="The new rates take effect now and stay fixed for the whole term. Every school is invoiced at them from here." endpoint="/api/super-admin/billing-extras/pricing/decide" method="POST" variant="secondary" submitLabel="Approve the rates" recorded={{ line: `You · approved the held rates for ${currencies.pending.ratesFor}`, before: "Held for Finance", after: "In force" }} fields={[{ name: "approve", label: "Decision", type: "hidden", defaultValue: "true" }, { name: "reason", label: "Reason", type: "textarea", required: true }]} />
             <ResourceActionDialog triggerLabel="Reject them" title="Reject the held rates" description="The current rates stay in force for the term. The proposal is closed with your reason." endpoint="/api/super-admin/billing-extras/pricing/decide" method="POST" variant="danger" submitLabel="Reject the rates" recorded={{ line: `You · rejected the held rates for ${currencies.pending.ratesFor}`, before: "Held for Finance", after: "Rejected" }} fields={[{ name: "approve", label: "Decision", type: "hidden", defaultValue: "false" }, { name: "reason", label: "Reason", type: "textarea", required: true }]} />
@@ -241,7 +241,7 @@ async function PlansTab() {
             <ResourceActionDialog
               triggerLabel="Author prices in US dollars"
               title="Price the tiers once, in US dollars"
-              description="Each tier’s naira price becomes its dollar price at the term’s rate, rounded to the nearest 50 kobo — so a rate change moves every tier together."
+              description="Each tier’s naira price becomes its dollar price at the term’s rate, rounded-sm to the nearest 50 kobo — so a rate change moves every tier together."
               note="Choose Naira to go back to the built-in naira prices."
               endpoint="/api/super-admin/billing-extras/pricing/usd"
               method="POST"
@@ -259,7 +259,7 @@ async function PlansTab() {
         }
         footnote="The rate is fixed when the term opens and never moves inside it — a live rate would mean two schools in the same country paying differently in the same week."
         columns={[
-          { key: "tier", header: "Tier", render: (row) => <span className="font-bold text-[var(--color-text-primary)]">{row.name}</span> },
+          { key: "tier", header: "Tier", render: (row) => <span className="font-bold text-(--color-text-primary)">{row.name}</span> },
           { key: "ngn", header: "Nigeria (₦)", render: (row) => `₦${row.ngn.toLocaleString("en-NG")}` },
           { key: "usd", header: "USD", render: (row) => fx(row.usd, "$") },
           { key: "ghs", header: "Ghana", render: (row) => fx(row.ghs, "GH₵") },
@@ -277,20 +277,20 @@ async function PlansTab() {
         emptyState="No tier has enough schools yet to compute adoption or churn."
         footnote="Moves are counted from tier changes that recorded where the school came from — changes made before that was kept are not in the count."
         columns={[
-          { key: "tier", header: "Tier", render: (row) => <span className="font-bold text-[var(--color-text-primary)]">{row.tier}</span> },
+          { key: "tier", header: "Tier", render: (row) => <span className="font-bold text-(--color-text-primary)">{row.tier}</span> },
           { key: "schools", header: "Schools", render: (row) => row.schools },
-          { key: "adoption", header: "Adoption index", render: (row) => (row.adoptionIndex === null ? <span className="text-[var(--color-text-muted)]">Not enough data</span> : `${row.adoptionIndex}%`) },
+          { key: "adoption", header: "Adoption index", render: (row) => (row.adoptionIndex === null ? <span className="text-(--color-text-muted)">Not enough data</span> : `${row.adoptionIndex}%`) },
           { key: "churn", header: "Churn rate", render: (row) => `${row.churnPct}%` },
           {
             key: "moves",
             header: "Moves (180 days)",
             render: (row) => {
               const moves = ratesByTier.get(row.tier);
-              if (!moves || (moves.upgrades === 0 && moves.downgrades === 0)) return <span className="text-[var(--color-text-muted)]">None recorded</span>;
+              if (!moves || (moves.upgrades === 0 && moves.downgrades === 0)) return <span className="text-(--color-text-muted)">None recorded</span>;
               return <span>{moves.upgrades} up · {moves.downgrades} down</span>;
             }
           },
-          { key: "verdict", header: "Verdict", render: (row) => <span className="text-[11.5px] text-[var(--color-text-secondary)]">{row.verdict}</span> }
+          { key: "verdict", header: "Verdict", render: (row) => <span className="text-[11.5px] text-(--color-text-secondary)">{row.verdict}</span> }
         ]}
       />
 
@@ -347,8 +347,8 @@ async function TierMatrixTab() {
         ]}
         getRowKey={(row) => row.requirement}
         columns={[
-          { key: "requirement", header: "Requirement", render: (row) => <span className="font-semibold text-[var(--color-text-primary)]">{row.requirement}</span> },
-          { key: "spec", header: "Specification", render: (row) => <span className="text-[11.5px] text-[var(--color-text-secondary)]">{row.spec}</span> },
+          { key: "requirement", header: "Requirement", render: (row) => <span className="font-semibold text-(--color-text-primary)">{row.requirement}</span> },
+          { key: "spec", header: "Specification", render: (row) => <span className="text-[11.5px] text-(--color-text-secondary)">{row.spec}</span> },
           {
             key: "state",
             header: "State",
@@ -366,11 +366,11 @@ async function TierMatrixTab() {
         getRowKey={(row) => row.id}
         columns={[
           { key: "at", header: "When", render: (row) => formatDate(row.at) },
-          { key: "feature", header: "Feature", render: (row) => <span className="font-semibold text-[var(--color-text-primary)]">{row.feature}</span> },
+          { key: "feature", header: "Feature", render: (row) => <span className="font-semibold text-(--color-text-primary)">{row.feature}</span> },
           { key: "kind", header: "Change", render: (row) => <StatusBadge status={row.kind} tone={row.kind === "ACCESS_REMOVED" ? "danger" : row.kind === "ADDED" ? "success" : "warning"} /> },
           { key: "tiers", header: "On", render: (row) => <span className="text-[11px]">{Object.entries(row.after).filter(([tier, on]) => on !== Boolean(row.before?.[tier])).map(([tier, on]) => `${on ? "+" : "−"}${TIER_LABEL[tier] ?? tier}`).join(" ") || "Created"}</span> },
           { key: "schools", header: "Schools affected", render: (row) => row.affectedSchools },
-          { key: "reason", header: "Reason", render: (row) => <span className="text-[11px] text-[var(--color-text-secondary)]">{row.reason}{row.migrationPlan ? ` — Migration: ${row.migrationPlan}` : ""}</span> },
+          { key: "reason", header: "Reason", render: (row) => <span className="text-[11px] text-(--color-text-secondary)">{row.reason}{row.migrationPlan ? ` — Migration: ${row.migrationPlan}` : ""}</span> },
           { key: "by", header: "By", render: (row) => row.by }
         ]}
         emptyState="No change has been made to the matrix since it began to be logged."
@@ -412,7 +412,7 @@ async function PlanChangesSection() {
         items={overview?.prices ?? []}
         getRowKey={(row) => row.id}
         columns={[
-          { key: "plan", header: "Plan", render: (row) => <span className="font-semibold text-[var(--color-text-primary)]">{row.plan}</span> },
+          { key: "plan", header: "Plan", render: (row) => <span className="font-semibold text-(--color-text-primary)">{row.plan}</span> },
           { key: "price", header: "Monthly price", render: (row) => `${formatCurrency(row.oldMonthly)} → ${formatCurrency(row.newMonthly)}` },
           { key: "announced", header: "Announced", render: (row) => `${formatDate(row.announcedAt)} · ${row.told} school${row.told === 1 ? "" : "s"} told` },
           { key: "effective", header: "Takes effect", render: (row) => formatDate(row.effectiveAt) },
@@ -425,7 +425,7 @@ async function PlanChangesSection() {
               row.status === "SCHEDULED" ? (
                 <ResourceActionDialog triggerLabel="Cancel" title={`Cancel the ${row.plan} price change`} description="The plan keeps its current price. Schools that were told are not sent a correction automatically." endpoint={`/api/super-admin/plans-features/price-changes/${row.id}/cancel`} method="POST" variant="textActionDanger" submitLabel="Cancel change" confirmLabel="Confirm" fields={[]} />
               ) : (
-                <span className="text-[11px] text-[var(--color-text-muted)]">—</span>
+                <span className="text-[11px] text-(--color-text-muted)">—</span>
               )
           }
         ]}
@@ -438,9 +438,9 @@ async function PlanChangesSection() {
         items={overview?.versions ?? []}
         getRowKey={(row) => row.id}
         columns={[
-          { key: "plan", header: "Plan", render: (row) => <span className="font-semibold text-[var(--color-text-primary)]">{row.plan}</span> },
+          { key: "plan", header: "Plan", render: (row) => <span className="font-semibold text-(--color-text-primary)">{row.plan}</span> },
           { key: "version", header: "Version", render: (row) => `v${row.version}` },
-          { key: "summary", header: "What changed", render: (row) => <span className="text-[11.5px] text-[var(--color-text-secondary)]">{row.summary}</span> },
+          { key: "summary", header: "What changed", render: (row) => <span className="text-[11.5px] text-(--color-text-secondary)">{row.summary}</span> },
           { key: "by", header: "By", render: (row) => row.by },
           { key: "at", header: "Effective", render: (row) => formatDate(row.at) }
         ]}
@@ -484,12 +484,12 @@ async function LifecycleSection() {
           { key: "when", header: "Changed", render: (item) => formatDate(item.changedAt) }
         ]}
       />
-      <section className="overflow-hidden rounded-[14px] border border-[var(--color-border-default)] bg-white">
+      <section className="overflow-hidden rounded-[14px] border border-(--color-border-default) bg-white">
         <div className="border-b border-[#E6EEE9] px-5 py-4">
-          <p className="text-[14px] font-semibold text-[var(--color-text-primary)]">What happens to a school when its plan changes</p>
+          <p className="text-[14px] font-semibold text-(--color-text-primary)">What happens to a school when its plan changes</p>
         </div>
         <div className="p-5">
-          <p className="text-[11.5px] leading-relaxed text-[var(--color-text-muted)]">
+          <p className="text-[11.5px] leading-relaxed text-(--color-text-muted)">
             The school&apos;s plan field changes and the move is written to the audit log with where it came from and where it went. What the
             school may use is worked out live from the feature matrix each time it is asked — so a feature that the new plan does not include
             stops being available the next time the product checks (today that is custom branding). Nothing a school built is locked,
@@ -506,11 +506,11 @@ async function LifecycleSection() {
         getRowKey={(row) => row.schoolId}
         emptyState="No school is holding an older price. One appears here whenever a scheduled price change lands on a plan that has schools on it."
         columns={[
-          { key: "school", header: "School", render: (row) => <span className="font-semibold text-[var(--color-text-primary)]">{row.school}</span> },
-          { key: "plan", header: "Plan", render: (row) => <span className="text-[var(--color-text-secondary)]">{row.plan}</span> },
-          { key: "held", header: "Held at", render: (row) => <span className="font-[var(--font-mono)] font-bold text-[var(--color-text-primary)]">{formatCurrency(row.heldAt)}</span>, sortValue: (row) => row.heldAt },
-          { key: "until", header: "Until", render: (row) => <span className="text-[var(--color-text-secondary)]">{new Date(row.until).toLocaleDateString("en-NG", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" })}</span>, sortValue: (row) => row.until },
-          { key: "reason", header: "Why", render: (row) => <span className="text-[11px] text-[var(--color-text-muted)]">{row.reason ?? "—"}</span> },
+          { key: "school", header: "School", render: (row) => <span className="font-semibold text-(--color-text-primary)">{row.school}</span> },
+          { key: "plan", header: "Plan", render: (row) => <span className="text-(--color-text-secondary)">{row.plan}</span> },
+          { key: "held", header: "Held at", render: (row) => <span className="font-(--font-mono) font-bold text-(--color-text-primary)">{formatCurrency(row.heldAt)}</span>, sortValue: (row) => row.heldAt },
+          { key: "until", header: "Until", render: (row) => <span className="text-(--color-text-secondary)">{new Date(row.until).toLocaleDateString("en-NG", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" })}</span>, sortValue: (row) => row.until },
+          { key: "reason", header: "Why", render: (row) => <span className="text-[11px] text-(--color-text-muted)">{row.reason ?? "—"}</span> },
           {
             key: "release",
             header: "",
@@ -558,8 +558,8 @@ async function LifecycleSection() {
         ]}
         getRowKey={(row) => row.rule}
         columns={[
-          { key: "rule", header: "Rule", render: (row) => <span className="font-semibold text-[var(--color-text-primary)]">{row.rule}</span> },
-          { key: "spec", header: "Specification", render: (row) => <span className="text-[11.5px] text-[var(--color-text-secondary)]">{row.spec}</span> },
+          { key: "rule", header: "Rule", render: (row) => <span className="font-semibold text-(--color-text-primary)">{row.rule}</span> },
+          { key: "spec", header: "Specification", render: (row) => <span className="text-[11.5px] text-(--color-text-secondary)">{row.spec}</span> },
           {
             key: "state",
             header: "State",
@@ -600,8 +600,8 @@ async function ExceptionsTab() {
         ]}
         getRowKey={(row) => row.step}
         columns={[
-          { key: "step", header: "Step", render: (row) => <span className="font-semibold text-[var(--color-text-primary)]">{row.step}</span> },
-          { key: "what", header: "Specification", render: (row) => <span className="text-[11.5px] text-[var(--color-text-secondary)]">{row.what}</span> },
+          { key: "step", header: "Step", render: (row) => <span className="font-semibold text-(--color-text-primary)">{row.step}</span> },
+          { key: "what", header: "Specification", render: (row) => <span className="text-[11.5px] text-(--color-text-secondary)">{row.what}</span> },
           {
             key: "state",
             header: "State",
@@ -624,8 +624,8 @@ async function ExceptionsTab() {
         ]}
         getRowKey={(row) => row.requirement}
         columns={[
-          { key: "requirement", header: "Requirement", render: (row) => <span className="font-semibold text-[var(--color-text-primary)]">{row.requirement}</span> },
-          { key: "spec", header: "Specification", render: (row) => <span className="text-[11.5px] text-[var(--color-text-secondary)]">{row.spec}</span> },
+          { key: "requirement", header: "Requirement", render: (row) => <span className="font-semibold text-(--color-text-primary)">{row.requirement}</span> },
+          { key: "spec", header: "Specification", render: (row) => <span className="text-[11.5px] text-(--color-text-secondary)">{row.spec}</span> },
           {
             key: "state",
             header: "State",
@@ -684,7 +684,7 @@ function overrideDecisions(item: SuperAdminFeatureOverrideRow): ReactNode {
       />
     );
   }
-  return <p className="text-[11px] text-[var(--color-text-muted)]">Closed — {item.status.toLowerCase()}, no further action.</p>;
+  return <p className="text-[11px] text-(--color-text-muted)">Closed — {item.status.toLowerCase()}, no further action.</p>;
 }
 
 function brandingDecisions(item: SuperAdminBrandingAssetRow): ReactNode {
@@ -718,7 +718,7 @@ function brandingDecisions(item: SuperAdminBrandingAssetRow): ReactNode {
       />
     );
   }
-  return <p className="text-[11px] text-[var(--color-text-muted)]">Closed — {item.status.toLowerCase()}, no further action.</p>;
+  return <p className="text-[11px] text-(--color-text-muted)">Closed — {item.status.toLowerCase()}, no further action.</p>;
 }
 
 async function ExceptionsCaseBoard() {
@@ -882,8 +882,8 @@ async function ExceptionsCaseBoard() {
         getRowKey={(row) => row.id}
         emptyState="No school has submitted branding."
         columns={[
-          { key: "school", header: "School", render: (row) => <span className="font-semibold text-[var(--color-text-primary)]">{row.schoolName}</span> },
-          { key: "logo", header: "Logo", render: (row) => (row.logoUrl ? <a href={row.logoUrl} target="_blank" rel="noreferrer" className="font-semibold text-[var(--color-text-accent)] hover:underline">View logo</a> : <span className="text-[var(--color-text-muted)]">None supplied</span>) },
+          { key: "school", header: "School", render: (row) => <span className="font-semibold text-(--color-text-primary)">{row.schoolName}</span> },
+          { key: "logo", header: "Logo", render: (row) => (row.logoUrl ? <a href={row.logoUrl} target="_blank" rel="noreferrer" className="font-semibold text-(--color-text-accent) hover:underline">View logo</a> : <span className="text-(--color-text-muted)">None supplied</span>) },
           { key: "colours", header: "Brand colours", render: (row) => <span className="inline-flex items-center gap-2"><span className="h-3.5 w-3.5 rounded-[4px] border border-[#DEE8E2]" style={{ background: row.primaryColour }} />{row.primaryColour}<span className="h-3.5 w-3.5 rounded-[4px] border border-[#DEE8E2]" style={{ background: row.secondaryColour }} />{row.secondaryColour}</span> },
           { key: "applied", header: "Applied to", render: (row) => row.appliedTo },
           { key: "status", header: "Status", render: (row) => <StatusBadge status={row.status} /> },
@@ -933,8 +933,8 @@ async function FlagsSection() {
         }
         emptyState="No feature flags have been configured."
         columns={[
-          { key: "name", header: "Flag", render: (item) => <div><p className="font-semibold text-[var(--color-text-primary)]">{item.name}</p><p className="text-xs text-[var(--color-text-muted)]">{item.key}{item.area ? ` · ${item.area}` : ""}</p></div> },
-          { key: "owner", header: "Owner", render: (item) => item.owner ?? <span className="text-[var(--color-text-muted)]">Nobody yet</span> },
+          { key: "name", header: "Flag", render: (item) => <div><p className="font-semibold text-(--color-text-primary)">{item.name}</p><p className="text-xs text-(--color-text-muted)">{item.key}{item.area ? ` · ${item.area}` : ""}</p></div> },
+          { key: "owner", header: "Owner", render: (item) => item.owner ?? <span className="text-(--color-text-muted)">Nobody yet</span> },
           { key: "rollout", header: "Rollout", render: (item) => <StatusBadge status={item.rolloutStatus} tone={item.rolloutStatus === "FULL" ? "success" : item.rolloutStatus === "OFF" ? "neutral" : "warning"} /> },
           { key: "pct", header: "Percent", render: (item) => `${item.rolloutPercent}%` },
           { key: "pilot", header: "Pilot schools", render: (item) => item.pilotSchoolCount },
@@ -944,7 +944,7 @@ async function FlagsSection() {
             render: (item) => (
               <div>
                 <p>{item.daysInStage ?? 0}d of {item.observationDays ?? 7}d window</p>
-                <p className={(item.windowOpensIn ?? 0) > 0 || item.rolloutStatus === "FULL" ? "text-[10px] text-[var(--color-text-muted)]" : "text-[10px] font-semibold text-[var(--color-success)]"}>
+                <p className={(item.windowOpensIn ?? 0) > 0 || item.rolloutStatus === "FULL" ? "text-[10px] text-(--color-text-muted)" : "text-[10px] font-semibold text-(--color-success)"}>
                   {item.rolloutStatus === "FULL" ? "At the last stage" : (item.windowOpensIn ?? 0) > 0 ? `Can move up in ${item.windowOpensIn}d` : "Ready to move up"}
                 </p>
               </div>
@@ -1019,8 +1019,8 @@ async function FlagsSection() {
         ]}
         getRowKey={(row) => row.field}
         columns={[
-          { key: "field", header: "Field", render: (row) => <span className="font-semibold text-[var(--color-text-primary)]">{row.field}</span> },
-          { key: "spec", header: "Specification", render: (row) => <span className="text-[11.5px] text-[var(--color-text-secondary)]">{row.spec}</span> },
+          { key: "field", header: "Field", render: (row) => <span className="font-semibold text-(--color-text-primary)">{row.field}</span> },
+          { key: "spec", header: "Specification", render: (row) => <span className="text-[11.5px] text-(--color-text-secondary)">{row.spec}</span> },
           {
             key: "state",
             header: "State",
@@ -1038,9 +1038,9 @@ async function FlagsSection() {
         getRowKey={(row) => row.id}
         columns={[
           { key: "at", header: "When", render: (row) => formatDate(row.at) },
-          { key: "flag", header: "Flag", render: (row) => <div><p className="font-semibold text-[var(--color-text-primary)]">{row.flag}</p><p className="text-[10px] text-[var(--color-text-muted)]">{row.key}</p></div> },
+          { key: "flag", header: "Flag", render: (row) => <div><p className="font-semibold text-(--color-text-primary)">{row.flag}</p><p className="text-[10px] text-(--color-text-muted)">{row.key}</p></div> },
           { key: "move", header: "Move", render: (row) => (row.from === row.to ? row.to : `${row.from} → ${row.to}${row.to === "PARTIAL" ? ` (${row.percent}%)` : ""}`) },
-          { key: "note", header: "Note", render: (row) => <span className="text-[11px] text-[var(--color-text-secondary)]">{row.note ?? "—"}</span> },
+          { key: "note", header: "Note", render: (row) => <span className="text-[11px] text-(--color-text-secondary)">{row.note ?? "—"}</span> },
           { key: "by", header: "By", render: (row) => row.by }
         ]}
         emptyState="No flag has changed stage yet."

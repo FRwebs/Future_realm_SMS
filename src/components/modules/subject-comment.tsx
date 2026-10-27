@@ -92,7 +92,7 @@ export function StudentWorking(props: StudentWorkingProps) {
                 <span className="mt-[4.5px] h-[7px] w-[7px] flex-none rounded-full" style={{ background: toneOf("neutral").dot }} />
                 <span className="min-w-0 flex-1">
                   <span className="block text-pretty text-[11.5px] font-semibold leading-[1.4]" style={{ color: INK }}>{suggestion.text}</span>
-                  <span className="mt-[2.5px] block text-pretty text-[10.5px] leading-[1.5]" style={{ color: MUTED }}>{suggestion.sub}</span>
+                  <span className="mt-[2.5px] block text-pretty text-[10.5px] leading-normal" style={{ color: MUTED }}>{suggestion.sub}</span>
                 </span>
                 <button type="button" onClick={() => { setText(suggestion.text); setMessage(null); }} className="flex flex-none items-center gap-[4px] whitespace-nowrap rounded-full border px-[9px] py-[3.5px] text-[10.5px] font-semibold transition hover:border-[#BFDCD1]" style={{ color: "#12796A", background: "#F2F7F4", borderColor: "#E1EBE5" }}>Use</button>
               </li>

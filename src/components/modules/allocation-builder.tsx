@@ -20,9 +20,9 @@ import type { DrawerSpec, FormField, PanelTone } from "@/lib/modules/panels";
 import { toneSwatches } from "@/lib/modules/tones";
 import { cn } from "@/lib/utils/cn";
 
-const CARD = "min-w-0 rounded-[14px] border border-[#DEE8E2] bg-[var(--color-bg-surface)]";
+const CARD = "min-w-0 rounded-[14px] border border-[#DEE8E2] bg-(--color-bg-surface)";
 const CELL =
-  "w-full min-w-0 rounded-[8px] border-[1.5px] border-[#E4EDE8] bg-white px-[9px] py-[7px] text-[11.5px] font-medium text-[#0D2315] outline-none focus:border-[#12796A]";
+  "w-full min-w-0 rounded-[8px] border-[1.5px] border-[#E4EDE8] bg-white px-[9px] py-[7px] text-[11.5px] font-medium text-[#0D2315] outline-hidden focus:border-[#12796A]";
 
 function naira(value: number): string {
   return `₦${Math.round(value).toLocaleString("en-NG")}`;
@@ -92,9 +92,9 @@ function RemoveButton({ onClick, label }: { onClick: () => void; label: string }
   );
 }
 
-const ITEM_COLS = "[grid-template-columns:minmax(0,1.9fr)_62px_104px_104px_96px_26px]";
+const ITEM_COLS = "grid-cols-[minmax(0,1.9fr)_62px_104px_104px_96px_26px]";
 /** The draft row has nothing to mark required yet, so its last two cells merge. */
-const DRAFT_COLS = "[grid-template-columns:minmax(0,1.9fr)_62px_104px_104px_128px]";
+const DRAFT_COLS = "grid-cols-[minmax(0,1.9fr)_62px_104px_104px_128px]";
 
 export function AllocationBuilder({
   backHref,
@@ -307,8 +307,8 @@ export function AllocationBuilder({
 
       <section className="relative overflow-hidden rounded-[15px] bg-[#0D2315] px-[19px] py-[15px] shadow-[0_14px_30px_-24px_rgba(13,35,21,0.8)]">
         <div className="pointer-events-none absolute inset-0 overflow-hidden">
-          <div className="absolute -right-[80px] -top-[132px] h-[336px] w-[336px] rounded-full border border-[rgba(95,214,180,0.12)]" />
-          <div className="absolute -right-[18px] -top-[70px] h-[212px] w-[212px] rounded-full border border-[rgba(95,214,180,0.08)]" />
+          <div className="absolute right-[-80px] top-[-132px] h-[336px] w-[336px] rounded-full border border-[rgba(95,214,180,0.12)]" />
+          <div className="absolute right-[-18px] top-[-70px] h-[212px] w-[212px] rounded-full border border-[rgba(95,214,180,0.08)]" />
         </div>
         <div className="relative flex flex-wrap items-center justify-between gap-x-5 gap-y-2.5">
           <div className="min-w-0 max-w-[620px]">
@@ -317,11 +317,11 @@ export function AllocationBuilder({
               <span className="whitespace-nowrap text-[9px] font-bold uppercase tracking-[0.14em] text-white/50">
                 School Configuration
               </span>
-              <span className="rounded-full border border-white/[0.18] bg-white/10 px-[8px] py-[2px] text-[9px] font-bold uppercase tracking-[0.08em] text-white/70">
+              <span className="rounded-full border border-white/18 bg-white/10 px-[8px] py-[2px] text-[9px] font-bold uppercase tracking-[0.08em] text-white/70">
                 {items.length ? `${items.length} items` : "Empty"}
               </span>
             </div>
-            <h1 className="text-pretty font-[family-name:var(--font-heading)] text-[19px] font-extrabold leading-[1.15] tracking-[-0.024em] text-white">
+            <h1 className="text-pretty font-(family-name:--font-heading) text-[19px] font-extrabold leading-[1.15] tracking-[-0.024em] text-white">
               Create an allocation
             </h1>
             <p className="mt-1 max-w-[560px] text-pretty text-[11px] leading-[1.45] text-white/60">
@@ -331,7 +331,7 @@ export function AllocationBuilder({
           <div className="flex min-w-0 flex-[0_1_auto] flex-wrap items-center justify-end gap-2">
             <Link
               href={backHref as Route<string>}
-              className="inline-flex flex-none items-center gap-[6px] whitespace-nowrap rounded-full border border-white/[0.18] bg-white/10 px-[12px] py-[7px] text-[11px] font-semibold text-white transition hover:bg-white/20"
+              className="inline-flex flex-none items-center gap-[6px] whitespace-nowrap rounded-full border border-white/18 bg-white/10 px-[12px] py-[7px] text-[11px] font-semibold text-white transition hover:bg-white/20"
             >
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                 <path d="M19 12H6M11 5.5 5.5 12l5.5 6.5" />
@@ -354,14 +354,14 @@ export function AllocationBuilder({
 
       <section className={cn(CARD, "px-[18px] py-[15px]")}>
         <div className="mb-[13px] border-b border-[#EDF3EF] pb-[11px]">
-          <h2 className="font-[family-name:var(--font-heading)] text-[14px] font-extrabold leading-[1.2] tracking-[-0.018em] text-[#0D2315]">
+          <h2 className="font-(family-name:--font-heading) text-[14px] font-extrabold leading-[1.2] tracking-[-0.018em] text-[#0D2315]">
             What this list is
           </h2>
           <p className="mt-[3px] text-pretty text-[11px] leading-[1.45] text-[#67766D]">
             Five answers. Everything else is the items themselves.
           </p>
         </div>
-        <div className="grid gap-x-[14px] gap-y-[13px] [grid-template-columns:repeat(auto-fit,minmax(240px,1fr))]">
+        <div className="grid gap-x-[14px] gap-y-[13px] grid-cols-[repeat(auto-fit,minmax(240px,1fr))]">
           {fields.map((field) => (
             <Field
               key={field.label}
@@ -381,7 +381,7 @@ export function AllocationBuilder({
       <section className={cn(CARD, "px-[18px] py-[15px]")}>
         <div className="mb-[13px] flex flex-wrap items-start justify-between gap-x-4 gap-y-2 border-b border-[#EDF3EF] pb-[11px]">
           <div className="min-w-0">
-            <h2 className="font-[family-name:var(--font-heading)] text-[14px] font-extrabold leading-[1.2] tracking-[-0.018em] text-[#0D2315]">
+            <h2 className="font-(family-name:--font-heading) text-[14px] font-extrabold leading-[1.2] tracking-[-0.018em] text-[#0D2315]">
               The list itself
             </h2>
             <p className="mt-[3px] text-pretty text-[11px] leading-[1.45] text-[#67766D]">
@@ -426,7 +426,7 @@ export function AllocationBuilder({
               value={newCat}
               onChange={(event) => setNewCat(event.target.value)}
               placeholder="Your own category…"
-              className="w-[170px] rounded-full border border-[#DEE8E2] bg-white px-[11px] py-[6px] text-[10.5px] outline-none focus:border-[#12796A]"
+              className="w-[170px] rounded-full border border-[#DEE8E2] bg-white px-[11px] py-[6px] text-[10.5px] outline-hidden focus:border-[#12796A]"
             />
             <Button
               label="Add"
@@ -562,11 +562,11 @@ export function AllocationBuilder({
           ) : null}
         </div>
 
-        <div className="mt-[15px] grid gap-[10px] border-t border-[#EDF3EF] pt-[13px] [grid-template-columns:repeat(auto-fit,minmax(170px,1fr))]">
+        <div className="mt-[15px] grid gap-[10px] border-t border-[#EDF3EF] pt-[13px] grid-cols-[repeat(auto-fit,minmax(170px,1fr))]">
           {totals.map(([label, value, hint]) => (
             <div key={label}>
               <div className="text-[9.5px] font-bold uppercase tracking-[0.08em] text-[#8B9A91]">{label}</div>
-              <div className="mt-[3px] font-[family-name:var(--font-heading)] text-[17px] font-extrabold tracking-[-0.02em] text-[#0D2315]">
+              <div className="mt-[3px] font-(family-name:--font-heading) text-[17px] font-extrabold tracking-[-0.02em] text-[#0D2315]">
                 {value}
               </div>
               <div className="mt-[2px] text-pretty text-[10px] leading-[1.45] text-[#67766D]">{hint}</div>

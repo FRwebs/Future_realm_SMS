@@ -26,7 +26,7 @@ const CHOICES: Array<{ value: Status; short: string; label: string; tone: "posit
 ];
 const LABEL: Record<Status, string> = { PRESENT: "Present", ABSENT: "Absent", LATE: "Late", EXCUSED: "Excused" };
 const PER = 15;
-const SHELL = "min-w-0 overflow-hidden rounded-[14px] border bg-[var(--color-bg-surface)] px-[18px] pb-[12px]";
+const SHELL = "min-w-0 overflow-hidden rounded-[14px] border bg-(--color-bg-surface) px-[18px] pb-[12px]";
 const NEEDS_REASON = new Set<Status>(["ABSENT", "EXCUSED"]);
 
 function Kpi({ label, value, unit, sub, tone }: { label: string; value: string; unit?: string; sub: string; tone?: "positive" | "negative" | "attention" | "submitted" | "neutral" }) {
@@ -209,7 +209,7 @@ export function RegisterMarker({ panel, openDrawer }: { panel: MarkerPanel; open
       ) : null}
 
       <section className={cn(SHELL)} style={{ borderColor: "#DEE8E2" }} aria-label={`Roster · ${panel.arm}`}>
-        <div className="-mx-[18px] flex flex-wrap items-start justify-between gap-[14px] border-b px-[18px] pb-[12px] pt-[14px]" style={{ borderColor: "#EDF3EF" }}>
+        <div className="mx-[-18px] flex flex-wrap items-start justify-between gap-[14px] border-b px-[18px] pb-[12px] pt-[14px]" style={{ borderColor: "#EDF3EF" }}>
           <div className="min-w-0 flex-[1_1_260px]">
             <div className="flex flex-wrap items-center gap-2">
               <h3 className="text-[12.5px] font-semibold" style={{ color: INK }}>Roster · {panel.arm}</h3>
@@ -217,7 +217,7 @@ export function RegisterMarker({ panel, openDrawer }: { panel: MarkerPanel; open
                 {submitted ? "Submitted" : done ? "Ready" : `${counts.unmarked} unmarked`}
               </span>
             </div>
-            <p className="mt-[3.5px] text-[10.5px] leading-[1.5]" style={{ color: MUTED }}>Tap P, A, L or E on a row. A reason on an absence travels to that child&rsquo;s register.</p>
+            <p className="mt-[3.5px] text-[10.5px] leading-normal" style={{ color: MUTED }}>Tap P, A, L or E on a row. A reason on an absence travels to that child&rsquo;s register.</p>
           </div>
           <p className="text-right text-[10.5px] leading-[1.45]" style={{ color: MUTED }}>
             {total} children · {total - counts.unmarked} marked · cutoff {panel.cutoff}
@@ -225,7 +225,7 @@ export function RegisterMarker({ panel, openDrawer }: { panel: MarkerPanel; open
           </p>
         </div>
 
-        <div className="-mx-[18px] flex flex-wrap items-center gap-[8px] border-b px-[18px] py-[10px]" style={{ borderColor: "#EDF3EF", background: "#FAFCFB" }}>
+        <div className="mx-[-18px] flex flex-wrap items-center gap-[8px] border-b px-[18px] py-[10px]" style={{ borderColor: "#EDF3EF", background: "#FAFCFB" }}>
           <input
             value={query}
             onChange={(event) => {
@@ -261,7 +261,7 @@ export function RegisterMarker({ panel, openDrawer }: { panel: MarkerPanel; open
           </button>
         </div>
 
-        <div className="-mx-[18px] overflow-x-auto">
+        <div className="mx-[-18px] overflow-x-auto">
           <table className="w-full min-w-[760px] border-collapse text-left">
             <thead>
               <tr style={{ background: "#F7FAF8" }}>
@@ -358,8 +358,8 @@ export function RegisterMarker({ panel, openDrawer }: { panel: MarkerPanel; open
           </table>
         </div>
 
-        <div className="-mx-[18px] -mb-[12px] flex flex-wrap items-center justify-between gap-[10px] border-t px-[18px] py-[10px]" style={{ borderColor: "#EDF3EF", background: "#F7FAF8" }}>
-          <p className="text-[10.5px] leading-[1.5]" style={{ color: MUTED }}>
+        <div className="mx-[-18px] mb-[-12px] flex flex-wrap items-center justify-between gap-[10px] border-t px-[18px] py-[10px]" style={{ borderColor: "#EDF3EF", background: "#F7FAF8" }}>
+          <p className="text-[10.5px] leading-normal" style={{ color: MUTED }}>
             P present · A absent · L late · E excused. An unmarked child is not present — the register will not submit until every one is set, on every page.
           </p>
           <div className="flex items-center gap-[6px]">

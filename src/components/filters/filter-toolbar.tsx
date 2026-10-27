@@ -78,7 +78,7 @@ export function FilterToolbar({
             placeholder={searchControl.type === "search" ? searchControl.placeholder : undefined}
             defaultValue={searchControl.defaultValue}
             onChange={submitDebounced}
-            className="w-full min-w-0 bg-transparent text-[11.5px] text-[#0D2315] placeholder:text-[#7a8f82] focus:outline-none"
+            className="w-full min-w-0 bg-transparent text-[11.5px] text-[#0D2315] placeholder:text-[#7a8f82] focus:outline-hidden"
           />
         </div>
       ) : null}
@@ -97,7 +97,7 @@ export function FilterToolbar({
               aria-label={control.label}
               defaultValue={control.defaultValue}
               onChange={submitNow}
-              className="rounded-[9px] border border-[#DEE8E2] bg-white px-[10px] py-[7px] text-[11px] font-semibold text-[#0D2315] focus:outline-none"
+              className="rounded-[9px] border border-[#DEE8E2] bg-white px-[10px] py-[7px] text-[11px] font-semibold text-[#0D2315] focus:outline-hidden"
             />
           );
         }
@@ -110,7 +110,7 @@ export function FilterToolbar({
             placeholder={control.placeholder ?? control.label}
             defaultValue={control.defaultValue}
             onChange={submitDebounced}
-            className="w-36 rounded-[9px] border border-[#DEE8E2] bg-white px-[10px] py-[7px] text-[11px] font-semibold text-[#0D2315] placeholder:text-[#7a8f82] focus:outline-none"
+            className="w-36 rounded-[9px] border border-[#DEE8E2] bg-white px-[10px] py-[7px] text-[11px] font-semibold text-[#0D2315] placeholder:text-[#7a8f82] focus:outline-hidden"
           />
         );
       })}
@@ -206,19 +206,19 @@ function SavedViews({ action }: { action: Route | string }) {
         <Filter className="h-[12px] w-[12px] text-[#12796A]" strokeWidth={2} />
         Saved views
         {views.length ? (
-          <span className="ml-0.5 rounded-full bg-[var(--color-bg-subtle)] px-[6px] text-[10.5px] font-bold text-[#435048]">{views.length}</span>
+          <span className="ml-0.5 rounded-full bg-(--color-bg-subtle) px-[6px] text-[10.5px] font-bold text-[#435048]">{views.length}</span>
         ) : null}
       </button>
       {open ? (
-        <div className="popover-enter absolute right-0 top-[calc(100%+6px)] z-20 w-64 rounded-[12px] border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] p-2.5 shadow-[var(--shadow-md)]">
-          <p className="px-1.5 py-1 text-[10.5px] font-semibold uppercase tracking-[0.08em] text-[var(--color-text-muted)]">Saved views</p>
+        <div className="popover-enter absolute right-0 top-[calc(100%+6px)] z-20 w-64 rounded-[12px] border border-(--color-border-default) bg-(--color-bg-surface) p-2.5 shadow-(--shadow-md)">
+          <p className="px-1.5 py-1 text-[10.5px] font-semibold uppercase tracking-[0.08em] text-(--color-text-muted)">Saved views</p>
           {views.length ? (
             <div className="mb-2 grid gap-0.5">
               {views.map((view) => (
-                <div key={view.id} className="flex items-center gap-1.5 rounded-[8px] px-1.5 py-1 hover:bg-[var(--color-bg-subtle)]">
+                <div key={view.id} className="flex items-center gap-1.5 rounded-[8px] px-1.5 py-1 hover:bg-(--color-bg-subtle)">
                   <Link
                     href={(view.query ? `${action}?${view.query}` : `${action}`) as Route}
-                    className="min-w-0 flex-1 truncate text-[12.5px] font-semibold text-[var(--color-text-primary)]"
+                    className="min-w-0 flex-1 truncate text-[12.5px] font-semibold text-(--color-text-primary)"
                     onClick={() => setOpen(false)}
                   >
                     {view.name}
@@ -227,7 +227,7 @@ function SavedViews({ action }: { action: Route | string }) {
                     type="button"
                     onClick={() => removeView(view.id)}
                     aria-label={`Delete saved view ${view.name}`}
-                    className="shrink-0 text-[var(--color-text-muted)] transition hover:text-[var(--color-danger)]"
+                    className="shrink-0 text-(--color-text-muted) transition hover:text-danger"
                   >
                     <Trash2 className="h-3.5 w-3.5" />
                   </button>
@@ -235,7 +235,7 @@ function SavedViews({ action }: { action: Route | string }) {
               ))}
             </div>
           ) : (
-            <p className="px-1.5 py-2 text-[11.5px] text-[var(--color-text-muted)]">No saved views yet.</p>
+            <p className="px-1.5 py-2 text-[11.5px] text-(--color-text-muted)">No saved views yet.</p>
           )}
           <div className="flex items-center gap-1.5 border-t border-[#EDF3EF] pt-2">
             <input
@@ -249,13 +249,13 @@ function SavedViews({ action }: { action: Route | string }) {
                 }
               }}
               placeholder="Name this filter combination"
-              className="min-w-0 flex-1 rounded-[8px] border border-[#DEE8E2] px-2 py-1.5 text-[12px] text-[#0D2315] placeholder:text-[#7a8f82] focus:outline-none"
+              className="min-w-0 flex-1 rounded-[8px] border border-[#DEE8E2] px-2 py-1.5 text-[12px] text-[#0D2315] placeholder:text-[#7a8f82] focus:outline-hidden"
             />
             <button
               type="button"
               onClick={saveCurrentView}
               disabled={!draftName.trim()}
-              className="shrink-0 rounded-[8px] bg-[var(--color-accent-primary)] px-2.5 py-1.5 text-[11.5px] font-bold text-white disabled:cursor-not-allowed disabled:opacity-40"
+              className="shrink-0 rounded-[8px] bg-(--color-accent-primary) px-2.5 py-1.5 text-[11.5px] font-bold text-white disabled:cursor-not-allowed disabled:opacity-40"
             >
               Save
             </button>

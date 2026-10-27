@@ -189,10 +189,10 @@ export default async function SuperAdminConfigLibraryPage({ searchParams }: { se
           getRowKey={(row) => row.layer}
           pageSize={false}
           columns={[
-            { key: "layer", header: "Layer", render: (row) => <span className="font-bold text-[var(--color-text-primary)]">{row.layer}</span> },
-            { key: "name", header: "Name", render: (row) => <span className="font-bold text-[var(--color-text-primary)]">{row.name}</span> },
-            { key: "governs", header: "What it governs", render: (row) => <span className="text-[var(--color-text-secondary)]">{row.governs}</span> },
-            { key: "readBy", header: "Read by", render: (row) => (row.emphasis ? <span className="inline-flex rounded-full bg-[var(--color-danger-dim)] px-[9px] py-[3px] text-[11px] font-bold text-[var(--color-danger)]">{row.readBy}</span> : row.readBy) }
+            { key: "layer", header: "Layer", render: (row) => <span className="font-bold text-(--color-text-primary)">{row.layer}</span> },
+            { key: "name", header: "Name", render: (row) => <span className="font-bold text-(--color-text-primary)">{row.name}</span> },
+            { key: "governs", header: "What it governs", render: (row) => <span className="text-(--color-text-secondary)">{row.governs}</span> },
+            { key: "readBy", header: "Read by", render: (row) => (row.emphasis ? <span className="inline-flex rounded-full bg-(--color-danger-dim) px-[9px] py-[3px] text-[11px] font-bold text-danger">{row.readBy}</span> : row.readBy) }
           ]}
         />
 
@@ -219,14 +219,14 @@ export default async function SuperAdminConfigLibraryPage({ searchParams }: { se
           getRowKey={(row) => row.requirement}
           pageSize={false}
           columns={[
-            { key: "requirement", header: "Requirement", render: (row) => <span className="font-bold text-[var(--color-text-primary)]">{row.requirement}</span> },
-            { key: "spec", header: "Specification", render: (row) => <span className="text-[var(--color-text-secondary)]">{row.spec}</span> },
+            { key: "requirement", header: "Requirement", render: (row) => <span className="font-bold text-(--color-text-primary)">{row.requirement}</span> },
+            { key: "spec", header: "Specification", render: (row) => <span className="text-(--color-text-secondary)">{row.spec}</span> },
             {
               key: "state",
               header: "State",
               render: (row) => row.state === "good"
-                ? <span className="inline-flex rounded-full bg-[var(--color-success-dim)] px-[9px] py-[3px] text-[11px] font-bold text-[var(--color-success)]">Enforced</span>
-                : <span className="inline-flex rounded-full bg-[var(--color-warning-dim)] px-[9px] py-[3px] text-[11px] font-bold text-[var(--color-warning)]">Partial</span>
+                ? <span className="inline-flex rounded-full bg-(--color-success-dim) px-[9px] py-[3px] text-[11px] font-bold text-(--color-success)">Enforced</span>
+                : <span className="inline-flex rounded-full bg-(--color-warning-dim) px-[9px] py-[3px] text-[11px] font-bold text-(--color-warning)">Partial</span>
             }
           ]}
           footnote="Partial means the platform does not yet do all of it: a score record carries no curriculum-version tag of its own, so a past report card is rebuilt from the school’s own copy rather than from a stored version. Publishing a new version tells the owner and principal of every school that took the old one; nothing is applied to them."
@@ -271,7 +271,7 @@ export default async function SuperAdminConfigLibraryPage({ searchParams }: { se
             columns={[
               { key: "from", header: "From", render: (row) => row.fromSubject },
               { key: "to", header: "To", render: (row) => row.toSubject },
-              { key: "relationship", header: "Relationship", render: (row) => <span className="inline-flex rounded-full bg-[var(--color-info-dim)] px-[9px] py-[3px] text-[11px] font-bold text-[var(--color-info)]">{row.relationship.charAt(0) + row.relationship.slice(1).toLowerCase()}</span> },
+              { key: "relationship", header: "Relationship", render: (row) => <span className="inline-flex rounded-full bg-(--color-info-dim) px-[9px] py-[3px] text-[11px] font-bold text-(--color-info)">{row.relationship.charAt(0) + row.relationship.slice(1).toLowerCase()}</span> },
               { key: "x", header: "", render: (row) => <ResourceActionDialog triggerLabel="Remove" title="Remove this mapping" description={`${row.fromSubject} → ${row.toSubject}`} endpoint={`/api/super-admin/config-library/mappings/${row.id}`} method="DELETE" variant="textActionDanger" submitLabel="Remove" confirmLabel="Confirm" fields={[]} /> }
             ]}
             emptyState="No subject has been mapped between versions yet — it matters once a template has a second version."
@@ -307,10 +307,10 @@ export default async function SuperAdminConfigLibraryPage({ searchParams }: { se
             />
           }
           columns={[
-            { key: "school", header: "School", render: (row) => <span className="font-semibold text-[var(--color-text-primary)]">{row.school}</span> },
-            { key: "class", header: "Class", render: (row) => <span className="text-[var(--color-text-secondary)]">{row.className}</span> },
-            { key: "template", header: "Curriculum version", render: (row) => <span className="text-[var(--color-text-primary)]">{row.template} <span className="font-[var(--font-mono)] text-[var(--color-text-muted)]">{row.version}</span></span> },
-            { key: "at", header: "Assigned", render: (row) => <span className="text-[11px] text-[var(--color-text-muted)]">{formatDate(row.assignedAt)}</span>, sortValue: (row) => row.assignedAt },
+            { key: "school", header: "School", render: (row) => <span className="font-semibold text-(--color-text-primary)">{row.school}</span> },
+            { key: "class", header: "Class", render: (row) => <span className="text-(--color-text-secondary)">{row.className}</span> },
+            { key: "template", header: "Curriculum version", render: (row) => <span className="text-(--color-text-primary)">{row.template} <span className="font-(--font-mono) text-(--color-text-muted)">{row.version}</span></span> },
+            { key: "at", header: "Assigned", render: (row) => <span className="text-[11px] text-(--color-text-muted)">{formatDate(row.assignedAt)}</span>, sortValue: (row) => row.assignedAt },
             {
               key: "clear",
               header: "",
@@ -351,9 +351,9 @@ export default async function SuperAdminConfigLibraryPage({ searchParams }: { se
           getRowKey={(row) => row.test}
           pageSize={false}
           columns={[
-            { key: "test", header: "#", render: (row) => <span className="font-bold text-[var(--color-text-primary)]">{row.test}</span> },
-            { key: "question", header: "Test", render: (row) => <span className="text-[var(--color-text-secondary)]">{row.question}</span> },
-            { key: "failure", header: "Failure looks like", render: (row) => <span className="text-[var(--color-text-secondary)]">{row.failure}</span> },
+            { key: "test", header: "#", render: (row) => <span className="font-bold text-(--color-text-primary)">{row.test}</span> },
+            { key: "question", header: "Test", render: (row) => <span className="text-(--color-text-secondary)">{row.question}</span> },
+            { key: "failure", header: "Failure looks like", render: (row) => <span className="text-(--color-text-secondary)">{row.failure}</span> },
             {
               key: "state",
               header: "State",
@@ -409,10 +409,10 @@ export default async function SuperAdminConfigLibraryPage({ searchParams }: { se
               />
             }
             columns={[
-              { key: "name", header: "Framework", render: (row) => <span className="font-bold text-[var(--color-text-primary)]">{row.name}{row.isActive ? null : <span className="ml-2 text-[10.5px] font-normal text-[var(--color-text-muted)]">switched off</span>}</span> },
+              { key: "name", header: "Framework", render: (row) => <span className="font-bold text-(--color-text-primary)">{row.name}{row.isActive ? null : <span className="ml-2 text-[10.5px] font-normal text-(--color-text-muted)">switched off</span>}</span> },
               { key: "components", header: "Components", render: (row) => (row.isCustom ? "Any components the school defines" : row.components.map((c) => c.name).join(", ")) },
               { key: "weights", header: "Weights", render: (row) => (row.isCustom ? "Must total 100" : row.components.map((c) => c.weight).join(" / ")) },
-              { key: "typical", header: "Typical user", render: (row) => <span className="text-[var(--color-text-secondary)]">{row.typicalUser ?? "—"}</span> },
+              { key: "typical", header: "Typical user", render: (row) => <span className="text-(--color-text-secondary)">{row.typicalUser ?? "—"}</span> },
               { key: "schools", header: "Schools", render: (row) => (row.isCustom ? (customSchools > 0 ? customSchools : "—") : row.schools > 0 ? row.schools : "—") },
               { key: "toggle", header: "", sortable: false, render: (row) => (row.isCustom ? null : <ResourceActionDialog triggerLabel={row.isActive ? "Switch off" : "Switch on"} title={`${row.isActive ? "Switch off" : "Switch on"} ${row.name}`} description={row.isActive ? "It is no longer offered at setup. Schools already using it are not changed." : "It is offered at setup again."} endpoint={`/api/super-admin/config-library/assessment-frameworks/${row.id}/toggle`} variant="textAction" submitLabel={row.isActive ? "Switch off" : "Switch on"} fields={[]} />) }
             ]}
@@ -436,9 +436,9 @@ export default async function SuperAdminConfigLibraryPage({ searchParams }: { se
               getRowKey={(row) => row.field}
               pageSize={false}
               columns={[
-                { key: "field", header: "Field", render: (row) => <span className="font-bold text-[var(--color-text-primary)]">{row.field}</span> },
-                { key: "meaning", header: "Meaning", render: (row) => <span className="text-[var(--color-text-secondary)]">{row.meaning}</span> },
-                { key: "constraint", header: "Constraint", render: (row) => <span className="text-[var(--color-text-secondary)]">{row.constraint}</span> }
+                { key: "field", header: "Field", render: (row) => <span className="font-bold text-(--color-text-primary)">{row.field}</span> },
+                { key: "meaning", header: "Meaning", render: (row) => <span className="text-(--color-text-secondary)">{row.meaning}</span> },
+                { key: "constraint", header: "Constraint", render: (row) => <span className="text-(--color-text-secondary)">{row.constraint}</span> }
               ]}
             />
             <ReferenceList
@@ -464,10 +464,10 @@ export default async function SuperAdminConfigLibraryPage({ searchParams }: { se
                 getRowKey={(row) => row.stage}
                 pageSize={false}
                 columns={[
-                  { key: "stage", header: "Stage", render: (row) => <span className="font-bold text-[var(--color-text-primary)]">{row.stage}</span> },
+                  { key: "stage", header: "Stage", render: (row) => <span className="font-bold text-(--color-text-primary)">{row.stage}</span> },
                   { key: "classes", header: "Classes", render: (row) => row.classes },
-                  { key: "exam", header: "Terminal examination", render: (row) => (row.exam === "—" ? <span className="text-[var(--color-text-muted)]">—</span> : <span className="inline-flex rounded-full bg-[var(--color-info-dim)] px-[9px] py-[3px] text-[11px] font-bold text-[var(--color-info)]">{row.exam}</span>) },
-                  { key: "notes", header: "Notes", render: (row) => <span className="text-[var(--color-text-secondary)]">{row.notes}</span> }
+                  { key: "exam", header: "Terminal examination", render: (row) => (row.exam === "—" ? <span className="text-(--color-text-muted)">—</span> : <span className="inline-flex rounded-full bg-(--color-info-dim) px-[9px] py-[3px] text-[11px] font-bold text-(--color-info)">{row.exam}</span>) },
+                  { key: "notes", header: "Notes", render: (row) => <span className="text-(--color-text-secondary)">{row.notes}</span> }
                 ]}
                 footnote={layers?.levelsFootnote}
               />
@@ -479,8 +479,8 @@ export default async function SuperAdminConfigLibraryPage({ searchParams }: { se
                   getRowKey={(row) => row.name}
                   pageSize={false}
                   columns={[
-                    { key: "subject", header: "Subject", render: (row) => <span className="font-bold text-[var(--color-text-primary)]">{row.name}</span> },
-                    { key: "category", header: "Category", render: (row) => (row.note ? <span className="text-[var(--color-text-secondary)]">{row.note}</span> : <span className={`inline-flex rounded-full px-[9px] py-[3px] text-[11px] font-bold ${row.category === "Core" ? "bg-[var(--color-info-dim)] text-[var(--color-info)]" : row.category === "Compulsory choice" ? "bg-[var(--color-warning-dim)] text-[var(--color-warning)]" : "bg-[var(--color-bg-subtle)] text-[var(--color-text-muted)]"}`}>{row.category}</span>) }
+                    { key: "subject", header: "Subject", render: (row) => <span className="font-bold text-(--color-text-primary)">{row.name}</span> },
+                    { key: "category", header: "Category", render: (row) => (row.note ? <span className="text-(--color-text-secondary)">{row.note}</span> : <span className={`inline-flex rounded-full px-[9px] py-[3px] text-[11px] font-bold ${row.category === "Core" ? "bg-(--color-info-dim) text-(--color-info)" : row.category === "Compulsory choice" ? "bg-(--color-warning-dim) text-(--color-warning)" : "bg-(--color-bg-subtle) text-(--color-text-muted)"}`}>{row.category}</span>) }
                   ]}
                 />
                 <TableCard
@@ -493,8 +493,8 @@ export default async function SuperAdminConfigLibraryPage({ searchParams }: { se
                   getRowKey={(row) => row.key}
                   pageSize={false}
                   columns={[
-                    { key: "a", header: "Compulsory core", render: (row) => (row.stream ? <span className="inline-flex rounded-full bg-[var(--color-info-dim)] px-[9px] py-[3px] text-[11px] font-bold text-[var(--color-info)]">{row.a}</span> : <span className="font-bold text-[var(--color-text-primary)]">{row.a}</span>) },
-                    { key: "b", header: "Applies", render: (row) => <span className="text-[var(--color-text-secondary)]">{row.b}</span> }
+                    { key: "a", header: "Compulsory core", render: (row) => (row.stream ? <span className="inline-flex rounded-full bg-(--color-info-dim) px-[9px] py-[3px] text-[11px] font-bold text-(--color-info)">{row.a}</span> : <span className="font-bold text-(--color-text-primary)">{row.a}</span>) },
+                    { key: "b", header: "Applies", render: (row) => <span className="text-(--color-text-secondary)">{row.b}</span> }
                   ]}
                   footnote={layers?.senior?.footnote}
                 />
@@ -515,14 +515,14 @@ export default async function SuperAdminConfigLibraryPage({ searchParams }: { se
                   items={Array.from({ length: Math.max(layers?.primary?.lower.length ?? 0, layers?.primary?.upper.length ?? 0) }, (_, index) => ({ key: String(index), lower: layers?.primary?.lower[index] ?? "—", upper: layers?.primary?.upper[index] ?? "—" }))}
                   getRowKey={(row) => row.key}
                   pageSize={false}
-                  columns={[{ key: "lower", header: "Primary 1–3 (9–10)", render: (row) => (row.lower === "—" ? <span className="text-[var(--color-text-muted)]">—</span> : row.lower) }, { key: "upper", header: "Primary 4–6 (11–13)", render: (row) => (row.upper === "—" ? <span className="text-[var(--color-text-muted)]">—</span> : row.upper) }]}
+                  columns={[{ key: "lower", header: "Primary 1–3 (9–10)", render: (row) => (row.lower === "—" ? <span className="text-(--color-text-muted)">—</span> : row.lower) }, { key: "upper", header: "Primary 4–6 (11–13)", render: (row) => (row.upper === "—" ? <span className="text-(--color-text-muted)">—</span> : row.upper) }]}
                 />
               </div>
             </>
           ) : (
-            <section className="overflow-hidden rounded-[14px] border border-[var(--color-border-default)] bg-white px-5 py-4">
-              <p className="text-[14px] font-semibold text-[var(--color-text-primary)]">No Nigerian default template is on file</p>
-              <p className="mt-1 text-[10.5px] text-[var(--color-text-muted)]">Run the library seed, or publish a Nigerian template with its layers, and the level structure and subject framework appear here.</p>
+            <section className="overflow-hidden rounded-[14px] border border-(--color-border-default) bg-white px-5 py-4">
+              <p className="text-[14px] font-semibold text-(--color-text-primary)">No Nigerian default template is on file</p>
+              <p className="mt-1 text-[10.5px] text-(--color-text-muted)">Run the library seed, or publish a Nigerian template with its layers, and the level structure and subject framework appear here.</p>
             </section>
           )}
           <TableCard
@@ -531,8 +531,8 @@ export default async function SuperAdminConfigLibraryPage({ searchParams }: { se
             items={extras.weightPatterns}
             getRowKey={(row) => row.pattern}
             columns={[
-              { key: "pattern", header: "Weights", render: (row) => <span className="font-[var(--font-mono)] font-bold text-[var(--color-text-primary)]">{row.pattern}</span> },
-              { key: "components", header: "Components (example school)", render: (row) => <span className="text-[var(--color-text-secondary)]">{row.componentNames}</span> },
+              { key: "pattern", header: "Weights", render: (row) => <span className="font-(--font-mono) font-bold text-(--color-text-primary)">{row.pattern}</span> },
+              { key: "components", header: "Components (example school)", render: (row) => <span className="text-(--color-text-secondary)">{row.componentNames}</span> },
               { key: "schools", header: "Schools", render: (row) => row.schoolCount }
             ]}
             emptyState="No school has configured class-level assessment components yet."
@@ -650,8 +650,8 @@ export default async function SuperAdminConfigLibraryPage({ searchParams }: { se
             getRowKey={(row) => row.field}
             pageSize={false}
             columns={[
-              { key: "field", header: "Field", render: (row) => <span className="font-bold text-[var(--color-text-primary)]">{row.field}</span> },
-              { key: "purpose", header: "Purpose", render: (row) => <span className="text-[var(--color-text-secondary)]">{row.purpose}</span> },
+              { key: "field", header: "Field", render: (row) => <span className="font-bold text-(--color-text-primary)">{row.field}</span> },
+              { key: "purpose", header: "Purpose", render: (row) => <span className="text-(--color-text-secondary)">{row.purpose}</span> },
               { key: "consumedBy", header: "Consumed by", render: (row) => row.consumedBy }
             ]}
           />
@@ -672,7 +672,7 @@ export default async function SuperAdminConfigLibraryPage({ searchParams }: { se
               />
             }
             columns={[
-              { key: "country", header: "Country", render: (row) => <span className="inline-flex items-center gap-2 font-bold text-[var(--color-text-primary)]"><Globe2 className="h-[13.5px] w-[13.5px] text-[var(--color-text-muted)]" />{row.country}</span> },
+              { key: "country", header: "Country", render: (row) => <span className="inline-flex items-center gap-2 font-bold text-(--color-text-primary)"><Globe2 className="h-[13.5px] w-[13.5px] text-(--color-text-muted)" />{row.country}</span> },
               { key: "regime", header: "Regime", render: (row) => row.dataProtectionRegime ?? "—" },
               { key: "channel", header: "Channel", render: (row) => ({ WHATSAPP: "WhatsApp", SMS: "SMS", EMAIL: "Email" } as Record<string, string>)[row.defaultChannel ?? ""] ?? "—" },
               { key: "currency", header: "Currency", render: (row) => row.currency },
@@ -681,10 +681,10 @@ export default async function SuperAdminConfigLibraryPage({ searchParams }: { se
                 key: "state",
                 header: "State",
                 render: (row) => row.isLive
-                  ? <span className="inline-flex whitespace-nowrap rounded-full bg-[var(--color-success-dim)] px-[9px] py-[3px] text-[11px] font-bold text-[var(--color-success)]">Live</span>
+                  ? <span className="inline-flex whitespace-nowrap rounded-full bg-(--color-success-dim) px-[9px] py-[3px] text-[11px] font-bold text-(--color-success)">Live</span>
                   : row.dataProtectionRegime && row.phonePattern
-                    ? <span className="inline-flex whitespace-nowrap rounded-full bg-[var(--color-warning-dim)] px-[9px] py-[3px] text-[11px] font-bold text-[var(--color-warning)]">Configured — not launched</span>
-                    : <span className="inline-flex whitespace-nowrap rounded-full bg-[var(--color-bg-subtle)] px-[9px] py-[3px] text-[11px] font-bold text-[var(--color-text-muted)]">Draft</span>
+                    ? <span className="inline-flex whitespace-nowrap rounded-full bg-(--color-warning-dim) px-[9px] py-[3px] text-[11px] font-bold text-(--color-warning)">Configured — not launched</span>
+                    : <span className="inline-flex whitespace-nowrap rounded-full bg-(--color-bg-subtle) px-[9px] py-[3px] text-[11px] font-bold text-(--color-text-muted)">Draft</span>
               },
               { key: "edit", header: "", render: (row) => <ResourceActionDialog triggerLabel="Edit" title={`Country profile — ${row.country}`} description="Saves over this country's profile." endpoint="/api/super-admin/config-library/country-profiles" method="PATCH" variant="textAction" submitLabel="Save profile" fields={countryFields(row)} /> }
             ]}

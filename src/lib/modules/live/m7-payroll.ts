@@ -290,7 +290,7 @@ export function payrollTab(data: PayrollOverview): TabContent {
               ["2 · Allowances", "Added by band, not by person", "Who draws each is part of the band"],
               ["3 · Proration", "By working day", "Starters and unpaid leave only"],
               ["4 · Statutory deductions", "From the profile", "PAYE, pension, national housing"],
-              ["5 · Net pay", "What reaches the bank", setup.roundNet ? "Rounded to the nearest 100" : "To the naira, never rounded"],
+              ["5 · Net pay", "What reaches the bank", setup.roundNet ? "Rounded to the nearest 100" : "To the naira, never rounded-sm"],
               ["Nothing else", "No free-text pay line exists", "Because that is how quiet, permanent errors get in"],
             ],
           },

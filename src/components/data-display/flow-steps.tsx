@@ -13,8 +13,8 @@ export function FlowSteps({ title, sub, steps }: { title: string; sub?: string; 
   return (
     <section className="surface-card min-w-0 overflow-hidden">
       <div className="px-5 pb-[14px] pt-4">
-        <h3 className="text-pretty text-[14px] font-semibold leading-[1.3] text-[var(--color-text-primary)]">{title}</h3>
-        {sub ? <p className="mt-1 text-pretty text-[11.5px] leading-[1.5] text-[#5f6e65]">{sub}</p> : null}
+        <h3 className="text-pretty text-[14px] font-semibold leading-[1.3] text-(--color-text-primary)">{title}</h3>
+        {sub ? <p className="mt-1 text-pretty text-[11.5px] leading-normal text-[#5f6e65]">{sub}</p> : null}
       </div>
       <div className="flex flex-wrap items-stretch gap-[9px] px-5 pb-5 pt-1">
         {steps.map((step, index) => {

@@ -35,9 +35,9 @@ export function ModuleAdoptionTable({ trends = [], heatmapByTier, tierColumns, s
 
   return (
     <section className="surface-card overflow-hidden">
-      <div className="border-b border-[var(--color-border-default)] px-5 py-4">
-        <p className="text-[12.5px] font-bold text-[var(--color-text-primary)]">Module adoption by tier</p>
-        <p className="mt-1 text-[10.5px] text-[var(--color-text-muted)]">
+      <div className="border-b border-(--color-border-default) px-5 py-4">
+        <p className="text-[12.5px] font-bold text-(--color-text-primary)">Module adoption by tier</p>
+        <p className="mt-1 text-[10.5px] text-(--color-text-muted)">
           Share of schools on each tier that did something in the module in the last 60 days — counted from their records, not from a switch. The last column is the weekly reading over the past twelve weeks; it fills in as weeks pass.
         </p>
       </div>
@@ -59,7 +59,7 @@ export function ModuleAdoptionTable({ trends = [], heatmapByTier, tierColumns, s
 
       <div className="px-5 py-3.5">
         <div className="grid items-end gap-1.5 border-b border-[#EDF3EF] pb-2.5" style={{ gridTemplateColumns: cols }}>
-          <div className="min-w-0 text-[9.5px] font-semibold uppercase tracking-[0.05em] text-[#5f6e65]">Module</div>
+          <div className="min-w-0 text-[9.5px] font-semibold uppercase tracking-wider text-[#5f6e65]">Module</div>
           {visibleTierIndexes.map((index) => (
             <div key={tierColumns[index].plan} className="min-w-0 text-center text-[9.5px] font-semibold uppercase tracking-[0.04em] text-[#5f6e65]">
               <div>{tierColumns[index].plan}</div>
@@ -72,7 +72,7 @@ export function ModuleAdoptionTable({ trends = [], heatmapByTier, tierColumns, s
         </div>
 
         {heatmapByTier.length === 0 ? (
-          <p className="py-6 text-center text-[11.5px] text-[var(--color-text-muted)]">No module usage recorded yet.</p>
+          <p className="py-6 text-center text-[11.5px] text-(--color-text-muted)">No module usage recorded yet.</p>
         ) : (
           heatmapByTier.map((row) => (
             <div key={row.module} className="grid items-center gap-1.5 py-[2.5px]" style={{ gridTemplateColumns: cols }}>

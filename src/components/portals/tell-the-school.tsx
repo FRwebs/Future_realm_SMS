@@ -34,8 +34,8 @@ export function TellTheSchool({ options, submissions }: { options: SubmissionOpt
   const kid = options.children.find((entry) => entry.id === child);
   const aboutChild = ABOUT_CHILD.includes(type);
   const ready = detail.trim().length >= 8 && (!aboutChild || Boolean(child)) && (type !== "Absence explanation" || dates.length > 0) && (type !== "Collection change" || (collector.name && collector.relation && collector.phone && collector.date));
-  const field = "w-full rounded-[10px] border border-[var(--color-border-default)] bg-white px-3 py-2.5 text-[13px] outline-none focus:border-[#12796A]";
-  const label = "text-[11px] font-bold uppercase tracking-[0.06em] text-[var(--color-text-muted)]";
+  const field = "w-full rounded-[10px] border border-(--color-border-default) bg-white px-3 py-2.5 text-[13px] outline-hidden focus:border-[#12796A]";
+  const label = "text-[11px] font-bold uppercase tracking-[0.06em] text-(--color-text-muted)";
   const choices = useMemo(() => kid?.absences ?? [], [kid]);
 
   async function send() {
@@ -57,8 +57,8 @@ export function TellTheSchool({ options, submissions }: { options: SubmissionOpt
     <div className="grid gap-5">
       <section className="surface-card grid gap-4 p-5">
         <div>
-          <h2 className="text-[15px] font-extrabold text-[var(--color-text-primary)]">Tell the school something</h2>
-          <p className="mt-1 text-[12.5px] text-[var(--color-text-secondary)]">{HINT[type] ?? "It goes to the person at the school who deals with it."}</p>
+          <h2 className="text-[15px] font-extrabold text-(--color-text-primary)">Tell the school something</h2>
+          <p className="mt-1 text-[12.5px] text-(--color-text-secondary)">{HINT[type] ?? "It goes to the person at the school who deals with it."}</p>
         </div>
         <div className="grid gap-4 sm:grid-cols-2">
           <label className="grid gap-1.5"><span className={label}>What it is about</span>
@@ -76,12 +76,12 @@ export function TellTheSchool({ options, submissions }: { options: SubmissionOpt
             {choices.length ? (
               <div className="flex flex-wrap gap-2">
                 {choices.map((entry) => (
-                  <label key={entry.date} className="inline-flex cursor-pointer items-center gap-2 rounded-[9px] border border-[var(--color-border-default)] bg-white px-3 py-2 text-[12.5px]">
+                  <label key={entry.date} className="inline-flex cursor-pointer items-center gap-2 rounded-[9px] border border-(--color-border-default) bg-white px-3 py-2 text-[12.5px]">
                     <input type="checkbox" checked={dates.includes(entry.date)} onChange={() => setDates((current) => (current.includes(entry.date) ? current.filter((value) => value !== entry.date) : [...current, entry.date]))} />{entry.label}
                   </label>
                 ))}
               </div>
-            ) : <p className="text-[12.5px] text-[var(--color-text-secondary)]">{kid?.name ?? "Your child"} has no unexplained absence on the school’s record this term, so there is nothing to explain.</p>}
+            ) : <p className="text-[12.5px] text-(--color-text-secondary)">{kid?.name ?? "Your child"} has no unexplained absence on the school’s record this term, so there is nothing to explain.</p>}
           </fieldset>
         ) : null}
         {type === "Collection change" ? (
@@ -105,22 +105,22 @@ export function TellTheSchool({ options, submissions }: { options: SubmissionOpt
       </section>
 
       <section className="surface-card p-5">
-        <h2 className="text-[15px] font-extrabold text-[var(--color-text-primary)]">What you have sent</h2>
+        <h2 className="text-[15px] font-extrabold text-(--color-text-primary)">What you have sent</h2>
         {submissions.length ? (
           <ul className="mt-3 grid">
             {submissions.map((entry, index) => (
               <li key={entry.id} className="grid gap-1 py-3 text-[12.5px]" style={{ borderTop: index ? "1px solid var(--color-border-default)" : undefined }}>
                 <span className="flex flex-wrap items-center gap-2">
-                  <strong className="text-[13px] text-[var(--color-text-primary)]">{entry.type}{entry.child ? ` · ${entry.child}` : ""}</strong>
-                  <span className="rounded-full px-2 py-[1px] text-[10.5px] font-bold" style={entry.state === "Resolved" ? { background: "#EAF6F0", color: "#17714F" } : entry.state === "Declined" ? { background: "#FDF3F3", color: "#B23B3B" } : { background: "#FDF6E7", color: "#8A6410" }}>{entry.state}</span>
-                  <span className="text-[11px] text-[var(--color-text-muted)]">Sent {day(entry.at)}{entry.with ? ` · with ${entry.with.toLowerCase()}` : ""}</span>
+                  <strong className="text-[13px] text-(--color-text-primary)">{entry.type}{entry.child ? ` · ${entry.child}` : ""}</strong>
+                  <span className="rounded-full px-2 py-px text-[10.5px] font-bold" style={entry.state === "Resolved" ? { background: "#EAF6F0", color: "#17714F" } : entry.state === "Declined" ? { background: "#FDF3F3", color: "#B23B3B" } : { background: "#FDF6E7", color: "#8A6410" }}>{entry.state}</span>
+                  <span className="text-[11px] text-(--color-text-muted)">Sent {day(entry.at)}{entry.with ? ` · with ${entry.with.toLowerCase()}` : ""}</span>
                 </span>
-                <span className="text-[var(--color-text-secondary)]">{entry.detail}</span>
+                <span className="text-(--color-text-secondary)">{entry.detail}</span>
                 {entry.outcome ? <span className="text-[#17714F]">The school: {entry.outcome}</span> : null}
               </li>
             ))}
           </ul>
-        ) : <p className="mt-2 text-[12.5px] text-[var(--color-text-secondary)]">Nothing yet. What you send the school appears here, with who has it and what they decided.</p>}
+        ) : <p className="mt-2 text-[12.5px] text-(--color-text-secondary)">Nothing yet. What you send the school appears here, with who has it and what they decided.</p>}
       </section>
     </div>
   );

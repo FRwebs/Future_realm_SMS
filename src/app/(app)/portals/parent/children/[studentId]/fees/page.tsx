@@ -28,10 +28,10 @@ export default async function ParentChildFeesPage({ params }: PageProps) {
   return (
     <div className="portal-page">
       <section className="surface-hero p-6 md:p-7">
-        <Link href={`/portals/parent/children/${studentId}` as Route} className="text-[13px] font-semibold text-[var(--color-text-accent)]">Back to child overview</Link>
-        <h1 className="mt-3 font-[var(--font-heading)] text-[26px] font-black text-[var(--color-text-primary)]">Child fees</h1>
-        <p className="mt-2 text-[13px] leading-6 text-[var(--color-text-secondary)]">Invoice, payment, and receipt records for this child. Outstanding invoices can be paid through the school&apos;s configured online payment flow.</p>
-        <p className="mt-5 text-[24px] font-bold text-[var(--color-text-primary)]">{formatCurrency(outstanding)} outstanding</p>
+        <Link href={`/portals/parent/children/${studentId}` as Route} className="text-[13px] font-semibold text-(--color-text-accent)">Back to child overview</Link>
+        <h1 className="mt-3 font-(--font-heading) text-[26px] font-black text-(--color-text-primary)">Child fees</h1>
+        <p className="mt-2 text-[13px] leading-6 text-(--color-text-secondary)">Invoice, payment, and receipt records for this child. Outstanding invoices can be paid through the school&apos;s configured online payment flow.</p>
+        <p className="mt-5 text-[24px] font-bold text-(--color-text-primary)">{formatCurrency(outstanding)} outstanding</p>
       </section>
       <TableCard
         title="Invoices"
@@ -50,23 +50,23 @@ export default async function ParentChildFeesPage({ params }: PageProps) {
               item.canPay && item.balance > 0 ? (
                 <PayInvoiceButton invoiceId={item.id} amount={item.balance} />
               ) : (
-                <span className="text-xs text-[var(--color-text-muted)]">No payment due</span>
+                <span className="text-xs text-(--color-text-muted)">No payment due</span>
               )
           }
         ]}
       />
       <section className="surface-card p-6">
-        <h2 className="font-[var(--font-heading)] text-[18px] font-bold text-[var(--color-text-primary)]">Payment receipts</h2>
+        <h2 className="font-(--font-heading) text-[18px] font-bold text-(--color-text-primary)">Payment receipts</h2>
         <div className="mt-5 grid gap-3">
           {fees.flatMap((invoice) => invoice.payments ?? []).map((payment) => (
-            <article key={payment.id} className="rounded-[10px] bg-[var(--color-bg-subtle)] p-4 text-[13px] text-[var(--color-text-secondary)]">
-              <p className="font-semibold text-[var(--color-text-primary)]">{payment.reference}</p>
+            <article key={payment.id} className="rounded-[10px] bg-(--color-bg-subtle) p-4 text-[13px] text-(--color-text-secondary)">
+              <p className="font-semibold text-(--color-text-primary)">{payment.reference}</p>
               <p>{formatCurrency(payment.amount)} · {payment.method} · {payment.status}</p>
               <p>{payment.receiptNumber ? `Receipt: ${payment.receiptNumber}` : "Receipt pending"}</p>
             </article>
           ))}
           {fees.flatMap((invoice) => invoice.payments ?? []).length === 0 ? (
-            <p className="text-[13px] text-[var(--color-text-secondary)]">No payment records are visible yet.</p>
+            <p className="text-[13px] text-(--color-text-secondary)">No payment records are visible yet.</p>
           ) : null}
         </div>
       </section>

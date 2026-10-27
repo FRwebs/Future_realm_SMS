@@ -151,8 +151,8 @@ async function PlatformTab() {
         pageSize={false}
         getRowKey={(item) => item.setting}
         columns={[
-          { key: "setting", header: "Setting", render: (item) => <span className="font-bold text-[var(--color-text-primary)]">{item.setting}</span> },
-          { key: "value", header: "Value", render: (item) => <span className="text-[var(--color-text-secondary)]">{item.value}</span> },
+          { key: "setting", header: "Setting", render: (item) => <span className="font-bold text-(--color-text-primary)">{item.setting}</span> },
+          { key: "value", header: "Value", render: (item) => <span className="text-(--color-text-secondary)">{item.value}</span> },
           { key: "by", header: "Changeable by", render: (item) => <span className="inline-flex items-center rounded-full px-[9px] py-[3px] text-[11px] font-bold" style={{ background: "var(--color-bg-subtle)", color: "var(--color-text-muted)" }}>{item.by}</span> }
         ]}
       />
@@ -165,16 +165,16 @@ async function PlatformTab() {
             { setting: "Pricing currency", value: fx?.anchor === "USD" ? "USD — authored once per plan" : "NGN — authored directly in naira", state: "Set by Super Admin" },
             { setting: "Rate source", value: fx?.source ? fx.source : fx?.refreshConfigured ? "A rate provider is set up; fetched at term start" : "Entered by hand — set FX_RATES_URL to fetch automatically", state: fx?.refreshConfigured ? "Automatic" : "Manual" },
             { setting: "Rate refresh", value: fx?.ratesFor ? `Fixed for ${fx.ratesFor}; refreshed at term rollover only, never mid-term` : "No rates fixed yet", state: "Enforced" },
-            { setting: "Rounding", value: "Naira prices from dollars are rounded to the nearest 50 kobo; invoices round as set below", state: "Enforced" },
+            { setting: "Rounding", value: "Naira prices from dollars are rounded-sm to the nearest 50 kobo; invoices round as set below", state: "Enforced" },
             { setting: "Currency shock guard", value: `A move above ${fx?.shockPercent ?? 15}% on any currency is held for Finance to decide${fx?.pending ? ` — ${fx.pending.moved} waiting now` : ""}`, state: "Enforced" },
             { setting: "Invoicing currency", value: "The school’s own, always", state: "Enforced" }
           ]}
           pageSize={false}
           getRowKey={(item) => item.setting}
           columns={[
-            { key: "setting", header: "Setting", render: (item) => <span className="font-bold text-[var(--color-text-primary)]">{item.setting}</span> },
-            { key: "value", header: "Value", render: (item) => <span className="text-[var(--color-text-secondary)]">{item.value}</span> },
-            { key: "state", header: "State", render: (item) => <span className="text-[11px] text-[var(--color-text-muted)]">{item.state}</span> }
+            { key: "setting", header: "Setting", render: (item) => <span className="font-bold text-(--color-text-primary)">{item.setting}</span> },
+            { key: "value", header: "Value", render: (item) => <span className="text-(--color-text-secondary)">{item.value}</span> },
+            { key: "state", header: "State", render: (item) => <span className="text-[11px] text-(--color-text-muted)">{item.state}</span> }
           ]}
         />
         <TableCard
@@ -214,8 +214,8 @@ async function PlatformTab() {
           pageSize={false}
           getRowKey={(item) => item.setting}
           columns={[
-            { key: "setting", header: "Setting", render: (item) => <span className="font-bold text-[var(--color-text-primary)]">{item.setting}</span> },
-            { key: "value", header: "Value", render: (item) => <span className="text-[var(--color-text-secondary)]">{item.value}</span> }
+            { key: "setting", header: "Setting", render: (item) => <span className="font-bold text-(--color-text-primary)">{item.setting}</span> },
+            { key: "value", header: "Value", render: (item) => <span className="text-(--color-text-secondary)">{item.value}</span> }
           ]}
           footnote="Data is never deleted at any of these stages. Access narrows and the web address can be released; the records stay."
         />
@@ -230,7 +230,7 @@ async function PlatformTab() {
           getRowKey={(item) => item.schoolId}
           emptyState="No school has students yet."
           columns={[
-            { key: "school", header: "School", render: (item) => <span className="font-bold text-[var(--color-text-primary)]">{item.school}</span> },
+            { key: "school", header: "School", render: (item) => <span className="font-bold text-(--color-text-primary)">{item.school}</span> },
             { key: "enabled", header: "Portal", render: (item) => <StatusBadge status={item.enabled ? "On" : "Switched off"} tone={item.enabled ? "success" : "danger"} /> },
             { key: "students", header: "Students", render: (item) => item.students.toLocaleString("en-NG") },
             { key: "withAccount", header: "With an account", render: (item) => item.withAccount.toLocaleString("en-NG") },
@@ -263,10 +263,10 @@ async function PlatformTab() {
           ) : undefined
         }
         columns={[
-          { key: "school", header: "School", render: (item) => <span className="font-bold text-[var(--color-text-primary)]">{item.school}</span> },
-          { key: "status", header: "Status now", render: (item) => <span className="text-[11px] text-[var(--color-text-muted)]">{item.status.replaceAll("_", " ").toLowerCase()}</span> },
-          { key: "kind", header: "What happens", render: (item) => <span className="text-[11.5px] text-[var(--color-text-secondary)]">{LIFECYCLE_LABEL[item.kind] ?? item.kind}</span> },
-          { key: "login", header: "Last sign-in", render: (item) => <span className="text-[11px] text-[var(--color-text-muted)]">{item.lastLoginAt ? new Date(item.lastLoginAt).toLocaleDateString("en-GB") : "Never"}</span> }
+          { key: "school", header: "School", render: (item) => <span className="font-bold text-(--color-text-primary)">{item.school}</span> },
+          { key: "status", header: "Status now", render: (item) => <span className="text-[11px] text-(--color-text-muted)">{item.status.replaceAll("_", " ").toLowerCase()}</span> },
+          { key: "kind", header: "What happens", render: (item) => <span className="text-[11.5px] text-(--color-text-secondary)">{LIFECYCLE_LABEL[item.kind] ?? item.kind}</span> },
+          { key: "login", header: "Last sign-in", render: (item) => <span className="text-[11px] text-(--color-text-muted)">{item.lastLoginAt ? new Date(item.lastLoginAt).toLocaleDateString("en-GB") : "Never"}</span> }
         ]}
       />
     </section>
@@ -337,8 +337,8 @@ async function DefaultsTab() {
         pageSize={false}
         getRowKey={(item) => item.setting}
         columns={[
-          { key: "setting", header: "Setting", render: (item) => <span className="font-bold text-[var(--color-text-primary)]">{item.setting}</span> },
-          { key: "value", header: "Default for a new school", render: (item) => <span className="text-[var(--color-text-secondary)]">{item.value}</span> },
+          { key: "setting", header: "Setting", render: (item) => <span className="font-bold text-(--color-text-primary)">{item.setting}</span> },
+          { key: "value", header: "Default for a new school", render: (item) => <span className="text-(--color-text-secondary)">{item.value}</span> },
           {
             key: "canChange",
             header: "School can change",
@@ -351,7 +351,7 @@ async function DefaultsTab() {
               return <span className="inline-flex items-center rounded-full px-[9px] py-[3px] text-[11px] font-bold" style={{ background: tone.bg, color: tone.fg }}>{item.canChange}</span>;
             }
           },
-          { key: "where", header: "Where it lives", render: (item) => <span className="text-[11px] text-[var(--color-text-muted)]">{item.where}</span> }
+          { key: "where", header: "Where it lives", render: (item) => <span className="text-[11px] text-(--color-text-muted)">{item.where}</span> }
         ]}
         footnote="The last two cannot be switched off by anyone, at any tier, for any reason. A school must always be able to see what was done in its workspace and to take its data with it."
       />
@@ -398,7 +398,7 @@ async function NotificationsTab() {
         pageSize={false}
         getRowKey={(item) => item.rule}
         columns={[
-          { key: "rule", header: "Rule", render: (item) => <span className="font-bold text-[var(--color-text-primary)]">{item.rule}</span> },
+          { key: "rule", header: "Rule", render: (item) => <span className="font-bold text-(--color-text-primary)">{item.rule}</span> },
           { key: "value", header: "Value", render: (item) => item.value },
           {
             key: "state",
@@ -449,8 +449,8 @@ async function SecurityTab() {
       pageSize={false}
       getRowKey={(item) => item.requirement}
       columns={[
-        { key: "requirement", header: "Requirement", render: (item) => <span className="font-bold text-[var(--color-text-primary)]">{item.requirement}</span> },
-        { key: "spec", header: "Specification", render: (item) => <span className="text-[11.5px] leading-5 text-[var(--color-text-secondary)]">{item.spec}</span> },
+        { key: "requirement", header: "Requirement", render: (item) => <span className="font-bold text-(--color-text-primary)">{item.requirement}</span> },
+        { key: "spec", header: "Specification", render: (item) => <span className="text-[11.5px] leading-5 text-(--color-text-secondary)">{item.spec}</span> },
         {
           key: "state",
           header: "State",
@@ -501,15 +501,15 @@ async function IntegrationsTab() {
       pageSize={false}
       getRowKey={(item) => item.name}
       columns={[
-        { key: "name", header: "Service", render: (item) => <div><p className="font-bold text-[var(--color-text-primary)]">{item.name}</p><p className="text-[10px] text-[var(--color-text-muted)]">Checked {item.checkFrequency.toLowerCase()}</p></div> },
+        { key: "name", header: "Service", render: (item) => <div><p className="font-bold text-(--color-text-primary)">{item.name}</p><p className="text-[10px] text-(--color-text-muted)">Checked {item.checkFrequency.toLowerCase()}</p></div> },
         { key: "purpose", header: "Purpose", render: (item) => purposeOf(item.name) },
-        { key: "onFailure", header: "If it fails", render: (item) => <span className="text-[11.5px] text-[var(--color-text-secondary)]">{item.onFailure}</span> },
+        { key: "onFailure", header: "If it fails", render: (item) => <span className="text-[11.5px] text-(--color-text-secondary)">{item.onFailure}</span> },
         {
           key: "owner",
           header: "Owner",
           render: (item) => (
             <div className="flex items-center gap-3">
-              <span className={item.owner ? "font-semibold text-[var(--color-text-primary)]" : "text-[var(--color-text-muted)]"}>{item.owner ?? "Nobody yet"}</span>
+              <span className={item.owner ? "font-semibold text-(--color-text-primary)" : "text-(--color-text-muted)"}>{item.owner ?? "Nobody yet"}</span>
               <ResourceActionDialog
                 triggerLabel={item.owner ? "Change" : "Assign"}
                 title={`Owner of ${item.name}`}

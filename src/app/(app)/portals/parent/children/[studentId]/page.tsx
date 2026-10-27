@@ -29,13 +29,13 @@ export default async function ParentChildOverviewPage({ params }: PageProps) {
   return (
     <div className="portal-page">
       <section className="surface-hero p-6 md:p-7">
-        <Link href={"/portals/parent/children" as Route} className="text-[13px] font-semibold text-[var(--color-text-accent)]">Back to children</Link>
-        <h1 className="mt-3 font-[var(--font-heading)] text-[26px] font-black text-[var(--color-text-primary)]">{child.studentName}</h1>
-        <p className="mt-2 text-[13px] leading-6 text-[var(--color-text-secondary)]">
+        <Link href={"/portals/parent/children" as Route} className="text-[13px] font-semibold text-(--color-text-accent)">Back to children</Link>
+        <h1 className="mt-3 font-(--font-heading) text-[26px] font-black text-(--color-text-primary)">{child.studentName}</h1>
+        <p className="mt-2 text-[13px] leading-6 text-(--color-text-secondary)">
           {formatNigeriaClassName(child.className)} · {child.admissionNumber ?? "No admission number"}
         </p>
         {child.departmentTrack ? (
-          <p className="mt-2 text-[13px] font-semibold text-[var(--color-text-accent)]">Senior secondary track: {child.departmentTrack}</p>
+          <p className="mt-2 text-[13px] font-semibold text-(--color-text-accent)">Senior secondary track: {child.departmentTrack}</p>
         ) : null}
         <div className="mt-5">
           <ActionMenu triggerLabel={`Actions for ${child.studentName}`}>
@@ -51,26 +51,26 @@ export default async function ParentChildOverviewPage({ params }: PageProps) {
       <section className="grid gap-4 md:grid-cols-4">
         {has("attendance") ? (
         <article className="surface-card p-5">
-          <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">Attendance</p>
-          <p className="mt-2 text-[22px] font-bold text-[var(--color-text-primary)]">{formatPercentage(child.attendanceRate)}</p>
+          <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-(--color-text-muted)">Attendance</p>
+          <p className="mt-2 text-[22px] font-bold text-(--color-text-primary)">{formatPercentage(child.attendanceRate)}</p>
         </article>
         ) : null}
         {has("results") ? (
         <article className="surface-card p-5">
-          <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">Average</p>
-          <p className="mt-2 text-[22px] font-bold text-[var(--color-text-primary)]">{child.averageScore.toFixed(1)}%</p>
+          <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-(--color-text-muted)">Average</p>
+          <p className="mt-2 text-[22px] font-bold text-(--color-text-primary)">{child.averageScore.toFixed(1)}%</p>
         </article>
         ) : null}
         {has("fees") ? (
         <article className="surface-card p-5">
-          <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">Outstanding</p>
-          <p className="mt-2 text-[22px] font-bold text-[var(--color-text-primary)]">{formatCurrency(child.outstandingBalance)}</p>
+          <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-(--color-text-muted)">Outstanding</p>
+          <p className="mt-2 text-[22px] font-bold text-(--color-text-primary)">{formatCurrency(child.outstandingBalance)}</p>
         </article>
         ) : null}
         {has("timetable") ? (
         <article className="surface-card p-5">
-          <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">Next class</p>
-          <p className="mt-2 text-[14px] font-semibold text-[var(--color-text-primary)]">{child.nextClass ? formatNigeriaClassName(child.nextClass) : "Not set"}</p>
+          <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-(--color-text-muted)">Next class</p>
+          <p className="mt-2 text-[14px] font-semibold text-(--color-text-primary)">{child.nextClass ? formatNigeriaClassName(child.nextClass) : "Not set"}</p>
         </article>
         ) : null}
       </section>
@@ -82,7 +82,7 @@ export default async function ParentChildOverviewPage({ params }: PageProps) {
           items={child.subjects ?? []}
           emptyState="No subject assignment is visible for this class yet."
           columns={[
-            { key: "name", header: "Subject", render: (item) => <span className="font-semibold text-[var(--color-text-primary)]">{item.name}</span> },
+            { key: "name", header: "Subject", render: (item) => <span className="font-semibold text-(--color-text-primary)">{item.name}</span> },
             { key: "teacher", header: "Teacher", render: (item) => item.teacherName ?? "Not assigned" },
             { key: "track", header: "Track", render: (item) => item.track ?? item.departmentName ?? "General" }
           ]}

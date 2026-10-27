@@ -23,7 +23,7 @@ function InvertSkeletonBlock({ className = "" }: { className?: string }) {
 function TableCardSkeleton() {
   return (
     <section className="surface-card overflow-hidden">
-      <div className="border-b border-[var(--color-border-default)] px-5 py-4">
+      <div className="border-b border-(--color-border-default) px-5 py-4">
         <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
           <div className="grid gap-2">
             <SkeletonBlock className="h-4 w-40 rounded-md" />
@@ -58,7 +58,7 @@ function TableCardSkeleton() {
 
       <div className="grid gap-3 p-5 md:hidden">
         {Array.from({ length: 3 }).map((_, index) => (
-          <div key={index} className="rounded-[12px] border border-[var(--color-border-default)] p-4">
+          <div key={index} className="rounded-[12px] border border-(--color-border-default) p-4">
             <SkeletonBlock className="h-4 w-32 rounded-md" />
             <SkeletonBlock className="mt-3 h-3 w-full rounded-full" />
             <SkeletonBlock className="mt-2 h-3 w-2/3 rounded-full" />
@@ -66,7 +66,7 @@ function TableCardSkeleton() {
         ))}
       </div>
 
-      <div className="flex items-center justify-between gap-3 border-t border-[var(--color-border-default)] px-5 py-3">
+      <div className="flex items-center justify-between gap-3 border-t border-(--color-border-default) px-5 py-3">
         <SkeletonBlock className="h-3 w-32 rounded-full" />
         <div className="flex items-center gap-2">
           <SkeletonBlock className="h-8 w-8 rounded-full" />
@@ -122,8 +122,8 @@ function ModuleHeadSkeleton({ label }: { label: string }) {
   return (
     <section className="relative overflow-hidden rounded-[15px] bg-[#0D2315] px-[19px] py-[15px] shadow-[0_14px_30px_-24px_rgba(13,35,21,0.8)]">
       <span className="sr-only">{label}</span>
-      <div className="pointer-events-none absolute -right-[80px] -top-[132px] h-[336px] w-[336px] rounded-full border border-[rgba(95,214,180,0.12)]" />
-      <div className="pointer-events-none absolute -right-[18px] -top-[70px] h-[212px] w-[212px] rounded-full border border-[rgba(95,214,180,0.08)]" />
+      <div className="pointer-events-none absolute right-[-80px] top-[-132px] h-[336px] w-[336px] rounded-full border border-[rgba(95,214,180,0.12)]" />
+      <div className="pointer-events-none absolute right-[-18px] top-[-70px] h-[212px] w-[212px] rounded-full border border-[rgba(95,214,180,0.08)]" />
       <div className="relative flex flex-wrap items-center justify-between gap-x-5 gap-y-2.5">
         <div className="min-w-0 max-w-[620px]">
           {/* The accent dot is real, not a placeholder — it never varies by tab. */}
@@ -132,7 +132,7 @@ function ModuleHeadSkeleton({ label }: { label: string }) {
             <InvertSkeletonBlock className="h-[9px] w-24" />
           </div>
           <InvertSkeletonBlock className="h-[22px] w-full max-w-[20rem]" />
-          <InvertSkeletonBlock className="mt-[5px] h-[16px] w-full max-w-[33rem]" />
+          <InvertSkeletonBlock className="mt-[5px] h-[16px] w-full max-w-132" />
         </div>
         <div className="flex min-w-0 flex-[0_1_auto] flex-wrap items-center justify-end gap-2">
           <InvertSkeletonBlock className="h-[30px] w-[104px]" />
@@ -176,7 +176,7 @@ function ModulePanel({
 }) {
   return (
     <section
-      className={`min-w-0 overflow-hidden rounded-[14px] border bg-[var(--color-bg-surface)] px-[18px] pb-[12px] ${className}`}
+      className={`min-w-0 overflow-hidden rounded-[14px] border bg-(--color-bg-surface) px-[18px] pb-[12px] ${className}`}
       style={{ borderColor: CARD_BORDER }}
     >
       {children}
@@ -188,7 +188,7 @@ function ModulePanel({
 function ModulePanelHeadSkeleton({ flush }: { flush?: boolean }) {
   return (
     <div
-      className={`-mx-[18px] flex flex-wrap items-start justify-between gap-[14px] px-[18px] pb-[12px] pt-[14px] ${
+      className={`mx-[-18px] flex flex-wrap items-start justify-between gap-[14px] px-[18px] pb-[12px] pt-[14px] ${
         flush ? "mb-0" : "mb-[12px] border-b"
       }`}
       style={flush ? undefined : { borderColor: BAND_RULE }}
@@ -217,7 +217,7 @@ function ModuleKpiPanelSkeleton() {
         {Array.from({ length: 4 }).map((_, index) => (
           <div
             key={index}
-            className="flex flex-col rounded-[14px] border bg-[var(--color-bg-surface)] px-[14px] pb-[14px] pt-[13px]"
+            className="flex flex-col rounded-[14px] border bg-(--color-bg-surface) px-[14px] pb-[14px] pt-[13px]"
             style={{ borderColor: CARD_BORDER, minHeight: 86 }}
           >
             <SkeletonBlock className="mb-[10px] h-[10px] w-[72px] rounded-full" />
@@ -248,7 +248,7 @@ function ModuleRowsPanelSkeleton({ rows = 5 }: { rows?: number }) {
           >
             <SkeletonBlock className="mt-[4.5px] h-[7px] w-[7px] flex-none rounded-full" />
             <span className="min-w-0 flex-1">
-              <SkeletonBlock className="h-[13px] w-full max-w-[17rem] rounded-full" />
+              <SkeletonBlock className="h-[13px] w-full max-w-68 rounded-full" />
               <SkeletonBlock className="mt-[4px] h-[11px] w-full max-w-[24rem] rounded-full" />
             </span>
             <SkeletonBlock className="h-[19px] w-[74px] flex-none rounded-full" />
@@ -282,14 +282,14 @@ function SuperAdminLoadingScreen({ label }: { label: string }) {
     <div className="skeleton-instant grid gap-5">
       <section className="relative overflow-hidden rounded-[20px] bg-[#0d2315] px-[22px] py-[26px] shadow-[0_20px_44px_-30px_rgba(13,35,21,0.8)] md:px-[30px]">
         <span className="sr-only">{label}</span>
-        <div className="pointer-events-none absolute -right-[90px] -top-[150px] h-[380px] w-[380px] rounded-full border border-[rgba(95,214,180,0.12)]" />
+        <div className="pointer-events-none absolute right-[-90px] top-[-150px] h-[380px] w-[380px] rounded-full border border-[rgba(95,214,180,0.12)]" />
         <div className="pointer-events-none absolute -right-5 -top-20 h-[240px] w-[240px] rounded-full border border-[rgba(95,214,180,0.08)]" />
-        <div className="pointer-events-none absolute -bottom-40 -left-[70px] h-[280px] w-[280px] rounded-full border border-white/5" />
+        <div className="pointer-events-none absolute -bottom-40 left-[-70px] h-[280px] w-[280px] rounded-full border border-white/5" />
         <div className="relative flex flex-col items-start gap-4 md:flex-row md:items-center md:justify-between md:gap-7">
           <div className="min-w-0 grid gap-[11px] md:max-w-[660px]">
             <InvertSkeletonBlock className="h-[10.5px] w-32" />
-            <InvertSkeletonBlock className="h-[25px] w-full max-w-[22rem] md:h-[29px]" />
-            <InvertSkeletonBlock className="h-[13.5px] w-full max-w-[30rem]" />
+            <InvertSkeletonBlock className="h-[25px] w-full max-w-88 md:h-[29px]" />
+            <InvertSkeletonBlock className="h-[13.5px] w-full max-w-120" />
           </div>
           <InvertSkeletonBlock className="h-[42px] w-32 shrink-0" />
         </div>

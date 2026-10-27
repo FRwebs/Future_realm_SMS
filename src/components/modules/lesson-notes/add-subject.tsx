@@ -93,7 +93,7 @@ export function AddSubject({ options }: { options: AddOptions }) {
       subjectId: subject.id, classIds, periodsPerWeek: per, lessonMinutes: minutes, curriculum: curriculum || undefined, weeks: here.length ? here : [toWeek(blank())], nextTerm: later,
     });
     if (!made) return;
-    if (mode === "standard" && outline) await run("outline", `${LN_API}/curriculum/${made.subjectId}/catalogue/apply`, "POST", { entryId: outline, replace: true });
+    if (mode === "standard" && outline) await run("outline-solid", `${LN_API}/curriculum/${made.subjectId}/catalogue/apply`, "POST", { entryId: outline, replace: true });
     toast.show(`${made.subject} added.${made.told ? " The school has been told, so it can go on the timetable." : ""}`);
     router.push(`/lesson-notes/curriculum?subject=${made.subjectId}` as Route);
     router.refresh();
@@ -142,7 +142,7 @@ export function AddSubject({ options }: { options: AddOptions }) {
         <Card>
           <p className="text-[13px] font-extrabold" style={{ color: INK }}>3 · The weeks</p>
           <div className="mt-2 inline-flex rounded-[10px] border p-[3px]" style={{ borderColor: CARD_BORDER, background: "#F6F9F7" }}>
-            {([["standard", "Standard outline"], ["build", "Build it"], ["import", "Import a file"]] as const).map(([key, label]) => <button key={key} type="button" onClick={() => setMode(key)} className="rounded-[8px] px-[12px] py-[5px] text-[11.5px] font-bold" style={mode === key ? { background: INK, color: "#fff" } : { color: MUTED }}>{label}</button>)}
+            {([["standard", "Standard outline-solid"], ["build", "Build it"], ["import", "Import a file"]] as const).map(([key, label]) => <button key={key} type="button" onClick={() => setMode(key)} className="rounded-[8px] px-[12px] py-[5px] text-[11.5px] font-bold" style={mode === key ? { background: INK, color: "#fff" } : { color: MUTED }}>{label}</button>)}
           </div>
 
           {mode === "standard" ? (
@@ -192,7 +192,7 @@ export function AddSubject({ options }: { options: AddOptions }) {
             <div><dt className="text-[10.5px] font-bold uppercase tracking-[0.06em]" style={{ color: MUTED }}>Subject</dt><dd className="font-semibold" style={{ color: INK }}>{subject?.name ?? "—"}</dd></div>
             <div><dt className="text-[10.5px] font-bold uppercase tracking-[0.06em]" style={{ color: MUTED }}>Arms</dt><dd className="font-semibold" style={{ color: INK }}>{level && classIds.length ? level.arms.filter((arm) => classIds.includes(arm.id)).map((arm) => arm.name).join(", ") : "—"}</dd></div>
             <div><dt className="text-[10.5px] font-bold uppercase tracking-[0.06em]" style={{ color: MUTED }}>Time</dt><dd className="font-semibold" style={{ color: INK }}>{per} period{per === 1 ? "" : "s"} a week · {minutes} minutes</dd></div>
-            <div><dt className="text-[10.5px] font-bold uppercase tracking-[0.06em]" style={{ color: MUTED }}>Weeks</dt><dd className="font-semibold" style={{ color: INK }}>{mode === "standard" ? (outline ? "From the outline you chose" : "—") : `${filled.length} planned · ${options.term.name} has ${options.weeks}`}</dd></div>
+            <div><dt className="text-[10.5px] font-bold uppercase tracking-[0.06em]" style={{ color: MUTED }}>Weeks</dt><dd className="font-semibold" style={{ color: INK }}>{mode === "standard" ? (outline ? "From the outline-solid you chose" : "—") : `${filled.length} planned · ${options.term.name} has ${options.weeks}`}</dd></div>
             {overflow && mode !== "standard" ? <div><dt className="text-[10.5px] font-bold uppercase tracking-[0.06em]" style={{ color: MUTED }}>Carried over</dt><dd className="font-semibold" style={{ color: INK }}>{options.nextTerm ? `${overflow} week${overflow === 1 ? "" : "s"} into ${options.nextTerm.name}` : `${overflow} week${overflow === 1 ? "" : "s"} have nowhere to go`}</dd></div> : null}
           </dl>
           <p className="mt-4 rounded-[10px] px-3 py-2 text-[11.5px] leading-[1.6]" style={{ background: "#FDF6E7", color: "#8A6410" }}>The school office is told you added this, so it can be put on the timetable. Until then it has no register and no score sheet.</p>
@@ -204,7 +204,7 @@ export function AddSubject({ options }: { options: AddOptions }) {
         </Card>
       </div>
 
-      {confirm ? <Confirm title={`Add ${subject?.name ?? "this subject"}?`} body="It joins your Curriculum straight away, and the school is told so it can be mapped to you on the timetable." confirm="Add it" busy={busy === "create" || busy === "outline"} onConfirm={create} onCancel={() => setConfirm(false)} /> : null}
+      {confirm ? <Confirm title={`Add ${subject?.name ?? "this subject"}?`} body="It joins your Curriculum straight away, and the school is told so it can be mapped to you on the timetable." confirm="Add it" busy={busy === "create" || busy === "outline-solid"} onConfirm={create} onCancel={() => setConfirm(false)} /> : null}
     </div>
   );
 }

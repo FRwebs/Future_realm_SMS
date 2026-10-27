@@ -84,7 +84,7 @@ export function PlatformSignInForm({ access }: { access: AccessControl }) {
   const label = "mb-[6.5px] text-[10.5px] font-semibold text-[#435048]";
   const box =
     "mb-[14.5px] flex items-center gap-[9px] rounded-[11px] border-[1.5px] border-[#DEE8E2] px-[12.5px] py-[11px] focus-within:border-[#0D2315]";
-  const input = "min-w-0 flex-1 bg-transparent text-[12px] text-[#0D2315] outline-none placeholder:text-[#7a8f82]";
+  const input = "min-w-0 flex-1 bg-transparent text-[12px] text-[#0D2315] outline-hidden placeholder:text-[#7a8f82]";
 
   return (
     <div className="w-full max-w-[345.5px]">
@@ -101,7 +101,7 @@ export function PlatformSignInForm({ access }: { access: AccessControl }) {
         </span>
       </div>
 
-      <h2 className="mb-[5.5px] font-[family-name:var(--font-heading)] text-[23.5px] font-bold tracking-[-0.015em] text-[#0D2315]">
+      <h2 className="mb-[5.5px] font-(family-name:--font-heading) text-[23.5px] font-bold tracking-[-0.015em] text-[#0D2315]">
         {stage === "credentials" ? "Internal sign-in" : "Verification"}
       </h2>
       <p className="mb-[27px] text-[12px] text-[#5f6e65]">
@@ -211,7 +211,7 @@ export function PlatformSignInForm({ access }: { access: AccessControl }) {
 
         {error ? (
           <p
-            className="mb-3 rounded-[11px] px-[12.5px] py-[10px] text-[11px] leading-[1.5]"
+            className="mb-3 rounded-[11px] px-[12.5px] py-[10px] text-[11px] leading-normal"
             style={{ background: "#FDF2F2", border: "1px solid #F3D7D7", color: "#B23B3B" }}
             role="alert"
           >
@@ -241,7 +241,7 @@ export function PlatformSignInForm({ access }: { access: AccessControl }) {
       <ul className="grid gap-[7px]">
         {access.levels.map((entry) => (
           <li key={entry.level} className="flex items-start gap-[9px]">
-            <span className="w-[12.5px] flex-none font-[family-name:var(--font-heading)] text-[9.5px] font-bold text-[#9FB8A7]">
+            <span className="w-[12.5px] flex-none font-(family-name:--font-heading) text-[9.5px] font-bold text-[#9FB8A7]">
               {entry.level}
             </span>
             <span className="w-[106px] flex-none text-[11px] font-semibold text-[#0D2315]">{entry.role}</span>
@@ -258,7 +258,7 @@ export function PlatformSignInForm({ access }: { access: AccessControl }) {
           <circle cx="12" cy="12" r="9" />
           <path d="M12 7.6v5.2l3 1.8" />
         </svg>
-        <p className="text-[10.5px] leading-[1.5] text-[#435048]">
+        <p className="text-[10.5px] leading-normal text-[#435048]">
           Multi-factor authentication is required for every admin login. Sessions expire after{" "}
           {access.idleMinutes} minutes of inactivity, and an IP allow list{" "}
           {access.ipAllowListEnforced ? "is enforced" : "can be enforced"} by Super Admin.

@@ -61,7 +61,7 @@ export function ImpersonationBanner({ session }: { session: SessionUser }) {
           type="button"
           onClick={endImpersonation}
           disabled={ending}
-          className="inline-flex h-8 shrink-0 items-center justify-center gap-2 rounded-[10px] border border-amber-300 bg-white px-3 text-[12px] font-bold text-amber-950 shadow-sm transition hover:border-amber-500 hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-60"
+          className="inline-flex h-8 shrink-0 items-center justify-center gap-2 rounded-[10px] border border-amber-300 bg-white px-3 text-[12px] font-bold text-amber-950 shadow-xs transition hover:border-amber-500 hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-60"
         >
           <LogOut className="h-3.5 w-3.5" />
           {ending ? "Ending..." : "End session"}

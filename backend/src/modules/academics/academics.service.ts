@@ -1,5 +1,4 @@
 import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
-import { randomUUID } from "crypto";
 import { z } from "zod";
 import { AuditAction, Prisma, UserRole } from "@prisma/client";
 
@@ -323,12 +322,6 @@ function assertSubjectManager(session: SessionPayload) {
     ].includes(session.role)
   ) {
     throw new ForbiddenException("Only academic leaders can manage subjects.");
-  }
-}
-
-function assertFinalAcademicApprover(session: SessionPayload) {
-  if (!["SUPER_ADMIN", "SCHOOL_OWNER", "PROPRIETOR", "PRINCIPAL", "HEAD_TEACHER"].includes(session.role)) {
-    throw new ForbiddenException("Only the Principal, Head Teacher, Proprietor, or Super Admin can give final result approval.");
   }
 }
 

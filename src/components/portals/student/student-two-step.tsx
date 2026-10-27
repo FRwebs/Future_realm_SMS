@@ -55,7 +55,7 @@ export function StudentTwoStep({ enabled, since }: TwoStepProps) {
 
       {stage === "scan" && setup ? (
         <div className="mt-[12px] grid gap-[10px] sm:grid-cols-[auto_minmax(0,1fr)]">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
+          { }
           <img src={setup.qrCodeDataUrl} alt="QR code to scan with your authenticator app" width={150} height={150} className="rounded-[10px] border bg-white p-[6px]" style={{ borderColor: "#CFDDD5" }} />
           <div className="grid content-start gap-[8px]">
             <p className="text-[11px]" style={{ color: tone.fg }}>Scan this with an authenticator app (Google Authenticator, Microsoft Authenticator, Authy). Cannot scan? Type this key in: <b className="break-all font-mono">{setup.secret}</b></p>

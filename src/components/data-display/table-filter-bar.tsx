@@ -40,7 +40,7 @@ export function TableFilterBar({ search, filters, note }: TableFilterBarProps) {
             value={search.value}
             onChange={(event) => search.onChange(event.target.value)}
             placeholder={search.placeholder}
-            className="min-w-0 flex-1 border-none bg-transparent text-[11.5px] text-[#0D2315] outline-none placeholder:text-[#7a8f82]"
+            className="min-w-0 flex-1 border-none bg-transparent text-[11.5px] text-[#0D2315] outline-hidden placeholder:text-[#7a8f82]"
           />
           {search.value ? (
             <button
@@ -65,7 +65,7 @@ export function TableFilterBar({ search, filters, note }: TableFilterBarProps) {
             <select
               value={filter.value}
               onChange={(event) => filter.onChange?.(event.target.value)}
-              className="appearance-none bg-transparent pr-4 font-semibold text-[#0D2315] outline-none"
+              className="appearance-none bg-transparent pr-4 font-semibold text-[#0D2315] outline-hidden"
             >
               {filter.options.map((option) => (
                 <option key={option.value} value={option.value}>

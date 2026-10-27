@@ -42,10 +42,6 @@ function timeOverlaps(startA: string, endA: string, startB: string, endB: string
   return startA < endB && endA > startB;
 }
 
-function sameDay(left: Date, right: Date) {
-  return left.toISOString().slice(0, 10) === right.toISOString().slice(0, 10);
-}
-
 function classLabel(classRoom?: { name: string; arm?: string | null } | null) {
   if (!classRoom) return "Unassigned";
   return formatNigeriaClassName(

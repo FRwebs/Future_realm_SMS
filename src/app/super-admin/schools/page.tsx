@@ -285,7 +285,7 @@ function DecisionBlock({ children, note }: { children: ReactNode; note: string }
   return (
     <div className="grid gap-1.5">
       {children}
-      <p className="text-[10px] leading-4 text-[var(--color-text-muted)]">{note}</p>
+      <p className="text-[10px] leading-4 text-(--color-text-muted)">{note}</p>
     </div>
   );
 }
@@ -843,7 +843,7 @@ export default async function SuperAdminSchoolsPage({ searchParams }: { searchPa
       {activeTab === "directory" ? (
         <>
           {params.state ? (
-            <div className="flex items-center gap-2 rounded-[9px] bg-[var(--color-accent-primary-dim)] px-4 py-2.5 text-[11.5px] font-semibold text-[var(--color-text-accent)]">
+            <div className="flex items-center gap-2 rounded-[9px] bg-(--color-accent-primary-dim) px-4 py-2.5 text-[11.5px] font-semibold text-(--color-text-accent)">
               Filtered to schools in {params.state}
               <Link href="/super-admin/schools" className="ml-auto text-[10.5px] font-bold underline">
                 Clear
@@ -922,14 +922,14 @@ export default async function SuperAdminSchoolsPage({ searchParams }: { searchPa
             pageSize={false}
             getRowKey={(item) => item.step}
             columns={[
-              { key: "step", header: "Step", render: (item) => <span className="font-bold text-[var(--color-text-primary)]">{item.step}</span> },
-              { key: "owner", header: "Owner", render: (item) => <span className="text-[11.5px] text-[var(--color-text-secondary)]">{item.owner}</span> },
-              { key: "handling", header: "Failure handling", render: (item) => <span className="text-[11.5px] leading-relaxed text-[var(--color-text-secondary)]">{item.handling}</span> },
+              { key: "step", header: "Step", render: (item) => <span className="font-bold text-(--color-text-primary)">{item.step}</span> },
+              { key: "owner", header: "Owner", render: (item) => <span className="text-[11.5px] text-(--color-text-secondary)">{item.owner}</span> },
+              { key: "handling", header: "Failure handling", render: (item) => <span className="text-[11.5px] leading-relaxed text-(--color-text-secondary)">{item.handling}</span> },
               {
                 key: "last7",
                 header: "Last 7 days",
                 render: () => (
-                  <span className="font-[var(--font-mono)] font-bold text-[var(--color-text-primary)]">
+                  <span className="font-(--font-mono) font-bold text-(--color-text-primary)">
                     {provisioningLast7.clean} / {provisioningLast7.signups}
                   </span>
                 )
@@ -944,10 +944,10 @@ export default async function SuperAdminSchoolsPage({ searchParams }: { searchPa
             pageSize={false}
             getRowKey={(school) => school.id}
             columns={[
-              { key: "school", header: "School", render: (school) => <Link href={`/super-admin/schools/${school.id}`} className="font-bold text-[var(--color-text-primary)] hover:text-[var(--color-text-accent)]">{school.name}</Link> },
+              { key: "school", header: "School", render: (school) => <Link href={`/super-admin/schools/${school.id}`} className="font-bold text-(--color-text-primary) hover:text-(--color-text-accent)">{school.name}</Link> },
               { key: "signedUp", header: "Completed", render: (school) => timeAgo(school.createdAt) },
-              { key: "elapsed", header: "Elapsed", render: (school) => <span className="font-[var(--font-mono)]">{seconds(school.elapsedMs)}</span> },
-              { key: "outcomes", header: "Step outcomes", render: (school) => <span className="font-[var(--font-mono)]">{school.steps.length ? `${school.steps.filter((step) => !/could not/i.test(step.label)).length} of ${school.steps.length} clean` : "Before the log existed"}</span> },
+              { key: "elapsed", header: "Elapsed", render: (school) => <span className="font-(--font-mono)">{seconds(school.elapsedMs)}</span> },
+              { key: "outcomes", header: "Step outcomes", render: (school) => <span className="font-(--font-mono)">{school.steps.length ? `${school.steps.filter((step) => !/could not/i.test(step.label)).length} of ${school.steps.length} clean` : "Before the log existed"}</span> },
               {
                 key: "status",
                 header: "State",
@@ -976,8 +976,8 @@ export default async function SuperAdminSchoolsPage({ searchParams }: { searchPa
               pageSize={false}
               getRowKey={(item) => item.contents}
               columns={[
-                { key: "contents", header: "Contents", render: (item) => <span className="font-bold text-[var(--color-text-primary)]">{item.contents}</span> },
-                { key: "detail", header: "Detail", render: (item) => <span className="text-[11.5px] leading-relaxed text-[var(--color-text-muted)]">{item.detail}</span> }
+                { key: "contents", header: "Contents", render: (item) => <span className="font-bold text-(--color-text-primary)">{item.contents}</span> },
+                { key: "detail", header: "Detail", render: (item) => <span className="text-[11.5px] leading-relaxed text-(--color-text-muted)">{item.detail}</span> }
               ]}
             />
             <ReferenceList
@@ -1001,11 +1001,11 @@ export default async function SuperAdminSchoolsPage({ searchParams }: { searchPa
             pageSize={false}
             getRowKey={(school) => school.id}
             columns={[
-              { key: "school", header: "School", render: (school) => <span className="font-bold text-[var(--color-text-primary)]">{school.name}</span> },
+              { key: "school", header: "School", render: (school) => <span className="font-bold text-(--color-text-primary)">{school.name}</span> },
               { key: "provisioned", header: "Provisioned", render: (school) => timeAgo(school.createdAt) },
-              { key: "sample", header: "Sample data", render: (school) => <span className="text-[10.5px] text-[var(--color-text-secondary)]">{sampleLabel(school)}</span> },
+              { key: "sample", header: "Sample data", render: (school) => <span className="text-[10.5px] text-(--color-text-secondary)">{sampleLabel(school)}</span> },
               { key: "realStudents", header: "Real students", render: (school) => school.realStudents.toLocaleString() },
-              { key: "state", header: "State", render: (school) => <span className="text-[10.5px] text-[var(--color-text-muted)]">{school.sample === "LOADED" ? (school.realStudents > 0 ? "Mixed with real data" : "Sample only") : school.sample === "REMOVED" ? "Clean" : "No sample"}</span> }
+              { key: "state", header: "State", render: (school) => <span className="text-[10.5px] text-(--color-text-muted)">{school.sample === "LOADED" ? (school.realStudents > 0 ? "Mixed with real data" : "Sample only") : school.sample === "REMOVED" ? "Clean" : "No sample"}</span> }
             ]}
           />
         </section>
@@ -1052,8 +1052,8 @@ export default async function SuperAdminSchoolsPage({ searchParams }: { searchPa
                   header: "Claim",
                   render: (dispute) => (
                     <div>
-                      <span className="rounded-[5.5px] bg-[var(--color-bg-subtle)] px-2 py-1 font-[var(--font-mono)] text-[11px] text-[var(--color-text-primary)]">{dispute.claimedAddress}</span>
-                      <p className="mt-1 text-[11px] text-[var(--color-text-secondary)]">{dispute.claimantSchoolName} · {dispute.claimantContactName}</p>
+                      <span className="rounded-[5.5px] bg-(--color-bg-subtle) px-2 py-1 font-(--font-mono) text-[11px] text-(--color-text-primary)">{dispute.claimedAddress}</span>
+                      <p className="mt-1 text-[11px] text-(--color-text-secondary)">{dispute.claimantSchoolName} · {dispute.claimantContactName}</p>
                     </div>
                   )
                 },
@@ -1155,9 +1155,9 @@ export default async function SuperAdminSchoolsPage({ searchParams }: { searchPa
             pageSize={false}
             getRowKey={(row) => row.stage}
             columns={[
-              { key: "stage", header: "Stage", render: (row) => <span className="font-bold text-[var(--color-text-primary)]">{row.stage}</span> },
-              { key: "trigger", header: "Trigger", render: (row) => <span className="text-[11.5px] text-[var(--color-text-secondary)]">{row.trigger}</span> },
-              { key: "effect", header: "Effect", render: (row) => <span className="text-[11.5px] leading-relaxed text-[var(--color-text-secondary)]">{row.effect}</span> }
+              { key: "stage", header: "Stage", render: (row) => <span className="font-bold text-(--color-text-primary)">{row.stage}</span> },
+              { key: "trigger", header: "Trigger", render: (row) => <span className="text-[11.5px] text-(--color-text-secondary)">{row.trigger}</span> },
+              { key: "effect", header: "Effect", render: (row) => <span className="text-[11.5px] leading-relaxed text-(--color-text-secondary)">{row.effect}</span> }
             ]}
           />
 
@@ -1172,11 +1172,11 @@ export default async function SuperAdminSchoolsPage({ searchParams }: { searchPa
             pageSize={false}
             getRowKey={(school) => school.id}
             columns={[
-              { key: "school", header: "School", render: (school) => <Link href={`/super-admin/schools/${school.id}`} className="font-bold text-[var(--color-text-primary)] hover:text-[var(--color-text-accent)]">{school.name}</Link> },
-              { key: "address", header: "Address", render: (school) => (school.address ? <span className="rounded-[5.5px] bg-[var(--color-bg-subtle)] px-2 py-1 font-[var(--font-mono)] text-[11px]">{school.address}</span> : <span className="text-[var(--color-text-muted)]">Released</span>) },
-              { key: "dormantSince", header: "Dormant since", render: (school) => (school.dormantAt ? new Date(school.dormantAt).toLocaleDateString("en-GB") : <span className="text-[var(--color-text-muted)]">{school.lastSuccessfulLoginAt ? `Last sign-in ${timeAgo(school.lastSuccessfulLoginAt)}` : "Never signed in"}</span>), sortValue: (school) => school.dormantAt ?? "" },
-              { key: "noticeSent", header: "Notice sent", render: (school) => (school.noticeSentAt ? new Date(school.noticeSentAt).toLocaleDateString("en-GB") : <span className="text-[var(--color-text-muted)]">Not yet</span>) },
-              { key: "releaseDue", header: "Release due", render: (school) => (school.releaseDueAt ? new Date(school.releaseDueAt).toLocaleDateString("en-GB") : <span className="text-[var(--color-text-muted)]">—</span>) },
+              { key: "school", header: "School", render: (school) => <Link href={`/super-admin/schools/${school.id}`} className="font-bold text-(--color-text-primary) hover:text-(--color-text-accent)">{school.name}</Link> },
+              { key: "address", header: "Address", render: (school) => (school.address ? <span className="rounded-[5.5px] bg-(--color-bg-subtle) px-2 py-1 font-(--font-mono) text-[11px]">{school.address}</span> : <span className="text-(--color-text-muted)">Released</span>) },
+              { key: "dormantSince", header: "Dormant since", render: (school) => (school.dormantAt ? new Date(school.dormantAt).toLocaleDateString("en-GB") : <span className="text-(--color-text-muted)">{school.lastSuccessfulLoginAt ? `Last sign-in ${timeAgo(school.lastSuccessfulLoginAt)}` : "Never signed in"}</span>), sortValue: (school) => school.dormantAt ?? "" },
+              { key: "noticeSent", header: "Notice sent", render: (school) => (school.noticeSentAt ? new Date(school.noticeSentAt).toLocaleDateString("en-GB") : <span className="text-(--color-text-muted)">Not yet</span>) },
+              { key: "releaseDue", header: "Release due", render: (school) => (school.releaseDueAt ? new Date(school.releaseDueAt).toLocaleDateString("en-GB") : <span className="text-(--color-text-muted)">—</span>) },
               {
                 key: "check",
                 header: "Release check",
@@ -1186,17 +1186,17 @@ export default async function SuperAdminSchoolsPage({ searchParams }: { searchPa
                   return <span className="inline-flex items-center rounded-full px-[9px] py-[3px] text-[11px] font-bold" style={{ background: tone.bg, color: tone.fg }}>{tone.label}</span>;
                 }
               },
-              { key: "open", header: "", sortable: false, render: (school) => <Link href={`/super-admin/schools/${school.id}`} className="text-[11.5px] font-semibold text-[var(--color-text-accent)] hover:underline">Open</Link> }
+              { key: "open", header: "", sortable: false, render: (school) => <Link href={`/super-admin/schools/${school.id}`} className="text-[11.5px] font-semibold text-(--color-text-accent) hover:underline">Open</Link> }
             ]}
           />
 
-          <section className="rounded-[14px] border border-[var(--color-border-default)] bg-white p-6">
+          <section className="rounded-[14px] border border-(--color-border-default) bg-white p-6">
             <h2 className="text-[12.5px] font-semibold text-[#0D2315]">School account lifecycle — every fork condition labelled</h2>
             <div className="mt-5 flex flex-wrap items-center gap-2.5">
               {lifecycleFlow.map((stage, index) => (
                 <div key={stage.label} className="flex items-center gap-2.5">
                   <div
-                    className="min-w-[9rem] rounded-[10px] border px-4 py-3"
+                    className="min-w-36 rounded-[10px] border px-4 py-3"
                     style={
                       stage.emphasize
                         ? { background: "var(--color-text-primary)", borderColor: "var(--color-text-primary)", color: "var(--color-bg-surface)" }
@@ -1204,17 +1204,17 @@ export default async function SuperAdminSchoolsPage({ searchParams }: { searchPa
                     }
                   >
                     <p className="text-[11.5px] font-semibold">{stage.label}</p>
-                    <p className={`mt-[2.5px] text-[9.5px] ${stage.emphasize ? "opacity-75" : "text-[var(--color-text-muted)]"}`}>{stage.trigger}</p>
+                    <p className={`mt-[2.5px] text-[9.5px] ${stage.emphasize ? "opacity-75" : "text-(--color-text-muted)"}`}>{stage.trigger}</p>
                   </div>
                   {index < lifecycleFlow.length - 1 ? (
-                    <ArrowRight className="h-4 w-4 shrink-0 text-[var(--color-text-muted)]" />
+                    <ArrowRight className="h-4 w-4 shrink-0 text-(--color-text-muted)" />
                   ) : null}
                 </div>
               ))}
             </div>
           </section>
 
-          <section className="rounded-[14px] border border-[var(--color-border-default)] bg-white p-5">
+          <section className="rounded-[14px] border border-(--color-border-default) bg-white p-5">
             <div className="flex items-center justify-between gap-3">
               <h2 className="text-[12.5px] font-semibold text-[#0D2315]">Account status reference</h2>
               <p className="text-[10.5px] text-[#5f6e65]">Status changes always require a logged reason</p>
@@ -1233,9 +1233,9 @@ export default async function SuperAdminSchoolsPage({ searchParams }: { searchPa
                     >
                       {row.label}
                     </span>
-                    <p className="text-[11.5px] text-[var(--color-text-primary)]">{row.meaning}</p>
-                    <p className="text-[11px] text-[var(--color-text-secondary)]">{row.trigger}</p>
-                    <p className="text-[11px] font-semibold text-[var(--color-text-muted)]">{row.who}</p>
+                    <p className="text-[11.5px] text-(--color-text-primary)">{row.meaning}</p>
+                    <p className="text-[11px] text-(--color-text-secondary)">{row.trigger}</p>
+                    <p className="text-[11px] font-semibold text-(--color-text-muted)">{row.who}</p>
                   </div>
                 );
               })}

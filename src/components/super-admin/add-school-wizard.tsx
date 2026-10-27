@@ -76,7 +76,7 @@ function Field({ label, hint, children }: { label: string; hint?: string; childr
   );
 }
 
-const inputClass = "w-full rounded-[9px] border-[1.5px] border-[#dee8e2] px-[11.5px] py-[10px] text-[12px] text-[#0d2315] outline-none transition focus:border-[#12796a]";
+const inputClass = "w-full rounded-[9px] border-[1.5px] border-[#dee8e2] px-[11.5px] py-[10px] text-[12px] text-[#0d2315] outline-hidden transition focus:border-[#12796a]";
 
 function Chip({ label, on, onToggle }: { label: string; on: boolean; onToggle: () => void }) {
   return (
@@ -289,7 +289,7 @@ export function AddSchoolWizard({ plans }: { plans: SuperAdminPlanRow[] }) {
       </button>
 
       {open && typeof document !== "undefined" ? createPortal(
-        <div className="fixed inset-0 z-[var(--z-modal)] flex items-start justify-center overflow-y-auto bg-ink/55 p-6 backdrop-blur-sm">
+        <div className="fixed inset-0 z-(--z-modal) flex items-start justify-center overflow-y-auto bg-ink/55 p-6 backdrop-blur-xs">
           <div className="modal-surface my-4 w-full max-w-[820px] overflow-hidden rounded-[18px] bg-white shadow-[0_50px_100px_-40px_rgba(13,35,21,0.6)]">
             <div className="relative overflow-hidden px-[23.5px] py-[20px]" style={{ background: "#0d2315" }}>
               <svg className="pointer-events-none absolute inset-0 h-full w-full opacity-50" viewBox="0 0 800 200" preserveAspectRatio="xMidYMid slice">
@@ -300,7 +300,7 @@ export function AddSchoolWizard({ plans }: { plans: SuperAdminPlanRow[] }) {
                   <p className="mb-1.5 text-[9.5px] font-bold tracking-[0.08em] text-[rgba(255,255,255,0.45)]">
                     MODULE 02 · SUPER ADMIN CREATES THE SCHOOL ACCOUNT
                   </p>
-                  <p className="font-[var(--font-heading)] text-[19px] font-bold tracking-[-0.01em] text-white">Onboard a school</p>
+                  <p className="font-(--font-heading) text-[19px] font-bold tracking-[-0.01em] text-white">Onboard a school</p>
                   <p className="mt-[4.5px] text-xs text-[rgba(255,255,255,0.6)]">
                     Used when the school has agreed to join. The risk check is skipped — the agreement is the verification.
                   </p>
@@ -360,7 +360,7 @@ export function AddSchoolWizard({ plans }: { plans: SuperAdminPlanRow[] }) {
                           value={slug}
                           onChange={(e) => setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""))}
                           placeholder="powerhouse"
-                          className="min-w-0 w-40 border-none bg-transparent text-[12px] font-semibold text-[#0d2315] outline-none"
+                          className="min-w-0 w-40 border-none bg-transparent text-[12px] font-semibold text-[#0d2315] outline-hidden"
                         />
                         <span className="text-[12px] text-[#5f6e65]">.futurerealm.sms</span>
                         <span
@@ -556,7 +556,7 @@ export function AddSchoolWizard({ plans }: { plans: SuperAdminPlanRow[] }) {
                       {AUTO_ITEMS.map((item) => (
                         <div key={item} className="flex items-start gap-[8px]">
                           <Check className="mt-[2.5px] h-[11.5px] w-[11.5px] shrink-0" style={{ color: "#12796a" }} strokeWidth={2.6} />
-                          <p className="text-[10.5px] leading-[1.5] text-[#435048]">{item}</p>
+                          <p className="text-[10.5px] leading-normal text-[#435048]">{item}</p>
                         </div>
                       ))}
                     </div>
@@ -590,7 +590,7 @@ export function AddSchoolWizard({ plans }: { plans: SuperAdminPlanRow[] }) {
       ) : null}
 
       {done && result && typeof document !== "undefined" ? createPortal(
-        <div className="fixed inset-0 z-[var(--z-modal)] flex items-center justify-center bg-ink/55 p-10 backdrop-blur-sm">
+        <div className="fixed inset-0 z-(--z-modal) flex items-center justify-center bg-ink/55 p-10 backdrop-blur-xs">
           <div className="w-full max-w-[520px] rounded-[18px] bg-white px-[30.5px] pb-[27px] pt-9 text-center shadow-[0_50px_100px_-40px_rgba(13,35,21,0.6)]">
             <div
               className="mx-auto mb-[20px] flex h-16 w-16 items-center justify-center rounded-full border"
@@ -598,7 +598,7 @@ export function AddSchoolWizard({ plans }: { plans: SuperAdminPlanRow[] }) {
             >
               <CheckCircle2 className="h-[27px] w-[27px]" style={{ color: "var(--color-success)" }} />
             </div>
-            <p className="mb-2 font-[var(--font-heading)] text-2xl font-bold tracking-[-0.015em] text-[#0d2315]">School created.</p>
+            <p className="mb-2 font-(--font-heading) text-2xl font-bold tracking-[-0.015em] text-[#0d2315]">School created.</p>
             <p className="mx-auto mb-6 max-w-[400px] text-[12px] leading-[1.65] text-[#5f6e65]">
               {schoolName || "The school"} is live and the invitation has gone out. The administrator sets their own password from the link — we never send one.
             </p>

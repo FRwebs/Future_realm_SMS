@@ -225,7 +225,7 @@ function TriggerControl({
  * foot bleed to the box edge; the body keeps an 18px gutter.
  */
 export const PANEL_SHELL =
-  "min-w-0 overflow-hidden rounded-[14px] border bg-[var(--color-bg-surface)] px-[18px] pb-[12px]";
+  "min-w-0 overflow-hidden rounded-[14px] border bg-(--color-bg-surface) px-[18px] pb-[12px]";
 
 /** The mockup's two panel-action faces: ink for the primary, outlined otherwise. */
 function panelActClass(primary?: boolean) {
@@ -268,7 +268,7 @@ export function PanelHeader({
   return (
     <div
       className={cn(
-        "-mx-[18px] flex flex-wrap items-start justify-between gap-[14px] px-[18px] pb-[12px] pt-[14px]",
+        "mx-[-18px] flex flex-wrap items-start justify-between gap-[14px] px-[18px] pb-[12px] pt-[14px]",
         flush ? "mb-0" : joined ? "mb-0 border-b" : "mb-[12px] border-b",
       )}
       style={flush ? undefined : { borderColor: "#EDF3EF" }}
@@ -296,7 +296,7 @@ export function PanelHeader({
         </div>
         {sub ? (
           <p
-            className="mt-[3.5px] text-pretty text-[10.5px] leading-[1.5]"
+            className="mt-[3.5px] text-pretty text-[10.5px] leading-normal"
             style={{ color: MUTED }}
           >
             {sub}
@@ -353,7 +353,7 @@ function PanelFoot({
   return (
     <p
       className={cn(
-        "-mx-[18px] -mb-[12px] mt-[12px] border-t bg-[#F7FAF8] px-[18px] py-[10px] text-pretty text-[10.5px] leading-[1.5]",
+        "mx-[-18px] mb-[-12px] mt-[12px] border-t bg-[#F7FAF8] px-[18px] py-[10px] text-pretty text-[10.5px] leading-normal",
         className,
       )}
       style={{ borderColor: "#EDF3EF", color: MUTED }}
@@ -378,7 +378,7 @@ function FactList({ facts, per }: { facts: PanelFact[]; per?: number }) {
     >
       {facts.map(([label, value, hint, tone], index) => (
         <div key={`${label}-${index}`} className="min-w-0">
-          <dt className="mb-1 text-[9.5px] font-semibold uppercase tracking-[0.05em] text-[#67766D]">
+          <dt className="mb-1 text-[9.5px] font-semibold uppercase tracking-wider text-[#67766D]">
             {label}
           </dt>
           <dd className="min-w-0">
@@ -749,7 +749,7 @@ function TablePanel({
 
       {hasControls ? (
         <div
-          className="-mx-[18px] flex flex-wrap items-center gap-[7px] border-b px-[18px] py-[12px]"
+          className="mx-[-18px] flex flex-wrap items-center gap-[7px] border-b px-[18px] py-[12px]"
           style={{ background: "#FCFDFC", borderColor: "#EDF3EF" }}
         >
           {panel.search ? (
@@ -776,7 +776,7 @@ function TablePanel({
                 }}
                 placeholder={panel.search}
                 aria-label={panel.search}
-                className="min-w-0 flex-1 border-none bg-transparent text-[11.5px] outline-none"
+                className="min-w-0 flex-1 border-none bg-transparent text-[11.5px] outline-hidden"
                 style={{ color: INK }}
               />
               {query ? (
@@ -823,7 +823,7 @@ function TablePanel({
                   setPage(0);
                   if (served) ask({ [`f${(panel.filters ?? []).indexOf(filter)}`]: event.target.value === filter.options[0] ? null : event.target.value, p: null });
                 }}
-                className="cursor-pointer appearance-none border-none bg-transparent font-semibold outline-none"
+                className="cursor-pointer appearance-none border-none bg-transparent font-semibold outline-hidden"
               >
                 {filter.options.map((option) => (
                   <option key={option} value={option}>
@@ -846,7 +846,7 @@ function TablePanel({
       ) : null}
 
       {panel.selectable && selected.size > 0 ? (
-        <div className="-mx-[18px] px-[11px] pt-[11px]">
+        <div className="mx-[-18px] px-[11px] pt-[11px]">
           <div className="flex flex-wrap items-center justify-between gap-[11px] rounded-[12px] bg-[#0D2315] px-[14px] py-[10px]">
             <div className="flex items-center gap-[10px]">
               <button
@@ -927,7 +927,7 @@ function TablePanel({
           </p>
         </div>
       ) : (
-        <div className="-mx-[18px] min-w-0 overflow-x-auto">
+        <div className="mx-[-18px] min-w-0 overflow-x-auto">
           <table className={cn("w-full border-collapse", dense ? "min-w-0" : "min-w-[640px]")}>
             <thead>
               <tr
@@ -955,7 +955,7 @@ function TablePanel({
                     key={`${heading}-${index}`}
                     scope="col"
                     className={cn(
-                      "py-[10px] align-middle text-[9.5px] font-semibold uppercase leading-[1.3] tracking-[0.05em]",
+                      "py-[10px] align-middle text-[9.5px] font-semibold uppercase leading-[1.3] tracking-wider",
                       dense && "text-[9px] tracking-[0.03em]",
                       aligns[index] === "right" ? "text-right" : aligns[index] === "center" ? "text-center" : "text-left",
                       edge(index),
@@ -1049,7 +1049,7 @@ function TablePanel({
 
       {pageCount > 1 ? (
         <div
-          className="-mx-[18px] flex items-center justify-between gap-3 border-t px-[18px] py-[10px]"
+          className="mx-[-18px] flex items-center justify-between gap-3 border-t px-[18px] py-[10px]"
           style={{ background: "#FCFDFC", borderColor: "#EDF3EF" }}
         >
           <p className="text-[10.5px]" style={{ color: MUTED }}>
@@ -1101,10 +1101,10 @@ function TablePanel({
 
       {panel.foot || panel.footActs?.length ? (
         <div
-          className="-mx-[18px] -mb-[12px] flex flex-wrap items-center justify-between gap-[10px] border-t bg-[#F7FAF8] px-[18px] py-[10px]"
+          className="mx-[-18px] mb-[-12px] flex flex-wrap items-center justify-between gap-[10px] border-t bg-[#F7FAF8] px-[18px] py-[10px]"
           style={{ borderColor: "#EDF3EF" }}
         >
-          <p className="min-w-0 flex-1 text-pretty text-[10.5px] leading-[1.5]" style={{ color: MUTED }}>
+          <p className="min-w-0 flex-1 text-pretty text-[10.5px] leading-normal" style={{ color: MUTED }}>
             {panel.foot}
           </p>
           {panel.footActs?.length ? (
@@ -1158,9 +1158,9 @@ function TrackerPanel({
     return (
       <section className={PANEL_SHELL} style={{ borderColor: CARD_BORDER }}>
         <PanelHeader title={panel.title} sub={panel.sub} meta={panel.meta} openDrawer={openDrawer} />
-        <div className="rounded-[12px] border border-[var(--color-success)] bg-[var(--color-success-dim)] px-4 py-3.5">
-          <p className="text-[12.5px] font-bold text-[var(--color-text-primary)]">{panel.clear.title}</p>
-          <p className="mt-1 text-[12px] leading-[1.5] text-[var(--color-text-secondary)]">{panel.clear.body}</p>
+        <div className="rounded-[12px] border border-(--color-success) bg-(--color-success-dim) px-4 py-3.5">
+          <p className="text-[12.5px] font-bold text-(--color-text-primary)">{panel.clear.title}</p>
+          <p className="mt-1 text-[12px] leading-normal text-(--color-text-secondary)">{panel.clear.body}</p>
         </div>
       </section>
     );
@@ -1220,21 +1220,21 @@ function TrackerPanel({
                 className={cn(
                   "flex flex-wrap items-center justify-between gap-3 rounded-[12px] border px-3.5 py-2.5",
                   trackerRow.overdue
-                    ? "border-[var(--color-danger)] bg-[var(--color-danger-dim)]"
-                    : "border-[var(--color-border-default)]",
+                    ? "border-danger bg-(--color-danger-dim)"
+                    : "border-(--color-border-default)",
                 )}
               >
                 <div className="min-w-0 flex-[1_1_260px]">
-                  <p className="text-[12.5px] font-semibold text-[var(--color-text-primary)]">{trackerRow.unit}</p>
+                  <p className="text-[12.5px] font-semibold text-(--color-text-primary)">{trackerRow.unit}</p>
                   {trackerRow.sub ? (
-                    <p className="text-[11.5px] text-[var(--color-text-muted)]">{trackerRow.sub}</p>
+                    <p className="text-[11.5px] text-(--color-text-muted)">{trackerRow.sub}</p>
                   ) : null}
                 </div>
                 <div className="flex flex-none flex-wrap items-center gap-2.5">
                   {byOwner ? null : (
-                    <span className="text-[11.5px] text-[var(--color-text-secondary)]">
+                    <span className="text-[11.5px] text-(--color-text-secondary)">
                       {trackerRow.owner}
-                      <span className="text-[var(--color-text-muted)]"> · {trackerRow.role}</span>
+                      <span className="text-(--color-text-muted)"> · {trackerRow.role}</span>
                     </span>
                   )}
                   <span
@@ -1247,8 +1247,8 @@ function TrackerPanel({
                     className={cn(
                       "min-w-[52px] text-right text-[11.5px] tabular-nums",
                       trackerRow.overdue
-                        ? "font-semibold text-[var(--color-danger)]"
-                        : "text-[var(--color-text-muted)]",
+                        ? "font-semibold text-danger"
+                        : "text-(--color-text-muted)",
                     )}
                   >
                     {trackerRow.age}
@@ -1377,7 +1377,7 @@ export function PanelView({
               <>
                 <div className="mb-[9px] flex items-center justify-between gap-[9px]">
                   <span
-                    className="flex min-w-0 items-center gap-[6px] text-[9.5px] font-semibold uppercase leading-[1.35] tracking-[0.05em]"
+                    className="flex min-w-0 items-center gap-[6px] text-[9.5px] font-semibold uppercase leading-[1.35] tracking-wider"
                     style={{ color: MUTED }}
                   >
                     {card.label}
@@ -1424,7 +1424,7 @@ export function PanelView({
             );
 
             const className = cn(
-              "group/kpi flex flex-col rounded-[14px] border bg-[var(--color-bg-surface)] px-[14px] pb-[14px] pt-[13px] transition-[transform,border-color] duration-150",
+              "group/kpi flex flex-col rounded-[14px] border bg-(--color-bg-surface) px-[14px] pb-[14px] pt-[13px] transition-[transform,border-color] duration-150",
               linked && "cursor-pointer hover:-translate-y-px",
             );
             const style = {
@@ -1516,6 +1516,8 @@ export function PanelView({
                 { mode: "view", kicker: panel.title, title: item.label, sub: item.sub, facts: [["Item", item.label, item.sub ?? ""], ["State", item.pill ?? "—", ""]].map((fact) => (fact[2] ? fact : [fact[0], fact[1]])) as PanelFact[], readOnly: true, readOnlyNote: "This is a record of what happened. It is read-only." });
 
             return (
+              // A click anywhere on a readable row opens it for the mouse; the row's title is a button that does the same for the keyboard.
+              // eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-noninteractive-element-interactions
               <li
                 key={`${item.label}-${index}`}
                 className={cn("flex items-start gap-[10px] border-b py-[10px]", rowRead && "cursor-pointer")}
@@ -1539,15 +1541,26 @@ export function PanelView({
                 )}
 
                 <span className="min-w-0 flex-1">
-                  <span
-                    className="block text-pretty text-[11.5px] font-semibold leading-[1.4]"
-                    style={{ color: INK }}
-                  >
-                    {item.label}
-                  </span>
+                  {rowRead ? (
+                    <button
+                      type="button"
+                      onClick={() => openDrawer(rowRead)}
+                      className="block w-full text-pretty text-left text-[11.5px] font-semibold leading-[1.4] hover:underline"
+                      style={{ color: INK }}
+                    >
+                      {item.label}
+                    </button>
+                  ) : (
+                    <span
+                      className="block text-pretty text-[11.5px] font-semibold leading-[1.4]"
+                      style={{ color: INK }}
+                    >
+                      {item.label}
+                    </span>
+                  )}
                   {item.sub ? (
                     <span
-                      className="mt-[2.5px] block text-pretty text-[10.5px] leading-[1.5]"
+                      className="mt-[2.5px] block text-pretty text-[10.5px] leading-normal"
                       style={{ color: MUTED }}
                     >
                       {item.sub}
@@ -1658,7 +1671,7 @@ export function PanelView({
           {panel.rows.map((barRow) => (
             <li key={barRow.label}>
               <div className="mb-1.5 flex items-baseline justify-between gap-3">
-                <span className="truncate text-[12.5px] text-[var(--color-text-primary)]">
+                <span className="truncate text-[12.5px] text-(--color-text-primary)">
                   {barRow.label}
                 </span>
                 <span
@@ -1669,7 +1682,7 @@ export function PanelView({
                 </span>
               </div>
               <div
-                className="h-[7px] overflow-hidden rounded-full bg-[var(--color-bg-subtle)]"
+                className="h-[7px] overflow-hidden rounded-full bg-(--color-bg-subtle)"
                 role="img"
                 aria-label={`${barRow.label}: ${barRow.display}`}
               >
@@ -1682,7 +1695,7 @@ export function PanelView({
                 />
               </div>
               {barRow.sub ? (
-                <p className="mt-1 text-[11px] text-[var(--color-text-muted)]">
+                <p className="mt-1 text-[11px] text-(--color-text-muted)">
                   {barRow.sub}
                 </p>
               ) : null}
@@ -1718,7 +1731,7 @@ export function PanelView({
       );
     return (
       <section
-        className="flex min-w-0 flex-wrap items-center gap-x-[18px] gap-y-[10px] rounded-[13px] border bg-[var(--color-bg-surface)] px-[14px] py-[11px]"
+        className="flex min-w-0 flex-wrap items-center gap-x-[18px] gap-y-[10px] rounded-[13px] border bg-(--color-bg-surface) px-[14px] py-[11px]"
         style={{ borderColor: CARD_BORDER }}
         aria-label="Pick a term"
       >
@@ -1833,7 +1846,7 @@ export function PanelView({
                 trigger={tile}
                 label={tile.label}
                 openDrawer={openDrawer}
-                className="flex items-start gap-[11px] rounded-[13px] border bg-[var(--color-bg-surface)] px-[14px] py-[13px] text-left transition-[transform,border-color,background] duration-150 hover:-translate-y-px hover:border-[#BFDCD1] hover:bg-[#F6FBF9]"
+                className="flex items-start gap-[11px] rounded-[13px] border bg-(--color-bg-surface) px-[14px] py-[13px] text-left transition-[transform,border-color,background] duration-150 hover:-translate-y-px hover:border-[#BFDCD1] hover:bg-[#F6FBF9]"
                 style={{ borderColor: CARD_BORDER }}
               >
                 <span
@@ -1954,7 +1967,7 @@ export function PanelView({
     return (
       <section className={PANEL_SHELL} style={{ borderColor: CARD_BORDER }}>
         <PanelHeader title={panel.title} sub={panel.sub} openDrawer={openDrawer} />
-        <div className="-mx-[2px] grid gap-[11px] pb-[6px]" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(250px, 1fr))" }}>
+        <div className="mx-[-2px] grid gap-[11px] pb-[6px]" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(250px, 1fr))" }}>
           {panel.cards.map((card) => {
             const swatch = toneOf(card.tone);
             return (
@@ -2042,7 +2055,7 @@ export function PanelView({
                   {item.title}
                 </span>
                 <span
-                  className="mt-[2.5px] block text-pretty text-[10.5px] leading-[1.5]"
+                  className="mt-[2.5px] block text-pretty text-[10.5px] leading-normal"
                   style={{ color: MUTED }}
                 >
                   {item.detail}
@@ -2191,9 +2204,9 @@ function FormPanel({
         ))}
       </div>
       {note || panel.actions?.length ? (
-        <div className="mt-[14px] flex flex-wrap items-center justify-between gap-3 border-t border-[var(--color-border-default)] pt-[13px]">
+        <div className="mt-[14px] flex flex-wrap items-center justify-between gap-3 border-t border-(--color-border-default) pt-[13px]">
           <p
-            className="min-w-0 flex-[1_1_200px] text-pretty text-[10.5px] leading-[1.5]"
+            className="min-w-0 flex-[1_1_200px] text-pretty text-[10.5px] leading-normal"
             role={state.kind === "failed" ? "alert" : undefined}
             style={{
               color: noteColour,
@@ -2254,12 +2267,12 @@ function FormPanel({
 
   if (panel.type === "quote") {
     return (
-      <blockquote className="surface-card border-l-[3px] border-l-[var(--color-accent-primary)] p-4 md:p-5">
-        <p className="text-[13px] leading-[1.6] text-[var(--color-text-primary)]">
+      <blockquote className="surface-card border-l-[3px] border-l-(--color-accent-primary) p-4 md:p-5">
+        <p className="text-[13px] leading-[1.6] text-(--color-text-primary)">
           {panel.body}
         </p>
         {panel.attribution ? (
-          <footer className="mt-2 text-[11.5px] text-[var(--color-text-muted)]">
+          <footer className="mt-2 text-[11.5px] text-(--color-text-muted)">
             {panel.attribution}
           </footer>
         ) : null}
@@ -2362,20 +2375,20 @@ function FormPanel({
   // pending
   return (
     <section className="surface-card border-dashed p-4 md:p-5">
-      <p className="text-[10.5px] font-semibold uppercase tracking-[0.08em] text-[var(--color-text-muted)]">
+      <p className="text-[10.5px] font-semibold uppercase tracking-[0.08em] text-(--color-text-muted)">
         Not built yet
       </p>
-      <h3 className="mt-1.5 text-[14px] font-bold text-[var(--color-text-primary)]">
+      <h3 className="mt-1.5 text-[14px] font-bold text-(--color-text-primary)">
         {panel.title}
       </h3>
-      <p className="mt-1.5 text-[12.5px] leading-[1.55] text-[var(--color-text-secondary)]">
+      <p className="mt-1.5 text-[12.5px] leading-[1.55] text-(--color-text-secondary)">
         {panel.body}
       </p>
-      <ul className="mt-3 grid gap-1.5 border-t border-[var(--color-border-default)] pt-3">
+      <ul className="mt-3 grid gap-1.5 border-t border-(--color-border-default) pt-3">
         {panel.contains.map((entry) => (
           <li
             key={entry}
-            className="flex gap-2 text-[12px] leading-[1.5] text-[var(--color-text-muted)]"
+            className="flex gap-2 text-[12px] leading-normal text-(--color-text-muted)"
           >
             <span aria-hidden="true">·</span>
             <span>{entry}</span>

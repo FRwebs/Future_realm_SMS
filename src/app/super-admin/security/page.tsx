@@ -137,10 +137,10 @@ function auditActionTone(action: string) {
 }
 
 function AuditDetailsPreview({ details }: { details: unknown }) {
-  if (details === null || details === undefined) return <span className="text-[var(--color-text-muted)]">—</span>;
-  if (typeof details === "object" && Object.keys(details as object).length === 0) return <span className="text-[var(--color-text-muted)]">—</span>;
+  if (details === null || details === undefined) return <span className="text-(--color-text-muted)">—</span>;
+  if (typeof details === "object" && Object.keys(details as object).length === 0) return <span className="text-(--color-text-muted)">—</span>;
   const text = typeof details === "string" ? details : JSON.stringify(details);
-  return <span className="line-clamp-2 max-w-xs font-[var(--font-mono)] text-[10px] text-[var(--color-text-secondary)]">{text}</span>;
+  return <span className="line-clamp-2 max-w-xs font-(--font-mono) text-[10px] text-(--color-text-secondary)">{text}</span>;
 }
 
 /**
@@ -157,9 +157,9 @@ function AuditChange({ row }: { row: SuperAdminAuditLogRow }) {
   return (
     <span className="flex min-w-0 flex-col gap-[2px] text-[10.5px] leading-[1.35]">
       {row.before ? (
-        <span className="truncate text-[var(--color-text-muted)] line-through decoration-[#D6E0DA]">{row.before}</span>
+        <span className="truncate text-(--color-text-muted) line-through decoration-[#D6E0DA]">{row.before}</span>
       ) : null}
-      {row.after ? <span className="truncate text-[var(--color-text-primary)]">{row.after}</span> : null}
+      {row.after ? <span className="truncate text-(--color-text-primary)">{row.after}</span> : null}
     </span>
   );
 }
@@ -167,13 +167,13 @@ function AuditChange({ row }: { row: SuperAdminAuditLogRow }) {
 /** The kind of record, with its identifier kept short enough to scan past. */
 function AuditTarget({ row }: { row: SuperAdminAuditLogRow }) {
   if (!row.entityType) {
-    return <span className="font-[var(--font-mono)] text-[10.5px]">{row.target}</span>;
+    return <span className="font-(--font-mono) text-[10.5px]">{row.target}</span>;
   }
   return (
     <span className="flex min-w-0 flex-col">
-      <span className="truncate text-[11px] font-semibold text-[var(--color-text-primary)]">{row.entityType}</span>
+      <span className="truncate text-[11px] font-semibold text-(--color-text-primary)">{row.entityType}</span>
       {row.entityId ? (
-        <span className="truncate font-[var(--font-mono)] text-[9.5px] text-[var(--color-text-muted)]">
+        <span className="truncate font-(--font-mono) text-[9.5px] text-(--color-text-muted)">
           {row.entityId.slice(-8)}
         </span>
       ) : null}
@@ -265,7 +265,7 @@ async function AuditLogTab({ sessions, attempts, mfaCoverage, signIn }: { sessio
         description={
           <>
             Most recent 30 events. For search, action-type and date-range filters plus CSV export, use the{" "}
-            <Link href="/super-admin/audit-logs" className="font-semibold text-[var(--color-text-accent)] underline">
+            <Link href="/super-admin/audit-logs" className="font-semibold text-(--color-text-accent) underline">
               full audit log
             </Link>
             .
@@ -324,9 +324,9 @@ async function AuditLogTab({ sessions, attempts, mfaCoverage, signIn }: { sessio
         emptyState="No login attempts have been recorded."
         columns={[
           { key: "email", header: "Email", render: (item) => item.email },
-          { key: "ip", header: "IP address", render: (item) => (item.ipAddress ? <span className="font-[var(--font-mono)]">{item.ipAddress}</span> : "-") },
-          { key: "location", header: "Location", render: (item) => (item.location ? item.location : <span className="text-[var(--color-text-muted)]">Not reported by the network</span>) },
-          { key: "device", header: "Device", render: (item) => <div><p className="max-w-[16rem] truncate">{item.device ?? <span className="text-[var(--color-text-muted)]">Not recorded</span>}</p>{item.newDevice ? <StatusPill bg="var(--color-warning-dim)" fg="var(--color-warning)" label="New device" /> : null}</div> },
+          { key: "ip", header: "IP address", render: (item) => (item.ipAddress ? <span className="font-(--font-mono)">{item.ipAddress}</span> : "-") },
+          { key: "location", header: "Location", render: (item) => (item.location ? item.location : <span className="text-(--color-text-muted)">Not reported by the network</span>) },
+          { key: "device", header: "Device", render: (item) => <div><p className="max-w-[16rem] truncate">{item.device ?? <span className="text-(--color-text-muted)">Not recorded</span>}</p>{item.newDevice ? <StatusPill bg="var(--color-warning-dim)" fg="var(--color-warning)" label="New device" /> : null}</div> },
           {
             key: "status",
             header: "Result",
@@ -349,10 +349,10 @@ async function AuditLogTab({ sessions, attempts, mfaCoverage, signIn }: { sessio
         columns={[
           { key: "when", header: "Taken", render: (item) => formatDate(item.createdAt) },
           { key: "by", header: "By", render: (item) => item.by },
-          { key: "reason", header: "Reason", render: (item) => <span className="text-[11.5px] text-[var(--color-text-secondary)]">{item.reason}</span> },
-          { key: "filters", header: "Filters", render: (item) => <span className="text-[10.5px] text-[var(--color-text-muted)]">{Object.entries(item.filters).filter(([, value]) => value).map(([key, value]) => `${key}: ${String(value).slice(0, 10)}`).join(" · ") || "None"}</span> },
-          { key: "rows", header: "Rows", render: (item) => <span>{item.rowCount.toLocaleString()} {item.format}{item.truncated ? <span className="ml-1 text-[var(--color-warning)]">truncated</span> : null}</span> },
-          { key: "dl", header: "File", render: (item) => <a href={`/api/super-admin/compliance/audit-exports/${item.id}/download`} className="font-semibold text-[var(--color-text-accent)] underline">Download</a> }
+          { key: "reason", header: "Reason", render: (item) => <span className="text-[11.5px] text-(--color-text-secondary)">{item.reason}</span> },
+          { key: "filters", header: "Filters", render: (item) => <span className="text-[10.5px] text-(--color-text-muted)">{Object.entries(item.filters).filter(([, value]) => value).map(([key, value]) => `${key}: ${String(value).slice(0, 10)}`).join(" · ") || "None"}</span> },
+          { key: "rows", header: "Rows", render: (item) => <span>{item.rowCount.toLocaleString()} {item.format}{item.truncated ? <span className="ml-1 text-(--color-warning)">truncated</span> : null}</span> },
+          { key: "dl", header: "File", render: (item) => <a href={`/api/super-admin/compliance/audit-exports/${item.id}/download`} className="font-semibold text-(--color-text-accent) underline">Download</a> }
         ]}
       />
     </div>
@@ -364,8 +364,8 @@ const REGULATOR_WINDOW_HOURS = 72;
 function BreachSteps({ incident }: { incident: SecurityIncident }) {
   const step = (label: string, done: boolean, detail?: string | null) => (
     <span key={label} className="inline-flex items-center gap-1 text-[10px]" title={detail ?? undefined}>
-      <span className={done ? "text-[var(--color-success)]" : "text-[var(--color-text-muted)]"}>{done ? "●" : "○"}</span>
-      <span className={done ? "font-semibold text-[var(--color-text-primary)]" : "text-[var(--color-text-muted)]"}>{label}</span>
+      <span className={done ? "text-(--color-success)" : "text-(--color-text-muted)"}>{done ? "●" : "○"}</span>
+      <span className={done ? "font-semibold text-(--color-text-primary)" : "text-(--color-text-muted)"}>{label}</span>
     </span>
   );
   const open = incident.status !== "RESOLVED";
@@ -380,7 +380,7 @@ function BreachSteps({ incident }: { incident: SecurityIncident }) {
         {step(incident.schoolsNotifiedCount ? `Schools (${incident.schoolsNotifiedCount})` : "Schools", Boolean(incident.schoolsNotifiedAt))}
       </div>
       {clock !== null ? (
-        <span className={clock < 0 ? "text-[10px] font-semibold text-[var(--color-danger)]" : clock < 24 ? "text-[10px] font-semibold text-[var(--color-warning)]" : "text-[10px] text-[var(--color-text-muted)]"}>
+        <span className={clock < 0 ? "text-[10px] font-semibold text-danger" : clock < 24 ? "text-[10px] font-semibold text-(--color-warning)" : "text-[10px] text-(--color-text-muted)"}>
           {clock < 0 ? `Regulator window passed ${Math.round(-clock)}h ago` : `Regulator window: ${Math.round(clock)}h left of ${REGULATOR_WINDOW_HOURS}h`}
         </span>
       ) : null}
@@ -423,8 +423,8 @@ function IncidentsTab({ incidents, schools }: { incidents: SecurityIncident[]; s
           />
         }
         columns={[
-          { key: "type", header: "Incident", render: (item) => <span className="font-[var(--font-mono)] font-semibold text-[var(--color-text-primary)]">{item.type.replaceAll("_", " ")}</span> },
-          { key: "description", header: "Description", render: (item) => <span className="text-[11.5px] text-[var(--color-text-secondary)]">{item.description}</span> },
+          { key: "type", header: "Incident", render: (item) => <span className="font-(--font-mono) font-semibold text-(--color-text-primary)">{item.type.replaceAll("_", " ")}</span> },
+          { key: "description", header: "Description", render: (item) => <span className="text-[11.5px] text-(--color-text-secondary)">{item.description}</span> },
           {
             key: "severity",
             header: "Severity",
@@ -446,7 +446,7 @@ function IncidentsTab({ incidents, schools }: { incidents: SecurityIncident[]; s
             header: "Actions",
             render: (item) =>
               item.status !== "RESOLVED" ? (
-                <div className="flex max-w-[15rem] flex-wrap items-center gap-x-3 gap-y-1">
+                <div className="flex max-w-60 flex-wrap items-center gap-x-3 gap-y-1">
                   <ResourceActionDialog
                     triggerLabel="Update"
                     title={`Update incident — ${item.type}`}
@@ -516,7 +516,7 @@ function IncidentsTab({ incidents, schools }: { incidents: SecurityIncident[]; s
                   />
                 </div>
               ) : (
-                <span className="text-xs text-[var(--color-text-muted)]">Resolved {item.resolvedAt ? formatDate(item.resolvedAt) : ""}</span>
+                <span className="text-xs text-(--color-text-muted)">Resolved {item.resolvedAt ? formatDate(item.resolvedAt) : ""}</span>
               )
           }
         ]}
@@ -534,8 +534,8 @@ function IncidentsTab({ incidents, schools }: { incidents: SecurityIncident[]; s
         ]}
         getRowKey={(row) => row.severity}
         columns={[
-          { key: "severity", header: "Severity", render: (row) => <span className="font-bold text-[var(--color-text-primary)]">{row.severity}</span> },
-          { key: "examples", header: "Examples", render: (row) => <span className="text-[var(--color-text-secondary)]">{row.examples}</span> }
+          { key: "severity", header: "Severity", render: (row) => <span className="font-bold text-(--color-text-primary)">{row.severity}</span> },
+          { key: "examples", header: "Examples", render: (row) => <span className="text-(--color-text-secondary)">{row.examples}</span> }
         ]}
       />
     </div>
@@ -608,8 +608,8 @@ async function ComplianceTab({ incidents, privacy, overview }: { incidents: Secu
             />
           }
           columns={[
-            { key: "version", header: "Version", render: (row) => <span className="font-semibold text-[var(--color-text-primary)]">{row.version}</span> },
-            { key: "schools", header: "Schools", render: (row) => <div><p>{row.schools.length}</p><p className="max-w-[18rem] truncate text-[10px] text-[var(--color-text-muted)]" title={row.schools.join(", ")}>{row.schools.slice(0, 3).join(", ")}{row.schools.length > 3 ? ` +${row.schools.length - 3}` : ""}</p></div> },
+            { key: "version", header: "Version", render: (row) => <span className="font-semibold text-(--color-text-primary)">{row.version}</span> },
+            { key: "schools", header: "Schools", render: (row) => <div><p>{row.schools.length}</p><p className="max-w-[18rem] truncate text-[10px] text-(--color-text-muted)" title={row.schools.join(", ")}>{row.schools.slice(0, 3).join(", ")}{row.schools.length > 3 ? ` +${row.schools.length - 3}` : ""}</p></div> },
             { key: "state", header: "State", render: (row) => <StatusPill bg={row.label === "Current" ? "var(--color-success-dim)" : "var(--color-warning-dim)"} fg={row.label === "Current" ? "var(--color-success)" : "var(--color-warning)"} label={row.label} /> }
           ]}
           emptyState="No school is on the platform yet."
@@ -622,7 +622,7 @@ async function ComplianceTab({ incidents, privacy, overview }: { incidents: Secu
           getRowKey={(row) => row.school}
           columns={[
             { key: "school", header: "School", render: (row) => row.school },
-            { key: "coverage", header: "Coverage", render: (row) => <div><p className="font-semibold text-[var(--color-text-primary)]">{row.pct}%</p><p className="text-[10px] text-[var(--color-text-muted)]">{row.consented} of {row.guardians} guardians</p></div> },
+            { key: "coverage", header: "Coverage", render: (row) => <div><p className="font-semibold text-(--color-text-primary)">{row.pct}%</p><p className="text-[10px] text-(--color-text-muted)">{row.consented} of {row.guardians} guardians</p></div> },
             { key: "state", header: "State", render: (row) => <StatusPill bg={row.state === "COMPLIANT" ? "var(--color-success-dim)" : row.state === "PARTIAL" ? "var(--color-warning-dim)" : "var(--color-danger-dim)"} fg={row.state === "COMPLIANT" ? "var(--color-success)" : row.state === "PARTIAL" ? "var(--color-warning)" : "var(--color-danger)"} label={row.state === "COMPLIANT" ? "Covered" : row.state === "PARTIAL" ? "Partial" : "Gap"} /> }
           ]}
           emptyState="No school has guardians on record yet."
@@ -636,11 +636,11 @@ async function ComplianceTab({ incidents, privacy, overview }: { incidents: Secu
         items={overview.obligations}
         getRowKey={(row) => row.id}
         columns={[
-          { key: "obligation", header: "Obligation", render: (row) => <div><p className="font-semibold text-[var(--color-text-primary)]">{row.title}</p>{row.evidence ? <p className="text-[10px] text-[var(--color-text-muted)]">{row.evidence}</p> : null}</div> },
+          { key: "obligation", header: "Obligation", render: (row) => <div><p className="font-semibold text-(--color-text-primary)">{row.title}</p>{row.evidence ? <p className="text-[10px] text-(--color-text-muted)">{row.evidence}</p> : null}</div> },
           { key: "cadence", header: "Cadence", render: (row) => row.cadence },
           { key: "owner", header: "Owner", render: (row) => row.ownerRole },
-          { key: "due", header: "Due", render: (row) => (row.dueAt ? <span className={row.state === "OVERDUE" ? "font-semibold text-[var(--color-danger)]" : ""}>{formatDate(row.dueAt)}</span> : <span className="text-[var(--color-text-muted)]">Not set</span>) },
-          { key: "proof", header: "Proof", render: (row) => (row.reference ? <span className="font-[var(--font-mono)] text-[10.5px]">{row.reference}</span> : <span className="text-[var(--color-text-muted)]">None</span>) },
+          { key: "due", header: "Due", render: (row) => (row.dueAt ? <span className={row.state === "OVERDUE" ? "font-semibold text-danger" : ""}>{formatDate(row.dueAt)}</span> : <span className="text-(--color-text-muted)">Not set</span>) },
+          { key: "proof", header: "Proof", render: (row) => (row.reference ? <span className="font-(--font-mono) text-[10.5px]">{row.reference}</span> : <span className="text-(--color-text-muted)">None</span>) },
           { key: "state", header: "State", render: (row) => <ObligationState state={row.state} /> },
           {
             key: "actions",
@@ -678,9 +678,9 @@ async function ComplianceTab({ incidents, privacy, overview }: { incidents: Secu
           ]}
           getRowKey={(row) => row.tier}
           columns={[
-            { key: "tier", header: "Tier", render: (row) => <span className={row.tier === tier ? "font-bold text-[var(--color-text-accent)]" : "font-semibold text-[var(--color-text-primary)]"}>{row.tier}{row.tier === tier ? " ← you are here" : ""}</span> },
+            { key: "tier", header: "Tier", render: (row) => <span className={row.tier === tier ? "font-bold text-(--color-text-accent)" : "font-semibold text-(--color-text-primary)"}>{row.tier}{row.tier === tier ? " ← you are here" : ""}</span> },
             { key: "threshold", header: "Threshold", render: (row) => row.threshold },
-            { key: "who", header: "Who sits here", render: (row) => <span className="text-[var(--color-text-secondary)]">{row.who}</span> }
+            { key: "who", header: "Who sits here", render: (row) => <span className="text-(--color-text-secondary)">{row.who}</span> }
           ]}
           footnote="Counts exclude the sample students every new school starts with. Which tier you must register in is a legal call — this shows the numbers behind it."
         />
@@ -690,8 +690,8 @@ async function ComplianceTab({ incidents, privacy, overview }: { incidents: Secu
           items={artefacts}
           getRowKey={(row) => row.id}
           columns={[
-            { key: "label", header: "Artefact", render: (row) => <span className="font-semibold text-[var(--color-text-primary)]">{row.title}</span> },
-            { key: "proof", header: "Proof", render: (row) => (row.evidence ?? row.reference ?? <span className="text-[var(--color-text-muted)]">None recorded</span>) },
+            { key: "label", header: "Artefact", render: (row) => <span className="font-semibold text-(--color-text-primary)">{row.title}</span> },
+            { key: "proof", header: "Proof", render: (row) => (row.evidence ?? row.reference ?? <span className="text-(--color-text-muted)">None recorded</span>) },
             { key: "state", header: "State", render: (row) => <ObligationState state={row.state} /> }
           ]}
         />
@@ -734,7 +734,7 @@ async function ComplianceTab({ incidents, privacy, overview }: { incidents: Secu
             }
           },
           { key: "by", header: "Completed by", render: (item) => item.completedBy ?? "—" },
-          { key: "hash", header: "Confirmation hash", render: (item) => <span className="font-[var(--font-mono)] text-[10px]">{item.confirmationHash ?? "—"}</span> }
+          { key: "hash", header: "Confirmation hash", render: (item) => <span className="font-(--font-mono) text-[10px]">{item.confirmationHash ?? "—"}</span> }
         ]}
         emptyState="No deletion requests recorded yet."
         footnote="All three below must be satisfied before a request can be marked complete."
@@ -750,7 +750,7 @@ async function ComplianceTab({ incidents, privacy, overview }: { incidents: Secu
         ]}
         getRowKey={(row) => row.label}
         columns={[
-          { key: "label", header: "Requirement", render: (row) => <span className="font-semibold text-[var(--color-text-primary)]">{row.label}</span> },
+          { key: "label", header: "Requirement", render: (row) => <span className="font-semibold text-(--color-text-primary)">{row.label}</span> },
           {
             key: "state",
             header: "State",
@@ -782,12 +782,12 @@ async function ComplianceTab({ incidents, privacy, overview }: { incidents: Secu
           />
         }
         columns={[
-          { key: "class", header: "Data class", render: (row) => <span className="font-semibold text-[var(--color-text-primary)]">{row.dataClass}</span> },
+          { key: "class", header: "Data class", render: (row) => <span className="font-semibold text-(--color-text-primary)">{row.dataClass}</span> },
           { key: "retention", header: "Retention", render: (row) => retentionLabel(row.retentionDays) },
-          { key: "basis", header: "Basis", render: (row) => <span className="text-[11px] text-[var(--color-text-secondary)]">{row.basis}</span> },
+          { key: "basis", header: "Basis", render: (row) => <span className="text-[11px] text-(--color-text-secondary)">{row.basis}</span> },
           { key: "trigger", header: "Clock starts", render: (row) => <span className="text-[11px]">{row.trigger}</span> },
           { key: "how", header: "Enforcement", render: (row) => <StatusPill bg={row.enforced ? "var(--color-success-dim)" : "var(--color-bg-subtle)"} fg={row.enforced ? "var(--color-success)" : "var(--color-text-muted)"} label={row.enforcement} /> },
-          { key: "due", header: "Due", render: (row) => (!row.enforced ? <span className="text-[var(--color-text-muted)]">Reviewed by a person</span> : row.waiting ? <span className="font-semibold text-[var(--color-warning)]">{row.waiting.toLocaleString()} past due</span> : row.nextDue ? `Oldest record expires ${formatDate(row.nextDue)}` : <span className="text-[var(--color-text-muted)]">Nothing waiting</span>) },
+          { key: "due", header: "Due", render: (row) => (!row.enforced ? <span className="text-(--color-text-muted)">Reviewed by a person</span> : row.waiting ? <span className="font-semibold text-(--color-warning)">{row.waiting.toLocaleString()} past due</span> : row.nextDue ? `Oldest record expires ${formatDate(row.nextDue)}` : <span className="text-(--color-text-muted)">Nothing waiting</span>) },
           {
             key: "actions",
             header: "Actions",
@@ -816,12 +816,12 @@ async function ComplianceTab({ incidents, privacy, overview }: { incidents: Secu
         items={overview.deletionSchedule}
         getRowKey={(row) => row.id}
         columns={[
-          { key: "subject", header: "Subject", render: (row) => <span className="font-semibold text-[var(--color-text-primary)]">{row.subject}</span> },
+          { key: "subject", header: "Subject", render: (row) => <span className="font-semibold text-(--color-text-primary)">{row.subject}</span> },
           { key: "class", header: "Class", render: (row) => row.dataClass },
           { key: "started", header: "Clock started", render: (row) => formatDate(row.started) },
           { key: "due", header: "Deletion due", render: (row) => formatDate(row.due) },
           { key: "state", header: "State", render: (row) => <StatusPill bg={row.state === "EXECUTED" ? "var(--color-success-dim)" : row.state === "DUE" ? "var(--color-danger-dim)" : "var(--color-bg-subtle)"} fg={row.state === "EXECUTED" ? "var(--color-success)" : row.state === "DUE" ? "var(--color-danger)" : "var(--color-text-muted)"} label={row.state === "EXECUTED" ? "Executed" : row.state === "DUE" ? "Due now" : row.state === "REJECTED" ? "Rejected" : "Scheduled"} /> },
-          { key: "evidence", header: "Evidence", render: (row) => (row.evidence ? <span className="font-[var(--font-mono)] text-[10px]">{row.evidence}</span> : "—") }
+          { key: "evidence", header: "Evidence", render: (row) => (row.evidence ? <span className="font-(--font-mono) text-[10px]">{row.evidence}</span> : "—") }
         ]}
         emptyState="Nothing is scheduled — no school has asked to close and no erasure request is open."
       />
@@ -850,9 +850,9 @@ function RequestsTab({ privacy, schools }: { privacy: PrivacyRequest[]; schools:
         ]}
         getRowKey={(row) => row.type}
         columns={[
-          { key: "type", header: "Request type", render: (row) => <span className="font-semibold text-[var(--color-text-primary)]">{row.type}</span> },
+          { key: "type", header: "Request type", render: (row) => <span className="font-semibold text-(--color-text-primary)">{row.type}</span> },
           { key: "route", header: "Route", render: (row) => row.route },
-          { key: "role", header: "Our role", render: (row) => <span className="text-[11.5px] text-[var(--color-text-secondary)]">{row.role}</span> }
+          { key: "role", header: "Our role", render: (row) => <span className="text-[11.5px] text-(--color-text-secondary)">{row.role}</span> }
         ]}
       />
 
@@ -877,20 +877,20 @@ function RequestsTab({ privacy, schools }: { privacy: PrivacyRequest[]; schools:
           />
         }
         columns={[
-          { key: "subject", header: "Subject", render: (item) => <span className="font-semibold text-[var(--color-text-primary)]">{item.subject}</span> },
+          { key: "subject", header: "Subject", render: (item) => <span className="font-semibold text-(--color-text-primary)">{item.subject}</span> },
           { key: "type", header: "Type", render: (item) => item.type },
           { key: "school", header: "School", render: (item) => item.school?.name ?? "Platform" },
           {
             key: "daysLeft",
             header: "Days left",
             render: (item) => {
-              if (item.status !== "OPEN" && item.status !== "IN_REVIEW") return <span className="text-[var(--color-text-muted)]">—</span>;
+              if (item.status !== "OPEN" && item.status !== "IN_REVIEW") return <span className="text-(--color-text-muted)">—</span>;
               const daysLeft = NDPA_RESPONSE_WINDOW_DAYS - Math.floor((Date.now() - new Date(item.createdAt).getTime()) / (24 * 60 * 60 * 1000));
-              return <span className={daysLeft < 0 ? "font-semibold text-[var(--color-danger)]" : daysLeft <= 7 ? "font-semibold text-[var(--color-warning)]" : "text-[var(--color-text-secondary)]"}>{daysLeft < 0 ? `${Math.abs(daysLeft)}d overdue` : `${daysLeft}d`}</span>;
+              return <span className={daysLeft < 0 ? "font-semibold text-danger" : daysLeft <= 7 ? "font-semibold text-(--color-warning)" : "text-(--color-text-secondary)"}>{daysLeft < 0 ? `${Math.abs(daysLeft)}d overdue` : `${daysLeft}d`}</span>;
             }
           },
           { key: "status", header: "State", render: (item) => <StatusBadge status={item.status} /> },
-          { key: "hash", header: "Confirmation hash", render: (item) => item.confirmationHash ? <span className="font-[var(--font-mono)] text-[10px]">{item.confirmationHash.slice(0, 16)}…</span> : "-" },
+          { key: "hash", header: "Confirmation hash", render: (item) => item.confirmationHash ? <span className="font-(--font-mono) text-[10px]">{item.confirmationHash.slice(0, 16)}…</span> : "-" },
           {
             key: "actions",
             header: "Actions",
@@ -899,7 +899,7 @@ function RequestsTab({ privacy, schools }: { privacy: PrivacyRequest[]; schools:
                 return <span className="text-xs" style={{ color: "var(--color-success)" }}>Completed {item.completedAt ? formatDate(item.completedAt) : ""}</span>;
               }
               if (item.status === "REJECTED") {
-                return <span className="text-xs text-[var(--color-text-muted)]">Rejected</span>;
+                return <span className="text-xs text-(--color-text-muted)">Rejected</span>;
               }
               return (
                 <div className="flex flex-wrap items-center gap-2">

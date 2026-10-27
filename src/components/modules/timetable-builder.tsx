@@ -11,9 +11,9 @@ import { buildPeriods, clashesIn, DAY_CODES, DAY_NAMES } from "@/lib/modules/tim
 import { cn } from "@/lib/utils/cn";
 
 const API = "/api/v1/class-structure/timetables";
-const CARD = "min-w-0 rounded-[14px] border border-[#DEE8E2] bg-[var(--color-bg-surface)] p-[18px]";
+const CARD = "min-w-0 rounded-[14px] border border-[#DEE8E2] bg-(--color-bg-surface) p-[18px]";
 const INPUT =
-  "w-full min-w-0 rounded-[8px] border-[1.5px] border-[#E4EDE8] bg-white px-[9px] py-[7px] text-[11.5px] font-medium text-[#0D2315] outline-none focus:border-[#12796A]";
+  "w-full min-w-0 rounded-[8px] border-[1.5px] border-[#E4EDE8] bg-white px-[9px] py-[7px] text-[11.5px] font-medium text-[#0D2315] outline-hidden focus:border-[#12796A]";
 const GHOST =
   "inline-flex items-center gap-[6px] whitespace-nowrap rounded-[9px] border border-[#CFDDD5] bg-white px-[14px] py-[9px] text-[11.5px] font-semibold text-[#435048] transition hover:bg-[#F7FAF8] disabled:opacity-60";
 const SOLID =
@@ -243,11 +243,11 @@ export function TimetableBuilder({
               <span className="h-[4.5px] w-[4.5px] rounded-full bg-[#5FD6B4]" />
               <span className="text-[9px] font-bold uppercase tracking-[0.14em] text-white/50">Class &amp; Timetable · Builder</span>
             </div>
-            <h1 className="font-[family-name:var(--font-heading)] text-[19px] font-extrabold leading-[1.15] tracking-[-0.024em] text-white">Edit {version.name}</h1>
+            <h1 className="font-(family-name:--font-heading) text-[19px] font-extrabold leading-[1.15] tracking-[-0.024em] text-white">Edit {version.name}</h1>
             <p className="mt-1 text-[11px] text-white/60">Pick a subject, then tap the periods it runs in.</p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <Link href={`/class-timetable/timetable/${version.id}${armId ? `?arm=${armId}` : ""}` as Route} className="inline-flex items-center rounded-full border border-white/[0.18] bg-white/10 px-[12px] py-[7px] text-[11px] font-semibold text-white hover:bg-white/20">
+            <Link href={`/class-timetable/timetable/${version.id}${armId ? `?arm=${armId}` : ""}` as Route} className="inline-flex items-center rounded-full border border-white/18 bg-white/10 px-[12px] py-[7px] text-[11px] font-semibold text-white hover:bg-white/20">
               Preview the full week
             </Link>
             {editable ? (
@@ -272,12 +272,12 @@ export function TimetableBuilder({
 
       <section className={CARD}>
         <div className="mb-[13px] border-b border-[#EDF3EF] pb-[11px]">
-          <h2 className="font-[family-name:var(--font-heading)] text-[14px] font-extrabold tracking-[-0.018em] text-[#0D2315]">Timetable details</h2>
+          <h2 className="font-(family-name:--font-heading) text-[14px] font-extrabold tracking-[-0.018em] text-[#0D2315]">Timetable details</h2>
           <p className="mt-[3px] text-[11px] text-[#67766D]">
             What this timetable is, and how its day is shaped. {version.term ? `For ${version.term}.` : ""}
           </p>
         </div>
-        <div className="grid gap-x-[14px] gap-y-[13px] [grid-template-columns:repeat(auto-fit,minmax(200px,1fr))]">
+        <div className="grid gap-x-[14px] gap-y-[13px] grid-cols-[repeat(auto-fit,minmax(200px,1fr))]">
           <Labelled label="Timetable name" wide>
             <input className={INPUT} value={name} disabled={!editable} onChange={(event) => setName(event.target.value)} />
           </Labelled>
@@ -324,7 +324,7 @@ export function TimetableBuilder({
       <section className={CARD}>
         <div className="mb-[13px] flex flex-wrap items-start justify-between gap-3 border-b border-[#EDF3EF] pb-[11px]">
           <div>
-            <h2 className="font-[family-name:var(--font-heading)] text-[14px] font-extrabold tracking-[-0.018em] text-[#0D2315]">Build the week</h2>
+            <h2 className="font-(family-name:--font-heading) text-[14px] font-extrabold tracking-[-0.018em] text-[#0D2315]">Build the week</h2>
             <p className="mt-[3px] text-[11px] text-[#67766D]">Pick a subject, then tap the periods it runs in. Tap a filled period with nothing selected to clear it.</p>
           </div>
           <p className="text-[11px] text-[#67766D]">{scopeLabel} · {filled} of {total} periods placed</p>
@@ -453,7 +453,7 @@ export function TimetableBuilder({
           </div>
         </div>
 
-        <dl className="mt-[14px] grid gap-[10px] [grid-template-columns:repeat(auto-fit,minmax(150px,1fr))]">
+        <dl className="mt-[14px] grid gap-[10px] grid-cols-[repeat(auto-fit,minmax(150px,1fr))]">
           <Stat label="Periods placed" value={`${filled} of ${total}`} tone={filled === total && total > 0 ? "ok" : "warn"} />
           <Stat label="Clashes (whole school)" value={String(clashes.length)} tone={clashes.length ? "bad" : "ok"} />
           <Stat label="Subjects short" value={String(short.length)} tone={short.length ? "warn" : "ok"} />
@@ -479,7 +479,7 @@ export function TimetableBuilder({
 
 function Labelled({ label, wide, children }: { label: string; wide?: boolean; children: React.ReactNode }) {
   return (
-    <div className={cn("min-w-0", wide && "[grid-column:span_2]")}>
+    <div className={cn("min-w-0", wide && "col-[span_2]")}>
       <span className="mb-[5px] block text-[10px] font-semibold text-[#435048]">{label}</span>
       {children}
     </div>

@@ -84,17 +84,17 @@ export function JobsTable({ jobs, openCount }: JobsTableProps) {
           header: "School",
           render: (job) => (
             <div>
-              <p className="font-semibold text-[var(--color-text-primary)]">{job.schoolName}</p>
-              <p className="text-xs text-[var(--color-text-muted)]">{job.sourceSystem}</p>
+              <p className="font-semibold text-(--color-text-primary)">{job.schoolName}</p>
+              <p className="text-xs text-(--color-text-muted)">{job.sourceSystem}</p>
             </div>
           )
         },
         { key: "expected", header: "Expected", render: (job) => ((job.studentsExpected ?? 0) + (job.resultsExpected ?? 0)).toLocaleString() },
-        { key: "imported", header: "Imported", render: (job) => (job.studentsImported == null ? <span className="text-[var(--color-text-muted)]">Not recorded</span> : ((job.studentsImported ?? 0) + (job.resultsImported ?? 0)).toLocaleString()) },
+        { key: "imported", header: "Imported", render: (job) => (job.studentsImported == null ? <span className="text-(--color-text-muted)">Not recorded</span> : ((job.studentsImported ?? 0) + (job.resultsImported ?? 0)).toLocaleString()) },
         {
           key: "rejected",
           header: "Rejected",
-          render: (job) => (job.rowsRejected == null ? <span className="text-[var(--color-text-muted)]">—</span> : <span className="font-semibold" style={{ color: job.rowsRejected ? "var(--color-danger)" : undefined }} title={job.rejectedNote ?? undefined}>{job.rowsRejected.toLocaleString()}</span>)
+          render: (job) => (job.rowsRejected == null ? <span className="text-(--color-text-muted)">—</span> : <span className="font-semibold" style={{ color: job.rowsRejected ? "var(--color-danger)" : undefined }} title={job.rejectedNote ?? undefined}>{job.rowsRejected.toLocaleString()}</span>)
         },
         { key: "status", header: "Status", render: (job) => <StatusBadge status={job.status} tone={statusTone(job.status)} /> },
         { key: "specialist", header: "Specialist", render: (job) => job.specialistName ?? "Unassigned" },
@@ -112,7 +112,7 @@ export function JobsTable({ jobs, openCount }: JobsTableProps) {
             ].filter(Boolean);
             return (
               <div className="flex max-w-[280px] flex-wrap gap-1.5">
-                {enabled.length === 0 ? <span className="text-[11px] text-[var(--color-text-muted)]">No scope selected</span> : null}
+                {enabled.length === 0 ? <span className="text-[11px] text-(--color-text-muted)">No scope selected</span> : null}
                 {enabled.slice(0, 4).map((label) => (
                   <span key={label} className="rounded-full bg-[#F0F5F2] px-2 py-0.5 text-[9.5px] font-bold text-[#5D6B63]">
                     {label}

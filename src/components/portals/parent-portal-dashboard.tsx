@@ -28,8 +28,8 @@ function ParentQuickStat({
   tone: "good" | "info" | "warn" | "neutral";
 }) {
   return (
-    <article className="rounded-[10px] border border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] p-4">
-      <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">{label}</p>
+    <article className="rounded-[10px] border border-(--color-border-default) bg-(--color-bg-subtle) p-4">
+      <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-(--color-text-muted)">{label}</p>
       <p className="mt-2 text-[19px] font-bold" style={{ color: toneColor(tone) }}>{value}</p>
     </article>
   );
@@ -72,35 +72,35 @@ export function ParentPortalDashboard({ portal }: { portal: ParentPortalView }) 
       <section className="surface-hero p-6 md:p-7">
         <div className="grid gap-6 xl:grid-cols-[1.35fr_0.95fr]">
           <div>
-            <div className="inline-flex items-center gap-2 rounded-full border border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">
+            <div className="inline-flex items-center gap-2 rounded-full border border-(--color-border-default) bg-(--color-bg-subtle) px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-(--color-text-muted)">
               <Sparkles className="h-3.5 w-3.5" />
               Parent family command center
             </div>
-            <h1 className="mt-4 max-w-3xl font-[var(--font-heading)] text-[28px] font-black leading-tight tracking-tight text-[var(--color-text-primary)] md:text-[34px]">
+            <h1 className="mt-4 max-w-3xl font-(--font-heading) text-[28px] font-black leading-tight tracking-tight text-(--color-text-primary) md:text-[34px]">
               {portal.headline}
             </h1>
-            <p className="mt-3 max-w-3xl text-[13.5px] leading-6 text-[var(--color-text-secondary)]">
+            <p className="mt-3 max-w-3xl text-[13.5px] leading-6 text-(--color-text-secondary)">
               {portal.parentName} can review each child&apos;s {seeable.length > 1 ? `${seeable.slice(0, -1).join(", ")} and ${seeable[seeable.length - 1]}` : seeable[0] ?? "school record"} from one secure family workspace.
             </p>
 
             <div className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
               {portal.familyStats.map((stat) => (
-                <article key={stat.label} className="rounded-[10px] border border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] p-4">
-                  <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">{stat.label}</p>
-                  <p className="mt-2 font-[var(--font-heading)] text-[19px] font-bold text-[var(--color-text-primary)]">{stat.value}</p>
+                <article key={stat.label} className="rounded-[10px] border border-(--color-border-default) bg-(--color-bg-subtle) p-4">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-(--color-text-muted)">{stat.label}</p>
+                  <p className="mt-2 font-(--font-heading) text-[19px] font-bold text-(--color-text-primary)">{stat.value}</p>
                 </article>
               ))}
             </div>
           </div>
 
-          <div className="grid gap-4 rounded-[14px] border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] p-5">
+          <div className="grid gap-4 rounded-[14px] border border-(--color-border-default) bg-(--color-bg-surface) p-5">
             <div className="flex items-start justify-between gap-3">
               <div>
-                <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">Featured child</p>
-                <h2 className="mt-2 text-[20px] font-black text-[var(--color-text-primary)]">
+                <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-(--color-text-muted)">Featured child</p>
+                <h2 className="mt-2 text-[20px] font-black text-(--color-text-primary)">
                   {selectedChild?.studentName ?? "No child linked yet"}
                 </h2>
-                <p className="mt-2 text-[12.5px] text-[var(--color-text-secondary)]">
+                <p className="mt-2 text-[12.5px] text-(--color-text-secondary)">
                   {selectedChild ? `${selectedChild.className} · ${selectedChild.admissionNumber ?? "No admission number"}` : "Link a child to begin reviewing school records."}
                 </p>
               </div>
@@ -117,24 +117,24 @@ export function ParentPortalDashboard({ portal }: { portal: ParentPortalView }) 
             {selectedChild ? (
               <div className="grid gap-3 sm:grid-cols-2">
                 {has("attendance") ? (
-                  <div className="rounded-[10px] border border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] p-4">
-                    <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">Attendance</p>
-                    <p className="mt-2 text-[19px] font-bold text-[var(--color-text-primary)]">{formatPercentage(selectedChild.attendanceRate)}</p>
-                    <p className="mt-2 text-[11.5px] text-[var(--color-text-muted)]">{selectedChild.notes[0] ?? "Steady routine this week."}</p>
+                  <div className="rounded-[10px] border border-(--color-border-default) bg-(--color-bg-subtle) p-4">
+                    <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-(--color-text-muted)">Attendance</p>
+                    <p className="mt-2 text-[19px] font-bold text-(--color-text-primary)">{formatPercentage(selectedChild.attendanceRate)}</p>
+                    <p className="mt-2 text-[11.5px] text-(--color-text-muted)">{selectedChild.notes[0] ?? "Steady routine this week."}</p>
                   </div>
                 ) : null}
                 {has("fees") ? (
-                  <div className="rounded-[10px] border border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] p-4">
-                    <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">Outstanding</p>
-                    <p className="mt-2 text-[19px] font-bold text-[var(--color-text-primary)]">{formatCurrency(paymentBalance)}</p>
-                    <p className="mt-2 text-[11.5px] text-[var(--color-text-muted)]">
+                  <div className="rounded-[10px] border border-(--color-border-default) bg-(--color-bg-subtle) p-4">
+                    <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-(--color-text-muted)">Outstanding</p>
+                    <p className="mt-2 text-[19px] font-bold text-(--color-text-primary)">{formatCurrency(paymentBalance)}</p>
+                    <p className="mt-2 text-[11.5px] text-(--color-text-muted)">
                       {nextPaymentDue ? `Next due ${formatDate(nextPaymentDue.dueOn)}` : "No unpaid invoice due right now."}
                     </p>
                   </div>
                 ) : null}
               </div>
             ) : (
-              <div className="rounded-[10px] border border-dashed border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] px-4 py-6 text-[13px] text-[var(--color-text-secondary)]">
+              <div className="rounded-[10px] border border-dashed border-(--color-border-default) bg-(--color-bg-subtle) px-4 py-6 text-[13px] text-(--color-text-secondary)">
                 No child record is available in this portal yet.
               </div>
             )}
@@ -156,12 +156,12 @@ export function ParentPortalDashboard({ portal }: { portal: ParentPortalView }) 
             <Link
               key={action.label}
               href={action.href as Route}
-              className="group inline-flex items-center gap-2 rounded-[11px] border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] px-4 py-2.5 transition hover:border-[var(--color-accent-primary)] hover:bg-[var(--color-accent-primary-dim)]"
+              className="group inline-flex items-center gap-2 rounded-[11px] border border-(--color-border-default) bg-(--color-bg-surface) px-4 py-2.5 transition hover:border-(--color-accent-primary) hover:bg-(--color-accent-primary-dim)"
             >
-              <span className="flex h-[26px] w-[26px] shrink-0 items-center justify-center rounded-[8px] bg-[var(--color-accent-primary-dim)] text-[var(--color-text-accent)]">
+              <span className="flex h-[26px] w-[26px] shrink-0 items-center justify-center rounded-[8px] bg-(--color-accent-primary-dim) text-(--color-text-accent)">
                 <Icon className="h-3.5 w-3.5" />
               </span>
-              <span className="text-[12.5px] font-semibold text-[var(--color-text-primary)]">{action.label}</span>
+              <span className="text-[12.5px] font-semibold text-(--color-text-primary)">{action.label}</span>
             </Link>
           );
         })}
@@ -172,9 +172,9 @@ export function ParentPortalDashboard({ portal }: { portal: ParentPortalView }) 
           <div className="flex items-center justify-between gap-3">
             <div>
               <p className="section-eyebrow">Child switcher</p>
-              <h2 className="mt-2 font-[var(--font-heading)] text-[18px] font-bold text-[var(--color-text-primary)]">Family roster</h2>
+              <h2 className="mt-2 font-(--font-heading) text-[18px] font-bold text-(--color-text-primary)">Family roster</h2>
             </div>
-            <span className="rounded-full bg-[var(--color-accent-primary-dim)] px-3 py-1 text-[11px] font-semibold text-[var(--color-text-accent)]">
+            <span className="rounded-full bg-(--color-accent-primary-dim) px-3 py-1 text-[11px] font-semibold text-(--color-text-accent)">
               {portal.children.length} linked
             </span>
           </div>
@@ -190,21 +190,21 @@ export function ParentPortalDashboard({ portal }: { portal: ParentPortalView }) 
                   className={[
                     "group flex w-full items-start justify-between gap-4 rounded-[10px] border px-4 py-4 text-left transition",
                     active
-                      ? "border-[var(--color-accent-primary)] bg-[var(--color-accent-primary-dim)]"
-                      : "border-[var(--color-border-default)] bg-[var(--color-bg-surface)] hover:border-[var(--color-border-strong)] hover:bg-[var(--color-bg-subtle)]",
+                      ? "border-(--color-accent-primary) bg-(--color-accent-primary-dim)"
+                      : "border-(--color-border-default) bg-(--color-bg-surface) hover:border-(--color-border-strong) hover:bg-(--color-bg-subtle)",
                   ].join(" ")}
                 >
                   <div className="min-w-0">
-                    <p className="font-semibold text-[var(--color-text-primary)]">{child.studentName}</p>
-                    <p className="mt-1 text-[13px] text-[var(--color-text-secondary)]">{child.className}</p>
+                    <p className="font-semibold text-(--color-text-primary)">{child.studentName}</p>
+                    <p className="mt-1 text-[13px] text-(--color-text-secondary)">{child.className}</p>
                     <div className="mt-3 flex flex-wrap gap-2">
                       {has("attendance") ? (
-                        <span className="rounded-full bg-[var(--color-bg-surface)] px-3 py-1 text-[11px] font-semibold text-[var(--color-text-secondary)] shadow-[var(--shadow-sm)]">
+                        <span className="rounded-full bg-(--color-bg-surface) px-3 py-1 text-[11px] font-semibold text-(--color-text-secondary) shadow-(--shadow-sm)">
                           {formatPercentage(child.attendanceRate)} attendance
                         </span>
                       ) : null}
                       {has("results") ? (
-                        <span className="rounded-full bg-[var(--color-bg-surface)] px-3 py-1 text-[11px] font-semibold text-[var(--color-text-secondary)] shadow-[var(--shadow-sm)]">
+                        <span className="rounded-full bg-(--color-bg-surface) px-3 py-1 text-[11px] font-semibold text-(--color-text-secondary) shadow-(--shadow-sm)">
                           {child.averageScore.toFixed(1)}% average
                         </span>
                       ) : null}
@@ -212,8 +212,8 @@ export function ParentPortalDashboard({ portal }: { portal: ParentPortalView }) 
                   </div>
 
                   <div className="shrink-0 text-right">
-                    {has("fees") ? <p className="text-[13px] font-semibold text-[var(--color-text-primary)]">{formatCurrency(child.outstandingBalance)}</p> : null}
-                    {has("timetable") ? <p className="mt-1 text-[11px] text-[var(--color-text-muted)]">{child.nextClass}</p> : null}
+                    {has("fees") ? <p className="text-[13px] font-semibold text-(--color-text-primary)">{formatCurrency(child.outstandingBalance)}</p> : null}
+                    {has("timetable") ? <p className="mt-1 text-[11px] text-(--color-text-muted)">{child.nextClass}</p> : null}
                   </div>
                 </button>
               );
@@ -226,10 +226,10 @@ export function ParentPortalDashboard({ portal }: { portal: ParentPortalView }) 
             <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
               <div>
                 <p className="section-eyebrow">Child spotlight</p>
-                <h2 className="mt-2 font-[var(--font-heading)] text-[22px] font-bold text-[var(--color-text-primary)]">
+                <h2 className="mt-2 font-(--font-heading) text-[22px] font-bold text-(--color-text-primary)">
                   {selectedChild?.studentName ?? "Select a child"}
                 </h2>
-                <p className="mt-2 text-[13px] text-[var(--color-text-secondary)]">
+                <p className="mt-2 text-[13px] text-(--color-text-secondary)">
                   {selectedChild
                     ? `${selectedChild.className} · ${selectedChild.admissionNumber ?? "No admission number"}`
                     : "Choose a child from the roster to review timetable, finance, and result updates."}
@@ -252,11 +252,11 @@ export function ParentPortalDashboard({ portal }: { portal: ParentPortalView }) 
                 </div>
 
                 <div className="mt-6 grid gap-4 xl:grid-cols-[1.05fr_0.95fr]">
-                  <article className="rounded-[10px] border border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] p-5">
-                    <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">Next academic stop</p>
-                    <p className="mt-3 text-[16px] font-black text-[var(--color-text-primary)]">{has("timetable") ? selectedChild.nextClass : "Not shared by the school"}</p>
+                  <article className="rounded-[10px] border border-(--color-border-default) bg-(--color-bg-subtle) p-5">
+                    <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-(--color-text-muted)">Next academic stop</p>
+                    <p className="mt-3 text-[16px] font-black text-(--color-text-primary)">{has("timetable") ? selectedChild.nextClass : "Not shared by the school"}</p>
                     {has("results") ? (
-                      <p className="mt-2 text-[12.5px] leading-6 text-[var(--color-text-secondary)]">
+                      <p className="mt-2 text-[12.5px] leading-6 text-(--color-text-secondary)">
                         {highlightedResult
                           ? `Latest result: ${highlightedResult.term} ${highlightedResult.session}, ${highlightedResult.average.toFixed(1)}% average and grade ${highlightedResult.grade}.`
                           : "No published result has been shared with the family yet."}
@@ -265,12 +265,12 @@ export function ParentPortalDashboard({ portal }: { portal: ParentPortalView }) 
                   </article>
 
                   {has("fees") ? (
-                  <article className="rounded-[10px] border border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] p-5">
-                    <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">Fee readiness</p>
-                    <p className="mt-3 text-[16px] font-black text-[var(--color-text-primary)]">
+                  <article className="rounded-[10px] border border-(--color-border-default) bg-(--color-bg-subtle) p-5">
+                    <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-(--color-text-muted)">Fee readiness</p>
+                    <p className="mt-3 text-[16px] font-black text-(--color-text-primary)">
                       {nextPaymentDue ? `${formatCurrency(nextPaymentDue.balance)} due next` : "No active balance"}
                     </p>
-                    <p className="mt-2 text-[12.5px] leading-6 text-[var(--color-text-secondary)]">
+                    <p className="mt-2 text-[12.5px] leading-6 text-(--color-text-secondary)">
                       {nextPaymentDue
                         ? `${nextPaymentDue.title} is due on ${formatDate(nextPaymentDue.dueOn)}.`
                         : "All visible invoices are settled or not yet due."}
@@ -280,7 +280,7 @@ export function ParentPortalDashboard({ portal }: { portal: ParentPortalView }) 
                 </div>
               </>
             ) : (
-              <div className="mt-6 rounded-[10px] border border-dashed border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] px-4 py-8 text-[13px] text-[var(--color-text-secondary)]">
+              <div className="mt-6 rounded-[10px] border border-dashed border-(--color-border-default) bg-(--color-bg-subtle) px-4 py-8 text-[13px] text-(--color-text-secondary)">
                 No learner is linked to this parent account yet.
               </div>
             )}
@@ -301,8 +301,8 @@ export function ParentPortalDashboard({ portal }: { portal: ParentPortalView }) 
                   header: "Subject",
                   render: (item) => (
                     <div>
-                      <p className="font-semibold text-[var(--color-text-primary)]">{item.subject}</p>
-                      <p className="text-xs text-[var(--color-text-muted)]">{item.teacherName}</p>
+                      <p className="font-semibold text-(--color-text-primary)">{item.subject}</p>
+                      <p className="text-xs text-(--color-text-muted)">{item.teacherName}</p>
                     </div>
                   ),
                 },
@@ -337,28 +337,28 @@ export function ParentPortalDashboard({ portal }: { portal: ParentPortalView }) 
       <section className="grid gap-5 xl:grid-cols-[1.1fr_0.9fr]">
         {has("results") ? (
         <section className="surface-card p-6">
-          <p className="text-[14px] font-bold text-[var(--color-text-primary)]">Published result snapshots</p>
+          <p className="text-[14px] font-bold text-(--color-text-primary)">Published result snapshots</p>
           <div className="mt-5 grid gap-3">
             {(selectedChild?.resultHistory ?? []).slice(0, 3).map((result) => (
-              <article key={result.id} className="rounded-[10px] border border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] p-5">
+              <article key={result.id} className="rounded-[10px] border border-(--color-border-default) bg-(--color-bg-subtle) p-5">
                 <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
                   <div>
-                    <p className="font-semibold text-[var(--color-text-primary)]">
+                    <p className="font-semibold text-(--color-text-primary)">
                       {result.session} · {result.term}
                     </p>
-                    <p className="mt-1 text-[12.5px] text-[var(--color-text-muted)]">Published {formatDate(result.publishedAt)}</p>
+                    <p className="mt-1 text-[12.5px] text-(--color-text-muted)">Published {formatDate(result.publishedAt)}</p>
                   </div>
-                  <div className="flex flex-wrap gap-2 text-[12.5px] text-[var(--color-text-secondary)]">
-                    <span className="rounded-full bg-[var(--color-bg-surface)] px-3 py-1 font-semibold">Average {result.average.toFixed(1)}%</span>
-                    <span className="rounded-full bg-[var(--color-bg-surface)] px-3 py-1 font-semibold">Grade {result.grade}</span>
-                    <span className="rounded-full bg-[var(--color-bg-surface)] px-3 py-1 font-semibold">Position {result.position ?? "-"}</span>
+                  <div className="flex flex-wrap gap-2 text-[12.5px] text-(--color-text-secondary)">
+                    <span className="rounded-full bg-(--color-bg-surface) px-3 py-1 font-semibold">Average {result.average.toFixed(1)}%</span>
+                    <span className="rounded-full bg-(--color-bg-surface) px-3 py-1 font-semibold">Grade {result.grade}</span>
+                    <span className="rounded-full bg-(--color-bg-surface) px-3 py-1 font-semibold">Position {result.position ?? "-"}</span>
                   </div>
                 </div>
                 <div className="mt-4 grid gap-3 md:grid-cols-3">
                   {result.subjects.slice(0, 6).map((subject) => (
-                    <div key={subject.subject} className="rounded-[10px] bg-[var(--color-bg-surface)] px-4 py-3 text-[12.5px]">
-                      <p className="font-semibold text-[var(--color-text-primary)]">{subject.subject}</p>
-                      <p className="mt-1 text-[var(--color-text-secondary)]">
+                    <div key={subject.subject} className="rounded-[10px] bg-(--color-bg-surface) px-4 py-3 text-[12.5px]">
+                      <p className="font-semibold text-(--color-text-primary)">{subject.subject}</p>
+                      <p className="mt-1 text-(--color-text-secondary)">
                         {subject.score}% · {subject.grade}
                       </p>
                     </div>
@@ -367,7 +367,7 @@ export function ParentPortalDashboard({ portal }: { portal: ParentPortalView }) 
               </article>
             ))}
             {selectedChild && selectedChild.resultHistory.length === 0 ? (
-              <div className="rounded-[10px] border border-dashed border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] px-4 py-8 text-[13px] text-[var(--color-text-secondary)]">
+              <div className="rounded-[10px] border border-dashed border-(--color-border-default) bg-(--color-bg-subtle) px-4 py-8 text-[13px] text-(--color-text-secondary)">
                 This child does not have a published result yet.
               </div>
             ) : null}
@@ -378,23 +378,23 @@ export function ParentPortalDashboard({ portal }: { portal: ParentPortalView }) 
         {has("announcements") ? (
         <section className="surface-card p-6">
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-[10px] bg-[var(--color-accent-primary-dim)] text-[var(--color-text-accent)]">
+            <div className="flex h-10 w-10 items-center justify-center rounded-[10px] bg-(--color-accent-primary-dim) text-(--color-text-accent)">
               <Bell className="h-4 w-4" />
             </div>
-            <p className="text-[14px] font-bold text-[var(--color-text-primary)]">Family notices</p>
+            <p className="text-[14px] font-bold text-(--color-text-primary)">Family notices</p>
           </div>
           <div className="mt-5 grid gap-3">
             {portal.announcements.slice(0, 4).map((item) => (
-              <article key={item.id} className="rounded-[10px] border border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] p-5">
+              <article key={item.id} className="rounded-[10px] border border-(--color-border-default) bg-(--color-bg-subtle) p-5">
                 <div className="flex items-center justify-between gap-4">
-                  <p className="font-semibold text-[var(--color-text-primary)]">{item.title}</p>
-                  <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--color-text-muted)]">{item.time}</span>
+                  <p className="font-semibold text-(--color-text-primary)">{item.title}</p>
+                  <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-(--color-text-muted)">{item.time}</span>
                 </div>
-                <p className="mt-3 text-[12.5px] leading-6 text-[var(--color-text-secondary)]">{item.detail}</p>
+                <p className="mt-3 text-[12.5px] leading-6 text-(--color-text-secondary)">{item.detail}</p>
               </article>
             ))}
             {portal.announcements.length === 0 ? (
-              <p className="text-[13px] text-[var(--color-text-secondary)]">No family notices right now.</p>
+              <p className="text-[13px] text-(--color-text-secondary)">No family notices right now.</p>
             ) : null}
           </div>
         </section>
@@ -409,7 +409,7 @@ export function ParentPortalDashboard({ portal }: { portal: ParentPortalView }) 
         footer={
           selectedChild ? (
             <div className="flex flex-wrap items-center justify-between gap-3">
-              <p className="text-[12px] text-[var(--color-text-muted)]">Open detailed routes only when you need the full record.</p>
+              <p className="text-[12px] text-(--color-text-muted)">Open detailed routes only when you need the full record.</p>
               <div className="flex flex-wrap gap-2">
                 <Link href={`/portals/parent/children/${selectedChild.studentId}` as Route} className="btn-secondary px-4">
                   Overview
@@ -432,11 +432,11 @@ export function ParentPortalDashboard({ portal }: { portal: ParentPortalView }) 
               {has("fees") ? <ParentQuickStat label="Outstanding" value={formatCurrency(paymentBalance)} tone="warn" /> : null}
             </div>
 
-            <section className="rounded-[10px] border border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] p-5">
-              <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">Parent notes</p>
+            <section className="rounded-[10px] border border-(--color-border-default) bg-(--color-bg-subtle) p-5">
+              <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-(--color-text-muted)">Parent notes</p>
               <div className="mt-3 flex flex-wrap gap-2">
                 {selectedChild.notes.map((note) => (
-                  <span key={note} className="rounded-full bg-[var(--color-bg-surface)] px-3 py-1 text-[12px] font-medium text-[var(--color-text-secondary)] shadow-[var(--shadow-sm)]">
+                  <span key={note} className="rounded-full bg-(--color-bg-surface) px-3 py-1 text-[12px] font-medium text-(--color-text-secondary) shadow-(--shadow-sm)">
                     {note}
                   </span>
                 ))}
@@ -444,18 +444,18 @@ export function ParentPortalDashboard({ portal }: { portal: ParentPortalView }) 
             </section>
 
             {has("fees") ? (
-            <section className="rounded-[10px] border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] p-5">
-              <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">Finance snapshot</p>
+            <section className="rounded-[10px] border border-(--color-border-default) bg-(--color-bg-surface) p-5">
+              <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-(--color-text-muted)">Finance snapshot</p>
               <div className="mt-4 grid gap-3">
                 {selectedChild.finance.slice(0, 4).map((item) => (
-                  <div key={`${item.title}-${item.dueOn}`} className="flex items-center justify-between gap-3 rounded-[10px] border border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] px-4 py-3">
+                  <div key={`${item.title}-${item.dueOn}`} className="flex items-center justify-between gap-3 rounded-[10px] border border-(--color-border-default) bg-(--color-bg-subtle) px-4 py-3">
                     <div>
-                      <p className="font-semibold text-[var(--color-text-primary)]">{item.title}</p>
-                      <p className="mt-1 text-[11px] text-[var(--color-text-muted)]">Due {formatDate(item.dueOn)}</p>
+                      <p className="font-semibold text-(--color-text-primary)">{item.title}</p>
+                      <p className="mt-1 text-[11px] text-(--color-text-muted)">Due {formatDate(item.dueOn)}</p>
                     </div>
                     <div className="text-right">
-                      <p className="font-semibold text-[var(--color-text-primary)]">{formatCurrency(item.balance)}</p>
-                      <p className="mt-1 text-[11px] text-[var(--color-text-muted)]">of {formatCurrency(item.amount)}</p>
+                      <p className="font-semibold text-(--color-text-primary)">{formatCurrency(item.balance)}</p>
+                      <p className="mt-1 text-[11px] text-(--color-text-muted)">of {formatCurrency(item.amount)}</p>
                     </div>
                   </div>
                 ))}
@@ -464,26 +464,26 @@ export function ParentPortalDashboard({ portal }: { portal: ParentPortalView }) 
             ) : null}
 
             {has("results") ? (
-            <section className="rounded-[10px] border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] p-5">
-              <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">Recent result</p>
+            <section className="rounded-[10px] border border-(--color-border-default) bg-(--color-bg-surface) p-5">
+              <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-(--color-text-muted)">Recent result</p>
               {highlightedResult ? (
                 <div className="mt-4 grid gap-3">
                   <div className="flex flex-wrap gap-2 text-[13px]">
-                    <span className="rounded-full bg-[var(--color-accent-primary-dim)] px-3 py-1 font-semibold text-[var(--color-text-accent)]">
+                    <span className="rounded-full bg-(--color-accent-primary-dim) px-3 py-1 font-semibold text-(--color-text-accent)">
                       {highlightedResult.term}
                     </span>
-                    <span className="rounded-full bg-[var(--color-bg-subtle)] px-3 py-1 font-semibold text-[var(--color-text-secondary)]">
+                    <span className="rounded-full bg-(--color-bg-subtle) px-3 py-1 font-semibold text-(--color-text-secondary)">
                       {highlightedResult.average.toFixed(1)}% average
                     </span>
-                    <span className="rounded-full bg-[var(--color-bg-subtle)] px-3 py-1 font-semibold text-[var(--color-text-secondary)]">
+                    <span className="rounded-full bg-(--color-bg-subtle) px-3 py-1 font-semibold text-(--color-text-secondary)">
                       Grade {highlightedResult.grade}
                     </span>
                   </div>
                   <div className="grid gap-3 sm:grid-cols-2">
                     {highlightedResult.subjects.slice(0, 4).map((subject) => (
-                      <div key={subject.subject} className="rounded-[10px] border border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] px-4 py-3 text-[13px]">
-                        <p className="font-semibold text-[var(--color-text-primary)]">{subject.subject}</p>
-                        <p className="mt-1 text-[var(--color-text-secondary)]">
+                      <div key={subject.subject} className="rounded-[10px] border border-(--color-border-default) bg-(--color-bg-subtle) px-4 py-3 text-[13px]">
+                        <p className="font-semibold text-(--color-text-primary)">{subject.subject}</p>
+                        <p className="mt-1 text-(--color-text-secondary)">
                           {subject.score}% · {subject.grade}
                         </p>
                       </div>
@@ -491,7 +491,7 @@ export function ParentPortalDashboard({ portal }: { portal: ParentPortalView }) 
                   </div>
                 </div>
               ) : (
-                <p className="mt-3 text-[13px] text-[var(--color-text-secondary)]">No published result is available for this child yet.</p>
+                <p className="mt-3 text-[13px] text-(--color-text-secondary)">No published result is available for this child yet.</p>
               )}
             </section>
             ) : null}

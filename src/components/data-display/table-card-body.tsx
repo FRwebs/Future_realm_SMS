@@ -1,11 +1,27 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
+import {
+  columnVisibilityFeature,
+  createPaginatedRowModel,
+  createSortedRowModel,
+  rowPaginationFeature,
+  rowSelectionFeature,
+  rowSortingFeature,
+  tableFeatures,
+  useTable,
+  type ColumnDef,
+  type ColumnVisibilityState,
+  type RowSelectionState,
+  type SortingState,
+} from "@tanstack/react-table";
 import { ReactNode, useEffect, useMemo, useRef, useState } from "react";
-import { ArrowDown, ArrowUp, ArrowUpDown, ChevronLeft, ChevronRight, Columns3 } from "lucide-react";
+import { ArrowDown, ArrowUp, ArrowUpDown, Check, ChevronLeft, ChevronRight, Columns3 } from "lucide-react";
 
 import { usePortalType } from "@/components/layout/portal-context";
 import { InlineNotice, useNotice } from "@/components/ui/inline-notice";
+import { useTableUrlState } from "@/hooks/use-table-url-state";
 
 import { BackOfficeTable } from "./back-office-table";
 
@@ -67,7 +83,18 @@ interface TableCardBodyProps {
   selection?: SelectionConfig;
 }
 
-type SortDirection = "asc" | "desc";
+/**
+ * Sorting, column visibility, paging and row selection are TanStack Table's (headless — the markup below is still ours). The features are
+ * module-level because the library needs them stable between renders.
+ */
+const features = tableFeatures({
+  rowSortingFeature,
+  columnVisibilityFeature,
+  rowPaginationFeature,
+  rowSelectionFeature,
+  sortedRowModel: createSortedRowModel(),
+  paginatedRowModel: createPaginatedRowModel(),
+});
 
 function compareValues(a: string | number | null, b: string | number | null): number {
   if (a === null) return b === null ? 0 : 1;
@@ -97,21 +124,58 @@ function StandardTableCardBody({
   const router = useRouter();
   // What a bulk action did, said above the rows it acted on — and kept after the selection it came from has cleared.
   const bulk = useNotice();
-  const [picked, setPicked] = useState<Array<string | number>>([]);
   const [acting, setActing] = useState(false);
-  const [sortKey, setSortKey] = useState<string | null>(null);
-  const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
-  const [page, setPage] = useState(1);
-  const [hiddenKeys, setHiddenKeys] = useState<string[]>([]);
-  const [columnsMenuOpen, setColumnsMenuOpen] = useState(false);
-  const columnsMenuRef = useRef<HTMLDivElement>(null);
+  // The column sorted and the page live in the address (see `useTableUrlState`): a refresh or a shared link shows the same view.
+  const url = useTableUrlState(title);
+  const [sortId, sortDir] = url.sort.split(":");
+  const sorting: SortingState = sortId && allColumns.some((column) => column.key === sortId && column.sortable) ? [{ id: sortId, desc: sortDir === "desc" }] : [];
+  const pageIndex = Math.max(0, url.page - 1);
+  const setPageIndex = (updater: number | ((current: number) => number)) => {
+    const next = typeof updater === "function" ? updater(pageIndex) : updater;
+    void url.setPage(next + 1);
+  };
+  const setSorting = (updater: SortingState | ((current: SortingState) => SortingState)) => {
+    const next = typeof updater === "function" ? updater(sorting) : updater;
+    void url.setSort(next[0] ? `${next[0].id}:${next[0].desc ? "desc" : "asc"}` : "");
+  };
+  const [columnVisibility, setColumnVisibility] = useState<ColumnVisibilityState>({});
+  const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
   const [choices, setChoices] = useState<Record<string, string>>({});
 
-  useEffect(() => {
-    setPage(1);
-    setPicked([]);
-  }, [rows]);
+  // Each column sorts by the value the page prepared for it — numbers as numbers, words as words — with nothing last.
+  const tableColumns = useMemo(
+    (): Array<ColumnDef<typeof features, PreparedRow>> =>
+      allColumns.map((column) => ({
+        id: column.key,
+        accessorFn: (row: PreparedRow) => row.sortValues[column.key] ?? null,
+        enableSorting: column.sortable,
+        sortFn: (a, b, columnId) => compareValues(a.getValue(columnId) as string | number | null, b.getValue(columnId) as string | number | null),
+      })),
+    [allColumns],
+  );
+  const table = useTable({
+    features,
+    columns: tableColumns,
+    data: rows,
+    getRowId: (row) => String(row.key),
+    enableRowSelection: Boolean(selection),
+    state: { sorting, columnVisibility, rowSelection, pagination: { pageIndex, pageSize: pageSize || Math.max(rows.length, 1) } },
+    onSortingChange: setSorting,
+    onColumnVisibilityChange: setColumnVisibility,
+    onRowSelectionChange: setRowSelection,
+    onPaginationChange: (updater) => setPageIndex((current) => (typeof updater === "function" ? updater({ pageIndex: current, pageSize: pageSize || Math.max(rows.length, 1) }) : updater).pageIndex),
+    autoResetPageIndex: false,
+  });
 
+  const previousRows = useRef(rows);
+  useEffect(() => {
+    if (previousRows.current === rows) return;
+    previousRows.current = rows;
+    void url.setPage(1);
+    setRowSelection({});
+  }, [rows, url]);
+
+  const picked = Object.keys(rowSelection).filter((id) => rowSelection[id]);
   async function runSelection(action: SelectionAction) {
     if (action.confirm && !window.confirm(action.confirm)) return;
     const ids = picked.map(String);
@@ -125,7 +189,7 @@ function StandardTableCardBody({
       const body = (await response.json().catch(() => ({}))) as { error?: string; message?: string };
       if (!response.ok) throw new Error(body.error ?? "That did not go through.");
       bulk.success(action.label, body.message ?? `Done for ${ids.length} ${ids.length === 1 ? selection?.noun : selection?.nounPlural}.`);
-      setPicked([]);
+      table.resetRowSelection(true);
       router.refresh();
     } catch (error) {
       bulk.error(`${action.label} did not go through`, error instanceof Error ? error.message : "Please try again.");
@@ -134,34 +198,25 @@ function StandardTableCardBody({
     }
   }
 
+  // Which columns a person hid is remembered on this device, per table.
   useEffect(() => {
     try {
       const stored = window.localStorage.getItem(columnStorageKey(title));
-      if (stored) setHiddenKeys(JSON.parse(stored));
+      if (stored) setColumnVisibility(Object.fromEntries((JSON.parse(stored) as string[]).map((key) => [key, false])));
     } catch {
       // Ignore malformed/blocked storage — falls back to showing every column.
     }
   }, [title]);
 
-  useEffect(() => {
-    if (!columnsMenuOpen) return;
-    function handleClickOutside(event: MouseEvent) {
-      if (columnsMenuRef.current && !columnsMenuRef.current.contains(event.target as Node)) {
-        setColumnsMenuOpen(false);
-      }
-    }
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [columnsMenuOpen]);
-
   function toggleColumnVisibility(key: string) {
-    setHiddenKeys((current) => {
-      const isHidden = current.includes(key);
+    setColumnVisibility((current) => {
+      const hidden = allColumns.filter((column) => current[column.key] === false).map((column) => column.key);
+      const isHidden = hidden.includes(key);
       // Never allow hiding every column — always leave at least one visible.
-      if (!isHidden && allColumns.length - current.length <= 1) return current;
-      const next = isHidden ? current.filter((item) => item !== key) : [...current, key];
+      if (!isHidden && allColumns.length - hidden.length <= 1) return current;
+      const next = { ...current, [key]: isHidden };
       try {
-        window.localStorage.setItem(columnStorageKey(title), JSON.stringify(next));
+        window.localStorage.setItem(columnStorageKey(title), JSON.stringify(allColumns.filter((column) => next[column.key] === false).map((column) => column.key)));
       } catch {
         // Best-effort persistence only.
       }
@@ -169,7 +224,7 @@ function StandardTableCardBody({
     });
   }
 
-  const columns = allColumns.filter((column) => !hiddenKeys.includes(column.key));
+  const columns = allColumns.filter((column) => columnVisibility[column.key] !== false);
 
   const primaryColumn = columns.find((column) => column.key === primaryColumnKey) ?? columns[0];
   const featuredColumns = columns.filter((column) => featuredColumnKeys.includes(column.key));
@@ -177,83 +232,66 @@ function StandardTableCardBody({
     (column) => column.key !== primaryColumn?.key && !featuredColumnKeys.includes(column.key),
   );
 
-  const sortedRows = useMemo(() => {
-    if (!sortKey) return rows;
-    const decorated = rows.map((row, index) => ({ row, index }));
-    decorated.sort((a, b) => {
-      const cmp = compareValues(a.row.sortValues[sortKey] ?? null, b.row.sortValues[sortKey] ?? null);
-      if (cmp !== 0) return sortDirection === "asc" ? cmp : -cmp;
-      return a.index - b.index;
-    });
-    return decorated.map((entry) => entry.row);
-  }, [rows, sortKey, sortDirection]);
+  const tableRows = table.getRowModel().rows;
+  const pageRows = tableRows.map((tableRow) => tableRow.original);
+  const total = rows.length;
+  const totalPages = pageSize ? Math.max(1, Math.ceil(total / pageSize)) : 1;
+  const currentPage = Math.min(pageIndex + 1, totalPages);
+  const rangeStart = total === 0 ? 0 : (currentPage - 1) * (pageSize || total) + 1;
+  const rangeEnd = pageSize ? Math.min(currentPage * pageSize, total) : total;
+  const sortKey = sorting[0]?.id ?? null;
+  const sortDirection = sorting[0]?.desc ? "desc" : "asc";
 
-  const totalPages = pageSize ? Math.max(1, Math.ceil(sortedRows.length / pageSize)) : 1;
-  const currentPage = Math.min(page, totalPages);
-  const pageRows = pageSize
-    ? sortedRows.slice((currentPage - 1) * pageSize, currentPage * pageSize)
-    : sortedRows;
-
-  const rangeStart = sortedRows.length === 0 ? 0 : (currentPage - 1) * (pageSize || sortedRows.length) + 1;
-  const rangeEnd = pageSize ? Math.min(currentPage * pageSize, sortedRows.length) : sortedRows.length;
-
+  /** A click sorts ascending, the next descending, and so on — it never switches sorting off. */
   function toggleSort(column: PreparedColumn) {
     if (!column.sortable) return;
-    if (sortKey === column.key) {
-      setSortDirection((current) => (current === "asc" ? "desc" : "asc"));
-    } else {
-      setSortKey(column.key);
-      setSortDirection("asc");
-    }
+    setSorting((current) => (current[0]?.id === column.key ? [{ id: column.key, desc: !current[0].desc }] : [{ id: column.key, desc: false }]));
   }
 
   return (
     <section className="surface-card overflow-hidden">
-      <div className="border-b border-[var(--color-border-default)] px-5 py-4">
+      <div className="border-b border-(--color-border-default) px-5 py-4">
         <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
           <div>
-            <h3 className="font-[var(--font-display)] text-[16px] font-bold text-[var(--color-text-primary)]">{title}</h3>
+            <h3 className="font-(--font-display) text-[16px] font-bold text-(--color-text-primary)">{title}</h3>
             {description ? (
-              <p className="mt-1 max-w-3xl text-[12.5px] leading-5 text-[var(--color-text-secondary)]">
+              <p className="mt-1 max-w-3xl text-[12.5px] leading-5 text-(--color-text-secondary)">
                 {description}
               </p>
             ) : null}
           </div>
 
           <div className="flex shrink-0 items-center gap-2">
-            <div ref={columnsMenuRef} className="relative">
-              <button
-                type="button"
-                onClick={() => setColumnsMenuOpen((open) => !open)}
-                className="inline-flex items-center gap-[7px] rounded-[10px] border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] px-[13px] py-[9px] text-[12.5px] font-semibold text-[var(--color-text-secondary)] transition hover:border-[var(--color-border-strong)]"
-                aria-haspopup="true"
-                aria-expanded={columnsMenuOpen}
-              >
-                <Columns3 className="h-3.5 w-3.5" />
-                Columns
-              </button>
-              {columnsMenuOpen ? (
-                <div className="popover-enter absolute right-0 top-[calc(100%+6px)] z-20 w-52 rounded-[12px] border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] p-2 shadow-[var(--shadow-md)]">
-                  <p className="px-2 py-1 text-[10.5px] font-semibold uppercase tracking-[0.08em] text-[var(--color-text-muted)]">
-                    Show columns
-                  </p>
+            <DropdownMenu.Root modal={false}>
+              <DropdownMenu.Trigger asChild>
+                <button
+                  type="button"
+                  className="inline-flex items-center gap-[7px] rounded-[10px] border border-(--color-border-default) bg-(--color-bg-surface) px-[13px] py-[9px] text-[12.5px] font-semibold text-(--color-text-secondary) transition hover:border-(--color-border-strong) hover:text-(--color-text-primary)"
+                >
+                  <Columns3 className="h-3.5 w-3.5" />
+                  Columns
+                </button>
+              </DropdownMenu.Trigger>
+              <DropdownMenu.Portal>
+                <DropdownMenu.Content align="end" sideOffset={6} collisionPadding={8} className="popover-enter z-(--z-dropdown) w-52 rounded-[12px] border border-(--color-border-default) bg-(--color-bg-surface) p-2 shadow-(--shadow-md) outline-hidden">
+                  <DropdownMenu.Label className="px-2 py-1 text-[10.5px] font-semibold uppercase tracking-[0.08em] text-(--color-text-muted)">Show columns</DropdownMenu.Label>
                   {allColumns.map((column) => (
-                    <label
+                    <DropdownMenu.CheckboxItem
                       key={column.key}
-                      className="flex items-center gap-2 rounded-[8px] px-2 py-1.5 text-[12.5px] text-[var(--color-text-primary)] hover:bg-[var(--color-bg-subtle)]"
+                      checked={columnVisibility[column.key] !== false}
+                      // Keep the menu open so several columns can be switched in one go.
+                      onSelect={(event) => { event.preventDefault(); toggleColumnVisibility(column.key); }}
+                      className="flex cursor-pointer items-center gap-2 rounded-[8px] px-2 py-1.5 text-[12.5px] text-(--color-text-primary) outline-hidden data-highlighted:bg-(--color-bg-subtle)"
                     >
-                      <input
-                        type="checkbox"
-                        checked={!hiddenKeys.includes(column.key)}
-                        onChange={() => toggleColumnVisibility(column.key)}
-                        className="h-3.5 w-3.5 rounded border-[var(--color-border-default)] accent-[var(--color-accent-primary)]"
-                      />
+                      <span className="flex h-3.5 w-3.5 items-center justify-center rounded-sm border border-(--color-border-default)">
+                        <DropdownMenu.ItemIndicator><Check className="h-3 w-3" /></DropdownMenu.ItemIndicator>
+                      </span>
                       {column.header || "(unlabeled)"}
-                    </label>
+                    </DropdownMenu.CheckboxItem>
                   ))}
-                </div>
-              ) : null}
-            </div>
+                </DropdownMenu.Content>
+              </DropdownMenu.Portal>
+            </DropdownMenu.Root>
             {actions}
           </div>
         </div>
@@ -278,20 +316,20 @@ function StandardTableCardBody({
             </button>
             </span>
           ))}
-          <button type="button" onClick={() => setPicked([])} className="ml-auto text-[11.5px] text-white/70 underline">Clear</button>
+          <button type="button" onClick={() => table.resetRowSelection(true)} className="ml-auto text-[11.5px] text-white/70 underline">Clear</button>
         </div>
       ) : null}
 
       <div>
         {rows.length === 0 ? (
           <div className="empty-state m-5">
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[var(--color-accent-primary-dim)] text-[var(--color-text-accent)]">
+            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-(--color-accent-primary-dim) text-(--color-text-accent)">
               <span className="text-lg font-bold">+</span>
             </div>
-            <p className="mt-4 text-[15px] font-semibold text-[var(--color-text-primary)]">
+            <p className="mt-4 text-[15px] font-semibold text-(--color-text-primary)">
               Nothing to display yet
             </p>
-            <p className="mt-1 max-w-md text-[13px] text-[var(--color-text-secondary)]">{emptyState}</p>
+            <p className="mt-1 max-w-md text-[13px] text-(--color-text-secondary)">{emptyState}</p>
           </div>
         ) : (
           <>
@@ -300,14 +338,14 @@ function StandardTableCardBody({
               {pageRows.map((row) => (
                 <article
                   key={row.key}
-                  className="rounded-[12px] border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] p-4 shadow-[var(--shadow-sm)] transition hover:border-[var(--color-border-strong)] hover:shadow-[var(--shadow-md)]"
+                  className="rounded-[12px] border border-(--color-border-default) bg-(--color-bg-surface) p-4 shadow-(--shadow-sm) transition hover:border-(--color-border-strong) hover:shadow-(--shadow-md)"
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
-                      <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-(--color-text-muted)">
                         {primaryColumn?.header ?? "Record"}
                       </p>
-                      <div className="mt-1 text-[15px] font-semibold text-[var(--color-text-primary)]">
+                      <div className="mt-1 text-[15px] font-semibold text-(--color-text-primary)">
                         {primaryColumn ? row.cells[primaryColumn.key] : null}
                       </div>
                     </div>
@@ -317,7 +355,7 @@ function StandardTableCardBody({
                         {featuredColumns.map((column) => (
                           <div
                             key={column.key}
-                            className="rounded-full bg-[var(--color-accent-primary-dim)] px-3 py-1 text-[12px] font-semibold text-[var(--color-text-accent)]"
+                            className="rounded-full bg-(--color-accent-primary-dim) px-3 py-1 text-[12px] font-semibold text-(--color-text-accent)"
                           >
                             {row.cells[column.key]}
                           </div>
@@ -331,12 +369,12 @@ function StandardTableCardBody({
                       {secondaryColumns.map((column) => (
                         <div
                           key={column.key}
-                          className="rounded-xl bg-[var(--color-bg-subtle)] px-3 py-2"
+                          className="rounded-xl bg-(--color-bg-subtle) px-3 py-2"
                         >
-                          <dt className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">
+                          <dt className="text-[10px] font-semibold uppercase tracking-[0.16em] text-(--color-text-muted)">
                             {column.header}
                           </dt>
-                          <dd className="mt-1 text-[13px] text-[var(--color-text-secondary)]">
+                          <dd className="mt-1 text-[13px] text-(--color-text-secondary)">
                             {row.cells[column.key]}
                           </dd>
                         </div>
@@ -357,7 +395,7 @@ function StandardTableCardBody({
                       <tr>
                         {selection ? (
                           <th scope="col" className="w-10 border-b border-[#E6EEE9] px-5 py-[11px]">
-                            <input type="checkbox" aria-label="Select every row on this page" checked={pageRows.length > 0 && pageRows.every((row) => picked.includes(row.key))} onChange={(event) => setPicked((current) => (event.target.checked ? Array.from(new Set([...current, ...pageRows.map((row) => row.key)])) : current.filter((key) => !pageRows.some((row) => row.key === key))))} className="h-3.5 w-3.5 accent-[var(--color-accent-primary)]" />
+                            <input type="checkbox" aria-label="Select every row on this page" checked={tableRows.length > 0 && table.getIsAllPageRowsSelected()} onChange={(event) => table.toggleAllPageRowsSelected(event.target.checked)} className="h-3.5 w-3.5 accent-(--color-accent-primary)" />
                           </th>
                         ) : null}
                         {columns.map((column) => {
@@ -369,7 +407,7 @@ function StandardTableCardBody({
                               scope="col"
                               aria-sort={isActive ? (sortDirection === "asc" ? "ascending" : "descending") : "none"}
                               className={[
-                                "border-b border-[#E6EEE9] px-5 py-[11px] text-left text-[10.5px] font-semibold uppercase tracking-[0.05em] text-[#5f6e65]",
+                                "border-b border-[#E6EEE9] px-5 py-[11px] text-left text-[10.5px] font-semibold uppercase tracking-wider text-[#5f6e65]",
                                 column.headerClassName ?? "",
                               ].join(" ")}
                             >
@@ -377,7 +415,7 @@ function StandardTableCardBody({
                                 <button
                                   type="button"
                                   onClick={() => toggleSort(column)}
-                                  className="inline-flex items-center gap-1 text-inherit transition hover:text-[var(--color-text-primary)]"
+                                  className="inline-flex items-center gap-1 text-inherit transition hover:text-(--color-text-primary)"
                                 >
                                   {column.header}
                                   {isActive ? (
@@ -400,14 +438,16 @@ function StandardTableCardBody({
                     </thead>
 
                     <tbody>
-                      {pageRows.map((row) => (
+                      {tableRows.map((tableRow) => {
+                        const row = tableRow.original;
+                        return (
                         <tr
-                          key={row.key}
-                          className="bg-[var(--color-bg-surface)] text-[12.5px] text-[var(--color-text-secondary)] transition hover:bg-[var(--color-bg-elevated)]"
+                          key={tableRow.id}
+                          className="bg-(--color-bg-surface) text-[12.5px] text-(--color-text-secondary) transition hover:bg-(--color-bg-elevated)"
                         >
                           {selection ? (
                             <td className="w-10 border-b border-[#F2F7F4] px-5 py-[13px] align-top">
-                              <input type="checkbox" aria-label="Select this row" checked={picked.includes(row.key)} onChange={(event) => setPicked((current) => (event.target.checked ? [...current, row.key] : current.filter((key) => key !== row.key)))} className="h-3.5 w-3.5 accent-[var(--color-accent-primary)]" />
+                              <input type="checkbox" aria-label="Select this row" checked={tableRow.getIsSelected()} onChange={(event) => tableRow.toggleSelected(event.target.checked)} className="h-3.5 w-3.5 accent-(--color-accent-primary)" />
                             </td>
                           ) : null}
                           {columns.map((column) => (
@@ -422,7 +462,8 @@ function StandardTableCardBody({
                             </td>
                           ))}
                         </tr>
-                      ))}
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>
@@ -430,28 +471,28 @@ function StandardTableCardBody({
             </div>
 
             {pageSize && totalPages > 1 ? (
-              <div className="flex min-w-0 flex-col items-stretch justify-between gap-3 border-t border-[var(--color-border-default)] px-4 py-3 sm:flex-row sm:items-center sm:px-5">
-                <p className="min-w-0 text-center text-[12px] text-[var(--color-text-muted)] sm:text-left">
-                  Showing {rangeStart}–{rangeEnd} of {sortedRows.length}
+              <div className="flex min-w-0 flex-col items-stretch justify-between gap-3 border-t border-(--color-border-default) px-4 py-3 sm:flex-row sm:items-center sm:px-5">
+                <p className="min-w-0 text-center text-[12px] text-(--color-text-muted) sm:text-left">
+                  Showing {rangeStart}–{rangeEnd} of {total}
                 </p>
                 <div className="flex min-w-0 flex-wrap items-center justify-center gap-2 sm:justify-end">
                   <button
                     type="button"
-                    onClick={() => setPage((current) => Math.max(1, current - 1))}
+                    onClick={() => table.previousPage()}
                     disabled={currentPage <= 1}
-                    className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-[var(--color-border-default)] text-[var(--color-text-secondary)] transition hover:border-[var(--color-border-strong)] hover:text-[var(--color-text-primary)] disabled:cursor-not-allowed disabled:opacity-40"
+                    className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-(--color-border-default) text-(--color-text-secondary) transition hover:border-(--color-border-strong) hover:text-(--color-text-primary) disabled:cursor-not-allowed disabled:opacity-40"
                     aria-label="Previous page"
                   >
                     <ChevronLeft className="h-4 w-4" />
                   </button>
-                  <p className="min-w-0 text-center text-[12px] font-semibold text-[var(--color-text-primary)] sm:whitespace-nowrap">
+                  <p className="min-w-0 text-center text-[12px] font-semibold text-(--color-text-primary) sm:whitespace-nowrap">
                     Page {currentPage} of {totalPages}
                   </p>
                   <button
                     type="button"
-                    onClick={() => setPage((current) => Math.min(totalPages, current + 1))}
+                    onClick={() => table.nextPage()}
                     disabled={currentPage >= totalPages}
-                    className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-[var(--color-border-default)] text-[var(--color-text-secondary)] transition hover:border-[var(--color-border-strong)] hover:text-[var(--color-text-primary)] disabled:cursor-not-allowed disabled:opacity-40"
+                    className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-(--color-border-default) text-(--color-text-secondary) transition hover:border-(--color-border-strong) hover:text-(--color-text-primary) disabled:cursor-not-allowed disabled:opacity-40"
                     aria-label="Next page"
                   >
                     <ChevronRight className="h-4 w-4" />

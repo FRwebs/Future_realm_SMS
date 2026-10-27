@@ -52,7 +52,6 @@ export class TeachersService {
     schoolId: string,
     filters?: { className?: string; subject?: string; search?: string },
   ) {
-    const normalizedSearch = filters?.search?.trim().toLowerCase();
     const normalizedSubject = filters?.subject?.trim().toLowerCase();
     const normalizedClass = filters?.className?.trim().toLowerCase();
 

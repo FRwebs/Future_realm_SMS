@@ -96,10 +96,10 @@ function WorkflowsTab() {
         pageSize={false}
         getRowKey={(item) => item.n}
         columns={[
-          { key: "n", header: "#", render: (item) => <span className="font-[var(--font-mono)] text-[var(--color-text-muted)]">{item.n}</span> },
-          { key: "flow", header: "Flow", render: (item) => <span className="font-bold text-[var(--color-text-primary)]">{item.flow}</span> },
-          { key: "gate", header: "The gate", render: (item) => <span className="text-[11.5px] text-[var(--color-text-secondary)]">{item.gate}</span> },
-          { key: "prevents", header: "What it prevents", render: (item) => <span className="text-[11.5px] text-[var(--color-text-secondary)]">{item.prevents}</span> }
+          { key: "n", header: "#", render: (item) => <span className="font-(--font-mono) text-(--color-text-muted)">{item.n}</span> },
+          { key: "flow", header: "Flow", render: (item) => <span className="font-bold text-(--color-text-primary)">{item.flow}</span> },
+          { key: "gate", header: "The gate", render: (item) => <span className="text-[11.5px] text-(--color-text-secondary)">{item.gate}</span> },
+          { key: "prevents", header: "What it prevents", render: (item) => <span className="text-[11.5px] text-(--color-text-secondary)">{item.prevents}</span> }
         ]}
       />
 
@@ -192,9 +192,9 @@ function PrinciplesTab() {
       pageSize={false}
       getRowKey={(item) => item.code}
       columns={[
-        { key: "code", header: "", render: (item) => <span className="font-[var(--font-mono)] font-black text-[var(--color-text-primary)]">{item.code}</span> },
-        { key: "principle", header: "Principle", render: (item) => <span className="text-[11.5px] leading-relaxed text-[var(--color-text-secondary)]">{item.principle}</span> },
-        { key: "forbids", header: "What it forbids", render: (item) => <span className="text-[11.5px] leading-relaxed text-[var(--color-text-secondary)]">{item.forbids}</span> }
+        { key: "code", header: "", render: (item) => <span className="font-(--font-mono) font-black text-(--color-text-primary)">{item.code}</span> },
+        { key: "principle", header: "Principle", render: (item) => <span className="text-[11.5px] leading-relaxed text-(--color-text-secondary)">{item.principle}</span> },
+        { key: "forbids", header: "What it forbids", render: (item) => <span className="text-[11.5px] leading-relaxed text-(--color-text-secondary)">{item.forbids}</span> }
       ]}
     />
   );
@@ -215,8 +215,8 @@ function AccessTab() {
       pageSize={false}
       getRowKey={(item) => item.n}
       columns={[
-        { key: "n", header: "", render: (item) => <span className="font-[var(--font-mono)] text-[var(--color-text-muted)]">{item.n}</span> },
-        { key: "doc", header: "Document", render: (item) => <span className="font-bold text-[var(--color-text-primary)]">{item.doc}</span> },
+        { key: "n", header: "", render: (item) => <span className="font-(--font-mono) text-(--color-text-muted)">{item.n}</span> },
+        { key: "doc", header: "Document", render: (item) => <span className="font-bold text-(--color-text-primary)">{item.doc}</span> },
         {
           key: "status",
           header: "Status",
@@ -225,7 +225,7 @@ function AccessTab() {
             return <span className="inline-flex items-center rounded-full px-[9px] py-[3px] text-[11px] font-bold" style={{ background: tone.bg, color: tone.fg }}>{item.status}</span>;
           }
         },
-        { key: "authority", header: "Authority", render: (item) => <span className="text-[11.5px] leading-relaxed text-[var(--color-text-secondary)]">{item.authority}</span> }
+        { key: "authority", header: "Authority", render: (item) => <span className="text-[11.5px] leading-relaxed text-(--color-text-secondary)">{item.authority}</span> }
       ]}
       emptyState="Nothing recorded."
     />
@@ -267,10 +267,10 @@ function ChangelogTab() {
         pageSize={false}
         getRowKey={(item) => item.code}
         columns={[
-          { key: "code", header: "", render: (item) => <span className="font-[var(--font-mono)] text-[var(--color-text-muted)]">{item.code}</span> },
-          { key: "was", header: "v3.0 said", render: (item) => <span className="text-[11px] leading-relaxed text-[var(--color-text-secondary)]">{item.was}</span> },
-          { key: "now", header: "v4.0 says", render: (item) => <span className="text-[11px] leading-relaxed text-[var(--color-text-secondary)]">{item.now}</span> },
-          { key: "why", header: "Why", render: (item) => <span className="text-[11px] leading-relaxed text-[var(--color-text-muted)]">{item.why}</span> }
+          { key: "code", header: "", render: (item) => <span className="font-(--font-mono) text-(--color-text-muted)">{item.code}</span> },
+          { key: "was", header: "v3.0 said", render: (item) => <span className="text-[11px] leading-relaxed text-(--color-text-secondary)">{item.was}</span> },
+          { key: "now", header: "v4.0 says", render: (item) => <span className="text-[11px] leading-relaxed text-(--color-text-secondary)">{item.now}</span> },
+          { key: "why", header: "Why", render: (item) => <span className="text-[11px] leading-relaxed text-(--color-text-muted)">{item.why}</span> }
         ]}
       />
 
@@ -291,9 +291,9 @@ function ChangelogTab() {
           pageSize={false}
           getRowKey={(item) => item.code}
           columns={[
-            { key: "code", header: "", render: (item) => <span className="font-[var(--font-mono)] text-[var(--color-text-muted)]">{item.code}</span> },
-            { key: "added", header: "Added", render: (item) => <span className="font-semibold text-[var(--color-text-primary)]">{item.added}</span> },
-            { key: "from", header: "Where it was promised", render: (item) => <span className="text-[11px] text-[var(--color-text-muted)]">{item.from}</span> }
+            { key: "code", header: "", render: (item) => <span className="font-(--font-mono) text-(--color-text-muted)">{item.code}</span> },
+            { key: "added", header: "Added", render: (item) => <span className="font-semibold text-(--color-text-primary)">{item.added}</span> },
+            { key: "from", header: "Where it was promised", render: (item) => <span className="text-[11px] text-(--color-text-muted)">{item.from}</span> }
           ]}
         />
         <TableCard
@@ -309,8 +309,8 @@ function ChangelogTab() {
           pageSize={false}
           getRowKey={(item) => item.code}
           columns={[
-            { key: "code", header: "", render: (item) => <span className="font-[var(--font-mono)] text-[var(--color-text-muted)]">{item.code}</span> },
-            { key: "correction", header: "Correction", render: (item) => <span className="text-[11px] leading-relaxed text-[var(--color-text-secondary)]">{item.correction}</span> }
+            { key: "code", header: "", render: (item) => <span className="font-(--font-mono) text-(--color-text-muted)">{item.code}</span> },
+            { key: "correction", header: "Correction", render: (item) => <span className="text-[11px] leading-relaxed text-(--color-text-secondary)">{item.correction}</span> }
           ]}
         />
       </section>
@@ -329,8 +329,8 @@ function ChangelogTab() {
         pageSize={false}
         getRowKey={(item) => item.code}
         columns={[
-          { key: "code", header: "", render: (item) => <span className="font-[var(--font-mono)] text-[var(--color-text-muted)]">{item.code}</span> },
-          { key: "correction", header: "Correction", render: (item) => <span className="text-[11.5px] leading-relaxed text-[var(--color-text-secondary)]">{item.correction}</span> }
+          { key: "code", header: "", render: (item) => <span className="font-(--font-mono) text-(--color-text-muted)">{item.code}</span> },
+          { key: "correction", header: "Correction", render: (item) => <span className="text-[11.5px] leading-relaxed text-(--color-text-secondary)">{item.correction}</span> }
         ]}
       />
     </section>
@@ -354,9 +354,9 @@ function NonFunctionalTab() {
         pageSize={false}
         getRowKey={(item) => item.area}
         columns={[
-          { key: "area", header: "Area", render: (item) => <span className="font-bold text-[var(--color-text-primary)]">{item.area}</span> },
-          { key: "requirement", header: "Requirement", render: (item) => <span className="text-[11.5px] leading-relaxed text-[var(--color-text-secondary)]">{item.requirement}</span> },
-          { key: "state", header: "State", render: (item) => <span className="text-[11px] text-[var(--color-text-muted)]">{item.state}</span> }
+          { key: "area", header: "Area", render: (item) => <span className="font-bold text-(--color-text-primary)">{item.area}</span> },
+          { key: "requirement", header: "Requirement", render: (item) => <span className="text-[11.5px] leading-relaxed text-(--color-text-secondary)">{item.requirement}</span> },
+          { key: "state", header: "State", render: (item) => <span className="text-[11px] text-(--color-text-muted)">{item.state}</span> }
         ]}
       />
 
@@ -376,8 +376,8 @@ function NonFunctionalTab() {
         pageSize={false}
         getRowKey={(item) => item.excluded}
         columns={[
-          { key: "excluded", header: "Excluded", render: (item) => <span className="font-bold text-[var(--color-text-primary)]">{item.excluded}</span> },
-          { key: "returns", header: "Returns when", render: (item) => <span className="text-[11.5px] leading-relaxed text-[var(--color-text-secondary)]">{item.returns}</span> }
+          { key: "excluded", header: "Excluded", render: (item) => <span className="font-bold text-(--color-text-primary)">{item.excluded}</span> },
+          { key: "returns", header: "Returns when", render: (item) => <span className="text-[11.5px] leading-relaxed text-(--color-text-secondary)">{item.returns}</span> }
         ]}
       />
     </section>
@@ -400,8 +400,8 @@ function IssuesTab() {
       pageSize={false}
       getRowKey={(item) => item.code}
       columns={[
-        { key: "code", header: "", render: (item) => <span className="font-[var(--font-mono)] font-black text-[var(--color-text-primary)]">{item.code}</span> },
-        { key: "issue", header: "Issue", render: (item) => <span className="text-[11.5px] leading-relaxed text-[var(--color-text-secondary)]">{item.issue}</span> },
+        { key: "code", header: "", render: (item) => <span className="font-(--font-mono) font-black text-(--color-text-primary)">{item.code}</span> },
+        { key: "issue", header: "Issue", render: (item) => <span className="text-[11.5px] leading-relaxed text-(--color-text-secondary)">{item.issue}</span> },
         {
           key: "status",
           header: "Status",
@@ -410,7 +410,7 @@ function IssuesTab() {
             return <span className="inline-flex items-center rounded-full px-[9px] py-[3px] text-[11px] font-bold" style={{ background: tone.bg, color: tone.fg }}>{item.status}</span>;
           }
         },
-        { key: "blocks", header: "Blocks", render: (item) => <span className="text-[11px] text-[var(--color-text-muted)]">{item.blocks}</span> }
+        { key: "blocks", header: "Blocks", render: (item) => <span className="text-[11px] text-(--color-text-muted)">{item.blocks}</span> }
       ]}
     />
   );

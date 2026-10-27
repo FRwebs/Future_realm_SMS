@@ -26,18 +26,18 @@ export default async function ParentChildAttendancePage({ params }: PageProps) {
   return (
     <div className="portal-page">
       <section className="surface-hero p-6 md:p-7">
-        <Link href={`/portals/parent/children/${studentId}` as Route} className="text-[13px] font-semibold text-[var(--color-text-accent)]">Back to child overview</Link>
-        <h1 className="mt-3 font-[var(--font-heading)] text-[26px] font-black text-[var(--color-text-primary)]">Child attendance</h1>
+        <Link href={`/portals/parent/children/${studentId}` as Route} className="text-[13px] font-semibold text-(--color-text-accent)">Back to child overview</Link>
+        <h1 className="mt-3 font-(--font-heading) text-[26px] font-black text-(--color-text-primary)">Child attendance</h1>
         <div className="mt-6 grid gap-4 md:grid-cols-5">
           {attendance.chart.map((item) => (
-            <article key={item.label} className="rounded-[10px] border border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] p-4">
-              <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">{item.label}</p>
-              <p className="mt-2 text-[19px] font-bold text-[var(--color-text-primary)]">{item.value}</p>
+            <article key={item.label} className="rounded-[10px] border border-(--color-border-default) bg-(--color-bg-subtle) p-4">
+              <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-(--color-text-muted)">{item.label}</p>
+              <p className="mt-2 text-[19px] font-bold text-(--color-text-primary)">{item.value}</p>
             </article>
           ))}
-          <article className="rounded-[10px] border border-[var(--color-border-default)] bg-[var(--color-accent-primary-dim)] p-4">
-            <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--color-text-accent)]">Rate</p>
-            <p className="mt-2 text-[19px] font-bold text-[var(--color-text-accent)]">{attendance.summary.attendanceRate}%</p>
+          <article className="rounded-[10px] border border-(--color-border-default) bg-(--color-accent-primary-dim) p-4">
+            <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-(--color-text-accent)">Rate</p>
+            <p className="mt-2 text-[19px] font-bold text-(--color-text-accent)">{attendance.summary.attendanceRate}%</p>
           </article>
         </div>
       </section>

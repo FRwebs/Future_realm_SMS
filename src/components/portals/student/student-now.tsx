@@ -55,9 +55,9 @@ export function StudentNow({ live, label, when, subject, who, topic, acts, later
           ) : null}
         </div>
         <div className="min-w-0 border-t pt-[14px] lg:border-l lg:border-t-0 lg:pl-[18px] lg:pt-0" style={{ borderColor: "rgba(255,255,255,0.14)" }}>
-          <p className="text-[9.5px] font-bold uppercase tracking-[0.1em]" style={{ color: "rgba(255,255,255,0.6)" }}>{laterTitle}</p>
+          <p className="text-[9.5px] font-bold uppercase tracking-widest" style={{ color: "rgba(255,255,255,0.6)" }}>{laterTitle}</p>
           {later.length ? (
-            <ul className="mt-[8px] grid max-h-[210px] gap-[1px] overflow-y-auto pr-[2px]">
+            <ul className="mt-[8px] grid max-h-[210px] gap-px overflow-y-auto pr-[2px]">
               {later.map((item) => (
                 <li key={`${item.time}-${item.subject}`} className="flex items-center gap-[10px] border-b py-[7px]" style={{ borderColor: "rgba(255,255,255,0.1)" }}>
                   <span className="w-[42px] flex-none text-[11px] font-semibold tabular-nums" style={{ color: "rgba(255,255,255,0.7)" }}>{item.time}</span>

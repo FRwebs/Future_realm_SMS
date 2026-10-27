@@ -28,7 +28,7 @@ function HeaderAction({
     "inline-flex flex-none items-center whitespace-nowrap rounded-full font-semibold transition",
     primary
       ? "gap-[7px] bg-white px-[15px] py-[8px] text-[11.5px] text-[#0D2315] shadow-[0_9px_20px_-11px_rgba(0,0,0,0.65)] hover:-translate-y-px hover:bg-[#EAF3EE]"
-      : "gap-[6px] border border-white/[0.18] bg-white/10 px-[12px] py-[7px] text-[11px] text-white hover:bg-white/20",
+      : "gap-[6px] border border-white/18 bg-white/10 px-[12px] py-[7px] text-[11px] text-white hover:bg-white/20",
   );
   const body = (
     <>
@@ -105,8 +105,8 @@ function ModuleHead({
   return (
     <section className="relative overflow-hidden rounded-[15px] bg-[#0D2315] px-[19px] py-[15px] shadow-[0_14px_30px_-24px_rgba(13,35,21,0.8)]">
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
-        <div className="absolute -right-[80px] -top-[132px] h-[336px] w-[336px] rounded-full border border-[rgba(95,214,180,0.12)]" />
-        <div className="absolute -right-[18px] -top-[70px] h-[212px] w-[212px] rounded-full border border-[rgba(95,214,180,0.08)]" />
+        <div className="absolute right-[-80px] top-[-132px] h-[336px] w-[336px] rounded-full border border-[rgba(95,214,180,0.12)]" />
+        <div className="absolute right-[-18px] top-[-70px] h-[212px] w-[212px] rounded-full border border-[rgba(95,214,180,0.08)]" />
       </div>
       <div className="relative flex flex-wrap items-center justify-between gap-x-5 gap-y-2.5">
         <div className="min-w-0 max-w-[620px]">
@@ -116,7 +116,7 @@ function ModuleHead({
               {eyebrow}
             </span>
           </div>
-          <h1 className="text-pretty font-[family-name:var(--font-heading)] text-[19px] font-extrabold leading-[1.15] tracking-[-0.024em] text-white">
+          <h1 className="text-pretty font-(family-name:--font-heading) text-[19px] font-extrabold leading-[1.15] tracking-[-0.024em] text-white">
             {title}
           </h1>
           <p className="mt-1 max-w-[560px] text-pretty text-[11px] leading-[1.45] text-white/60">

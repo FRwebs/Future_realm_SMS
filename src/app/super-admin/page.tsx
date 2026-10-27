@@ -139,7 +139,7 @@ function CardHeader({ title, meta, sub }: { title: string; meta?: string; sub?: 
   return (
     <div>
       <div className="flex items-center justify-between gap-3">
-        <h3 className="text-[12.5px] font-semibold text-[var(--color-text-primary)]">{title}</h3>
+        <h3 className="text-[12.5px] font-semibold text-(--color-text-primary)">{title}</h3>
         {meta ? <p className="shrink-0 text-[10.5px] text-[#9fb8a7]">{meta}</p> : null}
       </div>
       {sub ? <p className="mt-1.5 text-[10.5px] leading-5 text-[#5f6e65]">{sub}</p> : null}
@@ -422,16 +422,16 @@ export default async function SuperAdminDashboardPage() {
   return (
     <div className="grid gap-[14px]">
       <section className="relative overflow-hidden rounded-[18px] bg-[#0d2315] px-6 py-[27px] text-white md:px-8">
-        <div className="pointer-events-none absolute -right-[99px] -top-40 h-[420px] w-[420px] rounded-full border border-[rgba(95,214,180,0.13)]" />
-        <div className="pointer-events-none absolute -right-10 -top-[81px] h-[270px] w-[270px] rounded-full border border-[rgba(95,214,180,0.09)]" />
-        <div className="pointer-events-none absolute -bottom-[135px] -left-[54px] h-[300px] w-[300px] rounded-full border border-white/5" />
-        <div className="relative z-[1] flex flex-wrap items-end justify-between gap-[27px]">
+        <div className="pointer-events-none absolute right-[-99px] -top-40 h-[420px] w-[420px] rounded-full border border-[rgba(95,214,180,0.13)]" />
+        <div className="pointer-events-none absolute -right-10 top-[-81px] h-[270px] w-[270px] rounded-full border border-[rgba(95,214,180,0.09)]" />
+        <div className="pointer-events-none absolute bottom-[-135px] left-[-54px] h-[300px] w-[300px] rounded-full border border-white/5" />
+        <div className="relative z-1 flex flex-wrap items-end justify-between gap-[27px]">
           <div className="min-w-0 flex-1">
-            <div className="mb-[15.5px] inline-flex items-center gap-2 rounded-full border border-[rgba(255,255,255,0.16)] bg-white/[0.09] px-[12.5px] py-[5.5px]">
+            <div className="mb-[15.5px] inline-flex items-center gap-2 rounded-full border border-[rgba(255,255,255,0.16)] bg-white/9 px-[12.5px] py-[5.5px]">
               <Sparkles className="h-[11.5px] w-[11.5px] shrink-0 text-[#5FD6B4]" />
-              <span className="whitespace-nowrap text-[9.5px] font-bold uppercase tracking-[0.13em] text-white/[0.84]">{profile.eyebrow}</span>
+              <span className="whitespace-nowrap text-[9.5px] font-bold uppercase tracking-[0.13em] text-white/84">{profile.eyebrow}</span>
             </div>
-            <h2 className="max-w-[600px] text-pretty font-[var(--font-heading)] text-[23.5px] font-extrabold leading-[1.1] tracking-[-0.032em] text-white md:text-[29.5px]">
+            <h2 className="max-w-[600px] text-pretty font-(--font-heading) text-[23.5px] font-extrabold leading-[1.1] tracking-[-0.032em] text-white md:text-[29.5px]">
               {platformGreeting(session?.role ?? "SUPER_ADMIN", session?.name)}
             </h2>
             <p className="mt-3 max-w-[560px] text-pretty text-[12px] leading-[1.55] text-[rgba(255,255,255,0.62)]">
@@ -458,12 +458,12 @@ export default async function SuperAdminDashboardPage() {
           const dotColor = cell.tone === "danger" ? "#e97070" : cell.tone === "warn" ? "#e5b33d" : "#3ee08a";
           const valueColor = cell.tone === "danger" ? "#f0a0a0" : cell.tone === "warn" ? "#f2c766" : "#fff";
           return (
-            <div key={cell.label} className="border-white/[0.09] px-[16px] py-4 lg:border-r lg:last:border-r-0">
+            <div key={cell.label} className="border-white/9 px-[16px] py-4 lg:border-r lg:last:border-r-0">
               <div className="flex items-center gap-[6.5px]">
                 <span className="h-[6.5px] w-[6.5px] shrink-0 rounded-full" style={{ background: dotColor }} />
                 <p className="truncate text-[9px] font-bold uppercase tracking-[0.09em] text-white/50">{cell.label}</p>
               </div>
-              <p className="mt-[8px] truncate font-[var(--font-mono)] text-[20.5px] font-extrabold leading-none tracking-tight" style={{ color: valueColor }}>{cell.value}</p>
+              <p className="mt-[8px] truncate font-(--font-mono) text-[20.5px] font-extrabold leading-none tracking-tight" style={{ color: valueColor }}>{cell.value}</p>
               <p className="mt-1.5 truncate text-[10px] text-white/55">{cell.sub}</p>
             </div>
           );
@@ -476,7 +476,7 @@ export default async function SuperAdminDashboardPage() {
             <div className="min-w-0">
               <p className="text-[10px] font-semibold uppercase tracking-[0.07em] text-white/50">Collected against invoiced · Term 1</p>
               <div className="mt-3 flex flex-wrap items-baseline gap-2.5">
-                <p className="font-[var(--font-heading)] text-[38px] font-extrabold tracking-tight text-white">{formatCurrency(commandCenter.revenueSnapshot.currentTermCollected)}</p>
+                <p className="font-(--font-heading) text-[38px] font-extrabold tracking-tight text-white">{formatCurrency(commandCenter.revenueSnapshot.currentTermCollected)}</p>
                 <p className="text-[11.5px] text-white/55">of {formatCurrency(commandCenter.revenueSnapshot.currentTermInvoiced)} invoiced</p>
               </div>
             </div>
@@ -490,7 +490,7 @@ export default async function SuperAdminDashboardPage() {
             </div>
             <div className="mt-2.5 flex flex-wrap items-center justify-between gap-3">
               <div className="flex items-baseline gap-1.5">
-                <span className="font-[var(--font-heading)] text-[11.5px] font-bold text-[#5FD6B4]">{formatPercent(collectedPct)}</span>
+                <span className="font-(--font-heading) text-[11.5px] font-bold text-[#5FD6B4]">{formatPercent(collectedPct)}</span>
                 <span className="text-[11px] text-white/55">collected · {formatCurrency(collectionGap)} still to collect</span>
               </div>
               <div className="flex items-center gap-1.5">
@@ -508,13 +508,13 @@ export default async function SuperAdminDashboardPage() {
             <div className="min-w-0">
               <p className="text-[10px] font-semibold uppercase tracking-[0.07em]" style={{ color: "#a4726f" }}>Overdue balances</p>
               <div className="mt-[10px] flex items-baseline gap-2">
-                <p className="font-[var(--font-heading)] text-[29px] font-extrabold text-[var(--color-text-primary)]">{formatCurrency(commandCenter.revenueSnapshot.overdueBalances)}</p>
+                <p className="font-(--font-heading) text-[29px] font-extrabold text-(--color-text-primary)">{formatCurrency(commandCenter.revenueSnapshot.overdueBalances)}</p>
                 <p className="text-[11px] text-[#9fb8a7]">{commandCenter.revenueSnapshot.overdueSchoolCount} school{commandCenter.revenueSnapshot.overdueSchoolCount === 1 ? "" : "s"}</p>
               </div>
             </div>
             {commandCenter.revenueSnapshot.newlyOverdueLast30Days > 0 ? (
               <div className="flex shrink-0 flex-col items-end gap-0.5">
-                <span className="font-[var(--font-heading)] text-[11.5px] font-bold" style={{ color: "#B23B3B" }}>+{formatCurrency(commandCenter.revenueSnapshot.newlyOverdueLast30Days)}</span>
+                <span className="font-(--font-heading) text-[11.5px] font-bold" style={{ color: "#B23B3B" }}>+{formatCurrency(commandCenter.revenueSnapshot.newlyOverdueLast30Days)}</span>
                 <span className="text-right text-[9.5px] text-[#a9b6ae]">new overdue (30d)</span>
               </div>
             ) : null}
@@ -523,13 +523,13 @@ export default async function SuperAdminDashboardPage() {
             {commandCenter.revenueSnapshot.overdueAging.map((band) => (
               <div key={band.band}>
                 <div className="mb-[4.5px] flex items-baseline justify-between gap-2 text-[10.5px]">
-                  <span className="text-[var(--color-text-muted)]">{band.band}</span>
+                  <span className="text-(--color-text-muted)">{band.band}</span>
                   <span className="flex items-baseline gap-1.5">
-                    <span className="font-[var(--font-mono)] font-bold text-[var(--color-text-primary)]">{formatCurrency(band.amount)}</span>
-                    <span className="text-[9.5px] text-[var(--color-text-muted)]">{band.count} school{band.count === 1 ? "" : "s"}</span>
+                    <span className="font-(--font-mono) font-bold text-(--color-text-primary)">{formatCurrency(band.amount)}</span>
+                    <span className="text-[9.5px] text-(--color-text-muted)">{band.count} school{band.count === 1 ? "" : "s"}</span>
                   </span>
                 </div>
-                <div className="h-[4.5px] overflow-hidden rounded-full bg-[var(--color-bg-subtle)]">
+                <div className="h-[4.5px] overflow-hidden rounded-full bg-(--color-bg-subtle)">
                   <div
                     className="h-full rounded-full"
                     style={{ width: `${(band.amount / overdueAgingMax) * 100}%`, background: overdueBandTone[band.band] === "bad" ? "#B23B3B" : "#D9A22B" }}
@@ -548,12 +548,12 @@ export default async function SuperAdminDashboardPage() {
             <article key={tile.label} className="rounded-[14px] border px-[16px] pb-[12.5px] pt-4" style={{ borderColor: "#DEE8E2", background: "#fff" }}>
               <p className="min-h-[28px] text-[10.5px] leading-[1.35] text-[#5f6e65]">{tile.label}</p>
               <div className="mt-[8px] flex items-baseline gap-[6.5px]">
-                <p className="font-[var(--font-heading)] text-[21.5px] font-extrabold tracking-tight text-[#0D2315]">{tile.value}</p>
+                <p className="font-(--font-heading) text-[21.5px] font-extrabold tracking-tight text-[#0D2315]">{tile.value}</p>
                 <p className="min-w-0 truncate text-[10.5px] text-[#9FB8A7]">{tile.secondary}</p>
               </div>
               <div className="mt-3 flex min-w-0 items-end justify-between gap-2.5">
                 <div className="flex shrink-0 flex-col gap-0.5">
-                  <span className="font-[var(--font-heading)] text-[11px] font-bold" style={{ color }}>{tile.delta}</span>
+                  <span className="font-(--font-heading) text-[11px] font-bold" style={{ color }}>{tile.delta}</span>
                   <span className="whitespace-nowrap text-[9.5px] text-[#a9b6ae]">{tile.since}</span>
                 </div>
                 <Sparkline values={tile.bars} stroke={color} fill={tile.positive ? "rgba(18,121,106,0.10)" : "rgba(178,59,59,0.09)"} dot={color} />
@@ -574,11 +574,11 @@ export default async function SuperAdminDashboardPage() {
             {complianceWatchItems.map((item) => {
               const colors = toneColors[item.tone];
               return (
-                <div key={item.id} className="flex items-start gap-2.5 border-b border-[var(--color-border-muted)] py-[8px] last:border-b-0">
+                <div key={item.id} className="flex items-start gap-2.5 border-b border-(--color-border-muted) py-[8px] last:border-b-0">
                   <span className="mt-1.5 h-[6.5px] w-[6.5px] shrink-0 rounded-full" style={{ background: colors.fg }} />
                   <div className="min-w-0 flex-1">
-                    <p className="text-[11.5px] leading-5 text-[var(--color-text-primary)]">{item.label}</p>
-                    <p className="mt-0.5 text-[10px] text-[var(--color-text-muted)]">{item.detail}</p>
+                    <p className="text-[11.5px] leading-5 text-(--color-text-primary)">{item.label}</p>
+                    <p className="mt-0.5 text-[10px] text-(--color-text-muted)">{item.detail}</p>
                   </div>
                   <span className="shrink-0 rounded-full px-[9px] py-[3px] text-[11px] font-bold" style={{ background: colors.bg, color: colors.fg }}>{item.countdown}</span>
                 </div>
@@ -602,10 +602,10 @@ export default async function SuperAdminDashboardPage() {
             {commissionWatchItems.map((partner) => (
               <div key={partner.partnerId} className="flex items-start justify-between gap-3 border-b border-white/10 py-2.5 last:border-b-0">
                 <div className="min-w-0">
-                  <p className="text-[11.5px] leading-5 text-white/[0.86]">{partner.partnerName}</p>
+                  <p className="text-[11.5px] leading-5 text-white/86">{partner.partnerName}</p>
                   <p className="mt-0.5 truncate text-[10px] text-white/50">{partner.convertedDealCount} converted deal{partner.convertedDealCount === 1 ? "" : "s"}{partner.territory ? ` · ${partner.territory}` : ""}</p>
                 </div>
-                <p className="shrink-0 font-[var(--font-heading)] text-[14.5px] font-bold text-[#5FD6B4]">{formatCurrency(partner.totalCommissionOwed)}</p>
+                <p className="shrink-0 font-(--font-heading) text-[14.5px] font-bold text-[#5FD6B4]">{formatCurrency(partner.totalCommissionOwed)}</p>
               </div>
             ))}
             {commissionWatchItems.length === 0 ? <p className="py-4 text-center text-[11px] font-semibold text-white/50">No commission activity recorded.</p> : null}
@@ -618,7 +618,7 @@ export default async function SuperAdminDashboardPage() {
           <CardHeader title="Subscription health" meta={`${tierTotal.toLocaleString()} accounts`} />
           {revenue.schoolsByPlan.length > 0 ? (
             <>
-              <div className="mt-4 flex h-2.5 overflow-hidden rounded-full bg-[var(--color-bg-subtle)]">
+              <div className="mt-4 flex h-2.5 overflow-hidden rounded-full bg-(--color-bg-subtle)">
                 {revenue.schoolsByPlan.map((item, index) => (
                   <div key={item.plan} style={{ width: `${(item.count / tierTotal) * 100}%`, background: tierColors[index % tierColors.length] }} />
                 ))}
@@ -627,20 +627,20 @@ export default async function SuperAdminDashboardPage() {
                 {revenue.schoolsByPlan.map((item, index) => (
                   <div key={item.plan} className="flex items-center gap-[8px] py-1.5">
                     <span className="h-[8px] w-[8px] shrink-0 rounded-[2.5px]" style={{ background: tierColors[index % tierColors.length] }} />
-                    <span className="flex-1 text-[11.5px] text-[var(--color-text-secondary)]">{item.plan}</span>
-                    <span className="text-[11.5px] font-semibold text-[var(--color-text-primary)]">{item.count}</span>
+                    <span className="flex-1 text-[11.5px] text-(--color-text-secondary)">{item.plan}</span>
+                    <span className="text-[11.5px] font-semibold text-(--color-text-primary)">{item.count}</span>
                     <span className="w-[34px] text-right text-[10.5px] text-[#9fb8a7]">{Math.round((item.count / tierTotal) * 100)}%</span>
                   </div>
                 ))}
               </div>
             </>
           ) : null}
-          <div className="mt-3.5 flex gap-2 border-t border-[var(--color-border-muted)] pt-3.5">
+          <div className="mt-3.5 flex gap-2 border-t border-(--color-border-muted) pt-3.5">
             {healthFlags.map((flag) => {
               const colors = toneColors[flag.tone];
               return (
                 <div key={flag.label} className="flex-1 rounded-[9px] px-3 py-[10px]" style={{ background: colors.bg }}>
-                  <p className="font-[var(--font-heading)] text-[15.5px] font-bold leading-none" style={{ color: colors.fg }}>{flag.value}</p>
+                  <p className="font-(--font-heading) text-[15.5px] font-bold leading-none" style={{ color: colors.fg }}>{flag.value}</p>
                   <p className="mt-0.5 text-[10px]" style={{ color: colors.fg }}>{flag.label}</p>
                 </div>
               );
@@ -654,11 +654,11 @@ export default async function SuperAdminDashboardPage() {
             {pipelineStages.map((stage) => (
               <div key={stage.label}>
                 <div className="mb-1.5 flex items-center justify-between text-[11.5px]">
-                  <span className="text-[var(--color-text-secondary)]">{stage.label}</span>
-                  <span className="font-[var(--font-heading)] text-[11.5px] font-bold text-[var(--color-text-primary)]">{stage.value}</span>
+                  <span className="text-(--color-text-secondary)">{stage.label}</span>
+                  <span className="font-(--font-heading) text-[11.5px] font-bold text-(--color-text-primary)">{stage.value}</span>
                 </div>
-                <div className="h-[5.5px] overflow-hidden rounded-full bg-[var(--color-border-muted)]">
-                  <div className="h-full rounded-full bg-[var(--color-accent-primary)]" style={{ width: `${(stage.value / pipelineMax) * 100}%` }} />
+                <div className="h-[5.5px] overflow-hidden rounded-full bg-(--color-border-muted)">
+                  <div className="h-full rounded-full bg-(--color-accent-primary)" style={{ width: `${(stage.value / pipelineMax) * 100}%` }} />
                 </div>
               </div>
             ))}
@@ -668,33 +668,33 @@ export default async function SuperAdminDashboardPage() {
         <section className="surface-card p-5">
           <CardHeader title="Support queue" />
           <div className="mt-3.5 grid gap-0">
-            <div className="flex items-center justify-between border-b border-[var(--color-border-muted)] py-2.5">
+            <div className="flex items-center justify-between border-b border-(--color-border-muted) py-2.5">
               <div className="flex items-center gap-2.5">
                 <span className="h-[6.5px] w-[6.5px] shrink-0 rounded-full" style={{ background: "var(--color-text-muted)" }} />
-                <span className="text-[11.5px] text-[var(--color-text-secondary)]">Open tickets</span>
+                <span className="text-[11.5px] text-(--color-text-secondary)">Open tickets</span>
               </div>
-              <span className="font-[var(--font-heading)] text-[13.5px] font-bold text-[var(--color-text-primary)]">{commandCenter.supportQueue.totalOpenTickets}</span>
+              <span className="font-(--font-heading) text-[13.5px] font-bold text-(--color-text-primary)">{commandCenter.supportQueue.totalOpenTickets}</span>
             </div>
-            <div className="flex items-center justify-between border-b border-[var(--color-border-muted)] py-2.5">
+            <div className="flex items-center justify-between border-b border-(--color-border-muted) py-2.5">
               <div className="flex items-center gap-2.5">
                 <span className="h-[6.5px] w-[6.5px] shrink-0 rounded-full" style={{ background: "var(--color-danger)" }} />
-                <span className="text-[11.5px] text-[var(--color-text-secondary)]">Critical open</span>
+                <span className="text-[11.5px] text-(--color-text-secondary)">Critical open</span>
               </div>
-              <span className="font-[var(--font-heading)] text-[13.5px] font-bold" style={{ color: commandCenter.supportQueue.criticalOpenTickets > 0 ? "var(--color-danger)" : "var(--color-text-primary)" }}>{commandCenter.supportQueue.criticalOpenTickets}</span>
+              <span className="font-(--font-heading) text-[13.5px] font-bold" style={{ color: commandCenter.supportQueue.criticalOpenTickets > 0 ? "var(--color-danger)" : "var(--color-text-primary)" }}>{commandCenter.supportQueue.criticalOpenTickets}</span>
             </div>
-            <div className="flex items-center justify-between border-b border-[var(--color-border-muted)] py-2.5 last:border-b-0">
+            <div className="flex items-center justify-between border-b border-(--color-border-muted) py-2.5 last:border-b-0">
               <div className="flex items-center gap-2.5">
                 <span className="h-[6.5px] w-[6.5px] shrink-0 rounded-full" style={{ background: "var(--color-danger)" }} />
-                <span className="text-[11.5px] text-[var(--color-text-secondary)]">Breaching target now</span>
+                <span className="text-[11.5px] text-(--color-text-secondary)">Breaching target now</span>
               </div>
-              <span className="font-[var(--font-heading)] text-[13.5px] font-bold" style={{ color: "var(--color-danger)" }}>{commandCenter.supportQueue.ticketsBreachingSla}</span>
+              <span className="font-(--font-heading) text-[13.5px] font-bold" style={{ color: "var(--color-danger)" }}>{commandCenter.supportQueue.ticketsBreachingSla}</span>
             </div>
             <div className="flex items-center justify-between py-2.5 last:border-b-0">
               <div className="flex items-center gap-2.5">
                 <span className="h-[6.5px] w-[6.5px] shrink-0 rounded-full" style={{ background: "var(--color-success)" }} />
-                <span className="text-[11.5px] text-[var(--color-text-secondary)]">Avg resolution this week</span>
+                <span className="text-[11.5px] text-(--color-text-secondary)">Avg resolution this week</span>
               </div>
-              <span className="font-[var(--font-heading)] text-[13.5px] font-bold text-[var(--color-text-primary)]">{formatHours(commandCenter.supportQueue.averageResolutionHoursThisWeek)}</span>
+              <span className="font-(--font-heading) text-[13.5px] font-bold text-(--color-text-primary)">{formatHours(commandCenter.supportQueue.averageResolutionHoursThisWeek)}</span>
             </div>
           </div>
           {commandCenter.supportQueue.ticketsBreachingSla > 0 ? (
@@ -709,19 +709,19 @@ export default async function SuperAdminDashboardPage() {
 
       <section className="grid items-start gap-[14px] xl:grid-cols-[1.3fr_1fr]">
         <section className="surface-card overflow-hidden p-0">
-          <div className="flex items-center justify-between border-b border-[var(--color-border-muted)] px-5 py-4">
-            <h3 className="text-[12.5px] font-semibold text-[var(--color-text-primary)]">Alert centre</h3>
+          <div className="flex items-center justify-between border-b border-(--color-border-muted) px-5 py-4">
+            <h3 className="text-[12.5px] font-semibold text-(--color-text-primary)">Alert centre</h3>
             <p className="text-[10.5px] font-semibold" style={{ color: "var(--color-accent-primary)" }}>Every alert carries a one-click action</p>
           </div>
           <div className="grid gap-0">
             {commandCenter.alerts.map((alert) => {
               const alertColor = alert.severity === "danger" ? "var(--color-danger)" : "var(--color-warning)";
               return (
-                <div key={alert.id} className="flex items-center gap-3 border-b border-[var(--color-border-muted)] px-5 py-3.5 last:border-b-0">
+                <div key={alert.id} className="flex items-center gap-3 border-b border-(--color-border-muted) px-5 py-3.5 last:border-b-0">
                   <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: alertColor }} />
                   <div className="min-w-0 flex-1">
-                    <p className="text-[11.5px] leading-5 text-[var(--color-text-primary)]">{alert.title}</p>
-                    <p className="mt-0.5 text-[10px] text-[var(--color-text-muted)]">{alert.detail}</p>
+                    <p className="text-[11.5px] leading-5 text-(--color-text-primary)">{alert.title}</p>
+                    <p className="mt-0.5 text-[10px] text-(--color-text-muted)">{alert.detail}</p>
                   </div>
                   <Link
                     href={alert.actionHref as Route}
@@ -743,7 +743,7 @@ export default async function SuperAdminDashboardPage() {
 
         <section className="surface-card p-5">
           <div className="flex items-center justify-between">
-            <h3 className="text-[12.5px] font-semibold text-[var(--color-text-primary)]">Activity feed</h3>
+            <h3 className="text-[12.5px] font-semibold text-(--color-text-primary)">Activity feed</h3>
             <span className="flex items-center gap-[4.5px] text-[10px] font-semibold" style={{ color: "var(--color-success)" }}>
               <span className="h-1.5 w-1.5 rounded-full" style={{ background: "var(--color-success)" }} />
               Live
@@ -754,17 +754,17 @@ export default async function SuperAdminDashboardPage() {
               <div key={`${item.timestamp}-${index}`} className="flex gap-[10px]">
                 <div className="flex shrink-0 flex-col items-center">
                   <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: "var(--color-accent-primary)" }} />
-                  {index < activityFeed.length - 1 ? <span className="mt-[2.5px] w-px flex-1 bg-[var(--color-border-muted)]" /> : null}
+                  {index < activityFeed.length - 1 ? <span className="mt-[2.5px] w-px flex-1 bg-(--color-border-muted)" /> : null}
                 </div>
                 <div className="pb-2">
-                  <p className="text-[11.5px] leading-5 text-[var(--color-text-primary)]">
-                    {item.superAdmin} <span className="text-[var(--color-text-secondary)]">{item.action.replaceAll("_", " ").toLowerCase()}</span> {item.target}
+                  <p className="text-[11.5px] leading-5 text-(--color-text-primary)">
+                    {item.superAdmin} <span className="text-(--color-text-secondary)">{item.action.replaceAll("_", " ").toLowerCase()}</span> {item.target}
                   </p>
-                  <p className="mt-0.5 text-[10px] text-[var(--color-text-muted)]">{item.schoolName ?? "Platform"} · {formatDate(item.timestamp)}</p>
+                  <p className="mt-0.5 text-[10px] text-(--color-text-muted)">{item.schoolName ?? "Platform"} · {formatDate(item.timestamp)}</p>
                 </div>
               </div>
             ))}
-            {activityFeed.length === 0 ? <p className="py-8 text-center text-sm font-semibold text-[var(--color-text-muted)]">No recent activity.</p> : null}
+            {activityFeed.length === 0 ? <p className="py-8 text-center text-sm font-semibold text-(--color-text-muted)">No recent activity.</p> : null}
           </div>
         </section>
       </section>
@@ -776,11 +776,11 @@ export default async function SuperAdminDashboardPage() {
             {systemHealthRows.map((item) => {
               const { tone, label } = systemHealthTone(item.key, typeof item.value === "string" ? Number.parseFloat(item.value) : item.value);
               return (
-                <div key={item.label} className="grid grid-cols-[1.4fr_0.8fr_1fr] items-center gap-3 border-b border-[var(--color-border-muted)] py-2.5 last:border-b-0">
-                  <span className="text-[11.5px] text-[var(--color-text-secondary)]">{item.label}</span>
-                  <span className="font-[var(--font-heading)] text-[12.5px] font-bold text-[var(--color-text-primary)]">{item.value}</span>
+                <div key={item.label} className="grid grid-cols-[1.4fr_0.8fr_1fr] items-center gap-3 border-b border-(--color-border-muted) py-2.5 last:border-b-0">
+                  <span className="text-[11.5px] text-(--color-text-secondary)">{item.label}</span>
+                  <span className="font-(--font-heading) text-[12.5px] font-bold text-(--color-text-primary)">{item.value}</span>
                   <div className="flex items-center justify-end gap-2">
-                    <span className="text-[10px] text-[var(--color-text-muted)]">{systemHealthThreshold[item.key]}</span>
+                    <span className="text-[10px] text-(--color-text-muted)">{systemHealthThreshold[item.key]}</span>
                     <StatusPill tone={tone} label={label} />
                   </div>
                 </div>
@@ -791,10 +791,10 @@ export default async function SuperAdminDashboardPage() {
 
         <section className="surface-card p-5">
           <div className="flex items-center justify-between">
-            <h3 className="text-[12.5px] font-semibold text-[var(--color-text-primary)]">Geographic distribution</h3>
+            <h3 className="text-[12.5px] font-semibold text-(--color-text-primary)">Geographic distribution</h3>
             <span className="text-[10.5px] font-semibold" style={{ color: "var(--color-accent-primary)" }}>State density view</span>
           </div>
-          <div className="mt-3.5 grid grid-cols-[1.1fr_2.4fr_0.7fr_0.9fr] gap-3 border-b border-[var(--color-border-muted)] pb-2.5 text-[9.5px] font-semibold uppercase tracking-[0.05em] text-[var(--color-text-muted)]">
+          <div className="mt-3.5 grid grid-cols-[1.1fr_2.4fr_0.7fr_0.9fr] gap-3 border-b border-(--color-border-muted) pb-2.5 text-[9.5px] font-semibold uppercase tracking-wider text-(--color-text-muted)">
             <span>State</span>
             <span>Share</span>
             <span>Schools</span>
@@ -803,17 +803,17 @@ export default async function SuperAdminDashboardPage() {
           {commandCenter.geography.slice(0, 6).map((item) => {
             const stateMrr = geoRevenueByState.get(item.state) ?? 0;
             return (
-              <div key={item.state} className="grid grid-cols-[1.1fr_2.4fr_0.7fr_0.9fr] items-center gap-3 border-b border-[var(--color-border-muted)] py-2.5 last:border-b-0">
-                <span className="truncate text-[11.5px] text-[var(--color-text-secondary)]">{item.state}</span>
-                <div className="h-[6.5px] overflow-hidden rounded-full bg-[var(--color-border-muted)]">
-                  <div className="h-full rounded-full bg-[var(--color-accent-primary)]" style={{ width: `${(item.schoolCount / geographyMax) * 100}%` }} />
+              <div key={item.state} className="grid grid-cols-[1.1fr_2.4fr_0.7fr_0.9fr] items-center gap-3 border-b border-(--color-border-muted) py-2.5 last:border-b-0">
+                <span className="truncate text-[11.5px] text-(--color-text-secondary)">{item.state}</span>
+                <div className="h-[6.5px] overflow-hidden rounded-full bg-(--color-border-muted)">
+                  <div className="h-full rounded-full bg-(--color-accent-primary)" style={{ width: `${(item.schoolCount / geographyMax) * 100}%` }} />
                 </div>
-                <span className="text-[11.5px] text-[var(--color-text-secondary)]">{item.schoolCount}</span>
-                <span className="text-right text-[11.5px] font-semibold text-[var(--color-text-primary)]">{formatCurrency(stateMrr)}</span>
+                <span className="text-[11.5px] text-(--color-text-secondary)">{item.schoolCount}</span>
+                <span className="text-right text-[11.5px] font-semibold text-(--color-text-primary)">{formatCurrency(stateMrr)}</span>
               </div>
             );
           })}
-          {commandCenter.geography.length === 0 ? <p className="py-8 text-center text-sm font-semibold text-[var(--color-text-muted)]">No school location data yet.</p> : null}
+          {commandCenter.geography.length === 0 ? <p className="py-8 text-center text-sm font-semibold text-(--color-text-muted)">No school location data yet.</p> : null}
         </section>
       </section>
     </div>

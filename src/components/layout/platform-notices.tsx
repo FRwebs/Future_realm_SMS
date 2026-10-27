@@ -10,7 +10,7 @@ import { cn } from "@/lib/utils/cn";
 type Tone = "info" | "warning" | "critical";
 
 const TONE: Record<Tone, string> = {
-  info: "border-[var(--color-border-subtle)] bg-[var(--color-surface-soft)] text-[var(--color-text-secondary)]",
+  info: "border-(--color-border-subtle) bg-(--color-surface-soft) text-(--color-text-secondary)",
   warning: "border-[#E9D49B] bg-[#FBF5E1] text-[#7A5B0E]",
   critical: "border-[#E7B7B0] bg-[#FBEDEA] text-[#8E2B20]"
 };
@@ -27,7 +27,7 @@ function Notice({ tone, icon: Icon, title, children, onClose }: { tone: Tone; ic
         {children ? <p className="mt-0.5 whitespace-pre-line opacity-90">{children}</p> : null}
       </div>
       {onClose ? (
-        <button type="button" onClick={onClose} aria-label="Dismiss" className="rounded p-0.5 opacity-70 hover:opacity-100">
+        <button type="button" onClick={onClose} aria-label="Dismiss" className="rounded-sm p-0.5 opacity-70 hover:opacity-100">
           <X className="size-4" />
         </button>
       ) : null}

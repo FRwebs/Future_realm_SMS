@@ -73,8 +73,8 @@ function GettingStartedTab() {
           getRowKey={(row) => row.question}
           pageSize={8}
           columns={[
-            { key: "question", header: "Question", render: (row) => <span className="font-bold text-[var(--color-text-primary)]">{row.question}</span> },
-            { key: "answer", header: "Answer", render: (row) => <span className="text-[11.5px] text-[var(--color-text-secondary)]">{row.answer}</span> }
+            { key: "question", header: "Question", render: (row) => <span className="font-bold text-(--color-text-primary)">{row.question}</span> },
+            { key: "answer", header: "Answer", render: (row) => <span className="text-[11.5px] text-(--color-text-secondary)">{row.answer}</span> }
           ]}
         />
         <ReferenceList
@@ -126,7 +126,7 @@ async function GetHelpTab() {
         getRowKey={(row) => row.subject}
         footnote="If a school is losing data or cannot run its results, do not queue it. Phone Support and Engineering in that order."
         columns={[
-          { key: "subject", header: "Subject", render: (row) => <span className="font-bold text-[var(--color-text-primary)]">{row.subject}</span> },
+          { key: "subject", header: "Subject", render: (row) => <span className="font-bold text-(--color-text-primary)">{row.subject}</span> },
           { key: "person", header: "Person", render: (row) => row.person },
           { key: "reach", header: "Reach them", render: (row) => row.reach },
           { key: "response", header: "Response", render: (row) => pill(row.response, row.tone) }
@@ -203,8 +203,8 @@ async function PlatformStatusTab() {
           getRowKey={(row) => row.area}
           footnote="A number in Watch is not a problem yet. It is a number somebody should look at again in an hour."
           columns={[
-            { key: "area", header: "Area", render: (row) => <span className="font-bold text-[var(--color-text-primary)]">{row.area}</span> },
-            { key: "state", header: "State", render: (row) => <span className="text-[11.5px] text-[var(--color-text-secondary)]">{row.state}</span> },
+            { key: "area", header: "Area", render: (row) => <span className="font-bold text-(--color-text-primary)">{row.area}</span> },
+            { key: "state", header: "State", render: (row) => <span className="text-[11.5px] text-(--color-text-secondary)">{row.state}</span> },
             { key: "health", header: "Health", sortable: false, render: (row) => row.health }
           ]}
         />

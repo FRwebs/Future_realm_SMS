@@ -824,7 +824,7 @@ const complianceTab: TabContent = {
         sub: "The same for every body, in every country.",
         per: 1,
         facts: [
-          ["Built from", "Live data at the moment you generate it", "Never a cached or rounded figure"],
+          ["Built from", "Live data at the moment you generate it", "Never a cached or rounded-sm figure"],
           [
             "Format",
             "Exactly what the recipient requires",

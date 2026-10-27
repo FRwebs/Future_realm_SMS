@@ -40,7 +40,7 @@ function DuplicateRole({ copyFrom, label }: { copyFrom: string; label: string })
       triggerLabel="Duplicate as a new role"
       title={`Duplicate ${label}`}
       description="The new role starts with the same module access and can then be trimmed. Nobody is moved onto it."
-      endpoint="/api/super-admin/team-access/roles"
+      endpoint="/api/super-admin/internal-team/roles"
       variant="secondary"
       submitLabel="Create the role"
       fields={[
@@ -69,7 +69,7 @@ function RetireRole({ id, name, holders }: { id: string; name: string; holders: 
       triggerLabel="Retire this role"
       title={`Retire ${name}`}
       description={holders.length ? "This role still has people on it, so it cannot be retired yet." : "The role stops being available to assign. Nothing already recorded against it changes."}
-      endpoint={`/api/super-admin/team-access/roles/${id}/retire`}
+      endpoint={`/api/super-admin/internal-team/roles/${id}/retire`}
       variant="danger"
       submitLabel="Retire the role"
       confirmLabel="Retire it"
@@ -136,8 +136,8 @@ function RoleReview({ row }: { row: RoleBreakdownRow }) {
           ) : null}
 
           <div className="rounded-[11px] border p-4" style={{ background: "var(--color-warning-dim)", borderColor: "#F2E4C6" }}>
-            <p className="mb-1.5 text-[11.5px] font-bold text-[var(--color-warning)]">Two rules this module enforces</p>
-            <p className="text-[11px] leading-relaxed text-[var(--color-warning)]">
+            <p className="mb-1.5 text-[11.5px] font-bold text-(--color-warning)">Two rules this module enforces</p>
+            <p className="text-[11px] leading-relaxed text-(--color-warning)">
               &quot;A Department Lead can lower but never raise&quot; is enforced: a lead can change access only for members of their own department, only up to the
               ceiling the department carries, and never above what they hold themselves. A Super Admin is not limited by a ceiling. Also real: nobody, including Super Admin, holds an action that lets them read a child&apos;s record — that function was
               never built, so it cannot be granted here or anywhere.
@@ -157,7 +157,7 @@ export function PrivilegesByRoleTable({ items }: { items: RoleBreakdownRow[] }) 
       items={items}
       getRowKey={(row) => row.role}
       columns={[
-        { key: "role", header: "Role", render: (row) => <span className="font-bold text-[var(--color-text-primary)]">{row.role}</span> },
+        { key: "role", header: "Role", render: (row) => <span className="font-bold text-(--color-text-primary)">{row.role}</span> },
         {
           key: "breadth",
           header: "Breadth",
@@ -173,7 +173,7 @@ export function PrivilegesByRoleTable({ items }: { items: RoleBreakdownRow[] }) 
         { key: "holders", header: "People", render: (row) => row.holders },
         { key: "modulesOpen", header: "Modules open", render: (row) => `${row.modulesWithAccess} of ${row.totalModules}` },
         { key: "modulesFull", header: "Modules at Full", render: (row) => `${row.modulesAtFull} of ${row.totalModules}` },
-        { key: "purpose", header: "What it is for", render: (row) => <span className="text-[11px] text-[var(--color-text-secondary)]">{row.purpose}</span> },
+        { key: "purpose", header: "What it is for", render: (row) => <span className="text-[11px] text-(--color-text-secondary)">{row.purpose}</span> },
         { key: "actions", header: "", sortable: false, render: (row) => <RoleReview row={row} /> }
       ]}
     />
@@ -201,29 +201,29 @@ export function CustomRolesTable({ items, moduleLabels }: { items: CustomRoleRow
       columns={[
         { key: "name", header: "Role", render: (row) => (
           <div className="min-w-0">
-            <p className="font-bold text-[var(--color-text-primary)]">{row.name}</p>
-            {row.description ? <p className="text-[10px] text-[var(--color-text-muted)]">{row.description}</p> : null}
+            <p className="font-bold text-(--color-text-primary)">{row.name}</p>
+            {row.description ? <p className="text-[10px] text-(--color-text-muted)">{row.description}</p> : null}
           </div>
         ) },
-        { key: "base", header: "Signs in as", render: (row) => <span className="text-[var(--color-text-secondary)]">{row.baseRole.replace(/_/g, " ").toLowerCase()}</span> },
+        { key: "base", header: "Signs in as", render: (row) => <span className="text-(--color-text-secondary)">{row.baseRole.replace(/_/g, " ").toLowerCase()}</span> },
         {
           key: "modules",
           header: "Modules open",
           render: (row) => {
             const open = Object.values(row.grid).filter((level) => level && level !== "NONE").length;
-            return <span className="font-[var(--font-mono)] font-bold text-[var(--color-text-primary)]">{open}</span>;
+            return <span className="font-(--font-mono) font-bold text-(--color-text-primary)">{open}</span>;
           },
           sortValue: (row) => Object.values(row.grid).filter((level) => level && level !== "NONE").length
         },
         {
           key: "at-full",
           header: "At full",
-          render: (row) => <span className="font-[var(--font-mono)] text-[var(--color-text-secondary)]">{Object.values(row.grid).filter((level) => level === "FULL").length}</span>
+          render: (row) => <span className="font-(--font-mono) text-(--color-text-secondary)">{Object.values(row.grid).filter((level) => level === "FULL").length}</span>
         },
         {
           key: "holders",
           header: "People on it",
-          render: (row) => (row.holders.length ? <span className="text-[11px] text-[var(--color-text-secondary)]">{row.holders.join(", ")}</span> : <span className="text-[11px] text-[var(--color-text-muted)]">Nobody yet</span>),
+          render: (row) => (row.holders.length ? <span className="text-[11px] text-(--color-text-secondary)">{row.holders.join(", ")}</span> : <span className="text-[11px] text-(--color-text-muted)">Nobody yet</span>),
           sortValue: (row) => row.holders.length
         },
         {
@@ -244,7 +244,7 @@ export function CustomRolesTable({ items, moduleLabels }: { items: CustomRoleRow
           sortable: false,
           render: (row) =>
             row.retired ? (
-              <span className="text-[11px] text-[var(--color-text-muted)]">—</span>
+              <span className="text-[11px] text-(--color-text-muted)">—</span>
             ) : (
               <div className="flex flex-wrap items-center gap-2">
                 <EditRoleGrid row={row} moduleLabels={moduleLabels} />
@@ -272,7 +272,7 @@ function EditRoleGrid({ row, moduleLabels }: { row: CustomRoleRow; moduleLabels:
       triggerLabel="Edit access"
       title={`Access for ${row.name}`}
       description="What this role can enter, and what it may do inside. It applies to everyone on the role the moment it is saved."
-      endpoint={`/api/super-admin/team-access/roles/${row.id}/grid`}
+      endpoint={`/api/super-admin/internal-team/roles/${row.id}/grid`}
       variant="secondary"
       submitLabel="Save access"
       fields={[

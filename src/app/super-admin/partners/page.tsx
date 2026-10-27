@@ -56,7 +56,7 @@ const pill = (label: string, tone: keyof typeof STATUS_TONE | string) => {
   const colours = STATUS_TONE[tone] ?? STATUS_TONE.NONE;
   return <span className="inline-flex items-center rounded-full px-[9px] py-[3px] text-[11px] font-bold" style={{ background: colours.bg, color: colours.fg }}>{label}</span>;
 };
-const dash = <span className="text-[var(--color-text-muted)]">—</span>;
+const dash = <span className="text-(--color-text-muted)">—</span>;
 
 const tabHref = (tab: string) => (tab === "partners" ? "/super-admin/partners" : `/super-admin/partners?tab=${tab}`);
 
@@ -184,17 +184,17 @@ async function PartnersTab({ registry, focus }: { registry: Registry; focus?: st
         emptyState="No partner has been registered yet."
         getRowKey={(partner) => partner.id}
         columns={[
-          { key: "partner", header: "Partner", render: (partner) => <div><p className="font-bold text-[var(--color-text-primary)]">{partner.name}</p><p className="text-[10px] text-[var(--color-text-muted)]">{partner.code ?? "No code"} · {partner.tier ?? "No tier"} · since {formatDate(partner.createdAt)}</p></div> },
+          { key: "partner", header: "Partner", render: (partner) => <div><p className="font-bold text-(--color-text-primary)">{partner.name}</p><p className="text-[10px] text-(--color-text-muted)">{partner.code ?? "No code"} · {partner.tier ?? "No tier"} · since {formatDate(partner.createdAt)}</p></div> },
           { key: "type", header: "Type", render: (partner) => partner.type ?? dash },
           { key: "region", header: "Region", render: (partner) => partner.territory ?? dash },
           { key: "schools", header: "Schools", render: (partner) => <span className="font-bold">{partner.schools}</span> },
           { key: "accrued", header: "Accrued", render: (partner) => <span className="font-bold">{partner.accrued ? formatCurrency(partner.accrued) : "₦0"}</span> },
-          { key: "agreement", header: "Agreement", render: (partner) => <div className="text-[11px] text-[var(--color-text-secondary)]">{partner.agreementReference ?? "No agreement on file"}{partner.agreementVersion ? ` · ${partner.agreementVersion}` : ""}<p className="text-[10px]" style={{ color: partner.countersignedAt ? "var(--color-success)" : "var(--color-warning)" }}>{partner.countersignedAt ? `Countersigned ${formatDate(partner.countersignedAt)} · ${partner.countersignedRef}` : "Not countersigned"}</p></div> },
+          { key: "agreement", header: "Agreement", render: (partner) => <div className="text-[11px] text-(--color-text-secondary)">{partner.agreementReference ?? "No agreement on file"}{partner.agreementVersion ? ` · ${partner.agreementVersion}` : ""}<p className="text-[10px]" style={{ color: partner.countersignedAt ? "var(--color-success)" : "var(--color-warning)" }}>{partner.countersignedAt ? `Countersigned ${formatDate(partner.countersignedAt)} · ${partner.countersignedRef}` : "Not countersigned"}</p></div> },
           { key: "status", header: "Status", render: (partner) => pill(partner.status.charAt(0) + partner.status.slice(1).toLowerCase(), partner.status) },
           {
             key: "actions", header: "", render: (partner) => (
               <ActionMenu>
-                <Link href={`/super-admin/partners?partner=${partner.id}`} className="block px-3 py-2 text-[11.5px] font-semibold text-[var(--color-text-primary)]">See every school mapped</Link>
+                <Link href={`/super-admin/partners?partner=${partner.id}`} className="block px-3 py-2 text-[11.5px] font-semibold text-(--color-text-primary)">See every school mapped</Link>
                 <ResourceActionDialog triggerLabel="Edit the record" title={`Edit ${partner.name}`} description="Contacts, agreement, rates, minimum performance and bank details." endpoint={`/api/super-admin/partners/${partner.id}`} method="PATCH" variant="secondary" submitLabel="Save" fields={partnerFields(partner)} />
                 {partner.countersignedAt ? (
                   <ResourceActionDialog
@@ -242,9 +242,9 @@ async function PartnersTab({ registry, focus }: { registry: Registry; focus?: st
           items={mapped}
           emptyState="No school is mapped to this partner yet."
           getRowKey={(school) => school.id}
-          actions={<Link href="/super-admin/partners" className="text-[11px] font-semibold text-[var(--color-text-accent)]">Close</Link>}
+          actions={<Link href="/super-admin/partners" className="text-[11px] font-semibold text-(--color-text-accent)">Close</Link>}
           columns={[
-            { key: "school", header: "School", render: (school) => <Link href={`/super-admin/schools/${school.id}`} className="font-bold text-[var(--color-text-primary)] hover:text-[var(--color-text-accent)]">{school.name}</Link> },
+            { key: "school", header: "School", render: (school) => <Link href={`/super-admin/schools/${school.id}`} className="font-bold text-(--color-text-primary) hover:text-(--color-text-accent)">{school.name}</Link> },
             { key: "location", header: "Location", render: (school) => school.location || dash },
             { key: "plan", header: "Tier", render: (school) => PLAN_LABEL[school.plan] ?? school.plan },
             { key: "students", header: "Students", render: (school) => school.students.toLocaleString() },
@@ -271,13 +271,13 @@ async function PartnersTab({ registry, focus }: { registry: Registry; focus?: st
         emptyState="No partner has registered a school yet."
         getRowKey={(row) => row.id}
         columns={[
-          { key: "partner", header: "Partner", render: (row) => <span className="font-bold text-[var(--color-text-primary)]">{row.name}</span> },
+          { key: "partner", header: "Partner", render: (row) => <span className="font-bold text-(--color-text-primary)">{row.name}</span> },
           { key: "registered", header: "Registered", render: (row) => row.registered },
           { key: "converted", header: "Converted", render: (row) => row.converted },
           { key: "conversion", header: "Conversion", render: (row) => (row.conversion === null ? dash : `${row.conversion}%`) },
           { key: "retention", header: "2nd-term retention", render: (row) => (row.retention === null ? dash : `${row.retention}%`) },
           { key: "tickets", header: "Tickets / 100 schools", render: (row) => (row.ticketsPer100 === null ? dash : row.ticketsPer100) },
-          { key: "condition", header: "Condition", render: (row) => <div>{pill(row.condition === "MET" ? "Met" : row.condition === "BREACHED" ? "Review condition reached" : "No condition set", row.condition)}{row.conditionNote ? <p className="mt-1 text-[9.5px] text-[var(--color-text-muted)]">{row.conditionNote}</p> : null}</div> }
+          { key: "condition", header: "Condition", render: (row) => <div>{pill(row.condition === "MET" ? "Met" : row.condition === "BREACHED" ? "Review condition reached" : "No condition set", row.condition)}{row.conditionNote ? <p className="mt-1 text-[9.5px] text-(--color-text-muted)">{row.conditionNote}</p> : null}</div> }
         ]}
         footnote={`Direct-sourced schools, for comparison: ${performance.direct.schools} schools · ${performance.direct.retention === null ? "retention not yet measurable" : `${performance.direct.retention}% retained`} · ${performance.direct.ticketsPer100 ?? "—"} tickets per 100 schools in the last 90 days. Second-term retention counts schools older than 240 days that are still trading.`}
       />
@@ -296,7 +296,7 @@ async function PartnersTab({ registry, focus }: { registry: Registry; focus?: st
           pageSize={false}
           getRowKey={(item) => item.row}
           columns={[
-            { key: "row", header: "", render: (item) => <span className="font-bold text-[var(--color-text-primary)]">{item.row}</span> },
+            { key: "row", header: "", render: (item) => <span className="font-bold text-(--color-text-primary)">{item.row}</span> },
             { key: "a", header: "Stream A — agency & IT", render: (item) => <span className="text-[11.5px]">{item.a}</span> },
             { key: "b", header: "Stream B — subscriptions", render: (item) => <span className="text-[11.5px]">{item.b}</span> }
           ]}
@@ -358,7 +358,7 @@ async function RegistrationsTab({ partnerOptions }: { partnerOptions: Array<{ la
         { name: "notes", label: "Reasons", type: "textarea", required: true, note: "Kept permanently against the school and the partner." }
       ]} />
     ) : (
-      <p className="text-[12px] text-[var(--color-text-muted)]">Decided. The record is kept permanently against the school and the partner.</p>
+      <p className="text-[12px] text-(--color-text-muted)">Decided. The record is kept permanently against the school and the partner.</p>
     )
   }));
 
@@ -404,7 +404,7 @@ async function RegistrationsTab({ partnerOptions }: { partnerOptions: Array<{ la
           <ResourceActionDialog triggerLabel="Send expiry alerts" title="Send expiry alerts" description="Emails every partner with a registration expiring within 14 days. This also runs by itself every hour." endpoint="/api/super-admin/partners/deals/expiry-alerts" method="POST" variant="secondary" submitLabel="Send alerts" fields={[]} />
         }
         columns={[
-          { key: "school", header: "Prospect school", render: (deal) => <div><p className="font-bold text-[var(--color-text-primary)]">{deal.prospectSchoolName}</p><p className="text-[10px] text-[var(--color-text-muted)]">{deal.prospectLocation ?? "No location"}{deal.contactName ? ` · ${deal.contactName}` : ""}</p></div> },
+          { key: "school", header: "Prospect school", render: (deal) => <div><p className="font-bold text-(--color-text-primary)">{deal.prospectSchoolName}</p><p className="text-[10px] text-(--color-text-muted)">{deal.prospectLocation ?? "No location"}{deal.contactName ? ` · ${deal.contactName}` : ""}</p></div> },
           { key: "partner", header: "Partner", render: (deal) => deal.partnerName },
           { key: "registered", header: "Registered", render: (deal) => (deal.status === "REJECTED" ? dash : formatDate(deal.registeredAt)) },
           { key: "expires", header: "Expires", render: (deal) => (deal.status === "REGISTERED" ? <span style={{ color: daysUntil(deal.validUntil) <= 14 ? "var(--color-warning)" : undefined }}>{formatDate(deal.validUntil)} · {Math.max(0, daysUntil(deal.validUntil))}d</span> : dash) },
@@ -459,14 +459,14 @@ async function CommissionTab() {
           ]} />
         }
         columns={[
-          { key: "school", header: "School", render: (line) => <span className="font-bold text-[var(--color-text-primary)]">{line.school}</span> },
+          { key: "school", header: "School", render: (line) => <span className="font-bold text-(--color-text-primary)">{line.school}</span> },
           { key: "partner", header: "Partner", render: (line) => line.partner },
           { key: "stream", header: "Stream", render: (line) => pill(line.stream, line.stream === "A" ? "ISSUED" : "NONE") },
           { key: "collected", header: "Collected", render: (line) => formatCurrency(line.collected) },
           { key: "year", header: "Yr", render: (line) => line.year ?? dash },
           { key: "rate", header: "Rate", render: (line) => formatPercent(line.rate) },
           { key: "commission", header: "Commission", render: (line) => <span className="font-bold" style={{ color: line.commission < 0 ? "var(--color-danger)" : undefined }}>{formatCurrency(line.commission)}</span> },
-          { key: "reconciled", header: "Reconciled", render: (line) => <span className="text-[11px] text-[var(--color-text-muted)]">{formatDate(line.reconciledAt)}{line.kind === "CLAWBACK" ? " · clawback" : ""}{line.statemented ? " · on a statement" : ""}</span> }
+          { key: "reconciled", header: "Reconciled", render: (line) => <span className="text-[11px] text-(--color-text-muted)">{formatDate(line.reconciledAt)}{line.kind === "CLAWBACK" ? " · clawback" : ""}{line.statemented ? " · on a statement" : ""}</span> }
         ]}
         footnote="Clawback: a reconciled payment later reversed, refunded or charged back creates a negative accrual against the next settlement. A rate change mid-term applies to invoices reconciled after the change, never retrospectively."
       />
@@ -510,16 +510,16 @@ async function StatementsTab({ focus }: { focus?: string }) {
           ]
         }}
         columns={[
-          { key: "partner", header: "Partner", render: (statement) => <div><p className="font-bold text-[var(--color-text-primary)]">{statement.partner}</p><p className="text-[10px] text-[var(--color-text-muted)]">{statement.ref}</p></div> },
+          { key: "partner", header: "Partner", render: (statement) => <div><p className="font-bold text-(--color-text-primary)">{statement.partner}</p><p className="text-[10px] text-(--color-text-muted)">{statement.ref}</p></div> },
           { key: "period", header: "Period", render: (statement) => statement.period },
           { key: "gross", header: "Gross commission", render: (statement) => formatCurrency(statement.gross) },
           { key: "claw", header: "Clawbacks", render: (statement) => formatCurrency(statement.clawbacks) },
           { key: "net", header: "Net payable", render: (statement) => <span className="font-bold">{formatCurrency(statement.net)}</span> },
-          { key: "status", header: "Status", render: (statement) => <div>{pill(statement.status === "SETTLED" ? "Settled" : statement.status === "ISSUED" ? "Awaiting settlement" : "Void", statement.status)}<p className="mt-1 text-[9.5px] text-[var(--color-text-muted)]">{statement.status === "SETTLED" ? `Settled ${statement.settledAt ? formatDate(statement.settledAt) : ""} · ${statement.paymentRef ?? ""}` : `Due ${formatDate(statement.dueAt)}`}</p></div> },
+          { key: "status", header: "Status", render: (statement) => <div>{pill(statement.status === "SETTLED" ? "Settled" : statement.status === "ISSUED" ? "Awaiting settlement" : "Void", statement.status)}<p className="mt-1 text-[9.5px] text-(--color-text-muted)">{statement.status === "SETTLED" ? `Settled ${statement.settledAt ? formatDate(statement.settledAt) : ""} · ${statement.paymentRef ?? ""}` : `Due ${formatDate(statement.dueAt)}`}</p></div> },
           {
             key: "actions", header: "", render: (statement) => (
               <ActionMenu>
-                <Link href={`/super-admin/partners?tab=statements&statement=${statement.id}`} className="block px-3 py-2 text-[11.5px] font-semibold text-[var(--color-text-primary)]">Open statement</Link>
+                <Link href={`/super-admin/partners?tab=statements&statement=${statement.id}`} className="block px-3 py-2 text-[11.5px] font-semibold text-(--color-text-primary)">Open statement</Link>
                 {statement.status === "ISSUED" ? <ResourceActionDialog triggerLabel="Settle" title={`Settle ${statement.ref}`} description={`Release ${formatCurrency(statement.net)} to ${statement.partner}. A Super Admin other than the person who issued it settles, and the deals it paid move to “commission paid”.`} endpoint={`/api/super-admin/partners/statements/${statement.id}/settle`} method="PATCH" variant="secondary" submitLabel="Mark settled" fields={[{ name: "paymentRef", label: "Bank reference of the payment", required: true }]} /> : null}
               </ActionMenu>
             )
@@ -535,22 +535,22 @@ async function StatementsTab({ focus }: { focus?: string }) {
           items={detail.lines}
           emptyState="No commission accrued in this period."
           getRowKey={(line) => `${line.school}:${line.invoice}:${line.kind}:${line.reconciledAt}`}
-          actions={<Link href="/super-admin/partners?tab=statements" className="text-[11px] font-semibold text-[var(--color-text-accent)]">Close</Link>}
+          actions={<Link href="/super-admin/partners?tab=statements" className="text-[11px] font-semibold text-(--color-text-accent)">Close</Link>}
           columns={[
-            { key: "school", header: "School", render: (line) => <span className="font-bold text-[var(--color-text-primary)]">{line.school}</span> },
-            { key: "invoice", header: "Invoice", render: (line) => <span className="font-[var(--font-mono)] text-[11px]">{line.invoice ?? "—"}</span> },
+            { key: "school", header: "School", render: (line) => <span className="font-bold text-(--color-text-primary)">{line.school}</span> },
+            { key: "invoice", header: "Invoice", render: (line) => <span className="font-(--font-mono) text-[11px]">{line.invoice ?? "—"}</span> },
             { key: "collected", header: "Collected", render: (line) => formatCurrency(line.collected) },
             { key: "rate", header: "Rate", render: (line) => `${line.rate}%${line.year ? ` · yr ${line.year}` : ""}` },
             { key: "commission", header: "Commission", render: (line) => <span className="font-bold" style={{ color: line.commission < 0 ? "var(--color-danger)" : undefined }}>{formatCurrency(line.commission)}</span> },
-            { key: "note", header: "", render: (line) => <span className="text-[10px] text-[var(--color-text-muted)]">{line.kind === "CLAWBACK" ? `Clawback${line.note ? ` — ${line.note}` : ""}` : ""}</span> }
+            { key: "note", header: "", render: (line) => <span className="text-[10px] text-(--color-text-muted)">{line.kind === "CLAWBACK" ? `Clawback${line.note ? ` — ${line.note}` : ""}` : ""}</span> }
           ]}
           footnote={`Gross ${formatCurrency(detail.gross)} · clawbacks ${formatCurrency(detail.clawbacks)} · net payable ${formatCurrency(detail.net)} · ${detail.invoices} reconciled invoice${detail.invoices === 1 ? "" : "s"}. Read-only: reproduced exactly as issued.`}
         />
       ) : null}
 
-      <section className="rounded-[14px] border border-[var(--color-border-default)] bg-white p-6">
+      <section className="rounded-[14px] border border-(--color-border-default) bg-white p-6">
         <p className="flex items-center gap-2 text-[12.5px] font-semibold text-[#0D2315]"><Landmark className="h-4 w-4" /> How a statement is paid</p>
-        <p className="mt-1.5 max-w-3xl text-[11px] leading-5 text-[var(--color-text-muted)]">Finance issues the statement; a Super Admin settles it with the bank reference. The amount is held as a liability until then. The payment run exports every awaiting statement with its partner&apos;s bank details.</p>
+        <p className="mt-1.5 max-w-3xl text-[11px] leading-5 text-(--color-text-muted)">Finance issues the statement; a Super Admin settles it with the bank reference. The amount is held as a liability until then. The payment run exports every awaiting statement with its partner&apos;s bank details.</p>
       </section>
     </div>
   );

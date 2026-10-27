@@ -12,12 +12,12 @@ export type WeekProps = {
 /** The week as the school published it: a row for each period, a column for each day; today is lit, and the lesson running now is ringed. */
 export function StudentWeek({ title, sub, foot, today, now, days, rows }: WeekProps) {
   return (
-    <section className="min-w-0 overflow-hidden rounded-[14px] border bg-[var(--color-bg-surface)] px-[18px] pb-[14px]" style={{ borderColor: "#DEE8E2" }}>
-      <div className="-mx-[18px] border-b px-[18px] pb-[12px] pt-[14px]" style={{ borderColor: "#EDF3EF" }}>
+    <section className="min-w-0 overflow-hidden rounded-[14px] border bg-(--color-bg-surface) px-[18px] pb-[14px]" style={{ borderColor: "#DEE8E2" }}>
+      <div className="mx-[-18px] border-b px-[18px] pb-[12px] pt-[14px]" style={{ borderColor: "#EDF3EF" }}>
         <h3 className="text-[12.5px] font-semibold" style={{ color: "#0D2315" }}>{title}</h3>
-        <p className="mt-[3.5px] text-[10.5px] leading-[1.5]" style={{ color: "#67766D" }}>{sub}</p>
+        <p className="mt-[3.5px] text-[10.5px] leading-normal" style={{ color: "#67766D" }}>{sub}</p>
       </div>
-      <div className="-mx-[18px] overflow-x-auto px-[18px] pt-[12px]">
+      <div className="mx-[-18px] overflow-x-auto px-[18px] pt-[12px]">
         <div className="grid min-w-[640px] gap-[6px]" style={{ gridTemplateColumns: "84px repeat(5, minmax(0, 1fr))" }}>
           <span />
           {days.map((day, index) => (
@@ -59,7 +59,7 @@ export function StudentWeek({ title, sub, foot, today, now, days, rows }: WeekPr
           )}
         </div>
       </div>
-      <p className="-mx-[18px] -mb-[14px] mt-[12px] border-t px-[18px] py-[10px] text-[10.5px] leading-[1.5]" style={{ borderColor: "#EDF3EF", background: "#F7FAF8", color: "#67766D" }}>{foot}</p>
+      <p className="mx-[-18px] mb-[-14px] mt-[12px] border-t px-[18px] py-[10px] text-[10.5px] leading-normal" style={{ borderColor: "#EDF3EF", background: "#F7FAF8", color: "#67766D" }}>{foot}</p>
     </section>
   );
 }

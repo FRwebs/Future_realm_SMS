@@ -67,14 +67,14 @@ export function RevenueStateTable({ items }: RevenueStateTableProps) {
                   +{item.newSchools90d} school{item.newSchools90d === 1 ? "" : "s"}
                 </span>
               ) : (
-                <span className="text-[var(--color-text-muted)]">Steady</span>
+                <span className="text-(--color-text-muted)">Steady</span>
               )
           },
           {
             key: "open",
             header: "",
             render: (item) => (
-              <Link href={`/super-admin/schools?state=${encodeURIComponent(item.state)}` as Route} className="font-semibold text-[var(--color-text-accent)] underline">
+              <Link href={`/super-admin/schools?state=${encodeURIComponent(item.state)}` as Route} className="font-semibold text-(--color-text-accent) underline">
                 View schools
               </Link>
             )

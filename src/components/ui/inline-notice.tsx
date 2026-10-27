@@ -28,7 +28,7 @@ export function InlineNotice({ notice, onDismiss, className, compact = false, br
   // A message that appears below the fold is no message at all: bring it into view, without jumping the page when it is already there.
   useEffect(() => {
     if (notice && (bringIntoView || notice.variant === "error" || notice.variant === "warning")) ref.current?.scrollIntoView({ block: "nearest", behavior: "smooth" });
-  }, [notice]);
+  }, [notice, bringIntoView]);
   if (!notice) return null;
   const tone = TONE[notice.variant];
   const Icon = tone.icon;
@@ -38,10 +38,10 @@ export function InlineNotice({ notice, onDismiss, className, compact = false, br
       <Icon className={cn("mt-px h-[15px] w-[15px] shrink-0", tone.icon_)} strokeWidth={2} aria-hidden="true" />
       <div className="min-w-0 flex-1">
         <p className={cn("text-[12px] font-bold leading-[1.4]", tone.text)}>{notice.title}</p>
-        {notice.description ? <p className={cn("mt-[2px] text-pretty text-[11.5px] leading-[1.5]", tone.text)}>{notice.description}</p> : null}
+        {notice.description ? <p className={cn("mt-[2px] text-pretty text-[11.5px] leading-normal", tone.text)}>{notice.description}</p> : null}
       </div>
       {onDismiss ? (
-        <button type="button" onClick={onDismiss} aria-label="Dismiss this message" className={cn("-mr-[3px] -mt-[2px] shrink-0 rounded-[6px] p-[3px] opacity-60 transition hover:opacity-100", tone.text)}>
+        <button type="button" onClick={onDismiss} aria-label="Dismiss this message" className={cn("mr-[-3px] mt-[-2px] shrink-0 rounded-[6px] p-[3px] opacity-60 transition hover:opacity-100", tone.text)}>
           <X className="h-[13px] w-[13px]" aria-hidden="true" />
         </button>
       ) : null}

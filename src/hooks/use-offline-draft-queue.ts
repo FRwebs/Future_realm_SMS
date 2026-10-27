@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 interface UseOfflineDraftQueueOptions {
   storageKey: string;
@@ -32,21 +32,22 @@ export function useOfflineDraftQueue<TPayload>({
     }
   }, [storageKey]);
 
-  const persistDrafts = (nextDrafts: TPayload[]) => {
-    setDrafts(nextDrafts);
-    localStorage.setItem(storageKey, JSON.stringify(nextDrafts));
-  };
+  const persistDrafts = useCallback(
+    (nextDrafts: TPayload[]) => {
+      setDrafts(nextDrafts);
+      localStorage.setItem(storageKey, JSON.stringify(nextDrafts));
+    },
+    [storageKey],
+  );
 
-  const saveDraft = (payload: TPayload) => {
-    persistDrafts([payload, ...drafts]);
-  };
+  const saveDraft = useCallback((payload: TPayload) => persistDrafts([payload, ...drafts]), [drafts, persistDrafts]);
 
-  const clearDrafts = () => {
+  const clearDrafts = useCallback(() => {
     setDrafts([]);
     localStorage.removeItem(storageKey);
-  };
+  }, [storageKey]);
 
-  const syncDrafts = async () => {
+  const syncDrafts = useCallback(async () => {
     if (!drafts.length) return { synced: 0 };
 
     setSyncing(true);
@@ -76,7 +77,7 @@ export function useOfflineDraftQueue<TPayload>({
 
     setSyncing(false);
     return { synced };
-  };
+  }, [drafts, endpoint, clearDrafts, persistDrafts]);
 
   return useMemo(
     () => ({
@@ -87,6 +88,6 @@ export function useOfflineDraftQueue<TPayload>({
       clearDrafts,
       syncDrafts
     }),
-    [drafts, syncing]
+    [drafts, syncing, saveDraft, clearDrafts, syncDrafts]
   );
 }

@@ -11,7 +11,7 @@ import { DAY_CODES, DAY_NAMES } from "@/lib/modules/timetable-periods";
 import { cn } from "@/lib/utils/cn";
 
 const API = "/api/v1/class-structure/timetables";
-const CARD = "min-w-0 rounded-[14px] border border-[#DEE8E2] bg-[var(--color-bg-surface)]";
+const CARD = "min-w-0 rounded-[14px] border border-[#DEE8E2] bg-(--color-bg-surface)";
 
 const STATE: Record<string, { label: string; dot: string; chip: string }> = {
   RUNNING: { label: "Running now", dot: "#17714F", chip: "border-[#CFE4DB] bg-[#F1F8F4] text-[#17714F]" },
@@ -182,7 +182,7 @@ export function TimetablePreview({
               <span className="h-[4.5px] w-[4.5px] rounded-full bg-[#5FD6B4]" />
               <span className="text-[9px] font-bold uppercase tracking-[0.14em] text-white/50">Class &amp; Timetable · Preview</span>
             </div>
-            <h1 className="font-[family-name:var(--font-heading)] text-[19px] font-extrabold leading-[1.15] tracking-[-0.024em] text-white">{version.name}</h1>
+            <h1 className="font-(family-name:--font-heading) text-[19px] font-extrabold leading-[1.15] tracking-[-0.024em] text-white">{version.name}</h1>
             <p className="mt-1 text-[11px] leading-[1.45] text-white/60">
               {version.term ?? "No term"} · {armsOnIt} arm{armsOnIt === 1 ? "" : "s"} · {lessonPeriods} periods a day ·{" "}
               {clashes.length ? `${clashes.length} clash${clashes.length === 1 ? "" : "es"}` : "no clashes"}
@@ -210,7 +210,7 @@ export function TimetablePreview({
       <section className={cn(CARD, "p-[18px]")}>
         <div className="mb-[13px] flex flex-wrap items-start justify-between gap-3 border-b border-[#EDF3EF] pb-[12px]">
           <div>
-            <h2 className="font-[family-name:var(--font-heading)] text-[14px] font-extrabold tracking-[-0.018em] text-[#0D2315]">{byTeacher ? teacherName ?? "A teacher" : arm?.name ?? "Choose an arm"}</h2>
+            <h2 className="font-(family-name:--font-heading) text-[14px] font-extrabold tracking-[-0.018em] text-[#0D2315]">{byTeacher ? teacherName ?? "A teacher" : arm?.name ?? "Choose an arm"}</h2>
             <p className="mt-[3px] text-[11px] text-[#67766D]">
               {byTeacher ? `Every period ${teacherName ?? "they"} teach${teacherName ? "es" : ""}, across all arms.` : arm ? `${arm.level}${arm.formMaster ? ` · form master ${arm.formMaster}` : ""}${arm.room ? ` · ${arm.room}` : ""} · ${placed} of ${days.length * lessonPeriods} periods placed` : "No arm has a week in this timetable yet."}
             </p>
@@ -308,7 +308,7 @@ export function TimetablePreview({
                               {there ? (
                                 <>
                                   <p className="truncate text-[11px] font-semibold text-[#243B2E]">{there.subject}</p>
-                                  <p className="mt-[1px] truncate text-[9.5px] text-[#67766D]">{there.arm}</p>
+                                  <p className="mt-px truncate text-[9.5px] text-[#67766D]">{there.arm}</p>
                                 </>
                               ) : (
                                 <span className="text-[11px] text-[#C2D2C8]">—</span>
@@ -324,7 +324,7 @@ export function TimetablePreview({
                             {cell ? (
                               <>
                                 <p className={cn("truncate text-[11px] font-semibold", clash ? "text-[#B23B3B]" : "text-[#243B2E]")}>{subject?.name ?? "A subject"}</p>
-                                <p className="mt-[1px] truncate text-[9.5px] text-[#67766D]">{subject?.teacher ?? "No teacher"}</p>
+                                <p className="mt-px truncate text-[9.5px] text-[#67766D]">{subject?.teacher ?? "No teacher"}</p>
                               </>
                             ) : (
                               <span className="text-[11px] text-[#C2D2C8]">—</span>
@@ -350,7 +350,7 @@ export function TimetablePreview({
       {panel === "publish" ? (
         <section className={cn(CARD, "p-[18px] print:hidden")}>
           <h3 className="text-[12.5px] font-semibold text-[#0D2315]">Publish {version.name}?</h3>
-          <p className="mt-[4px] text-[11px] leading-[1.5] text-[#67766D]">
+          <p className="mt-[4px] text-[11px] leading-normal text-[#67766D]">
             It replaces the running timetable when it takes effect. The one it replaces is archived and can be published again. A timetable with a teacher in two rooms in one period is refused, and the answer names who.
           </p>
           <div className="mt-[12px] grid gap-[10px] sm:grid-cols-2">
@@ -401,7 +401,7 @@ export function TimetablePreview({
             onChange={(event) => setNote(event.target.value)}
             placeholder="A note to staff (optional)"
             rows={2}
-            className="mt-[10px] w-full rounded-[9px] border-[1.5px] border-[#E4EDE8] bg-white px-[10px] py-[8px] text-[11.5px] outline-none focus:border-[#12796A]"
+            className="mt-[10px] w-full rounded-[9px] border-[1.5px] border-[#E4EDE8] bg-white px-[10px] py-[8px] text-[11.5px] outline-hidden focus:border-[#12796A]"
           />
           <div className="mt-[12px] flex gap-2">
             <button type="button" className={SOLID} disabled={pending} onClick={publish}>{pending ? "Publishing…" : "Publish it"}</button>
@@ -413,11 +413,11 @@ export function TimetablePreview({
       {panel === "copy" ? (
         <section className={cn(CARD, "p-[18px] print:hidden")}>
           <h3 className="text-[12.5px] font-semibold text-[#0D2315]">Make an editable draft from {version.name}</h3>
-          <p className="mt-[4px] text-[11px] leading-[1.5] text-[#67766D]">The running timetable is not changed. The draft is yours to edit and publish when it is ready.</p>
+          <p className="mt-[4px] text-[11px] leading-normal text-[#67766D]">The running timetable is not changed. The draft is yours to edit and publish when it is ready.</p>
           <input
             value={copyName}
             onChange={(event) => setCopyName(event.target.value)}
-            className="mt-[10px] w-full rounded-[9px] border-[1.5px] border-[#E4EDE8] bg-white px-[10px] py-[8px] text-[11.5px] outline-none focus:border-[#12796A]"
+            className="mt-[10px] w-full rounded-[9px] border-[1.5px] border-[#E4EDE8] bg-white px-[10px] py-[8px] text-[11.5px] outline-hidden focus:border-[#12796A]"
           />
           <div className="mt-[12px] flex gap-2">
             <button type="button" className={SOLID} disabled={pending} onClick={copy}>{pending ? "Creating…" : "Create the draft"}</button>

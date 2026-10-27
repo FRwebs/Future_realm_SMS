@@ -20,9 +20,9 @@ export default async function TellTheSchoolPage() {
   return (
     <div className="portal-page">
       <section className="surface-hero p-6 md:p-7">
-        <Link href={"/portals/parent" as Route} className="text-[13px] font-semibold text-[var(--color-text-accent)]">Back to parent portal</Link>
-        <h1 className="mt-3 font-[var(--font-heading)] text-[26px] font-black text-[var(--color-text-primary)]">Tell the school</h1>
-        <p className="mt-1 text-[13px] text-[var(--color-text-secondary)]">An absence explanation, a change of who collects your child, or a question. A person at the school owns it from the moment it arrives.</p>
+        <Link href={"/portals/parent" as Route} className="text-[13px] font-semibold text-(--color-text-accent)">Back to parent portal</Link>
+        <h1 className="mt-3 font-(--font-heading) text-[26px] font-black text-(--color-text-primary)">Tell the school</h1>
+        <p className="mt-1 text-[13px] text-(--color-text-secondary)">An absence explanation, a change of who collects your child, or a question. A person at the school owns it from the moment it arrives.</p>
       </section>
       <TellTheSchool options={options} submissions={submissions} />
     </div>
