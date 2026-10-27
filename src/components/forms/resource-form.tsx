@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { Controller, useForm, type Control, type RegisterOptions } from "react-hook-form";
 import {
   AlertTriangle,
   CheckCircle2,
@@ -9,7 +10,7 @@ import {
   XCircle,
 } from "lucide-react";
 
-import { InlineNotice, type Notice } from "@/components/ui/inline-notice";
+import { FieldMessage, InlineNotice, type Notice } from "@/components/ui/inline-notice";
 import { useOfflineDraftQueue } from "@/hooks/use-offline-draft-queue";
 import { readReply } from "@/lib/modules/submit";
 
@@ -116,42 +117,51 @@ function getCookie(name: string) {
     ?.split("=")[1];
 }
 
-/** The mockup's switch row: a real on/off control with a line saying what each position does. Sends "true" or "false". */
-function SwitchField({ field }: { field: ResourceField }) {
-  const [on, setOn] = useState(field.on ?? field.defaultValue === "true");
+/** The mockup's switch row: a real on/off control with a line saying what each position does. Holds "true" or "false". */
+function SwitchField({ field, control }: { field: ResourceField; control: Control<Record<string, unknown>> }) {
   return (
-    <button
-      type="button"
-      role="switch"
-      aria-checked={on}
-      disabled={field.disabled}
-      onClick={() => setOn((value) => !value)}
-      style={{ display: "flex", alignItems: "flex-start", gap: 9, borderRadius: 10, padding: "9px 11px", minWidth: 0, textAlign: "left", cursor: field.disabled ? "not-allowed" : "pointer", background: on ? "#F4FAF7" : "#FCFDFC", border: `1px solid ${on ? "#CFE4DB" : "#E6EEE9"}`, opacity: field.disabled ? 0.7 : 1 }}
-    >
-      <input type="hidden" name={field.name} value={on ? "true" : "false"} />
-      <span style={{ width: 27, height: 15.5, borderRadius: 100, flex: "none", marginTop: 1, display: "flex", alignItems: "center", padding: "0 2px", background: on ? "var(--color-accent-primary)" : "#DEE8E2", justifyContent: on ? "flex-end" : "flex-start", transition: "background 120ms" }}>
-        <span style={{ width: 11.5, height: 11.5, borderRadius: 100, background: "#fff" }} />
-      </span>
-      <span style={{ minWidth: 0 }}>
-        <span style={{ display: "block", fontSize: 11, fontWeight: 600, color: "#0D2315", textWrap: "pretty" }}>{field.label}</span>
-        {field.note ? <span style={{ display: "block", fontSize: 10, color: "#5f6e65", marginTop: 2, lineHeight: 1.4 }}>{field.note}</span> : null}
-      </span>
-    </button>
+    <Controller
+      control={control}
+      name={field.name}
+      render={({ field: state }) => {
+        const on = state.value === "true";
+        return (
+          <button
+            type="button"
+            role="switch"
+            aria-checked={on}
+            disabled={field.disabled}
+            onClick={() => state.onChange(on ? "false" : "true")}
+            onBlur={state.onBlur}
+            style={{ display: "flex", alignItems: "flex-start", gap: 9, borderRadius: 10, padding: "9px 11px", minWidth: 0, textAlign: "left", cursor: field.disabled ? "not-allowed" : "pointer", background: on ? "#F4FAF7" : "#FCFDFC", border: `1px solid ${on ? "#CFE4DB" : "#E6EEE9"}`, opacity: field.disabled ? 0.7 : 1 }}
+          >
+            <span style={{ width: 27, height: 15.5, borderRadius: 100, flex: "none", marginTop: 1, display: "flex", alignItems: "center", padding: "0 2px", background: on ? "var(--color-accent-primary)" : "#DEE8E2", justifyContent: on ? "flex-end" : "flex-start", transition: "background 120ms" }}>
+              <span style={{ width: 11.5, height: 11.5, borderRadius: 100, background: "#fff" }} />
+            </span>
+            <span style={{ minWidth: 0 }}>
+              <span style={{ display: "block", fontSize: 11, fontWeight: 600, color: "#0D2315", textWrap: "pretty" }}>{field.label}</span>
+              {field.note ? <span style={{ display: "block", fontSize: 10, color: "#5f6e65", marginTop: 2, lineHeight: 1.4 }}>{field.note}</span> : null}
+            </span>
+          </button>
+        );
+      }}
+    />
   );
 }
 
 /** A searchable checklist for choosing several things. Nothing ticked means "all", which each field's note says. */
-function MultiPicker({ field }: { field: ResourceField }) {
-  const [picked, setPicked] = useState<string[]>(Array.isArray(field.defaultValue) ? field.defaultValue : []);
+function MultiPicker({ field, control }: { field: ResourceField; control: Control<Record<string, unknown>> }) {
+  return <Controller control={control} name={field.name} render={({ field: state }) => <PickerBody field={field} picked={Array.isArray(state.value) ? (state.value as string[]) : []} onChange={state.onChange} />} />;
+}
+
+function PickerBody({ field, picked, onChange }: { field: ResourceField; picked: string[]; onChange: (next: string[]) => void }) {
+  const setPicked = (next: string[] | ((current: string[]) => string[])) => onChange(typeof next === "function" ? next(picked) : next);
   const [query, setQuery] = useState("");
   const options = field.options ?? [];
   const shown = options.filter((option) => option.label.toLowerCase().includes(query.trim().toLowerCase()));
   const toggle = (value: string) => setPicked((current) => (current.includes(value) ? current.filter((item) => item !== value) : [...current, value]));
   return (
     <div style={{ border: "1px solid #DEE8E2", borderRadius: 10, background: "#fff", overflow: "hidden" }}>
-      {picked.map((value) => (
-        <input key={value} type="hidden" name={field.name} value={value} />
-      ))}
       <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 11px", borderBottom: "1px solid #EDF3EF" }}>
         <input
           value={query}
@@ -193,6 +203,37 @@ function MultiPicker({ field }: { field: ResourceField }) {
   );
 }
 
+/** What each field insists on, said in words beside it — the form never relies on the browser's own bubbles. */
+function rulesFor(field: ResourceField): RegisterOptions<Record<string, unknown>, string> {
+  const rules: RegisterOptions<Record<string, unknown>, string> = {};
+  if (field.required) rules.required = `${field.label} is needed.`;
+  rules.validate = (value) => {
+    const text = typeof value === "string" ? value.trim() : "";
+    if (!text) return true;
+    if (field.type === "email" && !/^\S+@\S+\.\S+$/.test(text)) return "That does not look like an email address.";
+    if (field.type === "number") {
+      const number = Number(text);
+      if (!Number.isFinite(number)) return "Enter a number.";
+      if (field.min !== undefined && number < field.min) return `Use ${field.min} or more.`;
+      if (field.max !== undefined && number > field.max) return `Use ${field.max} or less.`;
+    }
+    return true;
+  };
+  return rules;
+}
+
+/** The starting value of each control, as the form holds it. A switch holds "true" or "false"; a multiselect holds the chosen values. */
+function startingValues(fields: ResourceField[]): Record<string, unknown> {
+  return Object.fromEntries(
+    fields.map((field) => {
+      if (field.type === "multiselect") return [field.name, Array.isArray(field.defaultValue) ? field.defaultValue : []];
+      if (field.type === "switch") return [field.name, field.on ?? field.defaultValue === "true" ? "true" : "false"];
+      if (field.type === "select") return [field.name, field.defaultValue !== undefined ? String(field.defaultValue) : (field.options?.[0]?.value ?? "")];
+      return [field.name, field.defaultValue !== undefined && !Array.isArray(field.defaultValue) ? String(field.defaultValue) : ""];
+    }),
+  );
+}
+
 export function ResourceForm({
   formId,
   title,
@@ -225,7 +266,15 @@ export function ResourceForm({
   const [explained, setExplained] = useState<{ field: string; notice: Notice } | null>(null);
   const explain = (field: ResourceField, title: string, description: string) => setExplained({ field: field.name, notice: { variant: "info", title, description } });
   const [pending, setPending] = useState(false);
-  const [live, setLive] = useState<Record<string, string>>(() => Object.fromEntries(fields.filter((field) => field.defaultValue !== undefined && !Array.isArray(field.defaultValue)).map((field) => [field.name, String(field.defaultValue)])));
+  // The form's values live in React Hook Form; what the "static" preview fields compute from is what has been typed so far.
+  const form = useForm<Record<string, unknown>>({ defaultValues: startingValues(fields) });
+  const { register, control, formState: { errors } } = form;
+  const watched = form.watch();
+  const live: Record<string, string> = Object.fromEntries(Object.entries(watched).map(([key, value]) => [key, Array.isArray(value) ? "" : String(value ?? "")]));
+  const problem = (field: ResourceField) => {
+    const found = errors[field.name]?.message;
+    return typeof found === "string" ? found : undefined;
+  };
   const [message, setMessage] = useState<string | null>(null);
   const [tone, setTone] = useState<"success" | "warning" | "danger">("success");
   const [needsConfirmation, setNeedsConfirmation] = useState(false);
@@ -237,10 +286,7 @@ export function ResourceForm({
     endpoint,
   });
 
-  async function submitPayload(
-    payload: Record<string, unknown>,
-    form: HTMLFormElement
-  ) {
+  async function submitPayload(payload: Record<string, unknown>) {
     setPending(true);
     setMessage(null);
 
@@ -288,51 +334,48 @@ export function ResourceForm({
     }
   }
 
+  /** Moves a stepped form on once the step on show is in order; says what is not, beside the fields, if it is not. */
+  async function advance() {
+    const here = fields.filter((field) => field.wizardStep === steps![stepIndex]!.name && field.type !== "static" && !field.disabled).map((field) => field.name);
+    if (await form.trigger(here)) onStepChange?.(stepIndex + 1);
+  }
+
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-
     if (steps && stepIndex < steps.length - 1) {
-      const here = event.currentTarget.querySelectorAll<HTMLElement>(`[data-step="${steps[stepIndex].name}"] input, [data-step="${steps[stepIndex].name}"] select, [data-step="${steps[stepIndex].name}"] textarea`);
-      for (const element of Array.from(here)) {
-        const control = element as HTMLInputElement;
-        if (typeof control.checkValidity === "function" && !control.checkValidity()) {
-          control.reportValidity();
-          return;
-        }
-      }
-      onStepChange?.(stepIndex + 1);
+      await advance();
       return;
     }
+    await form.handleSubmit(send, () => {
+      setTone("warning");
+      setMessage("Some fields need attention — they are marked below.");
+    })();
+  }
 
-    const formData = new FormData(event.currentTarget);
+  async function send(values: Record<string, unknown>) {
     let payload: Record<string, unknown>;
     try {
       payload = fields.reduce<Record<string, unknown>>((acc, field) => {
-        if (field.type === "static" || field.disabled) {
+        // Display-only rows carry no value; only real controls are sent.
+        if (field.type === "static" || field.type === "toggle" || field.type === "locked" || field.disabled) {
           return acc;
         }
+        const raw = values[field.name];
         if (field.type === "multiselect") {
-          acc[field.name] = JSON.stringify(
-            formData
-              .getAll(field.name)
-              .map((value) => (typeof value === "string" ? value : value.name))
-              .filter(Boolean)
-          );
+          acc[field.name] = JSON.stringify((Array.isArray(raw) ? raw : []).filter(Boolean));
           return acc;
         }
 
         if (field.object) {
           const group = (acc[field.object] ?? {}) as Record<string, boolean | string>;
-          const raw = formData.get(field.name);
           if (field.type === "switch") group[field.name] = raw === "true";
           else if (typeof raw === "string" && raw !== "") group[field.name] = raw;
           acc[field.object] = group;
           return acc;
         }
 
-        const value = formData.get(field.name);
-        if (value !== null) {
-          const rawValue = typeof value === "string" ? value : value.name;
+        if (raw !== undefined && raw !== null) {
+          const rawValue = String(raw);
           if (field.parse === "json" && rawValue.trim() === "" && !field.required) {
             return acc;
           }
@@ -373,7 +416,7 @@ export function ResourceForm({
       return;
     }
 
-    await submitPayload(payload, event.currentTarget);
+    await submitPayload(payload);
   }
 
   async function handleSyncDrafts() {
@@ -405,7 +448,6 @@ export function ResourceForm({
     return "Details";
   };
   const segments: Array<{ section?: string; step?: string; kind: "toggle" | "switch" | "locked" | "field"; fields: ResourceField[] }> = [];
-  const hiddenFields = fields.filter((field) => field.type === "hidden");
   for (const rawField of fields.filter((field) => field.type !== "hidden")) {
     const field = sectioned ? rawField : { ...rawField, section: sectionOf(rawField) };
     const kind: "toggle" | "switch" | "locked" | "field" = field.type === "locked" || field.type === "toggle" || (field.type === "static" && /^(fixed for everyone|withheld by policy)/i.test(field.section ?? "")) ? "locked" : field.type === "switch" ? "switch" : "field";
@@ -463,15 +505,7 @@ export function ResourceForm({
         </div>
       ) : null}
 
-      <form
-        id={formId}
-        onSubmit={handleSubmit}
-        onInput={(event) => setLive(Object.fromEntries(Array.from(new FormData(event.currentTarget).entries()).map(([key, value]) => [key, typeof value === "string" ? value : value.name])))}
-        className="grid gap-5"
-      >
-          {hiddenFields.map((field) => (
-            <input key={field.name} type="hidden" name={field.name} defaultValue={field.defaultValue as string | undefined} />
-          ))}
+      <form id={formId} onSubmit={handleSubmit} noValidate className="grid gap-5">
           <div>
             {segments.map((segment, segIndex) => (
               <div
@@ -506,7 +540,7 @@ export function ResourceForm({
                 ) : segment.kind === "switch" ? (
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
                     {segment.fields.map((field) => (
-                      <SwitchField key={field.name} field={field} />
+                      <SwitchField key={field.name} field={field} control={control} />
                     ))}
                   </div>
                 ) : segment.kind === "toggle" ? (
@@ -575,15 +609,15 @@ export function ResourceForm({
                           </div>
                           {field.type === "textarea" ? (
                             <textarea
-                              name={field.name}
-                              required={field.required}
+                              {...register(field.name, rulesFor(field))}
+                              aria-invalid={Boolean(problem(field))}
+                              aria-required={field.required}
                               placeholder={field.placeholder}
-                              defaultValue={field.defaultValue as string | undefined}
                               rows={4}
                               style={{ width: "100%", fontSize: 11.5, color: "#0D2315", fontWeight: 500, borderRadius: 10, padding: "10px 11.5px", background: "#fff", border: "1px solid #DEE8E2", outline: "none", resize: "vertical" }}
                             />
                           ) : field.type === "multiselect" ? (
-                            <MultiPicker field={field} />
+                            <MultiPicker field={field} control={control} />
                           ) : (
                             <div
                               role={field.type === "static" ? "button" : undefined}
@@ -621,10 +655,10 @@ export function ResourceForm({
                                 </span>
                               ) : field.type === "select" ? (
                                 <select
-                                  name={field.name}
-                                  required={field.required}
+                                  {...(field.disabled ? {} : register(field.name, rulesFor(field)))}
+                                  aria-invalid={Boolean(problem(field))}
+                                  aria-required={field.required}
                                   disabled={field.disabled}
-                                  defaultValue={field.defaultValue as string | undefined}
                                   style={{ fontSize: 11.5, color: "#0D2315", fontWeight: 500, background: "transparent", border: "none", outline: "none", width: "100%", appearance: "none" }}
                                 >
                                   {(field.options ?? []).map((option) => (
@@ -635,10 +669,10 @@ export function ResourceForm({
                                 </select>
                               ) : (
                                 <input
-                                  name={field.name}
-                                  required={field.required}
+                                  {...register(field.name, rulesFor(field))}
+                                  aria-invalid={Boolean(problem(field))}
+                                  aria-required={field.required}
                                   placeholder={field.placeholder}
-                                  defaultValue={field.defaultValue as string | number | undefined}
                                   min={field.min}
                                   max={field.max}
                                   step={field.step}
@@ -658,6 +692,7 @@ export function ResourceForm({
                               ) : null}
                             </div>
                           )}
+                          <FieldMessage id={`${formId ?? "form"}-${field.name}-error`}>{problem(field)}</FieldMessage>
                           {field.note ? <div style={{ fontSize: 10, color: "#5f6e65", marginTop: 4.5, lineHeight: 1.45 }}>{field.note}</div> : null}
                         {explained?.field === field.name ? <div style={{ marginTop: 7 }}><InlineNotice notice={explained.notice} onDismiss={() => setExplained(null)} compact /></div> : null}
                         </label>
@@ -754,10 +789,7 @@ export function ResourceForm({
                 <button
                   type="button"
                   disabled={pending}
-                  onClick={(event) => {
-                    const form = event.currentTarget.closest("form");
-                    if (form) void submitPayload(pendingPayload, form);
-                  }}
+                  onClick={() => void submitPayload(pendingPayload)}
                   className="btn-primary h-9 px-4 text-[12px]"
                 >
                   {pending ? "Saving..." : confirmLabel}
@@ -787,10 +819,7 @@ export function ResourceForm({
     const reasonField = fields.find((field) => field.type === "textarea");
     const FeedbackIcon = feedbackIcon;
     return (
-      <form id={formId} onSubmit={handleSubmit} className="mx-[-23.5px] my-[-20px]">
-        {hiddenFields.map((field) => (
-          <input key={field.name} type="hidden" name={field.name} defaultValue={field.defaultValue as string | undefined} />
-        ))}
+      <form id={formId} onSubmit={handleSubmit} noValidate className="mx-[-23.5px] my-[-20px]">
         <div style={{ padding: "22px 24px 18px" }}>
           <div style={{ fontFamily: "var(--font-heading)", fontSize: 18, fontWeight: 800, letterSpacing: "-0.015em", color: "#0D2315", textWrap: "pretty" }}>{title}</div>
           <div style={{ fontSize: 12, color: "#5D6B63", lineHeight: 1.6, marginTop: 8, textWrap: "pretty" }}>{description}</div>
@@ -802,13 +831,14 @@ export function ResourceForm({
                 {reasonField.required ? " (required)" : ""}
               </div>
               <textarea
-                name={reasonField.name}
-                required={reasonField.required}
+                {...register(reasonField.name, rulesFor(reasonField))}
+                aria-invalid={Boolean(problem(reasonField))}
+                aria-required={reasonField.required}
                 placeholder={reasonField.placeholder ?? "Say what prompted this. It travels with the record permanently."}
-                defaultValue={reasonField.defaultValue as string | undefined}
                 rows={3}
                 style={{ width: "100%", minHeight: 74, fontSize: 11.5, color: "#0D2315", fontWeight: 500, borderRadius: 11, padding: "11px 13px", background: "#fff", border: "1.5px solid #DEE8E2", outline: "none", resize: "vertical", lineHeight: 1.55 }}
               />
+              <FieldMessage id={`${formId ?? "form"}-${reasonField.name}-error`}>{problem(reasonField)}</FieldMessage>
               {reasonField.note ? <div style={{ fontSize: 10, color: "#5f6e65", marginTop: 4.5, lineHeight: 1.45 }}>{reasonField.note}</div> : null}
             </>
           ) : null}

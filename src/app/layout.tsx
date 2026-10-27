@@ -1,9 +1,11 @@
 import type { Metadata, Viewport } from "next";
 
+import { ProductAnalytics } from "@/components/layout/product-analytics";
 import { ServiceWorker } from "@/components/layout/service-worker";
 import { WarmApi } from "@/components/layout/warm-api";
 import { WebVitals } from "@/components/layout/web-vitals";
 import { NextIntlClientProvider } from "next-intl";
+import { headers } from "next/headers";
 import { getLocale, getMessages } from "next-intl/server";
 import { NuqsAdapter } from "nuqs/adapters/next/app";
 
@@ -41,10 +43,12 @@ export default async function RootLayout({
 }>) {
   const locale = await getLocale();
   const messages = await getMessages();
+  // The page's one inline script (the theme, applied before paint so there is no flash) carries this request's nonce from the middleware.
+  const nonce = (await headers()).get("x-nonce") ?? undefined;
   return (
     <html lang={locale} data-theme="light" suppressHydrationWarning>
       <head>
-        <script dangerouslySetInnerHTML={{ __html: themeBootstrapScript }} />
+        <script nonce={nonce} dangerouslySetInnerHTML={{ __html: themeBootstrapScript }} />
       </head>
       <body className="app-body min-h-screen antialiased">
         <ThemeProvider>
@@ -54,6 +58,7 @@ export default async function RootLayout({
                 <WarmApi />
                 <ServiceWorker />
                 <WebVitals />
+                <ProductAnalytics />
                 {children}
               </QueryProvider>
             </NuqsAdapter>

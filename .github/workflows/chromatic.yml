@@ -1,0 +1,31 @@
+# Visual review of every Storybook story. Runs only when a CHROMATIC_PROJECT_TOKEN secret exists on the repository (create a project at
+# chromatic.com, copy its token into Settings → Secrets → Actions). Until then the job is skipped, not failed.
+name: Chromatic
+
+on:
+  pull_request:
+  push:
+    branches: ["main"]
+
+jobs:
+  chromatic:
+    runs-on: ubuntu-latest
+    env:
+      CHROMATIC_PROJECT_TOKEN: ${{ secrets.CHROMATIC_PROJECT_TOKEN }}
+    steps:
+      - name: Skip when no token is configured
+        if: env.CHROMATIC_PROJECT_TOKEN == ''
+        run: echo "No CHROMATIC_PROJECT_TOKEN secret — skipping visual review."
+      - uses: actions/checkout@v4
+        if: env.CHROMATIC_PROJECT_TOKEN != ''
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        if: env.CHROMATIC_PROJECT_TOKEN != ''
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm install
+        if: env.CHROMATIC_PROJECT_TOKEN != ''
+      - run: npm run chromatic
+        if: env.CHROMATIC_PROJECT_TOKEN != ''

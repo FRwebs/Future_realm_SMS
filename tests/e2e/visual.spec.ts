@@ -21,7 +21,7 @@ async function signIn(page: Page, email: string) {
 
 async function settle(page: Page) {
   await page.waitForLoadState("networkidle");
-  await page.addStyleTag({ content: "*,*::before,*::after{animation:none!important;transition:none!important;caret-color:transparent!important}" });
+  await page.addStyleTag({ content: "*,*::before,*::after{animation:none!important;transition:none!important;caret-color:transparent!important} nextjs-portal{display:none!important}" });
   await page.waitForTimeout(600);
 }
 

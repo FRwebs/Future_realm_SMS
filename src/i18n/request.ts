@@ -14,7 +14,21 @@ async function resolveLocale(): Promise<Locale> {
   return asked.find(isLocale) ?? DEFAULT_LOCALE;
 }
 
+type Messages = Record<string, unknown>;
+
+/** Anything a language does not have is taken from English, so a half-translated screen shows English words, not keys. */
+function withFallback(preferred: Messages, fallback: Messages): Messages {
+  const merged: Messages = { ...fallback };
+  for (const [key, value] of Object.entries(preferred)) {
+    const base = fallback[key];
+    merged[key] = value && typeof value === "object" && base && typeof base === "object" ? withFallback(value as Messages, base as Messages) : value;
+  }
+  return merged;
+}
+
 export default getRequestConfig(async () => {
   const locale = await resolveLocale();
-  return { locale, timeZone: "Africa/Lagos", messages: (await import(`../messages/${locale}.json`)).default };
+  const english = (await import("../messages/en.json")).default as Messages;
+  const messages = locale === DEFAULT_LOCALE ? english : withFallback((await import(`../messages/${locale}.json`)).default as Messages, english);
+  return { locale, timeZone: "Africa/Lagos", messages };
 });

@@ -1,4 +1,5 @@
 import { LoginForm } from "@/components/forms/login-form";
+import { LanguagePicker } from "@/components/layout/language-picker";
 
 export default async function LoginPage({ searchParams }: { searchParams: Promise<{ verified?: string }> }) {
   const { verified } = await searchParams;
@@ -93,6 +94,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
           </p>
 
           <LoginForm />
+          <LanguagePicker />
         </div>
       </div>
     </main>

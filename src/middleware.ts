@@ -44,10 +44,10 @@ async function verifySession(token?: string) {
   }
 }
 
-function redirectWithNotice(request: NextRequest, role: Role, pathname: string) {
+function redirectWithNotice(request: NextRequest, role: Role, pathname: string): NextResponse | null {
   const targetPath = getDefaultPathForRole(role);
   if (pathname === targetPath) {
-    return NextResponse.next();
+    return null;
   }
 
   const target = new URL(targetPath, request.url);
@@ -56,11 +56,51 @@ function redirectWithNotice(request: NextRequest, role: Role, pathname: string) 
   return NextResponse.redirect(target);
 }
 
+/**
+ * The Content-Security-Policy for one page view. Scripts run only if they carry this request's nonce (Next.js attaches it to its own
+ * scripts when it sees it in the policy), and `'strict-dynamic'` lets those scripts load their own chunks — so an injected script, which has
+ * no nonce, never runs. Styles stay `'unsafe-inline'` because React writes style attributes; a style cannot run code.
+ */
+function contentSecurityPolicy(nonce: string) {
+  const dev = process.env.NODE_ENV === "development";
+  const api = process.env.NEST_API_URL?.trim();
+  const sentry = process.env.NEXT_PUBLIC_SENTRY_DSN ? "https://*.ingest.sentry.io https://*.ingest.us.sentry.io https://*.ingest.de.sentry.io" : "";
+  const analytics = process.env.NEXT_PUBLIC_POSTHOG_HOST?.trim() ?? "";
+  return [
+    "default-src 'self'",
+    `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'${dev ? " 'unsafe-eval'" : ""}`,
+    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+    "font-src 'self' https://fonts.gstatic.com data:",
+    "img-src 'self' data: blob: https:",
+    `connect-src ${["'self'", api, sentry, analytics, dev ? "ws://localhost:3000 ws://127.0.0.1:3000" : ""].filter(Boolean).join(" ")}`,
+    "worker-src 'self'",
+    "manifest-src 'self'",
+    "frame-ancestors 'none'",
+    "base-uri 'self'",
+    "form-action 'self'",
+    "object-src 'none'",
+  ].join("; ");
+}
+
 export async function middleware(request: NextRequest) {
+  const nonce = btoa(crypto.randomUUID());
+  const policy = contentSecurityPolicy(nonce);
+  const requestHeaders = new Headers(request.headers);
+  requestHeaders.set("x-nonce", nonce);
+  requestHeaders.set("content-security-policy", policy);
+
+  const decide = await decideAccess(request);
+  const response = decide ?? NextResponse.next({ request: { headers: requestHeaders } });
+  response.headers.set("Content-Security-Policy", policy);
+  return response;
+}
+
+/** Sends a person somewhere else when they may not see this page; `null` lets the request through. */
+async function decideAccess(request: NextRequest): Promise<NextResponse | null> {
   const { pathname } = request.nextUrl;
 
   if (!protectedPrefixes.some((prefix) => pathname.startsWith(prefix))) {
-    return NextResponse.next();
+    return null;
   }
 
   const session = await verifySession(request.cookies.get("fr_session")?.value);
@@ -98,9 +138,10 @@ export async function middleware(request: NextRequest) {
     return redirectWithNotice(request, session.role, pathname);
   }
 
-  return NextResponse.next();
+  return null;
 }
 
 export const config = {
-  matcher: ["/super-admin/:path*", "/dashboard/:path*", "/admissions/:path*", "/students/:path*", "/parents/:path*", "/teachers/:path*", "/attendance/:path*", "/academics/:path*", "/finance/:path*", "/communications/:path*", "/analytics/:path*", "/operations/:path*", "/settings/:path*", "/school/:path*", "/portals/:path*"]
+  // Every page, so every page gets a nonce — but not the API, the framework's own files, or static assets, which are not pages.
+  matcher: ["/((?!api/|_next/static|_next/image|favicon.ico|sw.js|offline.html|manifest.webmanifest|pwa-icon/|images/).*)"],
 };
