@@ -147,7 +147,7 @@ async function CampaignsTab({ campaigns }: { campaigns: SuperAdminCampaignRow[] 
         pageSize={false}
         emptyState="No campaigns yet — use New campaign above to draft one."
         columns={[
-          { key: "name", header: "Campaign", render: (item) => <div><p className="text-[11.5px] font-semibold text-[var(--color-text-primary)]">{item.name}</p><p className="text-[10.5px] text-[#8C9A92]">{item.scheduledAt ? `${item.status === "SENT" || item.status === "SENDING" ? "Sent" : "Scheduled"} ${formatDate(item.scheduledAt)}` : item.sentAt ? `Sent ${formatDate(item.sentAt)}` : "Draft"}</p></div> },
+          { key: "name", header: "Campaign", render: (item) => <div><p className="text-[11.5px] font-semibold text-[var(--color-text-primary)]">{item.name}</p><p className="text-[10.5px] text-[#5f6e65]">{item.scheduledAt ? `${item.status === "SENT" || item.status === "SENDING" ? "Sent" : "Scheduled"} ${formatDate(item.scheduledAt)}` : item.sentAt ? `Sent ${formatDate(item.sentAt)}` : "Draft"}</p></div> },
           { key: "type", header: "Type", render: (item) => <StatusPill bg={item.type === "PROMOTIONAL" ? "#FDF6E7" : "#E4F1EC"} fg={item.type === "PROMOTIONAL" ? "#8A6410" : "#17604F"} label={item.type === "PROMOTIONAL" ? "Promotional" : "Operational"} /> },
           { key: "channel", header: "Channel", render: (item) => CHANNEL_LABEL[item.channel] ?? item.channel },
           { key: "audience", header: "Audience", render: (item) => item.recipientCount.toLocaleString() },
@@ -202,11 +202,11 @@ async function CampaignsTab({ campaigns }: { campaigns: SuperAdminCampaignRow[] 
               </span>
               <div className="min-w-0 flex-1">
                 <p className="text-[11.5px] font-semibold text-[#0D2315]">{rule.name}</p>
-                <p className="text-[10.5px] text-[#8C9A92]">{rule.rule}</p>
+                <p className="text-[10.5px] text-[#5f6e65]">{rule.rule}</p>
               </div>
             </div>
-          )) : <p className="text-[11px] text-[#8C9A92]">Nothing recurs yet.</p>}
-          {rules.length > shown.length ? <p className="mt-2 text-[10.5px] text-[#8C9A92]">{rules.length - shown.length} more under Triggers</p> : null}
+          )) : <p className="text-[11px] text-[#5f6e65]">Nothing recurs yet.</p>}
+          {rules.length > shown.length ? <p className="mt-2 text-[10.5px] text-[#5f6e65]">{rules.length - shown.length} more under Triggers</p> : null}
         </section>
 
         <section className="rounded-[14px] border border-[#E6EEE9] bg-[#F7FAF8] p-[18px]">
@@ -278,7 +278,7 @@ async function TemplatesTab({ group, channel, status }: { group?: string; channe
       }
       emptyState="No message templates yet."
       columns={[
-        { key: "name", header: "Template", render: (item) => <div><p className="font-semibold text-[var(--color-text-primary)]">{item.name}</p><p className="text-[11.5px] text-[#8C9A92]">{item.triggerKey ? `${TRIGGERS.find((t) => t.key === item.triggerKey)?.label ?? item.triggerKey} · ` : ""}v{item.version ?? 1}</p></div> },
+        { key: "name", header: "Template", render: (item) => <div><p className="font-semibold text-[var(--color-text-primary)]">{item.name}</p><p className="text-[11.5px] text-[#5f6e65]">{item.triggerKey ? `${TRIGGERS.find((t) => t.key === item.triggerKey)?.label ?? item.triggerKey} · ` : ""}v{item.version ?? 1}</p></div> },
         { key: "category", header: "Group", render: (item) => item.category },
         { key: "channel", header: "Channels", render: (item) => item.channel },
         { key: "approval", header: "Status", render: (item) => <StatusBadge status={item.approvalStatus} tone={item.approvalStatus === "APPROVED" ? "success" : item.approvalStatus === "REJECTED" ? "danger" : "warning"} /> },
@@ -545,7 +545,7 @@ async function TriggersTab({ templates }: { templates: SuperAdminMessageTemplate
         items={withheld}
         getRowKey={(row) => row.event}
         pageSize={false}
-        actions={<span className="text-[11.5px] text-[#8C9A92]">No controls — withheld by policy</span>}
+        actions={<span className="text-[11.5px] text-[#5f6e65]">No controls — withheld by policy</span>}
         columns={[
           { key: "event", header: "Event", render: (row) => <span className="font-semibold text-[var(--color-text-primary)]">{row.event}</span> },
           { key: "recipient", header: "Recipient", render: (row) => row.recipient },

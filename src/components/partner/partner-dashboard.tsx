@@ -20,7 +20,7 @@ function Panel({ title, sub, children }: { title: string; sub?: string; children
     <section className="overflow-hidden rounded-[14px] border border-[#DEE8E2] bg-white">
       <div className="px-5 pb-3 pt-4">
         <h2 className="text-[14px] font-semibold text-[#0D2315]">{title}</h2>
-        {sub ? <p className="mt-1 text-[11.5px] text-[#8C9A92]">{sub}</p> : null}
+        {sub ? <p className="mt-1 text-[11.5px] text-[#5f6e65]">{sub}</p> : null}
       </div>
       {children}
     </section>
@@ -28,12 +28,12 @@ function Panel({ title, sub, children }: { title: string; sub?: string; children
 }
 
 function Table({ head, rows, empty }: { head: string[]; rows: React.ReactNode[][]; empty: string }) {
-  if (rows.length === 0) return <p className="px-5 pb-5 text-[12.5px] text-[#8C9A92]">{empty}</p>;
+  if (rows.length === 0) return <p className="px-5 pb-5 text-[12.5px] text-[#5f6e65]">{empty}</p>;
   return (
     <div className="overflow-x-auto">
       <table className="w-full border-collapse text-left">
         <thead>
-          <tr>{head.map((h) => <th key={h} className="whitespace-nowrap border-b border-[#E6EEE9] bg-[#F7FAF8] px-5 py-[11px] text-[10.5px] font-semibold uppercase tracking-[0.05em] text-[#8C9A92]">{h}</th>)}</tr>
+          <tr>{head.map((h) => <th key={h} className="whitespace-nowrap border-b border-[#E6EEE9] bg-[#F7FAF8] px-5 py-[11px] text-[10.5px] font-semibold uppercase tracking-[0.05em] text-[#5f6e65]">{h}</th>)}</tr>
         </thead>
         <tbody>
           {rows.map((row, index) => (
@@ -67,7 +67,7 @@ export function PartnerDashboard() {
   }
 
   if (failed) return <p className="p-10 text-[13px] text-[#B23B3B]">The portal could not be reached. Try again in a moment.</p>;
-  if (!data) return <p className="p-10 text-[13px] text-[#8C9A92]">Loading…</p>;
+  if (!data) return <p className="p-10 text-[13px] text-[#5f6e65]">Loading…</p>;
 
   const active = data.schools.filter((school) => school.state === "ACTIVE").length;
   const openDeals = data.deals.filter((deal) => deal.status === "REGISTERED");
@@ -92,9 +92,9 @@ export function PartnerDashboard() {
           ["Statements", String(data.commission.statements.length), `${data.commission.statements.filter((s) => s.status === "SETTLED").length} settled`]
         ].map(([title, value, detail]) => (
           <article key={title} className="rounded-[14px] border border-[#DEE8E2] bg-white px-[18px] py-4">
-            <p className="text-[10.5px] font-semibold uppercase tracking-[0.05em] text-[#77857C]">{title}</p>
+            <p className="text-[10.5px] font-semibold uppercase tracking-[0.05em] text-[#5f6e65]">{title}</p>
             <p className="mt-[11px] font-[var(--font-body)] text-[23px] font-extrabold tracking-[-0.03em] text-[#0D2315]">{value}</p>
-            <p className="mt-[7px] text-[11.5px] text-[#8C9A92]">{detail}</p>
+            <p className="mt-[7px] text-[11.5px] text-[#5f6e65]">{detail}</p>
           </article>
         ))}
       </section>
@@ -103,7 +103,7 @@ export function PartnerDashboard() {
         <Table
           head={["School", "Tier", "Tenure", "State", "Commission earned"]}
           empty="No school has signed up through one of your registrations yet."
-          rows={data.schools.map((school) => [<div key="n"><p className="font-semibold text-[#0D2315]">{school.name}</p><p className="text-[11.5px] text-[#8C9A92]">{school.location || "—"}</p></div>, label(school.tier), `${school.tenureMonths} month${school.tenureMonths === 1 ? "" : "s"}`, label(school.state), naira(school.commission)])}
+          rows={data.schools.map((school) => [<div key="n"><p className="font-semibold text-[#0D2315]">{school.name}</p><p className="text-[11.5px] text-[#5f6e65]">{school.location || "—"}</p></div>, label(school.tier), `${school.tenureMonths} month${school.tenureMonths === 1 ? "" : "s"}`, label(school.state), naira(school.commission)])}
         />
       </Panel>
 
@@ -111,7 +111,7 @@ export function PartnerDashboard() {
         <Table
           head={["Prospect school", "Registered", "Valid until", "Status"]}
           empty="You have not registered a deal yet."
-          rows={data.deals.map((deal) => [<div key="p"><p className="font-semibold text-[#0D2315]">{deal.prospect}</p><p className="text-[11.5px] text-[#8C9A92]">{deal.location ?? "—"}</p></div>, day(deal.registeredAt), deal.status === "REGISTERED" ? `${day(deal.validUntil)} · ${Math.max(0, deal.daysLeft)} days left` : "—", label(deal.status)])}
+          rows={data.deals.map((deal) => [<div key="p"><p className="font-semibold text-[#0D2315]">{deal.prospect}</p><p className="text-[11.5px] text-[#5f6e65]">{deal.location ?? "—"}</p></div>, day(deal.registeredAt), deal.status === "REGISTERED" ? `${day(deal.validUntil)} · ${Math.max(0, deal.daysLeft)} days left` : "—", label(deal.status)])}
         />
       </Panel>
 
@@ -123,7 +123,7 @@ export function PartnerDashboard() {
         />
       </Panel>
 
-      <p className="px-1 text-[11.5px] leading-[1.6] text-[#8C9A92]">This portal never shows student, staff or guardian data, or what a school pays. Questions about a figure go to your partner manager.</p>
+      <p className="px-1 text-[11.5px] leading-[1.6] text-[#5f6e65]">This portal never shows student, staff or guardian data, or what a school pays. Questions about a figure go to your partner manager.</p>
     </div>
   );
 }

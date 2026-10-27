@@ -8,7 +8,7 @@ export function BarList({ title, sub, items, empty, footer }: { title: string; s
     <section className="surface-card min-w-0 overflow-hidden">
       <div className="px-5 pb-[14px] pt-4">
         <h3 className="text-pretty text-[14px] font-semibold leading-[1.3] text-[var(--color-text-primary)]">{title}</h3>
-        {sub ? <p className="mt-1 text-pretty text-[11.5px] leading-[1.5] text-[#8C9A92]">{sub}</p> : null}
+        {sub ? <p className="mt-1 text-pretty text-[11.5px] leading-[1.5] text-[#5f6e65]">{sub}</p> : null}
       </div>
       <div className="px-5 pb-[18px] pt-1">
         {items.map((item) => (
@@ -23,7 +23,7 @@ export function BarList({ title, sub, items, empty, footer }: { title: string; s
             {item.note ? <p className="mt-[5px] text-[11px] text-[#9FB8A7]">{item.note}</p> : null}
           </div>
         ))}
-        {items.length === 0 ? <p className="mt-[14px] text-[12.5px] text-[#8C9A92]">{empty ?? "Nothing to show yet."}</p> : null}
+        {items.length === 0 ? <p className="mt-[14px] text-[12.5px] text-[#5f6e65]">{empty ?? "Nothing to show yet."}</p> : null}
       </div>
       {footer ? <div className="border-t border-[#F2F7F4] px-5 pb-[18px] pt-[14px]">{footer}</div> : null}
     </section>

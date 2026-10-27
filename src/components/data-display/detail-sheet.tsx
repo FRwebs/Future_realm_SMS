@@ -111,7 +111,7 @@ export function SheetCard({ title, sub, children }: { title?: string; sub?: stri
       {title ? (
         <div className="border-b border-[#EDF3EF] px-[14.5px] pb-[10px] pt-[12.5px]">
           <p className="text-[11.5px] font-semibold text-[#0D2315]">{title}</p>
-          {sub ? <p className="mt-[2.5px] text-pretty text-[10.5px] leading-[1.5] text-[#8C9A92]">{sub}</p> : null}
+          {sub ? <p className="mt-[2.5px] text-pretty text-[10.5px] leading-[1.5] text-[#5f6e65]">{sub}</p> : null}
         </div>
       ) : null}
       {children}
@@ -125,7 +125,7 @@ export function DetailFacts({ title, rows }: { title: string; rows: Array<{ labe
       <div className="px-[14.5px] pb-[9px] pt-[3.5px]">
         {rows.map((row) => (
           <div key={row.label} className="flex items-start justify-between gap-[14.5px] border-b border-[#F4F8F6] py-2 last:border-b-0">
-            <span className="max-w-[180px] flex-none text-[11px] text-[#77857C]">{row.label}</span>
+            <span className="max-w-[180px] flex-none text-[11px] text-[#5f6e65]">{row.label}</span>
             <span className={`text-pretty text-right text-[11.5px] text-[#0D2315] ${row.bold ? "font-semibold" : "font-medium"}`}>{row.value}</span>
           </div>
         ))}

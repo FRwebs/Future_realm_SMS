@@ -92,10 +92,10 @@ function NowCard({ card }: { card: MyWorkNowCard }) {
       </div>
       <div className="mt-[11.5px] flex items-baseline gap-[6.5px]">
         <span className={`font-[var(--font-body)] text-[24.5px] font-extrabold leading-none tracking-[-0.03em] [font-variant-numeric:tabular-nums] ${toneToValueColor[card.tone]}`}>{card.value}</span>
-        <span className="whitespace-nowrap text-[10.5px] text-[#8c9a92]">{card.unit}</span>
+        <span className="whitespace-nowrap text-[10.5px] text-[#5f6e65]">{card.unit}</span>
       </div>
       <p className="mt-[4.5px] text-[11.5px] font-semibold text-[var(--color-text-primary)]">{card.label}</p>
-      <p className="mt-1.5 text-[10.5px] leading-[1.5] text-[#77857c]">{card.note}</p>
+      <p className="mt-1.5 text-[10.5px] leading-[1.5] text-[#5f6e65]">{card.note}</p>
       <Link
         href={card.link as Route}
         className="mt-[11.5px] rounded-[7px] border border-[#e1ebe5] bg-[#f2f7f4] py-2 text-center text-[10.5px] font-semibold text-[var(--color-text-primary)] transition hover:border-[var(--color-accent-primary)] hover:text-[var(--color-text-accent)]"
@@ -297,7 +297,7 @@ export default async function MyWorkPage() {
           <div className="overflow-hidden rounded-[14px] border border-[var(--color-border-default)] bg-[var(--color-bg-surface)]">
             <div className="border-b border-[var(--color-border-muted)] px-[16px] pb-[11.5px] pt-[13.5px]">
               <p className="font-[var(--font-heading)] text-[12px] font-extrabold text-[var(--color-text-primary)]">Recently viewed</p>
-              <p className="mt-0.5 text-[10.5px] text-[#8c9a92]">For resuming interrupted work</p>
+              <p className="mt-0.5 text-[10.5px] text-[#5f6e65]">For resuming interrupted work</p>
             </div>
             {recentViews.length === 0 ? (
               <div className="px-[16px] py-6 text-[11.5px] text-[var(--color-text-muted)]">Nothing yet — a school or ticket you open will appear here so you can pick it up again.</div>

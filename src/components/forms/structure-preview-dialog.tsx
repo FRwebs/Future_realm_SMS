@@ -52,7 +52,7 @@ export function StructurePreviewDialog({ triggerLabel, title, description, field
               <div key={`${field.label}-${index}`}>
                 {showHeader ? (
                   <div style={{ display: "flex", alignItems: "center", gap: 9, marginBottom: 11 }}>
-                    <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: "#8C9A92", whiteSpace: "nowrap" }}>
+                    <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: "#5f6e65", whiteSpace: "nowrap" }}>
                       {field.section}
                     </div>
                     <div style={{ height: 1, flex: 1, background: "#EDF3EF" }} />
@@ -78,7 +78,7 @@ export function StructurePreviewDialog({ triggerLabel, title, description, field
                     <path d="M8.5 10.5V8a3.5 3.5 0 0 1 7 0v2.5" />
                   </svg>
                 </div>
-                {field.note ? <div style={{ fontSize: 11, color: "#8C9A92", marginTop: 5, lineHeight: 1.45 }}>{field.note}</div> : null}
+                {field.note ? <div style={{ fontSize: 11, color: "#5f6e65", marginTop: 5, lineHeight: 1.45 }}>{field.note}</div> : null}
               </div>
             );
           })}

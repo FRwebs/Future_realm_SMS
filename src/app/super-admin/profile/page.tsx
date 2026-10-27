@@ -93,7 +93,7 @@ function initials(name: string) {
 function FieldLine({ label, value }: { label: string; value?: React.ReactNode }) {
   return (
     <div className="flex items-center justify-between gap-4 border-b border-[#F2F7F4] px-5 py-[10px] last:border-b-0">
-      <dt className="text-[11.5px] text-[#77857C]">{label}</dt>
+      <dt className="text-[11.5px] text-[#5f6e65]">{label}</dt>
       <dd className="text-right text-[11.5px] font-semibold text-[var(--color-text-primary)]">{value || "Not recorded"}</dd>
     </div>
   );
@@ -181,7 +181,7 @@ export default async function SuperAdminProfilePage() {
         <article className="overflow-hidden rounded-[14px] border border-[var(--color-border-default)] bg-[var(--color-bg-surface)]">
           <div className="flex items-center justify-between gap-3 border-b border-[#EDF3EF] px-5 py-[13.5px]">
             <p className="text-[12.5px] font-semibold text-[var(--color-text-primary)]">Recent actions by you</p>
-            <p className="whitespace-nowrap text-[10.5px] text-[#8C9A92]">Immutable audit trail</p>
+            <p className="whitespace-nowrap text-[10.5px] text-[#5f6e65]">Immutable audit trail</p>
           </div>
           <div>
             {myActions.length ? (
@@ -207,7 +207,7 @@ export default async function SuperAdminProfilePage() {
       <div className="flex min-w-0 flex-col gap-3.5">
         <article className="rounded-[14px] border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] p-5">
           <p className="text-[12.5px] font-semibold text-[var(--color-text-primary)]">What you can do</p>
-          <p className="mb-3.5 mt-1 text-[10.5px] leading-[1.5] text-[#8C9A92]">
+          <p className="mb-3.5 mt-1 text-[10.5px] leading-[1.5] text-[#5f6e65]">
             Derived from your role&apos;s real permission grant — not editable here.
           </p>
           {permissionRows.length ? (
@@ -233,19 +233,19 @@ export default async function SuperAdminProfilePage() {
         <article className="rounded-[14px] border border-[#E1EBE5] bg-[var(--color-bg-subtle)] p-[16px]">
           <p className="mb-3 text-[12px] font-semibold text-[var(--color-text-primary)]">Your portfolio</p>
           <div className="flex items-center justify-between gap-3 border-t border-[#E7EEEA] py-2 first:border-t-0">
-            <p className="text-[11px] text-[#77857C]">Active sessions</p>
+            <p className="text-[11px] text-[#5f6e65]">Active sessions</p>
             <p className="text-[11px] font-semibold text-[var(--color-text-primary)]">{mySessions.length}</p>
           </div>
           <div className="flex items-center justify-between gap-3 border-t border-[#E7EEEA] py-2">
-            <p className="text-[11px] text-[#77857C]">Full-access modules</p>
+            <p className="text-[11px] text-[#5f6e65]">Full-access modules</p>
             <p className="text-[11px] font-semibold text-[var(--color-text-primary)]">{fullAccessCount}</p>
           </div>
           <div className="flex items-center justify-between gap-3 border-t border-[#E7EEEA] py-2">
-            <p className="text-[11px] text-[#77857C]">Actions logged (recent)</p>
+            <p className="text-[11px] text-[#5f6e65]">Actions logged (recent)</p>
             <p className="text-[11px] font-semibold text-[var(--color-text-primary)]">{myActions.length}</p>
           </div>
           <div className="flex items-center justify-between gap-3 border-t border-[#E7EEEA] py-2">
-            <p className="text-[11px] text-[#77857C]">Last login</p>
+            <p className="text-[11px] text-[#5f6e65]">Last login</p>
             <p className="text-[11px] font-semibold text-[var(--color-text-primary)]">{profile.lastLoginAt ? formatDate(profile.lastLoginAt) : "Never"}</p>
           </div>
         </article>
@@ -258,7 +258,7 @@ export default async function SuperAdminProfilePage() {
           <div className="flex items-center justify-between gap-3.5 border-b border-[#F2F7F4] px-5 py-3">
             <div className="min-w-0">
               <p className="text-[11.5px] font-semibold text-[var(--color-text-primary)]">Password</p>
-              <p className="text-pretty mt-0.5 text-[10px] text-[#8C9A92]">Keep your account secure with a strong password.</p>
+              <p className="text-pretty mt-0.5 text-[10px] text-[#5f6e65]">Keep your account secure with a strong password.</p>
             </div>
             <ResourceActionDialog
               triggerLabel="Change"
@@ -280,7 +280,7 @@ export default async function SuperAdminProfilePage() {
           <div className="flex items-center justify-between gap-3.5 px-5 py-3">
             <div className="min-w-0">
               <p className="text-[11.5px] font-semibold text-[var(--color-text-primary)]">Production access</p>
-              <p className="text-pretty mt-0.5 text-[10px] text-[#8C9A92]">Granted {formatDate(profile.createdAt)} · every action is written to the audit log.</p>
+              <p className="text-pretty mt-0.5 text-[10px] text-[#5f6e65]">Granted {formatDate(profile.createdAt)} · every action is written to the audit log.</p>
             </div>
             <span className="shrink-0 rounded-full bg-[var(--color-bg-subtle)] px-[9px] py-[3px] text-[11px] font-bold text-[var(--color-text-secondary)]">Audited</span>
           </div>

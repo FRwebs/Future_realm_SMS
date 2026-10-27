@@ -219,7 +219,7 @@ export function CampaignComposer({ templateOptions, planFilterOptions, platformN
 
         {audienceFilters.map((f) => (
           <div key={f.label} className="flex items-center justify-between gap-3 border-b border-[#F2F7F4] py-2.5">
-            <div className="text-[11.5px] text-[#77857C]">{f.label}</div>
+            <div className="text-[11.5px] text-[#5f6e65]">{f.label}</div>
             <div className="w-[55%]">{f.node}</div>
           </div>
         ))}
@@ -238,7 +238,7 @@ export function CampaignComposer({ templateOptions, planFilterOptions, platformN
       <section className="rounded-[14px] border border-[var(--color-border-default)] bg-white p-5">
         <div className="mb-3.5 flex items-center justify-between">
           <p className="text-[12.5px] font-semibold text-[#0D2315]">Message composer</p>
-          <p className="text-[10.5px] text-[#8C9A92]">Sender is always “{platformName}”</p>
+          <p className="text-[10.5px] text-[#5f6e65]">Sender is always “{platformName}”</p>
         </div>
         <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Campaign name * — internal, recipients never see it" style={{ ...fieldInputStyle, marginBottom: 14, background: "#F7FAF8", border: "1px solid #E1EBE5", borderRadius: 9, padding: "11px 13px" }} />
 
@@ -260,17 +260,17 @@ export function CampaignComposer({ templateOptions, planFilterOptions, platformN
           })}
         </div>
 
-        <div className="mb-1.5 text-[10px] font-semibold text-[#77857C]">Start from a template (optional)</div>
+        <div className="mb-1.5 text-[10px] font-semibold text-[#5f6e65]">Start from a template (optional)</div>
         <select value={templateId} onChange={(e) => setTemplateId(e.target.value)} style={{ ...fieldInputStyle, marginBottom: 14, background: "#F7FAF8", border: "1px solid #E1EBE5", borderRadius: 9, padding: "11px 13px" }}>
           {templateOptions.map((o) => (
             <option key={o.value} value={o.value}>{o.label}</option>
           ))}
         </select>
 
-        <div className="mb-1.5 text-[10px] font-semibold text-[#77857C]">Subject line (email only)</div>
+        <div className="mb-1.5 text-[10px] font-semibold text-[#5f6e65]">Subject line (email only)</div>
         <input value={subject} onChange={(e) => setSubject(e.target.value)} placeholder="e.g. Term 2 fee reminder" style={{ ...fieldInputStyle, marginBottom: 14, background: "#F7FAF8", border: "1px solid #E1EBE5", borderRadius: 9, padding: "11px 13px" }} />
 
-        <div className="mb-1.5 text-[10px] font-semibold text-[#77857C]">Message body *</div>
+        <div className="mb-1.5 text-[10px] font-semibold text-[#5f6e65]">Message body *</div>
         <textarea
           value={body}
           onChange={(e) => setBody(e.target.value)}
@@ -291,11 +291,11 @@ export function CampaignComposer({ templateOptions, planFilterOptions, platformN
 
         <div className="mt-4 flex items-center gap-2.5">
           <div className="ml-auto flex items-center gap-2.5">
-            <label className="text-[11px] text-[#8C9A92]">
+            <label className="text-[11px] text-[#5f6e65]">
               Schedule for
               <input type="datetime-local" value={scheduledAt} onChange={(e) => setScheduledAt(e.target.value)} className="ml-2" style={{ fontSize: 12, border: "1px solid #DEE8E2", borderRadius: 8, padding: "6px 9px" }} />
             </label>
-            <label className="text-[11px] text-[#8C9A92]">
+            <label className="text-[11px] text-[#5f6e65]">
               Repeat
               <select value={recurrence} onChange={(e) => setRecurrence(e.target.value)} disabled={!scheduledAt} className="ml-2" style={{ fontSize: 12, border: "1px solid #DEE8E2", borderRadius: 8, padding: "6px 9px" }}>
                 <option value="">Once</option>
@@ -313,8 +313,8 @@ export function CampaignComposer({ templateOptions, planFilterOptions, platformN
           <button type="button" onClick={handleTest} disabled={testing} className="whitespace-nowrap rounded-[10px] border border-[#DEE8E2] px-3.5 py-2.5 text-[11.5px] font-semibold text-[#435048] transition hover:bg-[#EFF6F2] disabled:opacity-60">
             {testing ? "Sending…" : "Send test"}
           </button>
-          <button type="button" onClick={closeComposer} className="rounded-[10px] px-3 py-2.5 text-[11.5px] font-semibold text-[#8C9A92] hover:text-[#0D2315]">Cancel</button>
-          <span className="w-full text-[11px] text-[#8C9A92]">Nothing sends until it is approved</span>
+          <button type="button" onClick={closeComposer} className="rounded-[10px] px-3 py-2.5 text-[11.5px] font-semibold text-[#5f6e65] hover:text-[#0D2315]">Cancel</button>
+          <span className="w-full text-[11px] text-[#5f6e65]">Nothing sends until it is approved</span>
         </div>
       </section>
 
@@ -326,7 +326,7 @@ export function CampaignComposer({ templateOptions, planFilterOptions, platformN
               <div className="flex h-[23.5px] w-[23.5px] items-center justify-center rounded-[8px] bg-[#0D2315] font-[var(--font-display)] text-[9px] font-bold text-white">{platformName.charAt(0).toUpperCase()}</div>
               <div>
                 <div className="text-[11px] font-semibold">{platformName}</div>
-                <div className="text-[9.5px] text-[#8C9A92]">{channel === "EMAIL" ? "Email · inbox preview" : channel === "SMS" ? "SMS · Termii gateway" : "WhatsApp Business"}</div>
+                <div className="text-[9.5px] text-[#5f6e65]">{channel === "EMAIL" ? "Email · inbox preview" : channel === "SMS" ? "SMS · Termii gateway" : "WhatsApp Business"}</div>
               </div>
             </div>
             <div className="rounded-[10px] bg-white p-3.5 text-[11.5px] leading-relaxed text-[#2F3B34]">
@@ -346,7 +346,7 @@ export function CampaignComposer({ templateOptions, planFilterOptions, platformN
           {channelRules.map((cr) => (
             <div key={cr.channel} className="border-b border-[#F2F7F4] py-2 last:border-0">
               <p className="text-[11.5px] font-semibold text-[#0D2315]">{cr.channel}</p>
-              <p className="mt-0.5 text-[10.5px] text-[#8C9A92]">{cr.rule}</p>
+              <p className="mt-0.5 text-[10.5px] text-[#5f6e65]">{cr.rule}</p>
             </div>
           ))}
         </section>

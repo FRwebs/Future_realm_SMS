@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 
 import { WarmApi } from "@/components/layout/warm-api";
+import { QueryProvider } from "@/components/providers/query-provider";
 import { ThemeProvider } from "@/components/theme/theme-provider";
 
 import "./globals.css";
@@ -35,8 +36,10 @@ export default function RootLayout({
       </head>
       <body className="app-body min-h-screen antialiased">
         <ThemeProvider>
-          <WarmApi />
-          {children}
+          <QueryProvider>
+            <WarmApi />
+            {children}
+          </QueryProvider>
         </ThemeProvider>
       </body>
     </html>

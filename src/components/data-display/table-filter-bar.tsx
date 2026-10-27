@@ -40,7 +40,7 @@ export function TableFilterBar({ search, filters, note }: TableFilterBarProps) {
             value={search.value}
             onChange={(event) => search.onChange(event.target.value)}
             placeholder={search.placeholder}
-            className="min-w-0 flex-1 border-none bg-transparent text-[11.5px] text-[#0D2315] outline-none placeholder:text-[#9FB8A7]"
+            className="min-w-0 flex-1 border-none bg-transparent text-[11.5px] text-[#0D2315] outline-none placeholder:text-[#7a8f82]"
           />
           {search.value ? (
             <button
@@ -61,7 +61,7 @@ export function TableFilterBar({ search, filters, note }: TableFilterBarProps) {
             key={filter.label}
             className="relative flex items-center gap-[6.5px] rounded-[9px] border border-[#DEE8E2] bg-white px-[10px] py-[7px] text-[11px] text-[#0D2315]"
           >
-            <span className="text-[#8C9A92]">{filter.label}</span>
+            <span className="text-[#5f6e65]">{filter.label}</span>
             <select
               value={filter.value}
               onChange={(event) => filter.onChange?.(event.target.value)}
@@ -80,13 +80,13 @@ export function TableFilterBar({ search, filters, note }: TableFilterBarProps) {
             key={filter.label}
             className="flex items-center gap-[6.5px] rounded-[9px] border border-[#DEE8E2] bg-white px-[10px] py-[7px] text-[11px] text-[#0D2315]"
           >
-            <span className="text-[#8C9A92]">{filter.label}</span>
+            <span className="text-[#5f6e65]">{filter.label}</span>
             <span className="font-semibold">{filter.value}</span>
           </div>
         )
       )}
 
-      {note ? <div className="ml-auto text-[10.5px] text-[#8C9A92]">{note}</div> : null}
+      {note ? <div className="ml-auto text-[10.5px] text-[#5f6e65]">{note}</div> : null}
     </div>
   );
 }

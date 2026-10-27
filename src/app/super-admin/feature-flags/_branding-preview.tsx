@@ -77,7 +77,7 @@ export function BrandingPreview({ branding }: { branding: Branding }) {
         size="report"
         footer={
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-[14.5px]">
-            <p className="max-w-[378px] text-pretty text-[10.5px] leading-[1.5] text-[#8C9A92]">
+            <p className="max-w-[378px] text-pretty text-[10.5px] leading-[1.5] text-[#5f6e65]">
               A preview is a drawing, not a check. It cannot tell you whether the logo file loads for a parent on a slow
               connection, or whether the school owns the mark.
             </p>
@@ -94,7 +94,7 @@ export function BrandingPreview({ branding }: { branding: Branding }) {
         <div className="grid gap-[18px]">
           <section>
             <div className="mb-[10px] flex items-center gap-2">
-              <span className="whitespace-nowrap text-[9px] font-bold uppercase tracking-[0.12em] text-[#8C9A92]">
+              <span className="whitespace-nowrap text-[9px] font-bold uppercase tracking-[0.12em] text-[#5f6e65]">
                 Report card header
               </span>
               <span className="h-px flex-1 bg-[#EDF3EF]" />
@@ -119,7 +119,7 @@ export function BrandingPreview({ branding }: { branding: Branding }) {
               </div>
               <div className="px-[16px] py-[12px]">
                 <p className="text-[11.5px] font-bold text-[#0D2315]">{SAMPLE.student}</p>
-                <p className="text-[10px] text-[#8C9A92]">{SAMPLE.admission}</p>
+                <p className="text-[10px] text-[#5f6e65]">{SAMPLE.admission}</p>
                 <table className="mt-[10px] w-full border-separate border-spacing-0 text-[11px]">
                   <thead>
                     <tr>
@@ -156,7 +156,7 @@ export function BrandingPreview({ branding }: { branding: Branding }) {
 
           <section>
             <div className="mb-[10px] flex items-center gap-2">
-              <span className="whitespace-nowrap text-[9px] font-bold uppercase tracking-[0.12em] text-[#8C9A92]">
+              <span className="whitespace-nowrap text-[9px] font-bold uppercase tracking-[0.12em] text-[#5f6e65]">
                 Parent portal header
               </span>
               <span className="h-px flex-1 bg-[#EDF3EF]" />
@@ -187,7 +187,7 @@ export function BrandingPreview({ branding }: { branding: Branding }) {
           </section>
 
           <section className="rounded-[13px] border border-[#E6EEE9] bg-[#F7FAF8] px-[15.5px] py-[13.5px]">
-            <p className="mb-[10px] text-[9px] font-bold uppercase tracking-[0.12em] text-[#8C9A92]">What to look at</p>
+            <p className="mb-[10px] text-[9px] font-bold uppercase tracking-[0.12em] text-[#5f6e65]">What to look at</p>
             {[
               ["Primary against white", `${ratio.toFixed(2)}:1 — ${ratio >= 3 ? "passes the 3:1 the save-time check enforces" : "below 3:1, which the save-time check refuses"}`],
               ["The logo", branding.logoUrl ? "Loaded from the school's own link. A blank square above means it did not load, which is what a parent would get too." : "No logo set — the school's initials are drawn instead."],

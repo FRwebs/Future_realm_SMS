@@ -30,7 +30,7 @@ export function SessionsList({ sessions }: { sessions: SuperAdminInternalSession
         <div key={item.id} className="flex items-center justify-between gap-3.5 border-b border-[#F2F7F4] px-5 py-3">
           <div className="min-w-0">
             <p className="truncate text-[11.5px] font-semibold text-[var(--color-text-primary)]">{item.device ?? "Unknown device"}</p>
-            <p className="text-pretty mt-0.5 text-[10px] text-[#8C9A92]">
+            <p className="text-pretty mt-0.5 text-[10px] text-[#5f6e65]">
               {item.ipAddress ?? "Unknown IP"} · expires {formatDate(item.expiresAt)}
             </p>
           </div>

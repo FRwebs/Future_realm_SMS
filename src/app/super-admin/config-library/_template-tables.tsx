@@ -45,19 +45,19 @@ function SheetTableBlock({ table }: { table: SheetTable }) {
     <SheetCard title={table.title} sub={table.sub}>
       <div className="px-[14.5px]">
         <div style={grid} className="border-b border-[#E6EEE9] py-2">
-          {table.head.map((cell, index) => <div key={index} className="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap text-[9px] font-bold uppercase tracking-[0.05em] text-[#8C9A92]">{cell}</div>)}
+          {table.head.map((cell, index) => <div key={index} className="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap text-[9px] font-bold uppercase tracking-[0.05em] text-[#5f6e65]">{cell}</div>)}
         </div>
         {table.rows.map((row, index) => (
           <div key={index} style={grid} className="border-b border-[#F4F8F6] py-[9px] last:border-b-0">
             {row.map((cell, column) => {
               const lead = table.head[0] === "" ? column === 1 : column === 0;
               const dim = table.head[0] === "" ? column === 0 : column === row.length - 1 && row.length === 3 && table.head[2] === "Detail";
-              return <div key={column} className={`min-w-0 text-pretty ${lead ? "text-[11.5px] font-semibold text-[#0D2315]" : dim ? "text-[11px] text-[#8C9A92]" : "text-[11.5px] text-[#435048]"}`}>{cell}</div>;
+              return <div key={column} className={`min-w-0 text-pretty ${lead ? "text-[11.5px] font-semibold text-[#0D2315]" : dim ? "text-[11px] text-[#5f6e65]" : "text-[11.5px] text-[#435048]"}`}>{cell}</div>;
             })}
           </div>
         ))}
       </div>
-      {table.foot ? <p className="text-pretty border-t border-[#EDF3EF] bg-[#F7FAF8] px-[14.5px] py-[10px] text-[10.5px] leading-[1.5] text-[#8C9A92]">{table.foot}</p> : null}
+      {table.foot ? <p className="text-pretty border-t border-[#EDF3EF] bg-[#F7FAF8] px-[14.5px] py-[10px] text-[10.5px] leading-[1.5] text-[#5f6e65]">{table.foot}</p> : null}
     </SheetCard>
   );
 }
@@ -199,7 +199,7 @@ function RowName({ id, children }: { id: string; children: ReactNode }) {
   return <button type="button" onClick={() => openRow(id)} className="cursor-pointer text-left text-[11.5px] font-semibold text-[#0D2315] transition hover:text-[#0A5C4E] hover:underline">{children}</button>;
 }
 
-const Muted = ({ children }: { children: ReactNode }) => <span className="text-pretty text-[11px] leading-[1.45] text-[#77857C]">{children}</span>;
+const Muted = ({ children }: { children: ReactNode }) => <span className="text-pretty text-[11px] leading-[1.45] text-[#5f6e65]">{children}</span>;
 
 type Curriculum = SuperAdminConfigLibrary["curricula"][number];
 

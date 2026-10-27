@@ -236,7 +236,7 @@ function SidebarContent({
                 <X className="h-3.5 w-3.5" />
               </button>
             ) : (
-              <span className="shrink-0 rounded-[5px] border border-[rgba(255,255,255,0.2)] px-[5px] py-px text-[10.5px] font-semibold leading-[1.2] text-[rgba(255,255,255,0.45)]">
+              <span className="shrink-0 rounded-[5px] border border-[rgba(255,255,255,0.2)] px-[5px] py-px text-[10.5px] font-semibold leading-[1.2] text-[rgba(255,255,255,0.66)]">
                 ⌘K
               </span>
             )}

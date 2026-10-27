@@ -209,13 +209,13 @@ export default async function SuperAdminSchoolDetailPage({
                 </span>
                 <StatusBadge status={verification.label} tone={verification.tone} />
               </div>
-              <p className="text-[11.5px] text-[#77857C]">
+              <p className="text-[11.5px] text-[#5f6e65]">
                 {[school.city, school.state].filter(Boolean).join(", ") || "Location not recorded"} · {school.subdomain ? school.subdomain : "No web address"} · Joined {formatDate(school.createdAt)}
               </p>
               {school.accountManager ? (
-                <p className="mt-1 text-[10.5px] text-[#8C9A92]">Account manager: {school.accountManager.name}</p>
+                <p className="mt-1 text-[10.5px] text-[#5f6e65]">Account manager: {school.accountManager.name}</p>
               ) : null}
-              {school.statusReason ? <p className="mt-1 text-[10.5px] text-[#8C9A92]">Last status reason: {school.statusReason}</p> : null}
+              {school.statusReason ? <p className="mt-1 text-[10.5px] text-[#5f6e65]">Last status reason: {school.statusReason}</p> : null}
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-2">

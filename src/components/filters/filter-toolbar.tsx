@@ -78,7 +78,7 @@ export function FilterToolbar({
             placeholder={searchControl.type === "search" ? searchControl.placeholder : undefined}
             defaultValue={searchControl.defaultValue}
             onChange={submitDebounced}
-            className="w-full min-w-0 bg-transparent text-[11.5px] text-[#0D2315] placeholder:text-[#9FB8A7] focus:outline-none"
+            className="w-full min-w-0 bg-transparent text-[11.5px] text-[#0D2315] placeholder:text-[#7a8f82] focus:outline-none"
           />
         </div>
       ) : null}
@@ -110,7 +110,7 @@ export function FilterToolbar({
             placeholder={control.placeholder ?? control.label}
             defaultValue={control.defaultValue}
             onChange={submitDebounced}
-            className="w-36 rounded-[9px] border border-[#DEE8E2] bg-white px-[10px] py-[7px] text-[11px] font-semibold text-[#0D2315] placeholder:text-[#9FB8A7] focus:outline-none"
+            className="w-36 rounded-[9px] border border-[#DEE8E2] bg-white px-[10px] py-[7px] text-[11px] font-semibold text-[#0D2315] placeholder:text-[#7a8f82] focus:outline-none"
           />
         );
       })}
@@ -118,13 +118,13 @@ export function FilterToolbar({
       <div className="ml-auto flex flex-wrap items-center gap-2">
         <SavedViews action={action} />
         {typeof resultCount === "number" ? (
-          <span className="text-[10.5px] text-[#8C9A92]">
+          <span className="text-[10.5px] text-[#5f6e65]">
             {resultCount.toLocaleString()} shown
           </span>
         ) : null}
         <Link
           href={action as Route}
-          className="inline-flex items-center gap-1 text-[11.5px] font-semibold text-[#8C9A92] transition hover:text-[#12796A]"
+          className="inline-flex items-center gap-1 text-[11.5px] font-semibold text-[#5f6e65] transition hover:text-[#12796A]"
         >
           <X className="h-3 w-3" />
           Clear
@@ -249,7 +249,7 @@ function SavedViews({ action }: { action: Route | string }) {
                 }
               }}
               placeholder="Name this filter combination"
-              className="min-w-0 flex-1 rounded-[8px] border border-[#DEE8E2] px-2 py-1.5 text-[12px] text-[#0D2315] placeholder:text-[#9FB8A7] focus:outline-none"
+              className="min-w-0 flex-1 rounded-[8px] border border-[#DEE8E2] px-2 py-1.5 text-[12px] text-[#0D2315] placeholder:text-[#7a8f82] focus:outline-none"
             />
             <button
               type="button"
@@ -275,7 +275,7 @@ function FilterPill({ control, onChange }: { control: Extract<FilterControl, { t
   const shown = control.options.find((option) => option.value === value)?.label ?? control.options[0]?.label ?? "";
   return (
     <div className="relative flex items-center gap-[6.5px] rounded-[10px] border border-[#DEE8E2] bg-white px-[11px] py-2 text-[11.5px] text-[#0D2315] transition hover:border-[#BFDCD1] hover:bg-[#F8FCFA]">
-      <span className="text-[#8C9A92]">{control.label}</span>
+      <span className="text-[#5f6e65]">{control.label}</span>
       <span className="font-semibold">{shown}</span>
       <ChevronDown className="h-[11px] w-[11px] shrink-0 text-[#9FB8A7]" strokeWidth={2.4} />
       <select

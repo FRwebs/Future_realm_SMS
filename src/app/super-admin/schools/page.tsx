@@ -1217,7 +1217,7 @@ export default async function SuperAdminSchoolsPage({ searchParams }: { searchPa
           <section className="rounded-[14px] border border-[var(--color-border-default)] bg-white p-5">
             <div className="flex items-center justify-between gap-3">
               <h2 className="text-[12.5px] font-semibold text-[#0D2315]">Account status reference</h2>
-              <p className="text-[10.5px] text-[#8c9a92]">Status changes always require a logged reason</p>
+              <p className="text-[10.5px] text-[#5f6e65]">Status changes always require a logged reason</p>
             </div>
             <div className="mt-4 overflow-hidden rounded-[11px] border border-[#DEE8E2]">
               {statusReference.map((row, index) => {

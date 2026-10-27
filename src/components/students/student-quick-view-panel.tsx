@@ -1,10 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { AlertTriangle, CalendarDays, CreditCard, FileText, HeartPulse, ShieldCheck } from "lucide-react";
 
 import { SidePanel } from "@/components/ui/side-panel";
+import { apiJson } from "@/lib/api/client";
 import type { StudentProfileView } from "@/lib/domain/types";
 import { formatNigeriaClassName } from "@/lib/school-options";
 import { formatCurrency, formatDate, formatPercentage } from "@/lib/utils/formatters";
@@ -14,15 +15,6 @@ type StudentQuickViewPanelProps = {
   open: boolean;
   onClose: () => void;
 };
-
-async function apiJson<T>(path: string): Promise<T> {
-  const response = await fetch(path, { credentials: "include", headers: { Accept: "application/json" } });
-  const body = await response.json();
-  if (!response.ok || body.ok === false || body.success === false) {
-    throw new Error(body.error ?? body.message ?? "Request failed.");
-  }
-  return body.data as T;
-}
 
 function QuickStat({ label, value, icon: Icon, tone }: { label: string; value: string; icon: typeof CalendarDays; tone: string }) {
   return (
@@ -35,32 +27,14 @@ function QuickStat({ label, value, icon: Icon, tone }: { label: string; value: s
 }
 
 export function StudentQuickViewPanel({ studentId, open, onClose }: StudentQuickViewPanelProps) {
-  const [profile, setProfile] = useState<StudentProfileView | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!open || !studentId) return;
-    let cancelled = false;
-    setLoading(true);
-    setError(null);
-    apiJson<StudentProfileView>(`/api/v1/students/${studentId}`)
-      .then((data) => {
-        if (!cancelled) setProfile(data);
-      })
-      .catch((err: unknown) => {
-        if (!cancelled) {
-          setProfile(null);
-          setError(err instanceof Error ? err.message : "Unable to load student profile.");
-        }
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [open, studentId]);
+  const query = useQuery({
+    queryKey: ["student", studentId],
+    queryFn: ({ signal }) => apiJson<StudentProfileView>(`/api/v1/students/${studentId}`, signal),
+    enabled: open && Boolean(studentId),
+  });
+  const profile = query.data ?? null;
+  const loading = query.isPending && query.isFetching;
+  const error = query.isError ? query.error.message : null;
 
   return (
     <SidePanel

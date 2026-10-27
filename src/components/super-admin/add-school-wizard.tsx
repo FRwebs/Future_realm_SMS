@@ -362,7 +362,7 @@ export function AddSchoolWizard({ plans }: { plans: SuperAdminPlanRow[] }) {
                           placeholder="powerhouse"
                           className="min-w-0 w-40 border-none bg-transparent text-[12px] font-semibold text-[#0d2315] outline-none"
                         />
-                        <span className="text-[12px] text-[#8c9a92]">.futurerealm.sms</span>
+                        <span className="text-[12px] text-[#5f6e65]">.futurerealm.sms</span>
                         <span
                           className="ml-auto shrink-0 rounded-full px-[8px] py-[2.5px] text-[9.5px] font-bold uppercase tracking-[0.04em]"
                           style={{ background: slColors.bg, color: slColors.fg }}
@@ -371,7 +371,7 @@ export function AddSchoolWizard({ plans }: { plans: SuperAdminPlanRow[] }) {
                         </span>
                       </div>
                     </Field>
-                    <p className="mt-[5.5px] text-[10px] text-[#8c9a92]">{sl.note}</p>
+                    <p className="mt-[5.5px] text-[10px] text-[#5f6e65]">{sl.note}</p>
                   </div>
                   <Field label="Country">
                     <select value={country} onChange={(e) => setCountry(e.target.value)} className={inputClass}>
@@ -476,7 +476,7 @@ export function AddSchoolWizard({ plans }: { plans: SuperAdminPlanRow[] }) {
                     <Field label="Phone number">
                       <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+234 803 442 1180" className={inputClass} />
                     </Field>
-                    <p className="mt-[6.5px] text-[10px] text-[#8c9a92]">WhatsApp and SMS notice sent alongside the email</p>
+                    <p className="mt-[6.5px] text-[10px] text-[#5f6e65]">WhatsApp and SMS notice sent alongside the email</p>
                   </div>
                   <div className="col-span-2">
                     <p className="mb-[8px] text-[10.5px] font-semibold text-[#435048]">Send the invitation</p>
@@ -530,7 +530,7 @@ export function AddSchoolWizard({ plans }: { plans: SuperAdminPlanRow[] }) {
                         <option>Referral</option>
                       </select>
                     </Field>
-                    <p className="mt-[6.5px] text-[10px] text-[#8c9a92]">Drives partner commission — recorded on the deal</p>
+                    <p className="mt-[6.5px] text-[10px] text-[#5f6e65]">Drives partner commission — recorded on the deal</p>
                   </div>
                   <Field label="Partner name">
                     <select value={partnerName} onChange={(e) => setPartnerName(e.target.value)} className={inputClass}>
@@ -569,7 +569,7 @@ export function AddSchoolWizard({ plans }: { plans: SuperAdminPlanRow[] }) {
               <InlineNotice notice={notice.notice} onDismiss={notice.clear} />
             </div>
             <div className="flex items-center justify-between gap-4 border-t border-[#edf3ef] bg-[#fbfdfc] px-[23.5px] py-4">
-              <p className="text-[10.5px] text-[#8c9a92]">{footNote}</p>
+              <p className="text-[10.5px] text-[#5f6e65]">{footNote}</p>
               <div className="flex items-center gap-[8px]">
                 <button type="button" onClick={handleBack} className="rounded-[8px] border border-[#cfddd5] bg-white px-[15.5px] py-[9px] text-[11.5px] font-semibold text-[#435048]">
                   {backLabel}
@@ -599,7 +599,7 @@ export function AddSchoolWizard({ plans }: { plans: SuperAdminPlanRow[] }) {
               <CheckCircle2 className="h-[27px] w-[27px]" style={{ color: "var(--color-success)" }} />
             </div>
             <p className="mb-2 font-[var(--font-heading)] text-2xl font-bold tracking-[-0.015em] text-[#0d2315]">School created.</p>
-            <p className="mx-auto mb-6 max-w-[400px] text-[12px] leading-[1.65] text-[#77857c]">
+            <p className="mx-auto mb-6 max-w-[400px] text-[12px] leading-[1.65] text-[#5f6e65]">
               {schoolName || "The school"} is live and the invitation has gone out. The administrator sets their own password from the link — we never send one.
             </p>
 
@@ -614,7 +614,7 @@ export function AddSchoolWizard({ plans }: { plans: SuperAdminPlanRow[] }) {
                 { k: "Account manager", v: accountManager || "Unassigned" },
               ].map((row) => (
                 <div key={row.k} className="flex items-center justify-between gap-3.5 py-[6.5px]">
-                  <span className="whitespace-nowrap text-[10.5px] text-[#8c9a92]">{row.k}</span>
+                  <span className="whitespace-nowrap text-[10.5px] text-[#5f6e65]">{row.k}</span>
                   <span className="min-w-0 text-right text-[11.5px] font-semibold text-[#0d2315]">{row.v}</span>
                 </div>
               ))}

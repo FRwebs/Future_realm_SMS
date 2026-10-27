@@ -83,7 +83,7 @@ export function DocumentModal({ spec, onClose, onSwap }: { spec: DrawerSpec; onC
 
         {doc.peers && doc.peers.items.length > 1 ? (
           <div data-print-hide="true" className="flex flex-none flex-wrap items-center gap-[7px] border-b border-[#EDF3EF] bg-[#FBFDFC] px-5 py-[10px]">
-            <p className="mr-[2px] text-[9px] font-bold uppercase tracking-[0.06em] text-[#8C9A92]">{doc.peers.label}</p>
+            <p className="mr-[2px] text-[9px] font-bold uppercase tracking-[0.06em] text-[#5f6e65]">{doc.peers.label}</p>
             {doc.peers.items.map((peer) => (
               <button
                 key={peer.load}

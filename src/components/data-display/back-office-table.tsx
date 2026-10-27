@@ -116,11 +116,11 @@ export function BackOfficeTable({ title, description, meta, emptyState, actions,
         <div className="flex flex-wrap items-start justify-between gap-[12.5px] border-b border-[#EDF3EF] px-[18px] pb-[12.5px] pt-[14.5px]">
           <div className="min-w-0 flex-[1_1_300px]">
             <h3 className="text-pretty text-[12.5px] font-semibold leading-[1.3] text-[var(--color-text-primary)]">{title}</h3>
-            {description ? <p className="mt-[3.5px] text-pretty text-[10.5px] leading-[1.5] text-[#8C9A92]">{description}</p> : null}
+            {description ? <p className="mt-[3.5px] text-pretty text-[10.5px] leading-[1.5] text-[#5f6e65]">{description}</p> : null}
           </div>
           {actions || meta ? (
             <div className="flex min-w-0 flex-[0_1_auto] items-center justify-end gap-[12.5px]">
-              {meta ? <div className="min-w-0 text-pretty text-right text-[10.5px] leading-[1.45] text-[#8C9A92]">{meta}</div> : null}
+              {meta ? <div className="min-w-0 text-pretty text-right text-[10.5px] leading-[1.45] text-[#5f6e65]">{meta}</div> : null}
               {actions ? <div className="flex flex-none items-center gap-[7px]">{actions}</div> : null}
             </div>
           ) : null}
@@ -132,10 +132,10 @@ export function BackOfficeTable({ title, description, meta, emptyState, actions,
         <div className="flex flex-wrap items-center gap-[7px] border-b border-[#EDF3EF] bg-[#FCFDFC] px-[18px] py-[12.5px]">
           <div className="flex min-w-[236px] items-center gap-2 rounded-[9px] border border-[#DEE8E2] bg-white px-[11px] py-[7px]">
             <Search className="h-3 w-3 shrink-0 text-[#9FB8A7]" strokeWidth={1.9} />
-            <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={`Search ${String(columns[0]?.header || "this table").toLowerCase()}`} aria-label="Search this table" className="min-w-0 flex-1 border-none bg-transparent text-[11.5px] text-[#0D2315] outline-none placeholder:text-[#9FB8A7]" />
+            <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={`Search ${String(columns[0]?.header || "this table").toLowerCase()}`} aria-label="Search this table" className="min-w-0 flex-1 border-none bg-transparent text-[11.5px] text-[#0D2315] outline-none placeholder:text-[#7a8f82]" />
             {query ? <button type="button" aria-label="Clear search" onClick={() => setQuery("")} className="flex shrink-0 text-[#9FB8A7] hover:text-[#0D2315]"><X className="h-3 w-3" /></button> : null}
           </div>
-          {needle ? <span className="ml-auto text-[10.5px] text-[#8C9A92]">{matching.length} of {all.length} shown</span> : null}
+          {needle ? <span className="ml-auto text-[10.5px] text-[#5f6e65]">{matching.length} of {all.length} shown</span> : null}
         </div>
       ) : null}
 
@@ -170,7 +170,7 @@ export function BackOfficeTable({ title, description, meta, emptyState, actions,
       ) : null}
 
       {matching.length === 0 ? (
-        <div className="px-[18px] py-[23.5px] text-center text-[11.5px] text-[#8C9A92]">{needle && all.length ? `Nothing matches “${query.trim()}” in this table.` : emptyState}</div>
+        <div className="px-[18px] py-[23.5px] text-center text-[11.5px] text-[#5f6e65]">{needle && all.length ? `Nothing matches “${query.trim()}” in this table.` : emptyState}</div>
       ) : (
         <div className="overflow-x-auto">
           <table className="w-full min-w-full border-separate border-spacing-0 text-[11.5px]">
@@ -183,7 +183,7 @@ export function BackOfficeTable({ title, description, meta, emptyState, actions,
                   </th>
                 ) : null}
                 {columns.map((column) => (
-                  <th key={column.key} scope="col" className={["whitespace-nowrap border-b border-[#E6EEE9] bg-[#F7FAF8] px-[6.25px] py-[10px] text-left text-[9.5px] font-semibold uppercase tracking-[0.05em] text-[#8C9A92] first:pl-[18px] last:pr-[18px]", column.headerClassName ?? ""].join(" ")}>
+                  <th key={column.key} scope="col" className={["whitespace-nowrap border-b border-[#E6EEE9] bg-[#F7FAF8] px-[6.25px] py-[10px] text-left text-[9.5px] font-semibold uppercase tracking-[0.05em] text-[#5f6e65] first:pl-[18px] last:pr-[18px]", column.headerClassName ?? ""].join(" ")}>
                     {column.header}
                   </th>
                 ))}
@@ -211,7 +211,7 @@ export function BackOfficeTable({ title, description, meta, emptyState, actions,
 
       {per && pages > 1 ? (
         <div className="flex items-center justify-between gap-[14px] border-t border-[#EDF3EF] bg-[#FCFDFC] px-[18px] py-[10px]">
-          <p className="text-[10.5px] text-[#8C9A92]">Showing {first}–{last} of {matching.length}</p>
+          <p className="text-[10.5px] text-[#5f6e65]">Showing {first}–{last} of {matching.length}</p>
           <div className="flex flex-none items-center gap-[6px]">
             <button type="button" aria-label="Previous page" disabled={current === 0} onClick={() => setPage(Math.max(0, current - 1))} className={pageButton(false, current === 0)}>‹</button>
             {numbers.map((n, index) =>
@@ -226,7 +226,7 @@ export function BackOfficeTable({ title, description, meta, emptyState, actions,
         </div>
       ) : null}
 
-      {footnote ? <div className="border-t border-[#EDF3EF] bg-[#F7FAF8] px-[18px] py-[11px] text-[10.5px] text-[#8C9A92]">{footnote}</div> : null}
+      {footnote ? <div className="border-t border-[#EDF3EF] bg-[#F7FAF8] px-[18px] py-[11px] text-[10.5px] text-[#5f6e65]">{footnote}</div> : null}
     </section>
   );
 }

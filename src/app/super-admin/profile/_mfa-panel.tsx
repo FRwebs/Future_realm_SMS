@@ -222,7 +222,7 @@ export function MfaPanel({ mfaEnabled, mfaEnrolledAt }: { mfaEnabled: boolean; m
       <div className="flex items-center justify-between gap-3.5 border-b border-[#F2F7F4] px-5 py-3">
         <div className="min-w-0">
           <p className="text-[11.5px] font-semibold text-[var(--color-text-primary)]">Two-factor authentication</p>
-          <p className="text-pretty mt-0.5 text-[10px] text-[#8C9A92]">
+          <p className="text-pretty mt-0.5 text-[10px] text-[#5f6e65]">
             {mfaEnabled ? `On since ${mfaEnrolledAt ? formatDate(mfaEnrolledAt) : "unknown"} — an authenticator app code is required at sign-in.` : "Off — sign-in is email and password only."}
           </p>
         </div>

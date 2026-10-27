@@ -48,7 +48,7 @@ export function StudentPrefs({ base, categories, channels, matrix, defaults, qui
             <div className="grid items-end gap-[10px] border-b pb-[9px]" style={{ gridTemplateColumns: cols, borderColor: "#EDF3EF" }}>
               <span className="text-[9.5px] font-bold uppercase tracking-[0.07em]" style={{ color: "#67766D" }}>Notify me about</span>
               {channels.map((channel) => (
-                <span key={channel.key} className="text-center text-[9.5px] font-bold uppercase tracking-[0.07em]" style={{ color: "#435048" }}>{channel.label}<span className="block text-[9px] font-medium normal-case tracking-normal" style={{ color: "#8C9A92" }}>{channel.sub}</span></span>
+                <span key={channel.key} className="text-center text-[9.5px] font-bold uppercase tracking-[0.07em]" style={{ color: "#435048" }}>{channel.label}<span className="block text-[9px] font-medium normal-case tracking-normal" style={{ color: "#5f6e65" }}>{channel.sub}</span></span>
               ))}
             </div>
             {categories.map((category) => (

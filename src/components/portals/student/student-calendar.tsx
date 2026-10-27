@@ -95,7 +95,7 @@ export function StudentCalendar({ items, today, months, legend }: StudentCalenda
             );
           })}
         </ul>
-        {!chosen.length ? <p className="pb-[10px] pt-[4px] text-[11px]" style={{ color: "#8C9A92" }}>Choose another day, or switch to the list.</p> : null}
+        {!chosen.length ? <p className="pb-[10px] pt-[4px] text-[11px]" style={{ color: "#5f6e65" }}>Choose another day, or switch to the list.</p> : null}
       </section>
     </div>
   );

@@ -41,7 +41,7 @@ function Card({ title, sub, children, aside }: { title: string; sub?: string; ch
       <div className="flex items-start justify-between gap-3 border-b border-[#EDF3EF] px-[18px] pb-[12.5px] pt-[14.5px]">
         <div className="min-w-0">
           <h2 className="text-[12.5px] font-semibold text-[#0D2315]">{title}</h2>
-          {sub ? <p className="mt-[3.5px] text-pretty text-[10.5px] leading-[1.5] text-[#8C9A92]">{sub}</p> : null}
+          {sub ? <p className="mt-[3.5px] text-pretty text-[10.5px] leading-[1.5] text-[#5f6e65]">{sub}</p> : null}
         </div>
         {aside}
       </div>
@@ -53,7 +53,7 @@ function Card({ title, sub, children, aside }: { title: string; sub?: string; ch
 function Fact({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div className="flex items-start justify-between gap-4 border-b border-[#F2F7F4] px-[18px] py-[9.5px] last:border-b-0">
-      <dt className="shrink-0 text-[11px] text-[#77857C]">{label}</dt>
+      <dt className="shrink-0 text-[11px] text-[#5f6e65]">{label}</dt>
       <dd className="min-w-0 text-right text-[11.5px] font-semibold text-[#0D2315]">{children}</dd>
     </div>
   );
@@ -78,7 +78,7 @@ export default async function SuperAdminUserProfilePage({ params }: { params: Pr
           <ArrowLeft className="h-3.5 w-3.5 text-[#12796A]" strokeWidth={2.2} />
           Back to users
         </Link>
-        <span className="truncate text-[11px] text-[#8C9A92]">Users <span aria-hidden>/</span> <span className="font-semibold text-[#435048]">{user.name}</span></span>
+        <span className="truncate text-[11px] text-[#5f6e65]">Users <span aria-hidden>/</span> <span className="font-semibold text-[#435048]">{user.name}</span></span>
       </nav>
 
       <section className="relative overflow-hidden rounded-[20px] bg-[#0d2315] px-[27px] py-[23.5px] shadow-[0_18px_39.5px_-27px_rgba(13,35,21,0.8)]">
@@ -167,9 +167,9 @@ export default async function SuperAdminUserProfilePage({ params }: { params: Pr
             <div className="grid gap-2.5 p-[18px] sm:grid-cols-2">
               {activityRows(user.activitySummary).map((item) => (
                 <div key={item.label} className="rounded-[11px] border border-[#EDF3EF] bg-[#FBFDFC] px-[14px] py-[12px]">
-                  <p className="text-[9.5px] font-semibold uppercase tracking-[0.05em] text-[#77857C]">{item.label}</p>
+                  <p className="text-[9.5px] font-semibold uppercase tracking-[0.05em] text-[#5f6e65]">{item.label}</p>
                   <p className="mt-[7px] text-[20.5px] font-extrabold leading-none tracking-[-0.03em] text-[#0D2315] tabular-nums">{item.value.toLocaleString()}</p>
-                  <p className="mt-[6.5px] text-[10.5px] leading-[1.4] text-[#8C9A92]">{item.note}</p>
+                  <p className="mt-[6.5px] text-[10.5px] leading-[1.4] text-[#5f6e65]">{item.note}</p>
                 </div>
               ))}
             </div>
@@ -181,7 +181,7 @@ export default async function SuperAdminUserProfilePage({ params }: { params: Pr
             <div className="grid gap-3 p-[18px]">
               <div>
                 <p className="text-[11.5px] font-semibold text-[#0D2315]">{suspended ? "Reinstate access" : "Suspend access"}</p>
-                <p className="mb-2 mt-[3px] text-[10.5px] leading-[1.5] text-[#8C9A92]">
+                <p className="mb-2 mt-[3px] text-[10.5px] leading-[1.5] text-[#5f6e65]">
                   {suspended ? "Restores sign-in for this account after the suspension is resolved." : "Stops this account signing in. School records are kept untouched."}
                 </p>
                 {suspended ? (
@@ -192,7 +192,7 @@ export default async function SuperAdminUserProfilePage({ params }: { params: Pr
               </div>
               <div className="border-t border-[#F2F7F4] pt-3">
                 <p className="text-[11.5px] font-semibold text-[#0D2315]">Account recovery</p>
-                <p className="mb-2 mt-[3px] text-[10.5px] leading-[1.5] text-[#8C9A92]">For someone locked out with no email access. Verify their identity first — how you verified is logged.</p>
+                <p className="mb-2 mt-[3px] text-[10.5px] leading-[1.5] text-[#5f6e65]">For someone locked out with no email access. Verify their identity first — how you verified is logged.</p>
                 <ResourceActionDialog
                   triggerLabel="Recover account"
                   title={`Recover account — ${user.name}`}
@@ -211,7 +211,7 @@ export default async function SuperAdminUserProfilePage({ params }: { params: Pr
               </div>
               <div className="border-t border-[#F2F7F4] pt-3">
                 <p className="text-[11.5px] font-semibold text-[#0D2315]">Support access</p>
-                <p className="mb-2 mt-[3px] text-[10.5px] leading-[1.5] text-[#8C9A92]">See the platform as this person does. Read-only unless the school approves more, and the school is told.</p>
+                <p className="mb-2 mt-[3px] text-[10.5px] leading-[1.5] text-[#5f6e65]">See the platform as this person does. Read-only unless the school approves more, and the school is told.</p>
                 <ImpersonateUserDialog userId={user.id} userName={user.name} />
               </div>
             </div>
@@ -221,7 +221,7 @@ export default async function SuperAdminUserProfilePage({ params }: { params: Pr
             <Card title="Linked students" sub="Student records tied to this guardian account">
               <div className="p-[18px]">
                 {user.linkedAccounts.length === 0 ? (
-                  <p className="rounded-[9px] bg-[#F7FAF8] px-4 py-5 text-center text-[11.5px] text-[#8C9A92]">No linked student accounts.</p>
+                  <p className="rounded-[9px] bg-[#F7FAF8] px-4 py-5 text-center text-[11.5px] text-[#5f6e65]">No linked student accounts.</p>
                 ) : (
                   <ul className="grid gap-2">
                     {user.linkedAccounts.map((child) => (
@@ -246,9 +246,9 @@ export default async function SuperAdminUserProfilePage({ params }: { params: Pr
         pageSize={false}
         columns={[
           { key: "started", header: "Started", render: (item) => <span className="font-semibold text-[#0D2315]">{formatDate(item.startedAt)}</span> },
-          { key: "activity", header: "Last activity", render: (item) => <span className="text-[#77857C]">{ago(item.lastActivityAt)}</span> },
+          { key: "activity", header: "Last activity", render: (item) => <span className="text-[#5f6e65]">{ago(item.lastActivityAt)}</span> },
           { key: "device", header: "Device", render: (item) => <span className="inline-flex items-center gap-[7px]"><Monitor className="h-3 w-3 text-[#9FB8A7]" />{deviceLabel(item.device)}</span> },
-          { key: "ip", header: "IP address", render: (item) => <span className="text-[#77857C]">{item.ipAddress ?? "Unknown"}</span> },
+          { key: "ip", header: "IP address", render: (item) => <span className="text-[#5f6e65]">{item.ipAddress ?? "Unknown"}</span> },
           { key: "status", header: "Status", render: (item) => <span className="inline-block whitespace-nowrap rounded-full px-2 py-[2.5px] text-[10px] font-bold" style={item.active ? { background: "#EAF6F0", color: "#17714F" } : { background: "#F1F4F2", color: "#5C6A62" }}>{item.active ? "Live" : "Ended"}</span> }
         ]}
         emptyState="No login sessions recorded yet."

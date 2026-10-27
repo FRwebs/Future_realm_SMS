@@ -84,7 +84,7 @@ export function PlatformSignInForm({ access }: { access: AccessControl }) {
   const label = "mb-[6.5px] text-[10.5px] font-semibold text-[#435048]";
   const box =
     "mb-[14.5px] flex items-center gap-[9px] rounded-[11px] border-[1.5px] border-[#DEE8E2] px-[12.5px] py-[11px] focus-within:border-[#0D2315]";
-  const input = "min-w-0 flex-1 bg-transparent text-[12px] text-[#0D2315] outline-none placeholder:text-[#9FB8A7]";
+  const input = "min-w-0 flex-1 bg-transparent text-[12px] text-[#0D2315] outline-none placeholder:text-[#7a8f82]";
 
   return (
     <div className="w-full max-w-[345.5px]">
@@ -104,7 +104,7 @@ export function PlatformSignInForm({ access }: { access: AccessControl }) {
       <h2 className="mb-[5.5px] font-[family-name:var(--font-heading)] text-[23.5px] font-bold tracking-[-0.015em] text-[#0D2315]">
         {stage === "credentials" ? "Internal sign-in" : "Verification"}
       </h2>
-      <p className="mb-[27px] text-[12px] text-[#77857C]">
+      <p className="mb-[27px] text-[12px] text-[#5f6e65]">
         {stage === "credentials"
           ? "FutureRealm team accounts only. Schools sign in at their own workspace."
           : "Enter the six-digit code from your authenticator."}
@@ -245,7 +245,7 @@ export function PlatformSignInForm({ access }: { access: AccessControl }) {
               {entry.level}
             </span>
             <span className="w-[106px] flex-none text-[11px] font-semibold text-[#0D2315]">{entry.role}</span>
-            <span className="flex-1 text-[10.5px] leading-[1.4] text-[#8C9A92]">{entry.scope}</span>
+            <span className="flex-1 text-[10.5px] leading-[1.4] text-[#5f6e65]">{entry.scope}</span>
           </li>
         ))}
       </ul>

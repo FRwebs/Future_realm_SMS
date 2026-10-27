@@ -44,14 +44,14 @@ export function StateAdoptionTable({ heatmapByState, stateHeatmapModules }: Stat
           <p className="text-[12.5px] font-bold text-[var(--color-text-primary)]">Adoption by state — where the product is actually landing</p>
           <p className="mt-1 max-w-2xl text-[10.5px] text-[var(--color-text-muted)]">Same metric grouped by region, to separate a product problem from a connectivity or training problem.</p>
         </div>
-        <p className="whitespace-nowrap text-[10.5px] text-[#8C9A92]">Rolling 4-week average</p>
+        <p className="whitespace-nowrap text-[10.5px] text-[#5f6e65]">Rolling 4-week average</p>
       </div>
 
       <div className="px-5 py-3.5">
         <div className="grid items-end gap-1.5 border-b border-[#EDF3EF] pb-2.5" style={{ gridTemplateColumns: cols }}>
-          <div className="min-w-0 text-[9.5px] font-semibold uppercase tracking-[0.05em] text-[#8C9A92]">State / region</div>
+          <div className="min-w-0 text-[9.5px] font-semibold uppercase tracking-[0.05em] text-[#5f6e65]">State / region</div>
           {stateHeatmapModules.map((module) => (
-            <div key={module} className="min-w-0 text-center text-[9.5px] font-semibold uppercase tracking-[0.04em] text-[#8C9A92]">
+            <div key={module} className="min-w-0 text-center text-[9.5px] font-semibold uppercase tracking-[0.04em] text-[#5f6e65]">
               {moduleLabel(module)}
             </div>
           ))}
@@ -79,7 +79,7 @@ export function StateAdoptionTable({ heatmapByState, stateHeatmapModules }: Stat
 
         {heatmapByState.length > 0 ? (
           <div className="mt-2.5 grid items-center gap-1.5 border-t border-[#EDF3EF] pt-2.5" style={{ gridTemplateColumns: cols }}>
-            <div className="text-[10px] font-semibold text-[#77857C]">Platform average</div>
+            <div className="text-[10px] font-semibold text-[#5f6e65]">Platform average</div>
             {platformAverages.map((value, index) => (
               <div key={stateHeatmapModules[index]} className="text-center font-[var(--font-mono)] text-[10.5px] font-bold text-[#0D2315]">
                 {value === null ? "—" : `${value}%`}

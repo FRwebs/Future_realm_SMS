@@ -270,7 +270,7 @@ export function LoginForm() {
 
       <div className="my-[22px] flex items-center gap-[10px]">
         <div className="h-px flex-1 bg-[#edf3ef]" />
-        <span className="text-[11px] font-semibold text-[#b4c4bb]">SECURE ACCESS</span>
+        <span className="text-[11px] font-semibold text-[#5c6a62]">SECURE ACCESS</span>
         <div className="h-px flex-1 bg-[#edf3ef]" />
       </div>
 
@@ -291,7 +291,7 @@ export function LoginForm() {
           Create an account
         </Link>
       </p>
-      <p className="mt-[10px] text-center text-xs text-[#9fb8a7]">
+      <p className="mt-[10px] text-center text-xs text-[#5c6a62]">
         Parents and students receive their accounts from their school.
       </p>
       <p className="mt-[18px] text-center">

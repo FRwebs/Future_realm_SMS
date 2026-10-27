@@ -118,7 +118,7 @@ export function LessonPlayer({ course, outline, lesson, progressLabel, requiredL
                 <Link href={`${hrefs.lessons}/${next.position}` as Route} className="inline-flex rounded-[9px] px-[14px] py-[9.5px] text-[11.5px] font-semibold text-white" style={{ background: INK }}>Next lesson</Link>
               ) : null
             ) : (
-              <span className="inline-flex cursor-default rounded-[9px] px-[14px] py-[9.5px] text-[11.5px] font-semibold" style={{ background: "#E6EEE9", color: "#8C9A92" }}>{last ? "Answer to finish the course" : "Answer to continue"}</span>
+              <span className="inline-flex cursor-default rounded-[9px] px-[14px] py-[9.5px] text-[11.5px] font-semibold" style={{ background: "#E6EEE9", color: "#5f6e65" }}>{last ? "Answer to finish the course" : "Answer to continue"}</span>
             )}
             <Link href={hrefs.course as Route} className="inline-flex rounded-[9px] border bg-white px-[13px] py-[9px] text-[11.5px] font-semibold" style={{ borderColor: "#CFDDD5", color: "#435048" }}>Save and leave</Link>
           </div>
@@ -136,7 +136,7 @@ export function LessonPlayer({ course, outline, lesson, progressLabel, requiredL
               const reachable = ok || entry.position <= (outline.find((candidate) => !candidate.done)?.position ?? outline.length + 1);
               const body = (
                 <>
-                  <span className="flex h-[20px] w-[20px] flex-none items-center justify-center rounded-[6px] text-[10px] font-extrabold" style={ok ? { background: "#12796A", color: "#fff" } : here ? { background: INK, color: "#fff" } : { background: "#F2F7F4", color: "#8C9A92" }}>{ok ? "✓" : entry.position}</span>
+                  <span className="flex h-[20px] w-[20px] flex-none items-center justify-center rounded-[6px] text-[10px] font-extrabold" style={ok ? { background: "#12796A", color: "#fff" } : here ? { background: INK, color: "#fff" } : { background: "#F2F7F4", color: "#5f6e65" }}>{ok ? "✓" : entry.position}</span>
                   <span className="min-w-0 flex-1"><span className="block text-[11px] leading-[1.35]" style={{ color: INK, fontWeight: here ? 700 : 500 }}>{entry.title}</span><span className="block text-[9.5px]" style={{ color: MUTED }}>{entry.minutes} min</span></span>
                 </>
               );

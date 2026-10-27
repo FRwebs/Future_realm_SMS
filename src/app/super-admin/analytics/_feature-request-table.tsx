@@ -102,7 +102,7 @@ export function FeatureRequestTable({ items, logged, actions }: { items: TicketR
           render: (row) => (
             <div>
               <p className="font-bold text-[var(--color-text-primary)]">{row.title}</p>
-              <p className="text-[11.5px] text-[#8C9A92]">{row.detail}{row.flag ? ` · ${row.flag}` : ""}</p>
+              <p className="text-[11.5px] text-[#5f6e65]">{row.detail}{row.flag ? ` · ${row.flag}` : ""}</p>
             </div>
           ),
           sortValue: (row) => row.title
