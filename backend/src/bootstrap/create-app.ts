@@ -10,6 +10,7 @@ import { env } from "../../../src/lib/utils/env";
 import { AppModule } from "../app.module";
 import { ApiExceptionFilter } from "../common/api-exception.filter";
 import { CtxStampInterceptor } from "../common/ctx-stamp.interceptor";
+import { dateFormatContext } from "../common/date-format";
 import { enrichOpenApiDocument } from "../common/openapi-docs";
 
 function buildAllowedOrigins() {
@@ -48,6 +49,7 @@ async function configureNestApp(app: INestApplication) {
     );
   }
   app.use(cookieParser());
+  app.use(dateFormatContext);
   app.setGlobalPrefix("api");
   app.useGlobalPipes(
     new ValidationPipe({

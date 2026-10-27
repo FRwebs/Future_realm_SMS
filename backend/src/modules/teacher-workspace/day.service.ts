@@ -8,6 +8,7 @@ import { armName, fullName } from "../fee-management/fees.shared";
 import { TeacherStudentQuestionsService } from "./student-questions.service";
 import { TeacherStudentWorkService } from "./student-work.service";
 import { TeacherWorkspaceService } from "./workspace.service";
+import { formatDay } from "../../common/date-format";
 
 const DOW_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
@@ -26,7 +27,7 @@ export type QueueItem = {
   kind: "register" | "sheet" | "returned" | "remarks" | "note" | "document" | "review" | "training" | "appraisal" | "cover" | "family" | "students";
 };
 
-const shortDate = (date: Date) => date.toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone: "UTC" });
+const shortDate = (date: Date) => formatDay(date, { day: "numeric", month: "short", timeZone: "UTC" });
 
 /**
  * "My Day": everything a teaching person owes, counted from their own assignments and nobody else's. Registers come from the
@@ -223,7 +224,7 @@ export class MyDayService {
     const rows = arms.flatMap((arm) =>
       arm.subjects.filter((subject) => wanted.has(`${arm.room.id}:${subject.subjectId}`)).map((subject) => {
         const entered = subject.rows.filter((row) => row.complete).length;
-        const stamp = (date: Date | null | undefined) => (date ? date.toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone: "UTC" }) : "");
+        const stamp = (date: Date | null | undefined) => (date ? formatDay(date, { day: "numeric", month: "short", timeZone: "UTC" }) : "");
         const daysAgo = (date: Date | null | undefined) => (date ? Math.max(0, Math.floor((now.getTime() - date.getTime()) / 86_400_000)) : 0);
         const age =
           subject.state === "Submitted" ? (daysAgo(subject.sheet?.submittedAt) ? `${daysAgo(subject.sheet?.submittedAt)} days ago` : "Today")

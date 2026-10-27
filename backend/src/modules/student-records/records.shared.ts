@@ -1,5 +1,6 @@
 import { prisma } from "../../../../src/lib/db/prisma";
 import { DAY_MS, armName, currentTerm, daysSince, fullName, num } from "../fee-management/fees.shared";
+import { formatDay } from "../../common/date-format";
 
 export { DAY_MS, armName, currentTerm, daysSince, fullName, num };
 
@@ -105,7 +106,7 @@ export const validMobile = (value: string | null | undefined): boolean => /^0[78
 
 export function dayText(date: Date | null | undefined): string {
   if (!date) return "—";
-  return date.toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" });
+  return formatDay(date, { day: "numeric", month: "long", year: "numeric" });
 }
 
 /** The next admission number in the school's own pattern, never one that is already taken. */

@@ -3,6 +3,7 @@ import type { InvoiceDoc } from "@/lib/modules/live/m11-types";
 import type { ReceiptDoc, StructureDetail } from "@/lib/modules/live/m10-types";
 import type { CardView } from "@/lib/modules/live/m6-types";
 import type { DocumentSpec, DrawerSpec, PanelTone } from "@/lib/modules/panels";
+import { formatDay } from "@/lib/date-format";
 
 /**
  * The documents the school hands over — a report card, a receipt, a fee schedule, an invoice — as data.
@@ -27,7 +28,7 @@ export const documentDrawer = (kind: DocumentKind, id: string, o: { title: strin
   load: documentUrl(kind, id, o.query),
 });
 
-const day = (iso: string | null | undefined) => (iso ? new Date(iso).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" }) : "—");
+const day = (iso: string | null | undefined) => (iso ? formatDay(new Date(iso), { day: "numeric", month: "long", year: "numeric" }) : "—");
 
 /* ───────────────────────── the report card ───────────────────────── */
 

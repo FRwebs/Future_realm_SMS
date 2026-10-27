@@ -2,6 +2,7 @@ import { area, choice, fixed, select } from "@/lib/modules/live/m7-forms";
 import { plural } from "@/lib/modules/live/m7-format";
 import type { Correction, CorrectionOptions, Grid, SheetPage } from "@/lib/modules/live/m5-types";
 import type { DrawerSpec, FormField, PanelFact, PickerOption } from "@/lib/modules/panels";
+import { formatDay } from "@/lib/date-format";
 
 /** Every modal in Score Entry & Results, as data. */
 
@@ -18,7 +19,7 @@ export const broadsheetHref = (classId: string) => `/score-entry-results/enter/$
 export const resultArmHref = (classId: string) => `/score-entry-results/results/${encodeURIComponent(classId)}`;
 export const resultStudentHref = (classId: string, studentId: string) => `/score-entry-results/results/${encodeURIComponent(classId)}/${encodeURIComponent(studentId)}`;
 
-const when = (iso: string | null | undefined) => (iso ? new Date(iso).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" }) : "—");
+const when = (iso: string | null | undefined) => (iso ? formatDay(new Date(iso), { day: "numeric", month: "long", year: "numeric" }) : "—");
 const spread = (page: SheetPage) => page.distribution.filter((band) => band.count).map((band) => `${band.label} × ${band.count}`).join(" · ") || "Nothing scored";
 
 /* ───────────────────────── deciding a sheet ───────────────────────── */

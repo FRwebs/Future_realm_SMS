@@ -1,5 +1,6 @@
 import { apiGet } from "@/lib/api/server";
 import type { DrawerSpec, PanelRow } from "@/lib/modules/panels";
+import { formatDay } from "@/lib/date-format";
 
 /**
  * Where the school stands on its free trial, and on the sample class it arrived with — said at the top of Today, because
@@ -67,10 +68,10 @@ export async function trialRow(): Promise<PanelRow | null> {
     return { cols: "1fr", panels: [{ type: "note", tone: "attention", icon: CLOCK, title: "Your free trial has not started", body: `Your school is set up and ready to use. Your ${status.days} free days begin when you start them — nothing is counted until then.`, acts: [{ label: "Start my free trial", primary: true, drawer: startDrawer(status.days) }] }] };
   }
   if (status.state === "running") {
-    return { cols: "1fr", panels: [{ type: "note", tone: status.daysLeft <= 5 ? "attention" : "positive", icon: CLOCK, title: `${status.daysLeft} ${status.daysLeft === 1 ? "day" : "days"} left in your free trial`, body: `Every feature is unlocked until ${status.endsAt ? new Date(status.endsAt).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" }) : "the trial ends"}. Choose a plan under Subscription & Billing before then to keep going.`, acts: [{ label: "See plans", href: "/subscription-billing/plan" }] }] };
+    return { cols: "1fr", panels: [{ type: "note", tone: status.daysLeft <= 5 ? "attention" : "positive", icon: CLOCK, title: `${status.daysLeft} ${status.daysLeft === 1 ? "day" : "days"} left in your free trial`, body: `Every feature is unlocked until ${status.endsAt ? formatDay(new Date(status.endsAt), { day: "numeric", month: "long", year: "numeric" }) : "the trial ends"}. Choose a plan under Subscription & Billing before then to keep going.`, acts: [{ label: "See plans", href: "/subscription-billing/plan" }] }] };
   }
   if (status.state === "read-only") {
-    return { cols: "1fr", panels: [{ type: "note", tone: "negative", icon: CLOCK, title: "Your free trial has ended — the school is read-only", body: `Everything can be read and exported, but nothing can be changed. Choose a plan within ${status.daysToLock} ${status.daysToLock === 1 ? "day" : "days"} (by ${new Date(status.lockOn).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })}) to switch editing back on. After that the school is locked. Nothing is deleted either way.`, acts: [{ label: "Choose a plan", primary: true, href: "/subscription-billing/plan" }] }] };
+    return { cols: "1fr", panels: [{ type: "note", tone: "negative", icon: CLOCK, title: "Your free trial has ended — the school is read-only", body: `Everything can be read and exported, but nothing can be changed. Choose a plan within ${status.daysToLock} ${status.daysToLock === 1 ? "day" : "days"} (by ${formatDay(new Date(status.lockOn), { day: "numeric", month: "long", year: "numeric" })}) to switch editing back on. After that the school is locked. Nothing is deleted either way.`, acts: [{ label: "Choose a plan", primary: true, href: "/subscription-billing/plan" }] }] };
   }
   return { cols: "1fr", panels: [{ type: "note", tone: "negative", icon: CLOCK, title: "Your free trial has ended", body: "Choose a plan to keep using every feature. Your records are kept, and nothing has been deleted.", acts: [{ label: "Choose a plan", primary: true, href: "/subscription-billing/plan" }] }] };
 }

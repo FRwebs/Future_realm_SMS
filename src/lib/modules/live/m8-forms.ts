@@ -2,6 +2,7 @@ import { area, checks, choice, fixed, select, text, toggle } from "@/lib/modules
 import { dayLong, plural } from "@/lib/modules/live/m7-format";
 import type { Applicant, AdmissionOptions, AttendanceSession, ChangeItem, Changes, Dossier, EnrolOptions, Registry } from "@/lib/modules/live/m8-types";
 import type { DrawerSpec, FormField, PickerOption } from "@/lib/modules/panels";
+import { formatDay } from "@/lib/date-format";
 
 /** Every modal in Student Records, as data. */
 
@@ -419,7 +420,7 @@ export function addApplicationDrawer(o: AdmissionOptions): DrawerSpec {
 }
 
 export function scheduleDrawer(o: AdmissionOptions, applicants: Array<{ id: string; name: string; ref: string; forClass: string }>, pre?: string): DrawerSpec {
-  const labels = o.sessions.map((s) => `${new Date(`${s.date}T00:00:00`).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", year: "numeric" })} · ${s.start}${s.seats ? ` · ${Math.max(0, s.seats - s.booked)} seats left` : ` · ${s.booked} booked`}`);
+  const labels = o.sessions.map((s) => `${formatDay(new Date(`${s.date}T00:00:00`), { weekday: "short", day: "numeric", month: "short", year: "numeric" })} · ${s.start}${s.seats ? ` · ${Math.max(0, s.seats - s.booked)} seats left` : ` · ${s.booked} booked`}`);
   const NEW = "A new session — set below";
   return {
     mode: "form",

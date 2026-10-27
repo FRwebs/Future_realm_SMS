@@ -9,6 +9,7 @@ import { PAYMENT_MODE } from "../fee-management/fees.shared";
 import { loadConsentTypes } from "../student-records/consent.shared";
 import { armName, currentTerm, daysSince, feeStateOf, gradeBands, gradeOf, initials, num, relevantInvoice, stateOf } from "../student-records/records.shared";
 import { RELATIONS, VISIBILITY, deliveryOf, fullName, guardianPortal, normalPhone, notifyGuardian, validMobile } from "./guardians.shared";
+import { formatDay } from "../../common/date-format";
 
 /**
  * A family is not a row per child. Four children in three arms is ONE family, one login and one
@@ -285,8 +286,8 @@ export class FamiliesService {
     const rated = children.filter((child) => child.att !== null);
     const oldest = invoices.filter((invoice) => num(invoice.balance) > 0).sort((a, b) => a.issuedOn.getTime() - b.issuedOn.getTime())[0];
     const sent = [
-      ...contacts.map((entry) => ({ at: entry.createdAt, label: entry.summary, sub: `${entry.channel ?? "In-app"} · ${entry.createdAt.toLocaleDateString("en-GB", { day: "numeric", month: "long" })}`, pill: entry.kind === "INVITE" ? (guardian.user?.lastLoginAt ? "Accepted" : "Sent") : "Delivered" })),
-      ...feeContacts.map((entry) => ({ at: entry.createdAt, label: entry.summary, sub: `${entry.channel ?? "In-app"} · ${entry.createdAt.toLocaleDateString("en-GB", { day: "numeric", month: "long" })}`, pill: "Delivered" }))
+      ...contacts.map((entry) => ({ at: entry.createdAt, label: entry.summary, sub: `${entry.channel ?? "In-app"} · ${formatDay(entry.createdAt, { day: "numeric", month: "long" })}`, pill: entry.kind === "INVITE" ? (guardian.user?.lastLoginAt ? "Accepted" : "Sent") : "Delivered" })),
+      ...feeContacts.map((entry) => ({ at: entry.createdAt, label: entry.summary, sub: `${entry.channel ?? "In-app"} · ${formatDay(entry.createdAt, { day: "numeric", month: "long" })}`, pill: "Delivered" }))
     ]
       .sort((a, b) => b.at.getTime() - a.at.getTime())
       .slice(0, 12)

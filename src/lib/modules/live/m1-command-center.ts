@@ -4,6 +4,7 @@ import { linkIsOpen, switchedOffSlugs } from "@/lib/api/platform-sync";
 import { getServerSession } from "@/lib/auth/session";
 import type { KpiCard, Panel, PanelFact, TabContent } from "@/lib/modules/panels";
 import { name, pill, row, text } from "@/lib/modules/panels";
+import { formatDay } from "@/lib/date-format";
 
 /**
  * M01 Command Center · Today, built from the database rather than from the
@@ -388,7 +389,7 @@ function oversightTab(
             {
               label: "Days of slack",
               value: slackDays === null ? "—" : String(slackDays),
-              sub: term ? `${term.name} ends ${new Date(term.endsOn ?? "").toLocaleDateString("en-NG", { day: "numeric", month: "short" })}` : "No term on file",
+              sub: term ? `${term.name} ends ${formatDay(new Date(term.endsOn ?? ""), { day: "numeric", month: "short" }, "en-NG")}` : "No term on file",
               tone: slackDays !== null && slackDays < 14 ? "attention" : undefined,
             },
           ],

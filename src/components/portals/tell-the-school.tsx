@@ -4,11 +4,12 @@ import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 
 import { sendJsonForData } from "@/lib/modules/submit";
+import { formatDay } from "@/lib/date-format";
 
 export type SubmissionOptions = { children: Array<{ id: string; name: string; arm: string; absences: Array<{ date: string; label: string }> }>; types: Array<{ name: string; target: number }> };
 export type FamilySubmission = { id: string; type: string; child: string | null; detail: string; state: string; open: boolean; outcome: string | null; at: string; resolvedAt: string | null; with: string | null };
 
-const day = (iso: string) => new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", timeZone: "Africa/Lagos" }).format(new Date(iso));
+const day = (iso: string) => formatDay(new Date(iso), { day: "numeric", month: "short", timeZone: "Africa/Lagos" });
 const ABOUT_CHILD = ["Absence explanation", "Collection change", "Record correction", "Result query"];
 const HINT: Record<string, string> = {
   "Absence explanation": "Your child’s form teacher reads this and decides. Tick the days you are explaining.",

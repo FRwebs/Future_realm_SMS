@@ -9,6 +9,7 @@ import { MERGE_FIELDS, joinNames, mergeBody, reachOf, smsSegments, unknownFields
 import type { DrawerSpec, PanelTone } from "@/lib/modules/panels";
 import { sendJsonForData } from "@/lib/modules/submit";
 import { CARD_BORDER, INK, MUTED, toneOf } from "@/lib/modules/tones";
+import { formatDay } from "@/lib/date-format";
 
 /**
  * Writing to the families of a class. Everything a teacher needs to be sure before it goes is on this page, live: who it reaches, who it
@@ -32,7 +33,7 @@ const CHANNELS: Array<{ code: Channel; label: string; sub: string }> = [
 ];
 const asAudience = (value: string | undefined): Audience => (value === "selected" || value === "one" ? value : "all");
 const asChannel = (value: string | undefined): Channel => (value === "SMS" || value === "EMAIL" ? value : "IN_APP");
-const day = (iso: string) => new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", timeZone: "Africa/Lagos" }).format(new Date(iso));
+const day = (iso: string) => formatDay(new Date(iso), { day: "numeric", month: "short", timeZone: "Africa/Lagos" });
 
 export function MessageComposer({ arms, families, wallet, threshold, sender, smsNaira, drafts, prefill, base, sentHref, openDrawer }: ComposerProps) {
   const router = useRouter();

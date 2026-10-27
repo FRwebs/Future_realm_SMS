@@ -25,6 +25,7 @@ import type {
   SuperAdminSchoolContact,
   SuperAdminSchoolRow
 } from "@/lib/domain/types";
+import { formatDay } from "@/lib/date-format";
 
 // The backend already returns `subdomain` / `schoolCode` on every school row (see
 // backend/src/modules/super-admin/super-admin.service.ts `listSchools`) but the shared
@@ -1174,9 +1175,9 @@ export default async function SuperAdminSchoolsPage({ searchParams }: { searchPa
             columns={[
               { key: "school", header: "School", render: (school) => <Link href={`/super-admin/schools/${school.id}`} className="font-bold text-(--color-text-primary) hover:text-(--color-text-accent)">{school.name}</Link> },
               { key: "address", header: "Address", render: (school) => (school.address ? <span className="rounded-[5.5px] bg-(--color-bg-subtle) px-2 py-1 font-(--font-mono) text-[11px]">{school.address}</span> : <span className="text-(--color-text-muted)">Released</span>) },
-              { key: "dormantSince", header: "Dormant since", render: (school) => (school.dormantAt ? new Date(school.dormantAt).toLocaleDateString("en-GB") : <span className="text-(--color-text-muted)">{school.lastSuccessfulLoginAt ? `Last sign-in ${timeAgo(school.lastSuccessfulLoginAt)}` : "Never signed in"}</span>), sortValue: (school) => school.dormantAt ?? "" },
-              { key: "noticeSent", header: "Notice sent", render: (school) => (school.noticeSentAt ? new Date(school.noticeSentAt).toLocaleDateString("en-GB") : <span className="text-(--color-text-muted)">Not yet</span>) },
-              { key: "releaseDue", header: "Release due", render: (school) => (school.releaseDueAt ? new Date(school.releaseDueAt).toLocaleDateString("en-GB") : <span className="text-(--color-text-muted)">—</span>) },
+              { key: "dormantSince", header: "Dormant since", render: (school) => (school.dormantAt ? formatDay(new Date(school.dormantAt), { day: "2-digit", month: "2-digit", year: "numeric" }) : <span className="text-(--color-text-muted)">{school.lastSuccessfulLoginAt ? `Last sign-in ${timeAgo(school.lastSuccessfulLoginAt)}` : "Never signed in"}</span>), sortValue: (school) => school.dormantAt ?? "" },
+              { key: "noticeSent", header: "Notice sent", render: (school) => (school.noticeSentAt ? formatDay(new Date(school.noticeSentAt), { day: "2-digit", month: "2-digit", year: "numeric" }) : <span className="text-(--color-text-muted)">Not yet</span>) },
+              { key: "releaseDue", header: "Release due", render: (school) => (school.releaseDueAt ? formatDay(new Date(school.releaseDueAt), { day: "2-digit", month: "2-digit", year: "numeric" }) : <span className="text-(--color-text-muted)">—</span>) },
               {
                 key: "check",
                 header: "Release check",

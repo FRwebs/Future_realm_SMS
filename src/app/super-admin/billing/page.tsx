@@ -23,6 +23,7 @@ import type {
   SuperAdminSchoolRow
 } from "@/lib/domain/types";
 import { formatCompactCurrency, formatCurrency, formatDate } from "@/lib/utils/formatters";
+import { formatDay } from "@/lib/date-format";
 
 const TRIAL_DAYS = 30;
 
@@ -683,10 +684,10 @@ async function InvoicesTab({
             />
           }
           columns={[
-            { key: "school", header: "School", render: (item) => <div><p className="font-bold text-(--color-text-primary)">{item.school}</p><p className="text-[10px] text-(--color-text-muted)">{item.kind === "NGO" ? "NGO" : "Mission"}{item.state ? ` · ${item.state}` : ""}</p><p className="text-[10px] text-(--color-text-muted)">{item.evidence ?? "No evidence recorded"}{item.evidenceRef ? ` · ${item.evidenceRef}` : ""}{item.verifiedAt ? ` · verified ${new Date(item.verifiedAt).toLocaleDateString("en-GB")} by ${item.verifiedBy ?? "—"}` : ""}</p></div> },
+            { key: "school", header: "School", render: (item) => <div><p className="font-bold text-(--color-text-primary)">{item.school}</p><p className="text-[10px] text-(--color-text-muted)">{item.kind === "NGO" ? "NGO" : "Mission"}{item.state ? ` · ${item.state}` : ""}</p><p className="text-[10px] text-(--color-text-muted)">{item.evidence ?? "No evidence recorded"}{item.evidenceRef ? ` · ${item.evidenceRef}` : ""}{item.verifiedAt ? ` · verified ${formatDay(new Date(item.verifiedAt), { day: "2-digit", month: "2-digit", year: "numeric" })} by ${item.verifiedBy ?? "—"}` : ""}</p></div> },
             { key: "students", header: "Students", render: (item) => (studentsBySchool.get(item.schoolId) ?? 0).toLocaleString() },
             { key: "discount", header: "Discount", render: () => <span className="text-[11px] font-semibold">Concession tier</span> },
-            { key: "expires", header: "Verified until", render: (item) => item.expiresAt ? <span className="text-[11px]" style={{ color: item.status === "VERIFIED" && (item.daysLeft ?? 99) <= 30 ? "var(--color-warning)" : "var(--color-text-secondary)" }}>{new Date(item.expiresAt).toLocaleDateString("en-GB")}{item.status === "VERIFIED" && item.daysLeft !== null ? ` · ${item.daysLeft} days` : ""}</span> : "—" },
+            { key: "expires", header: "Verified until", render: (item) => item.expiresAt ? <span className="text-[11px]" style={{ color: item.status === "VERIFIED" && (item.daysLeft ?? 99) <= 30 ? "var(--color-warning)" : "var(--color-text-secondary)" }}>{formatDay(new Date(item.expiresAt), { day: "2-digit", month: "2-digit", year: "numeric" })}{item.status === "VERIFIED" && item.daysLeft !== null ? ` · ${item.daysLeft} days` : ""}</span> : "—" },
             { key: "status", header: "State", render: (item) => <span className="text-[10px] font-bold" style={{ color: item.status === "VERIFIED" ? "var(--color-success)" : item.status === "EXPIRED" ? "var(--color-warning)" : "var(--color-text-muted)" }}>{item.status === "VERIFIED" ? "Verified" : item.status === "EXPIRED" ? "Expired — moved to Standard" : item.status === "REVOKED" ? "Revoked" : "Pending"}</span> },
             {
               key: "actions", header: "Action", render: (item) => item.status === "REVOKED" ? null : (

@@ -6,6 +6,7 @@ import { activeCovers } from "../../common/teaching-scope";
 import { prisma } from "../../../../src/lib/db/prisma";
 import { RolesManagementService } from "../roles-management/roles-management.service";
 import { ConfigStore } from "../staff-access/staff-access.shared";
+import { formatDay } from "../../common/date-format";
 
 /**
  * What every Attendance tab reads the same way: the school's own rules, which days the school
@@ -87,10 +88,10 @@ export const addDays = (date: Date, days: number) => new Date(date.getTime() + d
 
 /** "Thu 4 Sep 2026" */
 export function longDay(date: Date): string {
-  return date.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
+  return formatDay(date, { weekday: "short", day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
 }
 export function shortDay(date: Date): string {
-  return date.toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone: "UTC" });
+  return formatDay(date, { day: "numeric", month: "short", timeZone: "UTC" });
 }
 
 /** The wall-clock time in Lagos, "07:58". */

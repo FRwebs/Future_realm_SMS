@@ -3,6 +3,7 @@ import type { TeacherWorkspaceView } from "@/lib/api/teacher-workspace";
 import { teacherModules, teacherNavigation } from "@/lib/modules/teacher-workspace";
 import type { KpiCard, Panel, PanelRow, PanelTone, TabContent, TableRow, TrackerRow } from "@/lib/modules/panels";
 import { pill, row, text } from "@/lib/modules/panels";
+import { formatDay } from "@/lib/date-format";
 
 /**
  * M01 for a teaching person: "My Day" — what they owe and by when, counted from their own assignments and nobody else's — and,
@@ -59,8 +60,8 @@ const stateTone = (state: string): PanelTone =>
   : state === "Approved" || state === "Marked" || state === "Done" ? "positive"
   : "neutral";
 
-const dayWords = (iso: string) => new Intl.DateTimeFormat("en-GB", { weekday: "long", day: "numeric", month: "long", timeZone: "UTC" }).format(new Date(iso));
-const shortDay = (iso: string) => new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "long", timeZone: "UTC" }).format(new Date(iso));
+const dayWords = (iso: string) => formatDay(new Date(iso), { weekday: "long", day: "numeric", month: "long", timeZone: "UTC" });
+const shortDay = (iso: string) => formatDay(new Date(iso), { day: "numeric", month: "long", timeZone: "UTC" });
 const clockOf = (iso: string) => new Intl.DateTimeFormat("en-GB", { hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "Africa/Lagos" }).format(new Date(iso));
 
 export async function teacherMyDayTab(tabSlug: string, me: TeacherWorkspaceView, permissions: string[]): Promise<TabContent | null | undefined> {

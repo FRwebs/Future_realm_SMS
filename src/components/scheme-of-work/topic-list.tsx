@@ -3,6 +3,7 @@ import { BookOpen, CheckCircle2 } from "lucide-react";
 import { AccordionGroup } from "@/components/ui/accordion";
 import type { SchemeOfWorkTopicView } from "@/lib/domain/types";
 import { cn } from "@/lib/utils/cn";
+import { formatDay } from "@/lib/date-format";
 
 function chips(items?: string[], tone = "border-(--color-border-default) bg-(--color-bg-surface) text-(--color-text-muted)") {
   if (!items?.length) return null;
@@ -55,7 +56,7 @@ export function SchemeOfWorkTopicList({
               </span>
               {topic.coveredDate ? (
                 <span className="text-[12px] font-semibold text-(--color-success)">
-                  Covered on {new Date(topic.coveredDate).toLocaleDateString("en-NG")}
+                  Covered on {formatDay(new Date(topic.coveredDate), { day: "2-digit", month: "2-digit", year: "numeric" }, "en-NG")}
                   {topic.coveredByName ? ` by ${topic.coveredByName}` : ""}
                 </span>
               ) : (

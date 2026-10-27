@@ -8,6 +8,7 @@ import { z } from "zod";
 
 import { readCookie } from "@/lib/modules/submit";
 import { toneOf } from "@/lib/modules/tones";
+import { formatDay } from "@/lib/date-format";
 
 export type TwoStepProps = { enabled: boolean; since: string | null };
 
@@ -47,7 +48,7 @@ export function StudentTwoStep({ enabled, since }: TwoStepProps) {
     <section className="min-w-0 rounded-[14px] border px-[17px] py-[15px]" style={{ background: tone.bg, borderColor: tone.bd }}>
       <p className="text-[11.5px] font-bold" style={{ color: tone.fg }}>{enabled ? "Two-step sign-in is on" : "Add two-step sign-in"}</p>
       <p className="mt-[3px] max-w-[640px] text-pretty text-[11px] leading-[1.55]" style={{ color: tone.fg }}>
-        {enabled ? `A code from your authenticator app is asked for when you sign in${since ? ` — on since ${new Date(since).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })}` : ""}.` : "A code from an authenticator app when you sign in keeps your account yours, even if someone learns your password."}
+        {enabled ? `A code from your authenticator app is asked for when you sign in${since ? ` — on since ${formatDay(new Date(since), { day: "numeric", month: "long", year: "numeric" })}` : ""}.` : "A code from an authenticator app when you sign in keeps your account yours, even if someone learns your password."}
       </p>
 
       {stage === "idle" ? (

@@ -3,6 +3,7 @@ import { cardDrawer, printDrawer, RC, reissueDrawer } from "@/lib/modules/live/m
 import type { ArchiveOverview } from "@/lib/modules/live/m6-types";
 import { plural } from "@/lib/modules/live/m7-format";
 import { name as nameCell, pill, text, type DrawerSpec, type PanelRow, type PanelTone, type TabContent, type TableRow } from "@/lib/modules/panels";
+import { formatDay } from "@/lib/date-format";
 
 /** Archive — every card ever issued, and the card itself as the family received it. */
 
@@ -17,7 +18,7 @@ const PRINTER = "M7 9V4h10v5M7 17H5a1 1 0 0 1-1-1v-6a1 1 0 0 1 1-1h14a1 1 0 0 1 
 const DELIVERY: Record<string, PanelTone> = { Delivered: "positive", "Not sent": "attention", Undelivered: "negative" };
 const KIND: Record<string, string> = { CORRECTION: "Corrected result", REISSUE: "Reissued", ISSUE: "Issued" };
 const BATCH: Record<string, string> = { PRINT: "Printed", PUBLISH: "Published", SEND: "Sent", UNPUBLISH: "Taken back" };
-const day = (iso: string) => new Date(`${iso.slice(0, 10)}T00:00:00Z`).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
+const day = (iso: string) => formatDay(new Date(`${iso.slice(0, 10)}T00:00:00Z`), { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
 
 export function archiveTab(a: ArchiveOverview): TabContent {
   const k = a.kpis;

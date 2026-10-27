@@ -29,6 +29,7 @@ import type {
   SuperAdminSchoolRow
 } from "@/lib/domain/types";
 import { formatCurrency, formatDate } from "@/lib/utils/formatters";
+import { formatDay } from "@/lib/date-format";
 
 function daysBetween(fromMs: number, toMs: number) {
   return Math.round((toMs - fromMs) / (1000 * 60 * 60 * 24));
@@ -509,7 +510,7 @@ async function LifecycleSection() {
           { key: "school", header: "School", render: (row) => <span className="font-semibold text-(--color-text-primary)">{row.school}</span> },
           { key: "plan", header: "Plan", render: (row) => <span className="text-(--color-text-secondary)">{row.plan}</span> },
           { key: "held", header: "Held at", render: (row) => <span className="font-(--font-mono) font-bold text-(--color-text-primary)">{formatCurrency(row.heldAt)}</span>, sortValue: (row) => row.heldAt },
-          { key: "until", header: "Until", render: (row) => <span className="text-(--color-text-secondary)">{new Date(row.until).toLocaleDateString("en-NG", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" })}</span>, sortValue: (row) => row.until },
+          { key: "until", header: "Until", render: (row) => <span className="text-(--color-text-secondary)">{formatDay(new Date(row.until), { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" }, "en-NG")}</span>, sortValue: (row) => row.until },
           { key: "reason", header: "Why", render: (row) => <span className="text-[11px] text-(--color-text-muted)">{row.reason ?? "—"}</span> },
           {
             key: "release",
@@ -527,7 +528,7 @@ async function LifecycleSection() {
                 fields={[
                   { name: "_school", label: "School", type: "static", placeholder: row.school, section: "What you are releasing" },
                   { name: "_held", label: "Currently held at", type: "static", placeholder: formatCurrency(row.heldAt), section: "What you are releasing" },
-                  { name: "_until", label: "Was due to run until", type: "static", placeholder: new Date(row.until).toLocaleDateString("en-NG", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" }), section: "What you are releasing" },
+                  { name: "_until", label: "Was due to run until", type: "static", placeholder: formatDay(new Date(row.until), { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" }, "en-NG"), section: "What you are releasing" },
                   { name: "_reason", label: "Why it was held", type: "static", placeholder: row.reason ?? "Not recorded", section: "What you are releasing", full: true }
                 ]}
                 impact={{

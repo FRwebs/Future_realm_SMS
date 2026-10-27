@@ -436,7 +436,7 @@
   button:focus-visible,
   a:focus-visible,
   [role='button']:focus-visible {
-    outline: 2px solid rgba(18, 121, 106, 0.45);
+    outline: 2px solid rgba(18, 121, 106, 0.75);
     outline-offset: 3px;
   }
 
@@ -1357,4 +1357,17 @@ html[data-density="comfortable"] .portal-page {
 }
 html[data-density="comfortable"] body {
   font-size: 14.5px;
+}
+
+/*
+ * Where keyboard focus is, on every control that can hold it. Written outside the layers so a component's own `outline-hidden` does not
+ * take it away: a field that only changed its border colour left someone using Tab unsure where they were.
+ */
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+summary:focus-visible,
+[tabindex]:not([tabindex='-1']):focus-visible {
+  outline: 2px solid #12796a;
+  outline-offset: 1px;
 }

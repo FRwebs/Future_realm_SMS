@@ -6,6 +6,7 @@ import type { Grid } from "@/lib/modules/live/m5-types";
 import { teacherObservationsTab } from "@/lib/modules/live/t5-observations";
 import type { DrawerSpec, PanelFact, PanelRow, PanelTone, TabContent, TableCellKind, TableRow } from "@/lib/modules/panels";
 import { pill, row, text } from "@/lib/modules/panels";
+import { formatDay } from "@/lib/date-format";
 
 /**
  * M05 for a teaching person, drawn from the teacher mockup: their own sheets (one subject-arm is one sheet), the sheet itself as a
@@ -88,8 +89,8 @@ const gradeTone = (grade: string | null): PanelTone => {
   const first = (grade ?? "")[0];
   return first === "A" || first === "B" ? "positive" : first === "C" ? "submitted" : first === "D" ? "attention" : !grade ? "neutral" : "negative";
 };
-const short = (iso: string) => new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "long", timeZone: "UTC" }).format(new Date(iso));
-const shortDay = (iso: string) => new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "long", timeZone: "Africa/Lagos" }).format(new Date(iso));
+const short = (iso: string) => formatDay(new Date(iso), { day: "numeric", month: "long", timeZone: "UTC" });
+const shortDay = (iso: string) => formatDay(new Date(iso), { day: "numeric", month: "long", timeZone: "Africa/Lagos" });
 const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 const ordinal = (n: number) => (n % 100 >= 11 && n % 100 <= 13 ? "th" : n % 10 === 1 ? "st" : n % 10 === 2 ? "nd" : n % 10 === 3 ? "rd" : "th");
 const roll = (n: number) => `Roll ${String(n).padStart(2, "0")}`;

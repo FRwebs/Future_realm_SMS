@@ -4,13 +4,14 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 import { sendJsonForData } from "@/lib/modules/submit";
+import { formatDay } from "@/lib/date-format";
 
 export type FamilyMessage = {
   id: string; text: string; channel: string; at: string; read: boolean; acknowledgeAsked: boolean; acknowledgedAt: string | null;
   replies: Array<{ id: string; text: string; at: string; state: string; outcome: string | null }>;
 };
 
-const when = (iso: string) => new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "Africa/Lagos" }).format(new Date(iso));
+const when = (iso: string) => formatDay(new Date(iso), { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "Africa/Lagos" });
 const channelName = (channel: string) => (channel === "SMS" ? "SMS" : channel === "EMAIL" ? "Email" : "In-app");
 
 /**

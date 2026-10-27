@@ -1,5 +1,7 @@
 "use client";
 
+import { apiJson, getUrl } from "@/lib/api/client";
+import { timetableDetailContract } from "@/lib/api/contracts";
 import Link from "next/link";
 import type { Route } from "next";
 import { useRouter } from "next/navigation";
@@ -497,8 +499,5 @@ function Stat({ label, value, tone }: { label: string; value: string; tone: "ok"
 }
 
 async function fetchDetail(id: string): Promise<TimetableDetail> {
-  const response = await fetch(`${API}/${id}`, { credentials: "include" });
-  const body = (await response.json().catch(() => ({}))) as { data?: TimetableDetail; error?: string };
-  if (!response.ok || !body.data) throw new Error(body.error ?? "Could not read that timetable.");
-  return body.data;
+  return apiJson(getUrl("/api/v1/class-structure/timetables/{id}", { id }), undefined, timetableDetailContract);
 }

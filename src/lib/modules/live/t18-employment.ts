@@ -3,6 +3,7 @@ import type { TeacherWorkspaceView } from "@/lib/api/teacher-workspace";
 import { area, fixed, select, text } from "@/lib/modules/live/m7-forms";
 import type { DrawerSpec, FormField, Panel, PanelFact, PanelRow, PanelTone, StepItem, TabContent, TableCellKind, TableRow } from "@/lib/modules/panels";
 import { pill, row, text as cell } from "@/lib/modules/panels";
+import { formatDay } from "@/lib/date-format";
 
 /**
  * M18 for a teaching person: My Employment — their own leave, what they hold and cover, their appraisal and their payslips. Everything
@@ -44,8 +45,8 @@ type Payslips = {
 };
 
 const ngn = (value: number) => `₦${value.toLocaleString("en-NG", { maximumFractionDigits: 2, minimumFractionDigits: 0 })}`;
-const long = (iso: string | null) => (iso ? new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "long", year: "numeric", timeZone: "Africa/Lagos" }).format(new Date(iso)) : "—");
-const short = (iso: string | null) => (iso ? new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", timeZone: "Africa/Lagos" }).format(new Date(iso)) : "—");
+const long = (iso: string | null) => (iso ? formatDay(new Date(iso), { day: "numeric", month: "long", year: "numeric", timeZone: "Africa/Lagos" }) : "—");
+const short = (iso: string | null) => (iso ? formatDay(new Date(iso), { day: "numeric", month: "short", timeZone: "Africa/Lagos" }) : "—");
 const leaveTone = (status: string): PanelTone => (status === "Approved" || status === "Taken" ? "positive" : status === "Declined" ? "negative" : "submitted");
 
 export async function teacherEmploymentTab(tabSlug: string, me: TeacherWorkspaceView, permissions: string[]): Promise<TabContent | null | undefined> {

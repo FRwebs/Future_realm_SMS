@@ -2,6 +2,7 @@ import { prisma } from "../../../../../src/lib/db/prisma";
 import type { SessionPayload } from "../../../../../src/lib/auth/session-core";
 import { armName } from "../../fee-management/fees.shared";
 import type { TeacherWorkspaceService } from "../workspace.service";
+import { formatDay } from "../../../common/date-format";
 
 const DAY = 86_400_000;
 
@@ -75,7 +76,7 @@ export async function termsOf(schoolId: string): Promise<{ current: Term | null;
 export const weekRange = (term: Term, week: number) => ({ from: new Date(term.startsOn.getTime() + (week - 1) * 7 * DAY), to: new Date(term.startsOn.getTime() + (week - 1) * 7 * DAY + 4 * DAY) });
 export const rangeLabel = (term: Term, week: number) => {
   const { from, to } = weekRange(term, week);
-  const f = (date: Date, month: boolean) => date.toLocaleDateString("en-GB", { day: "numeric", ...(month ? { month: "short" } : {}), timeZone: "UTC" });
+  const f = (date: Date, month: boolean) => month ? formatDay(date, { day: "numeric", month: "short", timeZone: "UTC" }) : date.toLocaleDateString("en-GB", { day: "numeric", timeZone: "UTC" });
   return from.getUTCMonth() === to.getUTCMonth() ? `${f(from, false)} – ${f(to, true)}` : `${f(from, true)} – ${f(to, true)}`;
 };
 /** A week the mid-term break falls inside is a short one. */

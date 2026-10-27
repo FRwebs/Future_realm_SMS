@@ -4,6 +4,7 @@ import { markHref, staffRecordHref, tone } from "@/lib/modules/live/m4-register"
 import type { Compliance, Options, TeacherRecord } from "@/lib/modules/live/m4-types";
 import { plural } from "@/lib/modules/live/m7-format";
 import { name as nameCell, pill, text, type DrawerSpec, type PanelTone, type TabContent, type TableRow, type TrackerRow } from "@/lib/modules/panels";
+import { formatDay } from "@/lib/date-format";
 
 /** Compliance is about the adults: who marked, when, and who broke the school's own rule. */
 
@@ -71,7 +72,7 @@ export function complianceTab(c: Compliance, options: Options): TabContent {
       {
         cols: "1fr",
         panels: [{
-          type: "kpi", title: "Breaches", sub: `Against the school's own rule: every register taken before ${c.cutoff}${c.since ? ` · counted from ${new Date(`${c.since}T00:00:00Z`).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" })}` : ""}.`, per: 5,
+          type: "kpi", title: "Breaches", sub: `Against the school's own rule: every register taken before ${c.cutoff}${c.since ? ` · counted from ${formatDay(new Date(`${c.since}T00:00:00Z`), { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" })}` : ""}.`, per: 5,
           cards: [
             { label: c.today ? "Today" : "On the day shown", value: String(k.unmarked), unit: "arms", sub: k.unmarked ? `Unmarked past the ${c.cutoff} cutoff` : k.notYet ? `${k.notYet} still inside the cutoff` : "Every register is in", tone: k.unmarked ? "negative" : "positive" },
             { label: "This week", value: String(k.week), unit: "arm-days", sub: `Across ${plural(k.weekTeachers, "form master")}`, tone: k.week ? "attention" : "positive" },

@@ -31,6 +31,7 @@ import {
   stateOf,
   validMobile
 } from "./records.shared";
+import { formatDay } from "../../common/date-format";
 
 /**
  * One child, in full: who they are, how they are scoring, what has reached their family, what
@@ -308,12 +309,12 @@ export class RecordService {
         .filter((entry) => entry.kind !== "CALL" || !(entry.detail as { studentId?: string } | null)?.studentId || (entry.detail as { studentId?: string }).studentId === student.id)
         .map((entry) => {
           const call = entry.kind === "CALL" ? ((entry.detail ?? {}) as { outcome?: string; note?: string; by?: string }) : null;
-          const day = entry.createdAt.toLocaleDateString("en-GB", { day: "numeric", month: "long" });
+          const day = formatDay(entry.createdAt, { day: "numeric", month: "long" });
           return call
             ? { at: entry.createdAt, label: `Call · ${call.outcome ?? "logged"}${call.note ? ` — ${call.note}` : ""}`, sub: `Phone · ${day} · ${call.by ?? "A teacher"}`, pill: call.outcome === "Spoke to them" ? "Reached" : "Not reached" }
             : { at: entry.createdAt, label: entry.summary, sub: `${entry.channel ?? "In-app"} · ${day}`, pill: "Delivered" };
         }),
-      ...feeContacts.map((entry) => ({ at: entry.createdAt, label: entry.summary, sub: `${entry.channel ?? "In-app"} · ${entry.createdAt.toLocaleDateString("en-GB", { day: "numeric", month: "long" })}`, pill: "Delivered" }))
+      ...feeContacts.map((entry) => ({ at: entry.createdAt, label: entry.summary, sub: `${entry.channel ?? "In-app"} · ${formatDay(entry.createdAt, { day: "numeric", month: "long" })}`, pill: "Delivered" }))
     ]
       .sort((a, b) => b.at.getTime() - a.at.getTime())
       .slice(0, 8)
@@ -418,7 +419,7 @@ export class RecordService {
         }),
         collectors: [
           ...student.guardians.filter((link) => link.canCollect).map((link) => ({ id: `g-${link.guardianId}`, name: fullName(link.guardian), relation: String(link.relation ?? link.guardian.relationship).toLowerCase(), note: link.isPrimary ? "Primary contact · photograph on file" : "Photograph on file", own: false })),
-          ...student.collectors.map((collector) => ({ id: collector.id, name: collector.name, relation: collector.relation.toLowerCase(), note: collector.photoFile ? `Photograph on file${collector.until ? ` · until ${collector.until.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}` : ""}` : "No photograph — cannot collect", own: true }))
+          ...student.collectors.map((collector) => ({ id: collector.id, name: collector.name, relation: collector.relation.toLowerCase(), note: collector.photoFile ? `Photograph on file${collector.until ? ` · until ${formatDay(collector.until, { day: "numeric", month: "short", year: "numeric" })}` : ""}` : "No photograph — cannot collect", own: true }))
         ],
         sent,
         siblings,

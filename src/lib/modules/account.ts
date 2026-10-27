@@ -1,5 +1,5 @@
 import { ALL_LOCALES, DEFAULT_LOCALE, LOCALE_NAMES, type Locale } from "@/i18n/locales";
-import { DENSITIES, NOTIFY_ABOUT, NOTIFY_BY, OPEN_ON_CHOICES, QUIET_HOURS, devicePreferencesFrom, type Preferences } from "@/lib/preferences";
+import { DATE_FORMATS, DENSITIES, NOTIFY_ABOUT, NOTIFY_BY, OPEN_ON_CHOICES, QUIET_HOURS, devicePreferencesFrom, type Preferences } from "@/lib/preferences";
 import { systemRoleLabels } from "@/lib/permissions/catalog";
 import { schoolModules, schoolTemplateReach } from "@/lib/modules/school-modules";
 import { roleTemplateFor, visibleModulesForRole } from "@/lib/modules/school-access";
@@ -333,10 +333,11 @@ function preferencesTab(session: SessionUser, schoolName: string, profile: MyPro
               hint: "Compact fits more rows on a screen; comfortable gives tables and lists more room and is easier on a projector.",
             },
             {
-              kind: "static",
+              kind: "select",
               label: "Date format",
-              value: "4 Sep 2026",
-              hint: "Dates are written one way across the product for now, so there is nothing to choose yet.",
+              value: device.dateFormat,
+              options: [...DATE_FORMATS],
+              hint: "How every date in the product is written for you — shown here as the same day, 4 September 2026. The second form reads day first, the third month first.",
             },
             {
               kind: "toggle",
@@ -357,6 +358,7 @@ function preferencesTab(session: SessionUser, schoolName: string, profile: MyPro
             {
               "Open on": "preferences.openOn",
               Density: "preferences.density",
+              "Date format": "preferences.dateFormat",
               "Confirm before I leave an unsaved screen": "preferences.confirmLeave",
               "Keep my work on this device when offline": "preferences.keepOffline",
             },

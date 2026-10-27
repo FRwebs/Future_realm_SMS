@@ -6,6 +6,7 @@ import Link from "next/link";
 import { TableCard } from "@/components/data-display/table-card";
 import { TableFilterBar } from "@/components/data-display/table-filter-bar";
 import { ResourceActionDialog } from "@/components/forms/resource-action-dialog";
+import { formatDay } from "@/lib/date-format";
 
 interface School {
   id: string;
@@ -47,7 +48,7 @@ function initials(name: string) {
 }
 
 function formatDate(iso: string) {
-  return new Date(iso).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
+  return formatDay(new Date(iso), { day: "2-digit", month: "short", year: "numeric" });
 }
 
 interface Dispute {

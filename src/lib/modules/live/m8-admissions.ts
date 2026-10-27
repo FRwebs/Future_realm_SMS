@@ -3,6 +3,7 @@ import { dayLabel, dayLong, plural } from "@/lib/modules/live/m7-format";
 import { addApplicationDrawer, addSessionDrawer, advanceDrawer, applicantContactDrawer, bulkDeclineDrawer, bulkOfferDrawer, declineDrawer, reopenDrawer, requestDocumentsDrawer, scheduleDrawer, SR } from "@/lib/modules/live/m8-forms";
 import type { AdmissionOptions, AdmissionsBoard, Applicant, ApplicantRow, DiarySession, Stage } from "@/lib/modules/live/m8-types";
 import { name as nameCell, pill, text, type KpiCard, type PanelTone, type StepItem, type TabContent, type TableRow } from "@/lib/modules/panels";
+import { formatDay } from "@/lib/date-format";
 
 /**
  * Admissions: every applicant, where they are, and what moves them on. Each stage is a group of
@@ -22,8 +23,8 @@ export const loadPipeline = (state: string) => apiGet<{ state: string; rows: App
 export const applicantHref = (id: string) => `/student-records/admissions/${encodeURIComponent(id)}`;
 export const pipelineHref = (state: string) => `/student-records/admissions/pipeline/${encodeURIComponent(state)}`;
 
-const born = (iso: string) => new Date(iso).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
-const when = (iso: string) => new Date(iso).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" });
+const born = (iso: string) => formatDay(new Date(iso), { day: "numeric", month: "short", year: "numeric" });
+const when = (iso: string) => formatDay(new Date(iso), { weekday: "short", day: "numeric", month: "short" });
 const clock = (iso: string) => new Date(iso).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
 
 const NEXT_WORD: Record<string, string> = {
@@ -84,7 +85,7 @@ export function admissionsTab(data: AdmissionsBoard, o: AdmissionOptions): TabCo
 
   const diary: TableRow[] = data.sessions.map((session: DiarySession) => ({
     cells: [
-      text(new Date(`${session.date}T00:00:00`).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", year: "numeric" }), { strong: true }),
+      text(formatDay(new Date(`${session.date}T00:00:00`), { weekday: "short", day: "numeric", month: "short", year: "numeric" }), { strong: true }),
       text(session.end ? `${session.start}–${session.end}` : session.start),
       text(session.forLabel),
       text(session.seats ? String(session.seats) : "—", { mono: true }),

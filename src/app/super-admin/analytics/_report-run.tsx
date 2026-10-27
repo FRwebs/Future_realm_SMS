@@ -1,22 +1,13 @@
 "use client";
 
 import { Fragment, useState } from "react";
+import type { z } from "zod";
 
 import { Modal } from "@/components/ui/modal";
+import { apiJson, getUrl } from "@/lib/api/client";
+import { reportRunContract } from "@/lib/api/contracts";
 
-type RunResult = {
-  name: string;
-  dimension: string;
-  metric: string;
-  question: string | null;
-  locked: boolean;
-  periodDays: number | null;
-  compare: boolean;
-  suppressUnder: number | null;
-  showDropoff: boolean;
-  weightChurned: boolean;
-  rows: Array<{ label: string; value: number | null; suppressed: boolean; schools: number | null; previous: number | null; churned: number | null; churnedSchools: number | null; schoolNames: string[]; dropoff: number | null }>;
-};
+type RunResult = z.infer<typeof reportRunContract>;
 
 const DIMENSIONS = [{ label: "Tier", value: "tier" }, { label: "State", value: "state" }, { label: "Status", value: "status" }];
 const METRICS = [{ label: "School count", value: "schoolCount" }, { label: "Student count", value: "studentCount" }, { label: "MRR", value: "mrr" }];
@@ -32,16 +23,11 @@ export function ReportRun({ id, name }: { id: string; name: string }) {
 
   async function run(nextDimension = dimension, nextMetric = metric) {
     setError(null);
-    const query = new URLSearchParams();
-    if (nextDimension) query.set("dimension", nextDimension);
-    if (nextMetric) query.set("metric", nextMetric);
     try {
-      const response = await fetch(`/api/super-admin/analytics-bi/reports/${id}/run?${query.toString()}`, { credentials: "include" });
-      const body = (await response.json()) as { data?: RunResult; error?: string; message?: string };
-      if (!response.ok || !body.data) throw new Error(body.error ?? body.message ?? "The report could not be run.");
-      setResult(body.data);
-      setDimension(body.data.dimension);
-      setMetric(body.data.metric);
+      const data = await apiJson(getUrl("/api/super-admin/analytics-bi/reports/{id}/run", { id }, { dimension: nextDimension || null, metric: nextMetric || null }), undefined, reportRunContract);
+      setResult(data);
+      setDimension(data.dimension);
+      setMetric(data.metric);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "The report could not be run.");
     }

@@ -7,13 +7,14 @@ import { getTeacherWorkspace } from "@/lib/api/teacher-workspace";
 import { getServerSession } from "@/lib/auth/session";
 import type { DrawerSpec, TableRow } from "@/lib/modules/panels";
 import { row } from "@/lib/modules/panels";
+import { formatDay } from "@/lib/date-format";
 
 export const metadata: Metadata = { title: "Students are asking" };
 
 type Observed = { id: string; student: string; arm: string; topic: string; text: string; at: string; to: string };
 type Item = { id: string; student: string; arm: string; topic: string; text: string; at: string; read: boolean; replies: Array<{ text: string; at: string }>; answered: boolean };
 
-const day = (iso: string) => new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", timeZone: "Africa/Lagos" }).format(new Date(iso));
+const day = (iso: string) => formatDay(new Date(iso), { day: "numeric", month: "short", timeZone: "Africa/Lagos" });
 
 function replyDrawer(item: Item): DrawerSpec {
   return {

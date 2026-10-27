@@ -1,4 +1,4 @@
-import { internalDevicesContract, internalOwnsContract, membershipsContract, notificationsContract, partnerOverviewContract, plansContract, slugCheckContract, tierChangePreviewContract } from "@/lib/api/contracts";
+import { internalDevicesContract, internalOwnsContract, membershipsContract, notificationsContract, partnerOverviewContract, plansContract, reportRunContract, slugCheckContract, tierChangePreviewContract, timetableDetailContract } from "@/lib/api/contracts";
 
 describe("what the browser expects of the API", () => {
   it("reads all three notification feeds the bell can be pointed at", () => {
@@ -33,5 +33,20 @@ describe("what the browser expects of the API", () => {
     const overview = { person: { name: "A", email: "a@x.ng" }, partner: { name: "P", code: null, tier: null, territory: null }, schools: [], deals: [], commission: { accrued: 0, statements: [] } };
     expect(partnerOverviewContract.safeParse(overview).success).toBe(true);
     expect(partnerOverviewContract.safeParse({ ...overview, commission: { accrued: "0", statements: [] } }).success).toBe(false);
+  });
+
+  it("reads a timetable and a report run, and refuses ones the builder could not draw", () => {
+    const detail = {
+      version: { id: "v", name: "Term 2", state: "DRAFT", note: null, periodsPerDay: 8, periodMinutes: 40, firstStarts: "08:00", schoolDays: ["MON"], live: false },
+      arms: [{ id: "a", name: "Crèche A", level: "Crèche", room: null }],
+      subjects: { a: [{ subjectId: "s", name: "Business Studies", periods: 3, teacher: null }] },
+      grid: {}, periods: [], clashes: [],
+    };
+    expect(timetableDetailContract.safeParse(detail).success).toBe(true);
+    expect(timetableDetailContract.safeParse({ ...detail, version: { ...detail.version, state: "PUBLISHED" } }).success).toBe(false);
+    expect(timetableDetailContract.safeParse({ version: detail.version }).success).toBe(false);
+    const run = { name: "Schools by tier", dimension: "tier", metric: "schoolCount", question: null, locked: false, periodDays: null, compare: false, suppressUnder: 3, showDropoff: false, weightChurned: false, rows: [{ label: "Premium", value: 4, suppressed: false, schools: 4, previous: null, churned: null, churnedSchools: null, schoolNames: [], dropoff: null }] };
+    expect(reportRunContract.safeParse(run).success).toBe(true);
+    expect(reportRunContract.safeParse({ ...run, rows: [{ label: "x" }] }).success).toBe(false);
   });
 });

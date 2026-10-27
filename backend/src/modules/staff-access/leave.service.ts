@@ -8,6 +8,7 @@ import { LEAVE_TYPE_DEFAULTS, type LeaveTypePolicy } from "../../../../src/lib/m
 import type { FlowStageData } from "../../../../src/lib/modules/staff-flows";
 import { FlowsService } from "./flows.service";
 import { fullName, store, templateName } from "./staff-access.shared";
+import { formatDay } from "../../common/date-format";
 
 /**
  * Leave is a sequence, not a form: a request, the people who decide it in order, the cover that
@@ -131,7 +132,7 @@ export class LeaveService {
   }
 
   private label(date: Date, end: Date) {
-    const f = (value: Date, year: boolean) => value.toLocaleDateString("en-GB", { day: "numeric", month: "short", ...(year ? { year: "numeric" } : {}) });
+    const f = (value: Date, year: boolean) => formatDay(value, { day: "numeric", month: "short", ...(year ? { year: "numeric" } : {}) });
     const sameDay = date.toDateString() === end.toDateString();
     return sameDay ? f(date, true) : `${f(date, false)} – ${f(end, true)}`;
   }

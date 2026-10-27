@@ -1,3 +1,4 @@
+import { formatDay, isDefaultDateFormat } from "@/lib/date-format";
 import { apiGet } from "@/lib/api/server";
 import { SW } from "@/lib/api/student-workspace";
 import type { DrawerSpec, FormField, PanelTone, TabContent } from "@/lib/modules/panels";
@@ -62,8 +63,8 @@ export const WEEKDAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday",
 export const dayOf = (iso: string) => new Date(`${iso}T00:00:00Z`);
 export const addDays = (iso: string, days: number) => new Date(dayOf(iso).getTime() + days * 86_400_000).toISOString().slice(0, 10);
 export const daysBetween = (from: string, to: string) => Math.round((dayOf(to).getTime() - dayOf(from).getTime()) / 86_400_000);
-export const dShort = (iso: string) => `${dayOf(iso).getUTCDate()} ${MON3[dayOf(iso).getUTCMonth()]}`;
-export const dLong = (iso: string) => `${dayOf(iso).getUTCDate()} ${MONTHS[dayOf(iso).getUTCMonth()]} ${dayOf(iso).getUTCFullYear()}`;
+export const dShort = (iso: string) => (isDefaultDateFormat() ? `${dayOf(iso).getUTCDate()} ${MON3[dayOf(iso).getUTCMonth()]}` : formatDay(dayOf(iso), { day: "numeric", month: "short", timeZone: "UTC" }));
+export const dLong = (iso: string) => (isDefaultDateFormat() ? `${dayOf(iso).getUTCDate()} ${MONTHS[dayOf(iso).getUTCMonth()]} ${dayOf(iso).getUTCFullYear()}` : formatDay(dayOf(iso), { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" }));
 /** "Tue 20 Oct" */
 export const dDow = (iso: string) => `${WEEKDAYS[dayOf(iso).getUTCDay()]!.slice(0, 3)} ${dShort(iso)}`;
 export const dFull = (iso: string) => `${WEEKDAYS[dayOf(iso).getUTCDay()]} ${dShort(iso)}`;

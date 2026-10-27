@@ -5,6 +5,7 @@ import type { PublishDate, RemarkPage, RemarksOverview } from "@/lib/modules/liv
 import { gradeTone, num, stateTone } from "@/lib/modules/live/m5-enter";
 import { plural } from "@/lib/modules/live/m7-format";
 import { name as nameCell, pill, text, type PanelRow, type PanelTone, type TabContent, type TableRow, type TrackerRow } from "@/lib/modules/panels";
+import { formatDay } from "@/lib/date-format";
 
 /** Remarks — read what a teacher wrote, add your review, move to the next child. */
 
@@ -19,7 +20,7 @@ export const loadRemarkPage = (classId: string, studentId: string) => apiGet<Rem
 const WARN = "M12 8.2v4.6M12 16h.02M12 3.6 21 19.4H3z";
 const PEN = "M4 20h4L19 9l-4-4L4 16zM14.5 5.5l4 4";
 export const bandTone = (band: string): PanelTone => (band === "Excellent" || band === "Very good" || band === "Good" ? "positive" : band === "Fair" || band === "Weak" ? "attention" : band === "Not scored" ? "neutral" : "negative");
-export const dateText = (iso: string) => new Date(`${iso}T00:00:00Z`).toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone: "UTC" });
+export const dateText = (iso: string) => formatDay(new Date(`${iso}T00:00:00Z`), { day: "numeric", month: "short", timeZone: "UTC" });
 export const publishCard = (d: PublishDate) => ({ label: "Publish date", value: d ? dateText(d.iso) : "—", sub: d ? (d.days > 0 ? `${d.days} days away` : d.days === 0 ? "Today" : `${-d.days} days ago`) : "No release date is set" });
 
 export function remarksTab(o: RemarksOverview, school: string): TabContent {

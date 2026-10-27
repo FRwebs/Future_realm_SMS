@@ -44,14 +44,14 @@ export default async function RootLayout({
 }>) {
   const locale = await getLocale();
   const messages = await getMessages();
-  // The page's one inline script (the theme, applied before paint so there is no flash) carries this request's nonce from the middleware.
+  // The page's one inline script (the theme, applied before paint so there is no flash) carries this request's nonce from the middleware (browsers hide a nonce from the page once it has run, so the client sees it empty — expected, not a mismatch).
   const nonce = (await headers()).get("x-nonce") ?? undefined;
   // How roomy this person asked the product to be (Preferences → Density), applied before the first paint.
   const density = decodeDevicePreferences((await cookies()).get(PREFS_COOKIE)?.value).density.toLowerCase();
   return (
     <html lang={locale} data-theme="light" data-density={density} suppressHydrationWarning>
       <head>
-        <script nonce={nonce} dangerouslySetInnerHTML={{ __html: themeBootstrapScript }} />
+        <script nonce={nonce} suppressHydrationWarning dangerouslySetInnerHTML={{ __html: themeBootstrapScript }} />
       </head>
       <body className="app-body min-h-screen antialiased">
         <ThemeProvider>

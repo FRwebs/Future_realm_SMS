@@ -1,5 +1,6 @@
 import type { AccountState } from "@/lib/modules/live/m7-types";
 import type { PanelTone } from "@/lib/modules/panels";
+import { formatDay } from "@/lib/date-format";
 
 /** Small readings every Staff & Access screen shares: dates, plurals, how long since a sign-in. */
 
@@ -15,13 +16,13 @@ export const plural = (count: number, one: string, many = `${one}s`) => `${count
 export function dayLabel(iso: string | null | undefined): string {
   if (!iso) return "—";
   const date = new Date(iso);
-  return Number.isNaN(date.getTime()) ? "—" : date.toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+  return Number.isNaN(date.getTime()) ? "—" : formatDay(date, { day: "numeric", month: "short" });
 }
 
 export function dayLong(iso: string | null | undefined): string {
   if (!iso) return "—";
   const date = new Date(iso);
-  return Number.isNaN(date.getTime()) ? "—" : date.toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" });
+  return Number.isNaN(date.getTime()) ? "—" : formatDay(date, { day: "numeric", month: "long", year: "numeric" });
 }
 
 /** "Today", "3 days ago", or "Never" — read from the sign-in itself. */

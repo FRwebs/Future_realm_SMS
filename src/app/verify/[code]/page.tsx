@@ -1,12 +1,13 @@
 import type { Metadata } from "next";
 import { headers } from "next/headers";
+import { formatDay } from "@/lib/date-format";
 
 export const metadata: Metadata = { title: "Verify a certificate", description: "Check that a training certificate is genuine." };
 export const dynamic = "force-dynamic";
 
 type Verdict = { valid: boolean; state?: string; certificate?: string; holder?: string; issuedBy?: string; school?: string; issuedAt?: string; expiresAt?: string | null };
 
-const day = (iso?: string | null) => (iso ? new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "long", year: "numeric", timeZone: "Africa/Lagos" }).format(new Date(iso)) : "");
+const day = (iso?: string | null) => (iso ? formatDay(new Date(iso), { day: "numeric", month: "long", year: "numeric", timeZone: "Africa/Lagos" }) : "");
 
 /** Anyone with a certificate's code can confirm it here — and sees only what a verifier needs: the certificate, who earned it, who awarded it, and when. */
 export default async function VerifyPage({ params }: { params: Promise<{ code: string }> }) {

@@ -19,6 +19,7 @@ import {
   type TabContent,
   type TableRow,
 } from "@/lib/modules/panels";
+import { formatDay } from "@/lib/date-format";
 
 /**
  * The two pages Class & Timetable opens into: one arm, and one teacher.
@@ -549,7 +550,7 @@ export async function teacherPage(teacherId: string): Promise<(TabContent & { he
 function dateText(iso: string | null | undefined): string {
   if (!iso) return "—";
   const date = new Date(iso);
-  return Number.isNaN(date.getTime()) ? "—" : date.toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" });
+  return Number.isNaN(date.getTime()) ? "—" : formatDay(date, { day: "numeric", month: "long", year: "numeric" });
 }
 
 /** One child, read from the arm they sit in: attendance, results, fees and who to call. */

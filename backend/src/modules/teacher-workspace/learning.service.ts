@@ -12,6 +12,7 @@ import { personaLabels } from "../../../../src/lib/modules/teacher-workspace";
 import { TeacherNotesService } from "./lesson-notes/notes.service";
 import { TeacherScoresService } from "./scores.service";
 import { TeacherWorkspaceService } from "./workspace.service";
+import { formatDay } from "../../common/date-format";
 
 const DAY = 86_400_000;
 /** Prices are held in kobo so no figure is ever a rounded float. */
@@ -22,7 +23,7 @@ const FORMATS = ["Self-paced", "Blended", "Live cohort"];
 /** What a course can be about, in the words the work itself raises. A teacher's classes, results and deadlines raise these; a course carrying one is recommended. */
 export const TOPICS = ["assessment", "reporting", "planning", "large classes", "inclusion", "new to the tools"];
 
-const dateLabel = (date: Date) => date.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
+const dateLabel = (date: Date) => formatDay(date, { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
 const code = () => `FR-${randomBytes(2).toString("hex").toUpperCase()}-${randomBytes(2).toString("hex").toUpperCase()}`;
 const lines = (value: unknown): string[] => (Array.isArray(value) ? value.map(String) : typeof value === "string" ? value.split(/\r?\n/).map((line) => line.trim()).filter(Boolean) : []);
 

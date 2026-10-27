@@ -7,6 +7,7 @@ import { prisma } from "../../../../src/lib/db/prisma";
 import { armName } from "../fee-management/fees.shared";
 import { openSubmission, submissionTypes } from "../guardian-management/submission-intake";
 import { currentTerm, fullName } from "../student-records/records.shared";
+import { formatDay } from "../../common/date-format";
 
 /** The types of submission a family may open themselves. The others are the school's to start. */
 const FAMILY_TYPES = ["Absence explanation", "Collection change", "Contact update", "Record correction", "Result query", "Fee query", "Meeting request"];
@@ -108,7 +109,7 @@ export class FamilyInboxService {
       : [];
     const children = guardian.students.map((link) => ({
       id: link.studentId, name: fullName(link.student), arm: link.student.currentClass ? armName(link.student.currentClass) : "",
-      absences: absent.filter((entry) => entry.studentId === link.studentId).slice(0, 20).map((entry) => ({ date: entry.date.toISOString().slice(0, 10), label: new Intl.DateTimeFormat("en-GB", { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" }).format(entry.date) })),
+      absences: absent.filter((entry) => entry.studentId === link.studentId).slice(0, 20).map((entry) => ({ date: entry.date.toISOString().slice(0, 10), label: formatDay(entry.date, { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" }) })),
     }));
     return { children, types: types.filter((type) => type.accepted && FAMILY_TYPES.includes(type.name)).map((type) => ({ name: type.name, target: type.target })) };
   }

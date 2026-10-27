@@ -3,6 +3,7 @@ import type { TeacherWorkspaceView } from "@/lib/api/teacher-workspace";
 import { LN_API, type AddOptions, type Letterhead, type NoteData, type Overview, type SchemeData, type Section, type SubjectNotesData, type ThreadEntry } from "@/lib/modules/lesson-notes-types";
 import type { DrawerSpec, PanelRow, PanelTone, TabContent, TableCellKind, TableRow, TrackerRow } from "@/lib/modules/panels";
 import { bar, pill, row, text as cell } from "@/lib/modules/panels";
+import { formatDay } from "@/lib/date-format";
 
 /**
  * M17 for a teaching person: Lesson Notes. The scheme of work comes first — a term's weeks, each a topic — and a note is written once
@@ -50,7 +51,7 @@ type Coverage = {
 };
 type CatalogueRow = { id: string; curriculum: string; subject: string; stage: string; term: number; source: string | null; book: string | null; topics: number; own: boolean };
 
-const stamp = (iso: string | null) => (iso ? new Date(iso).toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone: "Africa/Lagos" }) : "—");
+const stamp = (iso: string | null) => (iso ? formatDay(new Date(iso), { day: "numeric", month: "short", timeZone: "Africa/Lagos" }) : "—");
 const embed = (component: string, props: Record<string, unknown>): PanelRow => row("1fr", [{ type: "embed", component, props }]);
 const noTerm = (title: string): TabContent => ({ title, desc: "There is no current term, so nothing can be planned or written.", rows: [row("1fr", [{ type: "note", tone: "neutral", icon: EYE, title: "No term is current", body: "Lesson notes follow the school’s term. When the school office sets the current term in School Configuration, this page fills in." }])] });
 
