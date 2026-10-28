@@ -2,6 +2,7 @@ import { Injectable, NotFoundException } from "@nestjs/common";
 
 import type { SessionPayload } from "../../../../src/lib/auth/session-core";
 import { prisma } from "../../../../src/lib/db/prisma";
+import { personName, staffCard, studentCard } from "../../common/person-select";
 
 function startOfToday() {
   return new Date(new Date().toDateString());
@@ -118,8 +119,8 @@ export class SupportPortalsService {
     return prisma.healthVisit.findMany({
       where: { schoolId: session.schoolId, deletedAt: null },
       include: {
-        student: { include: { currentClass: true, user: true } },
-        nurse: true,
+        student: { select: studentCard },
+        nurse: { select: personName },
       },
       orderBy: { visitedAt: "desc" },
       take: 100,
@@ -256,8 +257,8 @@ export class SupportPortalsService {
       where: { schoolId: session.schoolId },
       include: {
         book: true,
-        student: { include: { currentClass: true, user: true } },
-        staff: { include: { user: true, department: true } },
+        student: { select: studentCard },
+        staff: { select: staffCard },
       },
       orderBy: { borrowedAt: "desc" },
       take: 200,
@@ -491,7 +492,7 @@ export class SupportPortalsService {
       where: { schoolId: session.schoolId },
       include: {
         room: { include: { building: true } },
-        student: { include: { currentClass: true, user: true } },
+        student: { select: studentCard },
         academicSession: true,
       },
       orderBy: { startDate: "desc" },
@@ -506,7 +507,7 @@ export class SupportPortalsService {
         building: true,
         allocations: {
           where: { endDate: null },
-          include: { student: { include: { currentClass: true, user: true } } },
+          include: { student: { select: studentCard } },
         },
       },
       orderBy: { name: "asc" },
@@ -597,7 +598,7 @@ export class SupportPortalsService {
     return prisma.transportRoute.findMany({
       where: { schoolId: session.schoolId },
       include: {
-        assignments: { include: { student: { include: { currentClass: true, user: true } } } },
+        assignments: { include: { student: { select: studentCard } } },
         vehicles: true,
       },
       orderBy: { code: "asc" },
@@ -608,7 +609,7 @@ export class SupportPortalsService {
   async listTransportStudents(session: SessionPayload) {
     return prisma.transportAssignment.findMany({
       where: { schoolId: session.schoolId },
-      include: { student: { include: { currentClass: true, user: true } }, route: true },
+      include: { student: { select: studentCard }, route: true },
       orderBy: { stopName: "asc" },
       take: 250,
     });

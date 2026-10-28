@@ -4,6 +4,7 @@ import { z } from "zod";
 
 import type { SessionPayload } from "../../../../src/lib/auth/session-core";
 import { prisma } from "../../../../src/lib/db/prisma";
+import { guardianCard, personName, staffCard, studentCard } from "../../common/person-select";
 
 const disciplineSchema = z.object({
   studentId: z.string().min(1),
@@ -218,7 +219,7 @@ export class OperationsService {
   async listDiscipline(session: SessionPayload) {
     return prisma.disciplineRecord.findMany({
       where: { schoolId: session.schoolId, deletedAt: null },
-      include: { student: true, reporter: true, classRoom: true },
+      include: { student: { select: studentCard }, reporter: { select: personName }, classRoom: true },
       orderBy: { occurredAt: "desc" },
       take: 100
     });
@@ -229,7 +230,7 @@ export class OperationsService {
     const actor = await this.actor(session);
     const record = await prisma.disciplineRecord.create({
       data: { schoolId: session.schoolId, reporterId: actor?.id, ...parsed },
-      include: { student: true }
+      include: { student: { select: studentCard } }
     });
     await prisma.notificationLog.create({
       data: {
@@ -271,7 +272,7 @@ export class OperationsService {
         deletedAt: null,
         ...(canSeeAll ? {} : { counselorId: actor?.id ?? "" })
       },
-      include: { student: true, counselor: true },
+      include: { student: { select: studentCard }, counselor: { select: personName } },
       orderBy: { sessionDate: "desc" },
       take: 100
     });
@@ -300,7 +301,7 @@ export class OperationsService {
   async listHealth(session: SessionPayload) {
     return prisma.healthVisit.findMany({
       where: { schoolId: session.schoolId, deletedAt: null },
-      include: { student: true, nurse: true },
+      include: { student: { select: studentCard }, nurse: { select: personName } },
       orderBy: { visitedAt: "desc" },
       take: 100
     });
@@ -317,7 +318,7 @@ export class OperationsService {
   }
 
   async listVisitors(session: SessionPayload) {
-    return prisma.visitorLog.findMany({ where: { schoolId: session.schoolId, deletedAt: null }, include: { createdBy: true, hostUser: true }, orderBy: { timeIn: "desc" }, take: 100 });
+    return prisma.visitorLog.findMany({ where: { schoolId: session.schoolId, deletedAt: null }, include: { createdBy: { select: personName }, hostUser: { select: personName } }, orderBy: { timeIn: "desc" }, take: 100 });
   }
 
   async createVisitor(session: SessionPayload, payload: unknown) {
@@ -337,7 +338,7 @@ export class OperationsService {
   }
 
   async listLessonPlans(session: SessionPayload) {
-    return prisma.lessonPlan.findMany({ where: { schoolId: session.schoolId, deletedAt: null }, include: { teacher: true, subject: true, classRoom: true }, orderBy: { createdAt: "desc" }, take: 100 });
+    return prisma.lessonPlan.findMany({ where: { schoolId: session.schoolId, deletedAt: null }, include: { teacher: { select: personName }, subject: true, classRoom: true }, orderBy: { createdAt: "desc" }, take: 100 });
   }
 
   async createLessonPlan(session: SessionPayload, payload: unknown) {
@@ -369,7 +370,7 @@ export class OperationsService {
   }
 
   async listQuestionBank(session: SessionPayload) {
-    return prisma.questionBankItem.findMany({ where: { schoolId: session.schoolId, deletedAt: null }, include: { subject: true, classRoom: true, teacher: true }, orderBy: { createdAt: "desc" }, take: 100 });
+    return prisma.questionBankItem.findMany({ where: { schoolId: session.schoolId, deletedAt: null }, include: { subject: true, classRoom: true, teacher: { select: personName } }, orderBy: { createdAt: "desc" }, take: 100 });
   }
 
   async createQuestion(session: SessionPayload, payload: unknown) {
@@ -399,7 +400,7 @@ export class OperationsService {
   }
 
   async listLearningMaterials(session: SessionPayload) {
-    return prisma.learningMaterial.findMany({ where: { schoolId: session.schoolId, deletedAt: null }, include: { subject: true, classRoom: true, teacher: true }, orderBy: { createdAt: "desc" }, take: 100 });
+    return prisma.learningMaterial.findMany({ where: { schoolId: session.schoolId, deletedAt: null }, include: { subject: true, classRoom: true, teacher: { select: personName } }, orderBy: { createdAt: "desc" }, take: 100 });
   }
 
   async listResultWindows(session: SessionPayload) {
@@ -416,7 +417,7 @@ export class OperationsService {
   }
 
   async listStaffLeave(session: SessionPayload) {
-    return prisma.leaveRequest.findMany({ where: { schoolId: session.schoolId }, include: { staff: { include: { user: true, department: true } } }, orderBy: { startDate: "desc" }, take: 100 });
+    return prisma.leaveRequest.findMany({ where: { schoolId: session.schoolId }, include: { staff: { select: staffCard } }, orderBy: { startDate: "desc" }, take: 100 });
   }
 
   async createStaffLeave(session: SessionPayload, payload: unknown) {
@@ -450,7 +451,7 @@ export class OperationsService {
   }
 
   async listFacilities(session: SessionPayload) {
-    return prisma.facilityMaintenanceLog.findMany({ where: { schoolId: session.schoolId, deletedAt: null }, include: { reportedBy: true }, orderBy: { reportedAt: "desc" }, take: 100 });
+    return prisma.facilityMaintenanceLog.findMany({ where: { schoolId: session.schoolId, deletedAt: null }, include: { reportedBy: { select: personName } }, orderBy: { reportedAt: "desc" }, take: 100 });
   }
 
   async createFacilityLog(session: SessionPayload, payload: unknown) {
@@ -473,7 +474,7 @@ export class OperationsService {
   }
 
   async listParentMeetings(session: SessionPayload) {
-    return prisma.parentMeeting.findMany({ where: { schoolId: session.schoolId, deletedAt: null }, include: { student: true, guardian: true, staff: { include: { user: true } } }, orderBy: { scheduledAt: "asc" }, take: 100 });
+    return prisma.parentMeeting.findMany({ where: { schoolId: session.schoolId, deletedAt: null }, include: { student: { select: studentCard }, guardian: { select: guardianCard }, staff: { select: staffCard } }, orderBy: { scheduledAt: "asc" }, take: 100 });
   }
 
   async createParentMeeting(session: SessionPayload, payload: unknown) {
