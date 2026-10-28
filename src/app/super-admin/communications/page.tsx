@@ -12,7 +12,9 @@ import { TableCard } from "@/components/data-display/table-card";
 import { TRIGGERS } from "@/lib/domain/message-triggers";
 import { ResourceActionDialog } from "@/components/forms/resource-action-dialog";
 import { ActionMenu } from "@/components/ui/action-menu";
-import { apiGet, apiGetEnvelope } from "@/lib/api/server";
+import { apiGet, apiGetEnvelope, observe } from "@/lib/api/server";
+import { localContracts } from "@/lib/api/local-contracts.zod";
+import { SuperAdminCampaignRowListSchema, SuperAdminConsentRowListSchema, SuperAdminMessageTemplateRowListSchema } from "@/lib/domain/types.zod";
 import type { SuperAdminCampaignRow, SuperAdminConsentRow, SuperAdminMessageTemplateRow, SuperAdminUserRow } from "@/lib/domain/types";
 import { formatDate } from "@/lib/utils/formatters";
 import { CampaignComposer } from "./_campaign-composer";
@@ -61,12 +63,12 @@ function tabHref(tab: string) {
 export default async function SuperAdminCommunicationsPage({ searchParams }: { searchParams?: Promise<{ tab?: string; compose?: string; campaign?: string; status?: string; tgroup?: string; tchannel?: string; tstatus?: string }> }) {
   const { tab = "campaigns", compose, campaign: campaignFocus, status: statusFilter, tgroup, tchannel, tstatus } = searchParams ? await searchParams : {};
 
-  const campaigns = (await apiGet<SuperAdminCampaignRow[]>("/api/super-admin/communications/campaigns")) ?? [];
-  const identity = await apiGet<{ identity: { platformName: string } }>("/api/super-admin/platform-policy").catch(() => null);
+  const campaigns = (await apiGet("/api/super-admin/communications/campaigns", observe<SuperAdminCampaignRow[]>(SuperAdminCampaignRowListSchema))) ?? [];
+  const identity = await apiGet("/api/super-admin/platform-policy", observe<{ identity: { platformName: string } }>(localContracts["src/app/super-admin/communications/page.tsx#03e03960"])).catch(() => null);
   const platformName = identity?.identity?.platformName ?? "FutureRealm";
   const sentCampaigns = campaigns.filter((c) => c.status === "SENT" || c.status === "SENDING");
   const recentDeliveryFailures = sentCampaigns.reduce((sum, c) => sum + c.failedCount, 0);
-  const templates = (await apiGet<SuperAdminMessageTemplateRow[]>("/api/super-admin/communications/templates")) ?? [];
+  const templates = (await apiGet("/api/super-admin/communications/templates", observe<SuperAdminMessageTemplateRow[]>(SuperAdminMessageTemplateRowListSchema))) ?? [];
   const templateOptions = [
     { label: "No template — write the message below", value: "" },
     ...templates.map((template) => ({ label: `${template.name} (${template.channel})`, value: template.id }))
@@ -129,9 +131,9 @@ const CHANNEL_LABEL: Record<string, string> = { EMAIL: "Email", SMS: "SMS", WHAT
 
 async function CampaignsTab({ campaigns }: { campaigns: SuperAdminCampaignRow[] }) {
   const recurring = campaigns.filter((c) => c.recurrence && c.recurrence !== "NONE" && c.status !== "DRAFT");
-  const policy = await apiGet<{ messaging: { disabledTriggers: string[] } }>("/api/super-admin/platform-policy").catch(() => null);
+  const policy = await apiGet("/api/super-admin/platform-policy", observe<{ messaging: { disabledTriggers: string[] } }>(localContracts["src/app/super-admin/communications/page.tsx#f909bd00"])).catch(() => null);
   const disabled = new Set(policy?.messaging?.disabledTriggers ?? []);
-  const custom = (await apiGet<CustomRule[]>("/api/super-admin/communications/trigger-rules").catch(() => [] as CustomRule[])) ?? [];
+  const custom = (await apiGet("/api/super-admin/communications/trigger-rules", observe<CustomRule[]>(localContracts["src/app/super-admin/communications/page.tsx#27dfa8ce"])).catch(() => [] as CustomRule[])) ?? [];
   const rules = [
     ...TRIGGERS.map((trigger) => ({ name: trigger.label, rule: triggerTiming[trigger.key] ?? "Fires when the event happens", on: !disabled.has(trigger.key) })),
     ...custom.map((rule) => ({ name: rule.event, rule: rule.condition, on: rule.enabled })),
@@ -210,7 +212,7 @@ async function CampaignsTab({ campaigns }: { campaigns: SuperAdminCampaignRow[] 
         </section>
 
         <section className="rounded-[14px] border border-[#E6EEE9] bg-[#F7FAF8] p-[18px]">
-          <h3 className="mb-[7px] text-[11.5px] font-semibold text-[#0D2315]">Approval path</h3>
+          <h2 className="mb-[7px] text-[11.5px] font-semibold text-[#0D2315]">Approval path</h2>
           <p className="text-pretty text-[11.5px] leading-[1.6] text-[#435048]">
             Operational campaigns require Department Lead approval. Promotional campaigns to school staff require Marketing Lead sign-off, from someone other than the person who wrote them. Third-party commercial campaigns to parents cannot be scheduled at all in version 1.0 — the audience builder returns zero recipients for them.
           </p>
@@ -221,7 +223,7 @@ async function CampaignsTab({ campaigns }: { campaigns: SuperAdminCampaignRow[] 
 }
 
 async function TemplatesTab({ group, channel, status }: { group?: string; channel?: string; status?: string }) {
-  const templates = (await apiGet<SuperAdminMessageTemplateRow[]>("/api/super-admin/communications/templates")) ?? [];
+  const templates = (await apiGet("/api/super-admin/communications/templates", observe<SuperAdminMessageTemplateRow[]>(SuperAdminMessageTemplateRowListSchema))) ?? [];
   const shown = templates.filter((t) => (!group || t.category === group) && (!channel || t.channel === channel) && (!status || (status === "attention" ? t.approvalStatus === "REJECTED" || t.approvalStatus === "PENDING_META_APPROVAL" || t.approvalStatus === "PENDING_REVIEW" : t.approvalStatus === status)));
   const approved = templates.filter((t) => t.approvalStatus === "APPROVED").length;
   const awaitingMeta = templates.filter((t) => t.approvalStatus === "PENDING_META_APPROVAL").length;
@@ -243,7 +245,7 @@ async function TemplatesTab({ group, channel, status }: { group?: string; channe
       description="Every automatic message on the platform is a template here, not text buried in code — so it can be rewritten without a deployment. Open one to read it, edit it, or see which triggers use it."
       items={shown}
       filterBar={
-        <FilterToolbar
+        <FilterToolbar key="template-filters"
           action="/super-admin/communications"
           hidden={{ tab: "templates" }}
           resultCount={shown.length}
@@ -402,7 +404,7 @@ const GROUP_ORDER = ["Onboarding & provisioning", "Trial & conversion", "Billing
 const GROUP_SUB = "Event → recipient → channel → tier → template → when. A notice with an approved template attached is worded from it; with none it uses the built-in wording.";
 
 async function TriggersTab({ templates }: { templates: SuperAdminMessageTemplateRow[] }) {
-  const policy = await apiGet<{ messaging: { disabledTriggers: string[] } }>("/api/super-admin/platform-policy");
+  const policy = await apiGet("/api/super-admin/platform-policy", observe<{ messaging: { disabledTriggers: string[] } }>(localContracts["src/app/super-admin/communications/page.tsx#f909bd00"]));
   const disabled = new Set(policy.messaging.disabledTriggers ?? []);
   const attached = new Map(templates.filter((t) => t.triggerKey && t.approvalStatus === "APPROVED").map((t) => [t.triggerKey as string, t.name]));
   const platformRules: Array<{ group: string; rule: TriggerRule }> = TRIGGERS.map((trigger) => ({
@@ -410,7 +412,7 @@ async function TriggersTab({ templates }: { templates: SuperAdminMessageTemplate
     rule: { key: trigger.key, event: trigger.label, recipient: "School owner", channel: "Email + in-app", tier: "All tiers", template: attached.get(trigger.key) ?? null, when: triggerTiming[trigger.key] ?? "—", enabled: !disabled.has(trigger.key) } satisfies TriggerRule
   }));
   const familyRules: Array<{ group: string; rule: TriggerRule }> = schoolRules.map((rule) => ({ group: GROUP_OF_SCHOOL_EVENT.find(([re]) => re.test(rule.event))?.[1] ?? "Academics & operations", rule }));
-  const custom = (await apiGet<CustomRule[]>("/api/super-admin/communications/trigger-rules").catch(() => [] as CustomRule[])) ?? [];
+  const custom = (await apiGet("/api/super-admin/communications/trigger-rules", observe<CustomRule[]>(localContracts["src/app/super-admin/communications/page.tsx#27dfa8ce"])).catch(() => [] as CustomRule[])) ?? [];
   const customEntries: Array<{ group: string; rule: TriggerRule }> = custom.map((rule) => ({
     group: rule.group,
     rule: { ruleId: rule.id, event: `${rule.event} · ${rule.condition}`, recipient: rule.recipients.map((value) => (value === "OWNER" ? "School owner" : value === "BURSAR" ? "Bursar" : "Account manager")).join(" + "), channel: rule.channels.map((value) => (value === "EMAIL" ? "Email" : "In-app")).join(" + "), tier: rule.plan ? rule.plan.charAt(0) + rule.plan.slice(1).toLowerCase() : "All tiers", template: rule.template, when: `From ${String(rule.sendHour).padStart(2, "0")}:00 · once per ${rule.event.toLowerCase().includes("invoice") ? "invoice" : "school"}${rule.fires ? ` · fired ${rule.fires}×` : ""}`, enabled: rule.enabled } satisfies TriggerRule
@@ -562,9 +564,9 @@ type DeliveryLine = { id: string; recipient: string; school: string; address: st
 type Failures = { sent: number; failed: number; held: number; reasons: Array<{ reason: string; channel: string; count: number }> };
 
 async function DeliveryTab({ sent, focus, status }: { sent: SuperAdminCampaignRow[]; focus?: string; status?: string }) {
-  const failures = await apiGet<Failures>("/api/super-admin/communications/delivery-failures");
+  const failures = await apiGet("/api/super-admin/communications/delivery-failures", observe<Failures>(localContracts["src/app/super-admin/communications/page.tsx#3eec1582"]));
   const current = focus ? sent.find((c) => c.id === focus) : undefined;
-  const lines = current ? ((await apiGet<DeliveryLine[]>(`/api/super-admin/communications/campaigns/${current.id}/deliveries${status ? `?status=${status}` : ""}`).catch(() => [])) ?? []) : [];
+  const lines = current ? ((await apiGet(`/api/super-admin/communications/campaigns/${current.id}/deliveries${status ? `?status=${status}` : ""}`, observe<DeliveryLine[]>(localContracts["src/app/super-admin/communications/page.tsx#43454291"])).catch(() => [])) ?? []) : [];
   const totalRecipients = sent.reduce((sum, c) => sum + c.recipientCount, 0);
   const totalDelivered = sent.reduce((sum, c) => sum + c.deliveredCount, 0);
   const emailsSent = sent.reduce((sum, c) => sum + (c.emailsSent ?? 0), 0);
@@ -638,7 +640,7 @@ async function DeliveryTab({ sent, focus, status }: { sent: SuperAdminCampaignRo
 
 async function ConsentTab() {
   const [records, usersEnvelope] = await Promise.all([
-    apiGet<SuperAdminConsentRow[]>("/api/super-admin/communications/consent"),
+    apiGet("/api/super-admin/communications/consent", observe<SuperAdminConsentRow[]>(SuperAdminConsentRowListSchema)),
     apiGetEnvelope<SuperAdminUserRow[]>("/api/super-admin/users?limit=100")
   ]);
   const optedOut = (records ?? []).filter((r) => !r.optedIn).length;
@@ -762,7 +764,7 @@ async function ConsentTab() {
 }
 
 async function NoticesTab({ announcementTypes }: { announcementTypes: Array<{ label: string; value: string }> }) {
-  const data = await apiGet<CommunicationsView>("/api/super-admin/communications");
+  const data = await apiGet("/api/super-admin/communications", observe<CommunicationsView>(localContracts["src/app/super-admin/communications/page.tsx#a8870fde"]));
 
   return (
     <div className="grid gap-[14px]">

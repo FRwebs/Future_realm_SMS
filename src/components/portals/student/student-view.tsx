@@ -5,7 +5,8 @@ import { StudentTabs } from "@/components/portals/student/student-tabs";
 import { ModuleWorkspace } from "@/components/modules/module-workspace";
 import { getServerSession } from "@/lib/auth/session";
 import { getPlatformSync } from "@/lib/api/platform-sync";
-import { apiGet } from "@/lib/api/server";
+import { apiGet, observe } from "@/lib/api/server";
+import { localContracts } from "@/lib/api/local-contracts.zod";
 import { SW } from "@/lib/api/student-workspace";
 import { buildStudentPage } from "@/lib/modules/live/student";
 import { PAGE_MODULE } from "@/lib/modules/live/student/shared";
@@ -24,7 +25,7 @@ export async function StudentView({ page, query }: { page: string; query: Record
     );
   }
   // A password the office has just reset is a temporary one: nothing else opens until the student has chosen their own.
-  const mine = await apiGet<{ mustChangePassword: boolean; hidden: string[] }>(`${SW}/badges`).catch(() => null);
+  const mine = await apiGet(`${SW}/badges`, observe<{ mustChangePassword: boolean; hidden: string[] }>(localContracts["src/components/portals/student/student-view.tsx#22088de8"])).catch(() => null);
   if (page !== "account" && mine?.mustChangePassword) redirect("/portals/student/account");
   // A page the school has chosen not to show its students says so, rather than showing nothing or showing it anyway.
   if (mine?.hidden.includes(page)) {

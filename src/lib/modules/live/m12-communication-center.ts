@@ -1,4 +1,5 @@
-import { apiGet } from "@/lib/api/server";
+import { apiGet, observe } from "@/lib/api/server";
+import { localContracts } from "@/lib/api/local-contracts.zod";
 import { deliveryRow, type DeliveryStatus } from "@/lib/modules/live/m12-delivery";
 import {
   name as nameCell,
@@ -758,14 +759,14 @@ export async function communicationCenterLiveTab(
   query?: Record<string, string | undefined>,
 ): Promise<TabContent | undefined> {
   if (tabSlug === "compose") {
-    const audiences = await apiGet<Audience[]>(`${BASE}/audience`);
+    const audiences = await apiGet(`${BASE}/audience`, observe<Audience[]>(localContracts["src/lib/modules/live/m12-communication-center.ts#cba35da2"]));
     return composeTab(audiences ?? [], query?.to ?? "Guardians");
   }
 
   if (tabSlug === "sent") {
     const [payload, delivery] = await Promise.all([
-      apiGet<CampaignsPayload>(`${BASE}/campaigns`),
-      apiGet<DeliveryStatus>("/api/v1/delivery/status"),
+      apiGet(`${BASE}/campaigns`, observe<CampaignsPayload>(localContracts["src/lib/modules/live/m12-communication-center.ts#8f19bed8"])),
+      apiGet("/api/v1/delivery/status", observe<DeliveryStatus>(localContracts["src/lib/modules/live/m12-communication-center.ts#0836f464"])),
     ]);
     const tab = sentTab(payload);
     return { ...tab, rows: [deliveryRow(delivery), ...tab.rows] };
@@ -773,8 +774,8 @@ export async function communicationCenterLiveTab(
 
   if (tabSlug === "automation") {
     const [rules, templates] = await Promise.all([
-      apiGet<RulesPayload>(`${BASE}/rules`),
-      apiGet<Template[]>(`${BASE}/templates`),
+      apiGet(`${BASE}/rules`, observe<RulesPayload>(localContracts["src/lib/modules/live/m12-communication-center.ts#f46b06fc"])),
+      apiGet(`${BASE}/templates`, observe<Template[]>(localContracts["src/lib/modules/live/m12-communication-center.ts#467bff86"])),
     ]);
     return automationTab(rules, templates ?? []);
   }

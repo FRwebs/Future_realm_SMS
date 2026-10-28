@@ -205,8 +205,8 @@ export const payrollRunSchema = z.object({
   staffItems: z.array(z.object({
     staffId: z.string(),
     basicSalary: z.coerce.number().min(0),
-    allowances: z.record(z.coerce.number().min(0)).optional(),
-    deductions: z.record(z.coerce.number().min(0)).optional(),
+    allowances: z.record(z.string(), z.coerce.number().min(0)).optional(),
+    deductions: z.record(z.string(), z.coerce.number().min(0)).optional(),
   })).min(1),
 });
 

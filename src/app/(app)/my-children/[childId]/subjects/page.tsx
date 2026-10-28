@@ -5,7 +5,8 @@ import { TableCard } from "@/components/data-display/table-card";
 import { AccessDenied } from "@/components/feedback/access-denied";
 import { SchemeOfWorkStatusBadge } from "@/components/scheme-of-work/status-badge";
 import { SchemeOfWorkTopicList } from "@/components/scheme-of-work/topic-list";
-import { apiGet } from "@/lib/api/server";
+import { apiGet, observe } from "@/lib/api/server";
+import { ParentChildPortalViewSchema, PortalSubjectOfferingListSchema, SchemeOfWorkDetailViewSchema } from "@/lib/domain/types.zod";
 import { canAccessPath, getDefaultPathForRole } from "@/lib/auth/roles";
 import { getServerSession } from "@/lib/auth/session";
 import type { ParentChildPortalView, PortalSubjectOffering, SchemeOfWorkDetailView } from "@/lib/domain/types";
@@ -38,11 +39,11 @@ export default async function ParentChildSubjectsPage({ params, searchParams }: 
   const resolvedSearch = searchParams ? await searchParams : {};
   const subjectId = normalizeSearchValue(resolvedSearch.subjectId);
 
-  const child = await apiGet<ParentChildPortalView>(`/api/v1/parent-portal/children/${childId}`);
-  const subjects = await apiGet<PortalSubjectOffering[]>(`/api/v1/parent-portal/children/${childId}/subjects`).catch(() => child.subjects ?? []);
+  const child = await apiGet(`/api/v1/parent-portal/children/${childId}`, observe<ParentChildPortalView>(ParentChildPortalViewSchema));
+  const subjects = await apiGet(`/api/v1/parent-portal/children/${childId}/subjects`, observe<PortalSubjectOffering[]>(PortalSubjectOfferingListSchema)).catch(() => child.subjects ?? []);
   const selectedSubject = subjects.find((subject) => subject.id === subjectId);
   const selectedSow = selectedSubject
-    ? await apiGet<SchemeOfWorkDetailView>(`/api/v1/parent-portal/children/${childId}/subjects/${selectedSubject.id}/scheme-of-work`).catch(() => undefined)
+    ? await apiGet(`/api/v1/parent-portal/children/${childId}/subjects/${selectedSubject.id}/scheme-of-work`, observe<SchemeOfWorkDetailView>(SchemeOfWorkDetailViewSchema)).catch(() => undefined)
     : undefined;
 
   if (selectedSubject && selectedSow) {

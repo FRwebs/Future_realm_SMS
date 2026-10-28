@@ -1,4 +1,5 @@
-import { apiGet } from "@/lib/api/server";
+import { apiGet, observe } from "@/lib/api/server";
+import { localContracts } from "@/lib/api/local-contracts.zod";
 import type { TeacherWorkspaceView } from "@/lib/api/teacher-workspace";
 import { area, checks, choice, toggle } from "@/lib/modules/live/m7-forms";
 import type { DrawerSpec, PanelFact, PanelRow, PanelTone, TabContent, TableCellKind, TableRow } from "@/lib/modules/panels";
@@ -32,8 +33,8 @@ const stamp = (iso: string) => formatDay(new Date(iso), { day: "numeric", month:
 
 export async function teacherGuardiansTab(tabSlug: string, me: TeacherWorkspaceView, permissions: string[]): Promise<TabContent | null | undefined> {
   const held = new Set(permissions);
-  if (tabSlug === "guardians") return guardiansTab(await apiGet<GuardiansView>(`${API}/guardians`), me, held);
-  if (tabSlug === "submissions") return submissionsTab(await apiGet<SubmissionsView>(`${API}/submissions`), me);
+  if (tabSlug === "guardians") return guardiansTab(await apiGet(`${API}/guardians`, observe<GuardiansView>(localContracts["src/lib/modules/live/t9-guardians.ts#4af392a8"])), me, held);
+  if (tabSlug === "submissions") return submissionsTab(await apiGet(`${API}/submissions`, observe<SubmissionsView>(localContracts["src/lib/modules/live/t9-guardians.ts#feae8ea4"])), me);
   return undefined;
 }
 

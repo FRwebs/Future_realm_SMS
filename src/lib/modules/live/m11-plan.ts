@@ -1,5 +1,6 @@
 import { invoiceDocDrawer } from "@/lib/modules/live/documents";
-import { apiGet } from "@/lib/api/server";
+import { apiGet, observe } from "@/lib/api/server";
+import { localContracts } from "@/lib/api/local-contracts.zod";
 import { dayLabel, dayLong, plural } from "@/lib/modules/live/m7-format";
 import { SB, cancelSwitchDrawer, invoiceDrawer, naira, payOneDrawer, renewDrawer, switchDrawer, topUpDrawer } from "@/lib/modules/live/m11-forms";
 import type { Credits, InvoiceDoc, InvoiceRow, Plan } from "@/lib/modules/live/m11-types";
@@ -10,7 +11,7 @@ import { name as nameCell, pill, text, type KpiCard, type PanelTone, type TabCon
  * student per term, so renewal is arithmetic — students × rate — and the estimate is the form.
  */
 
-export const loadPlan = () => apiGet<Plan>(`${SB}/plan`);
+export const loadPlan = () => apiGet(`${SB}/plan`, observe<Plan>(localContracts["src/lib/modules/live/m11-plan.ts#ae2f98a0"]));
 
 /** Why the school was charged what it was charged, and the term it is read against. */
 export type BillingLedger = {
@@ -29,9 +30,9 @@ export type BillingLedger = {
   }>;
 };
 export const loadLedger = () =>
-  apiGet<BillingLedger>(`${SB}/plan/ledger`).catch(() => ({ term: null, entries: [] }) as BillingLedger);
-export const loadCreditsForTopUp = () => apiGet<Credits>(`${SB}/credits`);
-export const loadInvoice = (id: string) => apiGet<InvoiceDoc>(`${SB}/invoices/${encodeURIComponent(id)}`);
+  apiGet(`${SB}/plan/ledger`, observe<BillingLedger>(localContracts["src/lib/modules/live/m11-plan.ts#f79963e1"])).catch(() => ({ term: null, entries: [] }) as BillingLedger);
+export const loadCreditsForTopUp = () => apiGet(`${SB}/credits`, observe<Credits>(localContracts["src/lib/modules/live/m11-plan.ts#bfac50d6"]));
+export const loadInvoice = (id: string) => apiGet(`${SB}/invoices/${encodeURIComponent(id)}`, observe<InvoiceDoc>(localContracts["src/lib/modules/live/m11-plan.ts#1fe6eaf9"]));
 
 /** What each ledger row is, in the words a school would use. */
 const LEDGER_KIND: Record<string, string> = {

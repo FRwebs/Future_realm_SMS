@@ -1,7 +1,9 @@
 import { PageLoadBeacon } from "@/components/layout/page-load-beacon";
 import { AccessDenied } from "@/components/feedback/access-denied";
 import { SuperAdminShell } from "@/components/super-admin/super-admin-shell";
-import { apiGet, apiGetEnvelope } from "@/lib/api/server";
+import { apiGet, apiGetEnvelope, observe } from "@/lib/api/server";
+import { localContracts } from "@/lib/api/local-contracts.zod";
+import { SuperAdminAnalyticsOverviewSchema, SuperAdminPartnerDealRowListSchema } from "@/lib/domain/types.zod";
 import { getDefaultPathForRole } from "@/lib/auth/roles";
 import { getServerSession } from "@/lib/auth/session";
 import type {
@@ -48,16 +50,16 @@ export default async function SuperAdminLayout({ children }: { children: React.R
     recoveryEnvelope,
     myAccess,
   ] = await Promise.all([
-    apiGet<SuperAdminAnalyticsOverview>("/api/super-admin/analytics/overview").catch(() => null),
-    apiGet<MyWorkOverview>("/api/super-admin/my-work").catch(() => null),
-    apiGet<MigrationJobRow[]>("/api/super-admin/migration/jobs").catch(() => null),
-    apiGet<SuperAdminPartnerDealRow[]>("/api/super-admin/partners/deals?status=REGISTERED").catch(() => null),
+    apiGet("/api/super-admin/analytics/overview", observe<SuperAdminAnalyticsOverview>(SuperAdminAnalyticsOverviewSchema)).catch(() => null),
+    apiGet("/api/super-admin/my-work", observe<MyWorkOverview>(localContracts["src/app/super-admin/layout.tsx#5e3dbcac"])).catch(() => null),
+    apiGet("/api/super-admin/migration/jobs", observe<MigrationJobRow[]>(localContracts["src/app/super-admin/layout.tsx#ba4ffc0f"])).catch(() => null),
+    apiGet("/api/super-admin/partners/deals?status=REGISTERED", observe<SuperAdminPartnerDealRow[]>(SuperAdminPartnerDealRowListSchema)).catch(() => null),
     apiGetEnvelope<SuperAdminTicketRow[]>("/api/super-admin/support/tickets?status=OPEN&limit=1").catch(() => null),
-    apiGet<SecurityOverview>("/api/super-admin/security").catch(() => null),
+    apiGet("/api/super-admin/security", observe<SecurityOverview>(localContracts["src/app/super-admin/layout.tsx#bd587995"])).catch(() => null),
     apiGetEnvelope<SuperAdminSuspiciousActivityRow[]>("/api/super-admin/users/suspicious-activity").catch(() => null),
     apiGetEnvelope<SuperAdminDuplicateFlagRow[]>("/api/super-admin/users/duplicates").catch(() => null),
     apiGetEnvelope<SuperAdminAccountRecoveryRow[]>("/api/super-admin/users/recovery").catch(() => null),
-    apiGet<{ levels: Record<string, string> }>("/api/super-admin/internal-team/me/access").catch(() => null),
+    apiGet("/api/super-admin/internal-team/me/access", observe<{ levels: Record<string, string> }>(localContracts["src/app/super-admin/layout.tsx#b191a7a1"])).catch(() => null),
   ]);
   // A module the person's access grid sets to None is not shown to them at all.
   const hiddenNavIds = Object.entries(myAccess?.levels ?? {}).filter(([, level]) => level === "NONE").flatMap(([id]) => MODULE_NAV[id] ?? []);

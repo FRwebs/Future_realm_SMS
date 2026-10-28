@@ -1,4 +1,5 @@
-import { apiGet } from "@/lib/api/server";
+import { apiGet, observe } from "@/lib/api/server";
+import { localContracts } from "@/lib/api/local-contracts.zod";
 import { dayLabel, plural } from "@/lib/modules/live/m7-format";
 import { consentTypeDrawer, familyConsentDrawer, requestConsentDrawer, viewDrawer, PG } from "@/lib/modules/live/m9-forms";
 import type { ConsentOverview, FamilyRow } from "@/lib/modules/live/m9-types";
@@ -10,7 +11,7 @@ import { name as nameCell, pill, text, type KpiCard, type PanelTone, type TabCon
  * one guardian answers once, however many children they have here.
  */
 
-export const loadConsent = () => apiGet<ConsentOverview>(`${PG}/consent`);
+export const loadConsent = () => apiGet(`${PG}/consent`, observe<ConsentOverview>(localContracts["src/lib/modules/live/m9-consent.ts#14511939"]));
 
 const mark = (ok: boolean) => ({ kind: "mark" as const, ok });
 const kids = (row: Pick<FamilyRow, "children">) => row.children.map((child) => `${child.name.split(" ")[0]} · ${child.arm}`).join("  ·  ");

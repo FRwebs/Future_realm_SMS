@@ -178,7 +178,7 @@ export function CaseReviewBoard({
       <div className="overflow-hidden rounded-[14px] border border-[#DEE8E2] bg-white">
         <div className="flex flex-wrap items-center justify-between gap-3 px-[18px] pb-3 pt-4">
           <div>
-            <h3 className="text-[14px] font-semibold text-[#0D2315]">{title ?? "Open cases"}</h3>
+            <h2 className="text-[14px] font-semibold text-[#0D2315]">{title ?? "Open cases"}</h2>
             <p className="mt-1 text-[11.5px] text-[#5f6e65]">
               {filtered.length} case{filtered.length === 1 ? "" : "s"}
               {q ? ` matching "${query}"` : ""} · {types.find((t) => t.value === activeType)?.label.toLowerCase()}

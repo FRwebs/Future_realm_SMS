@@ -11,7 +11,9 @@ import { ReferenceList } from "@/components/data-display/reference-list";
 import { TableCard } from "@/components/data-display/table-card";
 import { ResourceActionDialog } from "@/components/forms/resource-action-dialog";
 import { ActionMenu } from "@/components/ui/action-menu";
-import { apiGet, apiGetEnvelope } from "@/lib/api/server";
+import { apiGet, apiGetEnvelope, observe } from "@/lib/api/server";
+import { localContracts } from "@/lib/api/local-contracts.zod";
+import { SuperAdminReconciliationTransactionListSchema, SuperAdminRevenueReportSchema, SuperAdminRevenueViewSchema } from "@/lib/domain/types.zod";
 import type {
   SuperAdminBillingRow,
   SuperAdminInvoiceRow,
@@ -140,21 +142,21 @@ export default async function SuperAdminBillingPage({ searchParams }: { searchPa
 
   const [billingEnvelope, revenue, plansEnvelope, report, invoicesEnvelope, schoolsEnvelope] = await Promise.all([
     apiGetEnvelope<SuperAdminBillingRow[]>("/api/super-admin/billing"),
-    apiGet<SuperAdminRevenueView>("/api/super-admin/analytics/revenue"),
+    apiGet("/api/super-admin/analytics/revenue", observe<SuperAdminRevenueView>(SuperAdminRevenueViewSchema)),
     apiGetEnvelope<SuperAdminPlanRow[]>("/api/super-admin/plans"),
-    apiGet<SuperAdminRevenueReport>("/api/super-admin/analytics/revenue-report"),
+    apiGet("/api/super-admin/analytics/revenue-report", observe<SuperAdminRevenueReport>(SuperAdminRevenueReportSchema)),
     apiGetEnvelope<SuperAdminInvoiceRow[]>("/api/super-admin/billing/invoices"),
     apiGetEnvelope<SuperAdminSchoolRow[]>("/api/super-admin/schools?limit=100")
   ]);
-  const currencies = await apiGet<{ term: string | null; rates?: { usd: number } }>("/api/super-admin/billing-extras/currencies").catch(() => ({ term: null, rates: { usd: 0 } }));
+  const currencies = await apiGet("/api/super-admin/billing-extras/currencies", observe<{ term: string | null; rates?: { usd: number } }>(localContracts["src/app/super-admin/billing/page.tsx#9b5ee0b6"])).catch(() => ({ term: null, rates: { usd: 0 } }));
   const termLabel = currencies.term;
   const usdRate = currencies.rates?.usd ?? 0;
   const lastMonth = revenue.monthlyRevenue[revenue.monthlyRevenue.length - 1];
   const reconciledMonth = lastMonth ? { month: lastMonth.month, amount: lastMonth.amount } : null;
-  const trialPolicy = (await apiGet<{ trial: { days: number; readOnlyDays: number; lockReminderDays: number } }>("/api/super-admin/platform-policy").catch(() => null))?.trial ?? { days: TRIAL_DAYS, readOnlyDays: 7, lockReminderDays: 3 };
+  const trialPolicy = (await apiGet("/api/super-admin/platform-policy", observe<{ trial: { days: number; readOnlyDays: number; lockReminderDays: number } }>(localContracts["src/app/super-admin/billing/page.tsx#65b3c2cf"])).catch(() => null))?.trial ?? { days: TRIAL_DAYS, readOnlyDays: 7, lockReminderDays: 3 };
   const billing = billingEnvelope.data ?? [];
   const schoolsForRecommendations = schoolsEnvelope.data ?? [];
-  const dismissals = (await apiGet<Record<string, { plan: string; reason: string; at: string; by: string }>>("/api/super-admin/billing-extras/tier-dismissals").catch(() => ({}))) as Record<string, { plan: string; reason: string; at: string; by: string }>;
+  const dismissals = (await apiGet("/api/super-admin/billing-extras/tier-dismissals", observe<Record<string, { plan: string; reason: string; at: string; by: string }>>(localContracts["src/app/super-admin/billing/page.tsx#f654d971"])).catch(() => ({}))) as Record<string, { plan: string; reason: string; at: string; by: string }>;
   const trialBilling = billing.filter((item) => item.tenantStatus === "TRIAL");
   const arpu = revenue.totalPaidSchools > 0 ? revenue.mrr / revenue.totalPaidSchools : 0;
   const activePlans = (plansEnvelope.data ?? []).filter((item) => item.isActive).sort((a, b) => planDisplayRank(a) - planDisplayRank(b) || a.monthlyPrice - b.monthlyPrice);
@@ -397,13 +399,13 @@ async function InvoicesTab({
   params: Record<string, string | undefined>;
   allInvoices: SuperAdminInvoiceRow[];
 }) {
-  const reconciliationQueue = (await apiGet<SuperAdminReconciliationTransaction[]>("/api/super-admin/billing/transactions/reconciliation-queue")) ?? [];
+  const reconciliationQueue = (await apiGet("/api/super-admin/billing/transactions/reconciliation-queue", observe<SuperAdminReconciliationTransaction[]>(SuperAdminReconciliationTransactionListSchema))) ?? [];
   type ConcessionRow = { id: string; schoolId: string; school: string; state: string | null; plan: string; kind: string; status: string; evidence: string | null; evidenceRef: string | null; verifiedAt: string | null; verifiedBy: string | null; expiresAt: string | null; daysLeft: number | null };
-  const concessions = (await apiGet<ConcessionRow[]>("/api/super-admin/billing/concessions").catch(() => [] as ConcessionRow[])) ?? [];
+  const concessions = (await apiGet("/api/super-admin/billing/concessions", observe<ConcessionRow[]>(localContracts["src/app/super-admin/billing/page.tsx#6554743f"])).catch(() => [] as ConcessionRow[])) ?? [];
   const concessionSchools = ((await apiGetEnvelope<SuperAdminSchoolRow[]>("/api/super-admin/schools?limit=100").catch(() => ({ data: [] as SuperAdminSchoolRow[] }))).data ?? []).filter((school) => !concessions.some((entry) => entry.schoolId === school.id && (entry.status === "VERIFIED" || entry.status === "PENDING")));
   const studentsBySchool = new Map(billing.map((row) => [row.schoolId, row.students ?? 0]));
   const unreconciledOverSevenDays = reconciliationQueue.filter((t) => t.ageDays > 7).length;
-  const reconStats = (await apiGet<{ awaiting: number; overSevenDays: number; reconciledThisMonth: number; reconciledAmount: number; corrections: number; commissionUnlocked: number }>("/api/super-admin/billing-extras/reconciliation-stats").catch(() => null)) ?? { awaiting: reconciliationQueue.length, overSevenDays: unreconciledOverSevenDays, reconciledThisMonth: 0, reconciledAmount: 0, corrections: 0, commissionUnlocked: 0 };
+  const reconStats = (await apiGet("/api/super-admin/billing-extras/reconciliation-stats", observe<{ awaiting: number; overSevenDays: number; reconciledThisMonth: number; reconciledAmount: number; corrections: number; commissionUnlocked: number }>(localContracts["src/app/super-admin/billing/page.tsx#4f290db7"])).catch(() => null)) ?? { awaiting: reconciliationQueue.length, overSevenDays: unreconciledOverSevenDays, reconciledThisMonth: 0, reconciledAmount: 0, corrections: 0, commissionUnlocked: 0 };
   const search = params.invoiceSearch?.trim().toLowerCase();
   const invoices = search
     ? allInvoices.filter((item) => item.invoiceNo.toLowerCase().includes(search) || item.schoolName.toLowerCase().includes(search))
@@ -713,7 +715,7 @@ type TrialJourney = {
 
 async function TrialsTab({ trialBilling, trialPolicy }: { trialBilling: SuperAdminBillingRow[]; trialPolicy: { days: number; readOnlyDays: number; lockReminderDays: number } }) {
   const now = Date.now();
-  const journey = await apiGet<TrialJourney>("/api/super-admin/billing-extras/trial-journey").catch(() => null);
+  const journey = await apiGet("/api/super-admin/billing-extras/trial-journey", observe<TrialJourney>(localContracts["src/app/super-admin/billing/page.tsx#af39af7c"])).catch(() => null);
 
   const trials = trialBilling
     .map((item) => {
@@ -726,7 +728,7 @@ async function TrialsTab({ trialBilling, trialPolicy }: { trialBilling: SuperAdm
     })
     .sort((a, b) => (a.daysRemaining ?? 999) - (b.daysRemaining ?? 999));
 
-  const dormancy = (await apiGet<{ dormancy?: { dormantDays: number; noticeDays: number } }>("/api/super-admin/platform-policy").catch(() => null))?.dormancy;
+  const dormancy = (await apiGet("/api/super-admin/platform-policy", observe<{ dormancy?: { dormantDays: number; noticeDays: number } }>(localContracts["src/app/super-admin/billing/page.tsx#a513b9b7"])).catch(() => null))?.dormancy;
   const wizardByUser = new Map((journey?.pipeline ?? []).map((row) => [row.schoolId, row.wizardTotal > 0 ? row.wizardDone / row.wizardTotal : 0]));
   const engagement = (schoolId: string) => {
     const share = wizardByUser.get(schoolId) ?? 0;
@@ -801,7 +803,7 @@ async function TrialsTab({ trialBilling, trialPolicy }: { trialBilling: SuperAdm
       />
 
       <section className="rounded-[14px] border border-(--color-border-default) bg-(--color-bg-subtle) px-5 py-4">
-        <h3 className="text-[12.5px] font-semibold text-(--color-text-primary)">Post-trial behaviour</h3>
+        <h2 className="text-[12.5px] font-semibold text-(--color-text-primary)">Post-trial behaviour</h2>
         <p className="mt-1 text-pretty text-[12.5px] leading-[1.6] text-[#435048]">
           At day {trialPolicy.days} the school moves to Trial Ended — read-only for {trialPolicy.readOnlyDays} days, then locked at day {trialPolicy.days + trialPolicy.readOnlyDays}. Data is retained in full, never deleted, and restored instantly on conversion.
         </p>
@@ -867,7 +869,7 @@ const walletTone: Record<string, { bg: string; fg: string }> = {
 };
 
 async function WalletsTab({ billing }: { billing: SuperAdminBillingRow[] }) {
-  const view = await apiGet<WalletsView>("/api/super-admin/billing-extras/wallets");
+  const view = await apiGet("/api/super-admin/billing-extras/wallets", observe<WalletsView>(localContracts["src/app/super-admin/billing/page.tsx#156fdcca"]));
   const k = view.kpis;
   const schoolOptions = billing.map((item) => ({ label: item.schoolName, value: item.schoolId }));
   const pill = (text: string, tone: string) => <StatusPill bg={(walletTone[tone] ?? walletTone.mute).bg} fg={(walletTone[tone] ?? walletTone.mute).fg} label={text} />;

@@ -2,7 +2,8 @@ import Link from "next/link";
 import type { Route } from "next";
 
 import { AccessDenied } from "@/components/feedback/access-denied";
-import { apiGet } from "@/lib/api/server";
+import { apiGet, observe } from "@/lib/api/server";
+import { localContracts } from "@/lib/api/local-contracts.zod";
 import { canAccessPath, getDefaultPathForRole } from "@/lib/auth/roles";
 import { getServerSession } from "@/lib/auth/session";
 import { formatDate } from "@/lib/utils/formatters";
@@ -20,7 +21,7 @@ export default async function ParentAnnouncementsPage() {
     return <AccessDenied backHref={getDefaultPathForRole(session.role)} />;
   }
 
-  const announcements = await apiGet<ParentAnnouncement[]>("/api/v1/parent-portal/announcements");
+  const announcements = await apiGet("/api/v1/parent-portal/announcements", observe<ParentAnnouncement[]>(localContracts["src/app/(app)/portals/parent/announcements/page.tsx#b4ecb79a"]));
 
   return (
     <div className="portal-page">

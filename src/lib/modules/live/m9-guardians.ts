@@ -1,4 +1,5 @@
-import { apiGet } from "@/lib/api/server";
+import { apiGet, observe } from "@/lib/api/server";
+import { localContracts } from "@/lib/api/local-contracts.zod";
 import { dayLabel, plural } from "@/lib/modules/live/m7-format";
 import { duplicateReviewDrawer, editContactDrawer, inviteDrawer, mapChildDrawer, mergeDrawer, PG, phoneOnlyDrawer } from "@/lib/modules/live/m9-forms";
 import { FEE_TONE, attTone, gradeTone, studentHref } from "@/lib/modules/live/m8-registry";
@@ -12,9 +13,9 @@ import { name as nameCell, pill, text, type KpiCard, type PanelTone, type TabCon
  * register is folded by guardian and everything downstream counts families, not mappings.
  */
 
-export const loadFamilies = () => apiGet<Families>(`${PG}/guardians`);
-export const loadGuardianOptions = () => apiGet<GuardianOptions>(`${PG}/guardians/options`);
-export const loadFamily = (id: string) => apiGet<Family>(`${PG}/guardians/${encodeURIComponent(id)}`);
+export const loadFamilies = () => apiGet(`${PG}/guardians`, observe<Families>(localContracts["src/lib/modules/live/m9-guardians.ts#37e616d4"]));
+export const loadGuardianOptions = () => apiGet(`${PG}/guardians/options`, observe<GuardianOptions>(localContracts["src/lib/modules/live/m9-guardians.ts#b2b9a49e"]));
+export const loadFamily = (id: string) => apiGet(`${PG}/guardians/${encodeURIComponent(id)}`, observe<Family>(localContracts["src/lib/modules/live/m9-guardians.ts#4efb6cb7"]));
 
 export const familyHref = (id: string) => `/parents-guardians/guardians/${encodeURIComponent(id)}`;
 const naira = (value: number) => `₦${Math.round(value).toLocaleString("en-NG")}`;

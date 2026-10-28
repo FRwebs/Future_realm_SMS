@@ -2,7 +2,8 @@
 
 import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
+import { ReadOnlyTable } from "@/components/data-display/read-only-table";
 import { ApiRequestError, apiJson, getUrl } from "@/lib/api/client";
 import { partnerOverviewContract } from "@/lib/api/contracts";
 import { formatDay } from "@/lib/date-format";
@@ -24,21 +25,19 @@ function Panel({ title, sub, children }: { title: string; sub?: string; children
 }
 
 function Table({ head, rows, empty }: { head: string[]; rows: React.ReactNode[][]; empty: string }) {
-  if (rows.length === 0) return <p className="px-5 pb-5 text-[12.5px] text-[#5f6e65]">{empty}</p>;
+  const columns = useMemo(() => head.map((heading, index) => ({ id: String(index), header: heading, cell: (row: React.ReactNode[]) => row[index] })), [head]);
   return (
     <div className="overflow-x-auto">
-      <table className="w-full border-collapse text-left">
-        <thead>
-          <tr>{head.map((h) => <th key={h} className="whitespace-nowrap border-b border-[#E6EEE9] bg-[#F7FAF8] px-5 py-[11px] text-[10.5px] font-semibold uppercase tracking-wider text-[#5f6e65]">{h}</th>)}</tr>
-        </thead>
-        <tbody>
-          {rows.map((row, index) => (
-            <tr key={index} className="text-[12.5px] text-[#435048]">
-              {row.map((cell, cellIndex) => <td key={cellIndex} className="border-b border-[#F2F7F4] px-5 py-[13px]">{cell}</td>)}
-            </tr>
-          ))}
-        </tbody>
-      </table>
+      <ReadOnlyTable
+        columns={columns}
+        rows={rows}
+        getRowId={(_, index) => String(index)}
+        caption={head.join(", ")}
+        empty={<p className="px-5 pb-5 text-[12.5px] text-[#5f6e65]">{empty}</p>}
+        headClassName="whitespace-nowrap border-b border-[#E6EEE9] bg-[#F7FAF8] px-5 py-[11px] text-[10.5px] font-semibold uppercase tracking-wider text-[#5f6e65]"
+        cellClassName="border-b border-[#F2F7F4] px-5 py-[13px]"
+        rowClassName="text-[12.5px] text-[#435048]"
+      />
     </div>
   );
 }

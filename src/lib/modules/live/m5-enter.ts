@@ -1,4 +1,5 @@
-import { apiGet } from "@/lib/api/server";
+import { apiGet, observe } from "@/lib/api/server";
+import { localContracts } from "@/lib/api/local-contracts.zod";
 import { broadsheetHref, deleteEntryDrawer, gridHref, previewHref, SR, sheetHref, submitDrawer } from "@/lib/modules/live/m5-forms";
 import type { BroadsheetEnter, Chooser, Grid, State } from "@/lib/modules/live/m5-types";
 import { plural } from "@/lib/modules/live/m7-format";
@@ -11,10 +12,10 @@ export const loadChooser = (query: { level?: string; arm?: string }) => {
   const params = new URLSearchParams();
   if (query.level) params.set("level", query.level);
   if (query.arm) params.set("arm", query.arm);
-  return apiGet<Chooser>(`${SR}/enter${params.toString() ? `?${params.toString()}` : ""}`);
+  return apiGet(`${SR}/enter${params.toString() ? `?${params.toString()}` : ""}`, observe<Chooser>(localContracts["src/lib/modules/live/m5-enter.ts#a727dd27"]));
 };
-export const loadGrid = (classId: string, subjectId: string) => apiGet<Grid>(`${SR}/enter/${encodeURIComponent(classId)}/${encodeURIComponent(subjectId)}`);
-export const loadBroadsheet = (classId: string) => apiGet<BroadsheetEnter>(`${SR}/enter/${encodeURIComponent(classId)}/broadsheet`);
+export const loadGrid = (classId: string, subjectId: string) => apiGet(`${SR}/enter/${encodeURIComponent(classId)}/${encodeURIComponent(subjectId)}`, observe<Grid>(localContracts["src/lib/modules/live/m5-enter.ts#701c483f"]));
+export const loadBroadsheet = (classId: string) => apiGet(`${SR}/enter/${encodeURIComponent(classId)}/broadsheet`, observe<BroadsheetEnter>(localContracts["src/lib/modules/live/m5-enter.ts#d9ec687c"]));
 
 const WARN = "M12 8.2v4.6M12 16h.02M12 3.6 21 19.4H3z";
 const EYE = "M12 20.5a8.5 8.5 0 1 0 0-17 8.5 8.5 0 0 0 0 17M2.5 12s3.5-6.5 9.5-6.5S21.5 12 21.5 12";

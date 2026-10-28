@@ -6,7 +6,9 @@ import type { LucideIcon } from "lucide-react";
 import { ModuleHero } from "@/components/data-display/module-hero";
 import { StatusBadge, getWorkflowStatusTone } from "@/components/data-display/status-badge";
 import { MyWorkApprovalActions } from "@/components/super-admin/my-work-approval-actions";
-import { apiGet } from "@/lib/api/server";
+import { apiGet, observe } from "@/lib/api/server";
+import { localContracts } from "@/lib/api/local-contracts.zod";
+import { MyWorkSummarySchema } from "@/lib/domain/types.zod";
 import type {
   MyWorkNowCard,
   MyWorkNowIcon,
@@ -107,8 +109,8 @@ function NowCard({ card }: { card: MyWorkNowCard }) {
 }
 
 export default async function MyWorkPage() {
-  const summary = await apiGet<MyWorkSummary>("/api/super-admin/my-work");
-  const recentViews = await apiGet<Array<{ id: string; label: string; href: string; viewedAt: string }>>("/api/super-admin/my-work/views").catch(() => []);
+  const summary = await apiGet("/api/super-admin/my-work", observe<MyWorkSummary>(MyWorkSummarySchema));
+  const recentViews = await apiGet("/api/super-admin/my-work/views", observe<Array<{ id: string; label: string; href: string; viewedAt: string }>>(localContracts["src/app/super-admin/my-work/page.tsx#922246b7"])).catch(() => []);
   const now = summary?.now ?? [];
   const schools = summary?.schools ?? { source: "account_manager" as const, portfolioTotal: 0, signalTotal: 0, rows: [] };
   const cases = summary?.cases ?? [];

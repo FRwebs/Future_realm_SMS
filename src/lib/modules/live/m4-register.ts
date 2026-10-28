@@ -1,4 +1,5 @@
-import { apiGet } from "@/lib/api/server";
+import { apiGet, observe } from "@/lib/api/server";
+import { localContracts } from "@/lib/api/local-contracts.zod";
 import {
   AT, absenceReasonDrawer, correctRegisterDrawer, complianceNudge, nudgeDrawer, reassignDrawer, sendRecordDrawer, spoolDrawer
 } from "@/lib/modules/live/m4-forms";
@@ -10,10 +11,10 @@ import { formatDay } from "@/lib/date-format";
 
 /** The Register tab — the whole school's day — and one arm's day behind it. */
 
-export const loadOverview = (date?: string) => apiGet<Overview>(`${AT}/register${date ? `?date=${encodeURIComponent(date)}` : ""}`);
-export const loadDay = (classId: string, date?: string) => apiGet<Day>(`${AT}/register/${encodeURIComponent(classId)}/day${date ? `?date=${encodeURIComponent(date)}` : ""}`);
-export const loadOptions = () => apiGet<Options>(`${AT}/options`);
-export const loadCorrectionOptions = () => apiGet<CorrectionOptions>(`${AT}/corrections/options`);
+export const loadOverview = (date?: string) => apiGet(`${AT}/register${date ? `?date=${encodeURIComponent(date)}` : ""}`, observe<Overview>(localContracts["src/lib/modules/live/m4-register.ts#0efc2e6b"]));
+export const loadDay = (classId: string, date?: string) => apiGet(`${AT}/register/${encodeURIComponent(classId)}/day${date ? `?date=${encodeURIComponent(date)}` : ""}`, observe<Day>(localContracts["src/lib/modules/live/m4-register.ts#987b9ced"]));
+export const loadOptions = () => apiGet(`${AT}/options`, observe<Options>(localContracts["src/lib/modules/live/m4-register.ts#6bf5da9c"]));
+export const loadCorrectionOptions = () => apiGet(`${AT}/corrections/options`, observe<CorrectionOptions>(localContracts["src/lib/modules/live/m4-register.ts#a54cfa7a"]));
 
 export const dayHref = (classId: string, date?: string) => `/attendance/register/${encodeURIComponent(classId)}${date ? `?date=${date}` : ""}`;
 export const markHref = (classId: string, date?: string) => `/attendance/mark/${encodeURIComponent(classId)}${date ? `?date=${date}` : ""}`;

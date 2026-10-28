@@ -31,6 +31,7 @@ const FIXTURE: Record<string, unknown> = {
 };
 
 vi.mock("@/lib/api/server", () => ({
+  observe: (schema: unknown) => ({ observed: schema }),
   apiGet: async (url: string) => {
     const key = url.split("/ws/")[1] ?? "";
     if (!(key in FIXTURE)) throw new Error(`no fixture for ${url}`);

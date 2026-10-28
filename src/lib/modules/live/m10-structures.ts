@@ -1,5 +1,6 @@
 import { structureDrawer } from "@/lib/modules/live/documents";
-import { apiGet } from "@/lib/api/server";
+import { apiGet, observe } from "@/lib/api/server";
+import { localContracts } from "@/lib/api/local-contracts.zod";
 import { plural } from "@/lib/modules/live/m7-format";
 import { FEES, createStructureDrawer, deleteStructureDrawer, duplicateDrawer, editItemsDrawer, mapClassDrawer, naira, nairaShort, publishDrawer, raiseDrawer, ruleDrawer, unmapDrawer } from "@/lib/modules/live/m10-forms";
 import type { PublishPreview, StructureDetail, Structures } from "@/lib/modules/live/m10-types";
@@ -11,10 +12,10 @@ import { pill, text, type KpiCard, type PanelFact, type PanelTone, type TabConte
  * side — a class is mapped to one of each kind — and the fee items live inside them.
  */
 
-export const loadStructures = () => apiGet<Structures>(`${FEES}/structures`);
-export const loadStructureOptions = () => apiGet<{ terms: string[]; kinds: string[] }>(`${FEES}/structures/options`);
-export const loadStructure = (id: string) => apiGet<StructureDetail>(`${FEES}/structures/${id}`);
-export const loadPreview = (id: string) => apiGet<PublishPreview>(`${FEES}/structures/${id}/preview`);
+export const loadStructures = () => apiGet(`${FEES}/structures`, observe<Structures>(localContracts["src/lib/modules/live/m10-structures.ts#c64b6d8a"]));
+export const loadStructureOptions = () => apiGet(`${FEES}/structures/options`, observe<{ terms: string[]; kinds: string[] }>(localContracts["src/lib/modules/live/m10-structures.ts#945a453e"]));
+export const loadStructure = (id: string) => apiGet(`${FEES}/structures/${id}`, observe<StructureDetail>(localContracts["src/lib/modules/live/m10-structures.ts#e88f75be"]));
+export const loadPreview = (id: string) => apiGet(`${FEES}/structures/${id}/preview`, observe<PublishPreview>(localContracts["src/lib/modules/live/m10-structures.ts#4159f5f2"]));
 
 const STATE_TONE: Record<string, PanelTone> = { Published: "positive", Draft: "attention", Archived: "neutral" };
 const TYPE_TONE: Record<string, PanelTone> = { Mandatory: "positive", Optional: "neutral", Concession: "progress" };

@@ -1,8 +1,9 @@
 "use client";
 
-import { Fragment, useState } from "react";
+import { useMemo, useState } from "react";
 import type { z } from "zod";
 
+import { ReadOnlyTable, type ReadOnlyColumn } from "@/components/data-display/read-only-table";
 import { Modal } from "@/components/ui/modal";
 import { apiJson, getUrl } from "@/lib/api/client";
 import { reportRunContract } from "@/lib/api/contracts";
@@ -33,6 +34,24 @@ export function ReportRun({ id, name }: { id: string; name: string }) {
     }
   }
 
+  // One column for what the report is grouped by, then the figure, and the extra columns only when this report asks for them.
+  const columns = useMemo((): Array<ReadOnlyColumn<RunResult["rows"][number]>> => {
+    if (!result) return [];
+    return [
+      {
+        id: "label",
+        header: result.dimension,
+        sortValue: (row) => row.label,
+        className: "font-semibold",
+        cell: (row) => (result.showDropoff && row.schoolNames.length > 0 ? <button type="button" onClick={() => setOpenRow(openRow === row.label ? null : row.label)} className="text-left font-semibold text-(--color-text-accent) hover:underline">{row.label}</button> : row.label),
+      },
+      { id: "value", header: result.metric, sortValue: (row) => (row.suppressed ? -1 : (row.value ?? -1)), cell: (row) => (row.suppressed ? <span className="text-(--color-text-muted)">under {result.suppressUnder} schools — withheld</span> : row.value?.toLocaleString()) },
+      ...(result.compare ? [{ id: "previous", header: "Previous period", sortValue: (row: RunResult["rows"][number]) => row.previous ?? -1, cell: (row: RunResult["rows"][number]) => (row.previous === null ? "—" : row.previous.toLocaleString()) }] : []),
+      ...(result.showDropoff ? [{ id: "dropoff", header: "Drop-off", sortValue: (row: RunResult["rows"][number]) => row.dropoff ?? -1, cell: (row: RunResult["rows"][number]) => (row.dropoff === null ? "—" : `−${row.dropoff}%`) }] : []),
+      ...(result.weightChurned ? [{ id: "churned", header: "Churned (separate)", sortValue: (row: RunResult["rows"][number]) => row.churned ?? -1, cell: (row: RunResult["rows"][number]) => (row.churned === null ? "—" : `${row.churned.toLocaleString()}${row.churnedSchools ? ` · ${row.churnedSchools} school${row.churnedSchools === 1 ? "" : "s"}` : ""}`) }] : []),
+    ];
+  }, [result, openRow]);
+
   return (
     <>
       <button type="button" onClick={() => { setOpen(true); void run("", ""); }} className="text-[11.5px] font-semibold text-(--color-text-accent) hover:underline">Run</button>
@@ -54,28 +73,17 @@ export function ReportRun({ id, name }: { id: string; name: string }) {
               {result.locked ? <span className="text-(--color-text-muted)">Filters are locked on this template.</span> : null}
               {result.periodDays ? <span className="text-(--color-text-muted)">Schools that joined in the last {result.periodDays} days{result.compare ? ", against the period before" : ""}.</span> : <span className="text-(--color-text-muted)">All schools on record.</span>}
             </div>
-            <table className="w-full text-left text-[12.5px]">
-              <thead><tr className="border-b border-(--color-border-default) text-[11px] uppercase text-(--color-text-muted)"><th className="py-2">{result.dimension}</th><th>{result.metric}</th>{result.compare ? <th>Previous period</th> : null}{result.showDropoff ? <th>Drop-off</th> : null}{result.weightChurned ? <th>Churned (separate)</th> : null}</tr></thead>
-              <tbody>
-                {result.rows.map((row) => (
-                  <Fragment key={row.label}>
-                    <tr className="border-b border-(--color-border-muted)">
-                      <td className="py-2 font-semibold">
-                        {result.showDropoff && row.schoolNames.length > 0 ? <button type="button" onClick={() => setOpenRow(openRow === row.label ? null : row.label)} className="text-left font-semibold text-(--color-text-accent) hover:underline">{row.label}</button> : row.label}
-                      </td>
-                      <td>{row.suppressed ? <span className="text-(--color-text-muted)">under {result.suppressUnder} schools — withheld</span> : row.value?.toLocaleString()}</td>
-                      {result.compare ? <td>{row.previous === null ? "—" : row.previous.toLocaleString()}</td> : null}
-                      {result.showDropoff ? <td>{row.dropoff === null ? "—" : `−${row.dropoff}%`}</td> : null}
-                      {result.weightChurned ? <td>{row.churned === null ? "—" : `${row.churned.toLocaleString()}${row.churnedSchools ? ` · ${row.churnedSchools} school${row.churnedSchools === 1 ? "" : "s"}` : ""}`}</td> : null}
-                    </tr>
-                    {openRow === row.label ? (
-                      <tr className="border-b border-(--color-border-muted) bg-(--color-bg-subtle)"><td colSpan={5} className="px-2 py-2 text-[11.5px] text-(--color-text-secondary)">{row.schoolNames.join(" · ")}</td></tr>
-                    ) : null}
-                  </Fragment>
-                ))}
-                {result.rows.length === 0 ? <tr><td className="py-4 text-(--color-text-muted)" colSpan={5}>Nothing matches.</td></tr> : null}
-              </tbody>
-            </table>
+            <ReadOnlyTable
+              columns={columns}
+              rows={result.rows}
+              getRowId={(row) => row.label}
+              caption={`${result.name}, by ${result.dimension}`}
+              empty={<p className="py-4 text-[12.5px] text-(--color-text-muted)">Nothing matches.</p>}
+              headClassName="py-2 text-left text-[11px] font-normal uppercase text-(--color-text-muted)"
+              cellClassName="py-2 text-[12.5px]"
+              rowClassName="border-b border-(--color-border-muted)"
+              after={(row) => (openRow === row.label ? <tr className="border-b border-(--color-border-muted) bg-(--color-bg-subtle)"><td colSpan={columns.length} className="px-2 py-2 text-[11.5px] text-(--color-text-secondary)">{row.schoolNames.join(" · ")}</td></tr> : null)}
+            />
             <a href={`/api/super-admin/analytics-bi/reports/${id}/export`} className="text-[12px] font-semibold text-(--color-text-accent) underline">Download as CSV</a>
           </div>
         ) : !error ? <p className="text-[12.5px] text-(--color-text-muted)">Running…</p> : null}

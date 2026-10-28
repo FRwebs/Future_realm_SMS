@@ -1,4 +1,5 @@
-import { apiGet } from "@/lib/api/server";
+import { apiGet, observe } from "@/lib/api/server";
+import { localContracts } from "@/lib/api/local-contracts.zod";
 import { changeApproverDrawer, changeEscalationDrawer, createRouteDrawer, createRuleDrawer, editRouteDrawer, HUB, itemHref, resetManyDrawer, resetRouteDrawer, routeHref, ruleStateDrawer } from "@/lib/modules/live/m13-forms";
 import type { RoutePage, RouteRow, WorkflowData } from "@/lib/modules/live/m13-types";
 import { dayLong, plural } from "@/lib/modules/live/m7-format";
@@ -6,8 +7,8 @@ import { name as nameCell, pill, text, type PanelRow, type PanelTone, type TabCo
 
 /** Workflow — who approves what, how long it may sit, and what escalates. */
 
-export const loadWorkflow = () => apiGet<WorkflowData>(`${HUB}/workflow`);
-export const loadRoute = (type: string) => apiGet<RoutePage>(`${HUB}/routes/${encodeURIComponent(type)}`);
+export const loadWorkflow = () => apiGet(`${HUB}/workflow`, observe<WorkflowData>(localContracts["src/lib/modules/live/m13-workflow.ts#37f3a54a"]));
+export const loadRoute = (type: string) => apiGet(`${HUB}/routes/${encodeURIComponent(type)}`, observe<RoutePage>(localContracts["src/lib/modules/live/m13-workflow.ts#f78703ed"]));
 
 const PLUS = "M12 5.5v13M5.5 12h13";
 const PEN = "M4 20h4L19 9l-4-4L4 16zM14.5 5.5l4 4";

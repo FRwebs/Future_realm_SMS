@@ -6,7 +6,9 @@ import { StatCard } from "@/components/data-display/stat-card";
 import { TableCard } from "@/components/data-display/table-card";
 import { BarList } from "@/components/data-display/bar-list";
 import { ResourceActionDialog } from "@/components/forms/resource-action-dialog";
-import { apiGet, apiGetEnvelope } from "@/lib/api/server";
+import { apiGet, apiGetEnvelope, observe } from "@/lib/api/server";
+import { localContracts } from "@/lib/api/local-contracts.zod";
+import { SuperAdminBiOverviewSchema, SuperAdminChurnAnalysisSchema, SuperAdminCustomReportRowListSchema, SuperAdminDisplacementAnalysisSchema, SuperAdminInternalMemberListSchema, SuperAdminNpsAnalyticsSchema, SuperAdminProductAdoptionSchema, SuperAdminRevenueReportSchema } from "@/lib/domain/types.zod";
 import { getServerSession } from "@/lib/auth/session";
 
 import { FeatureRequestTable, type LoggedRequest } from "./_feature-request-table";
@@ -147,10 +149,10 @@ export default async function SuperAdminAnalyticsPage({ searchParams }: { search
 
 async function GrowthTab() {
   const [bi, displacement, owners, members] = await Promise.all([
-    apiGet<SuperAdminBiOverview>("/api/super-admin/analytics/bi"),
-    apiGet<SuperAdminDisplacementAnalysis>("/api/super-admin/analytics/displacement"),
-    apiGet<Array<{ stage: string; ownerId: string; owner: string }>>("/api/super-admin/analytics-bi/owners").catch(() => []),
-    apiGet<SuperAdminInternalMember[]>("/api/super-admin/internal-team").catch(() => [] as SuperAdminInternalMember[])
+    apiGet("/api/super-admin/analytics/bi", observe<SuperAdminBiOverview>(SuperAdminBiOverviewSchema)),
+    apiGet("/api/super-admin/analytics/displacement", observe<SuperAdminDisplacementAnalysis>(SuperAdminDisplacementAnalysisSchema)),
+    apiGet("/api/super-admin/analytics-bi/owners", observe<Array<{ stage: string; ownerId: string; owner: string }>>(localContracts["src/app/super-admin/analytics/page.tsx#6edd7a36"])).catch(() => []),
+    apiGet("/api/super-admin/internal-team", observe<SuperAdminInternalMember[]>(SuperAdminInternalMemberListSchema)).catch(() => [] as SuperAdminInternalMember[])
   ]);
   const ownerOf = new Map(owners.map((row) => [row.stage, row]));
   // A loss we caused by not being able to read the school's previous system is a
@@ -304,11 +306,11 @@ async function GrowthTab() {
 
 async function RetentionTab() {
   const [bi, churn, nps, schoolsEnvelope, trends] = await Promise.all([
-    apiGet<SuperAdminBiOverview>("/api/super-admin/analytics/bi"),
-    apiGet<SuperAdminChurnAnalysis>("/api/super-admin/analytics/churn"),
-    apiGet<SuperAdminNpsAnalytics>("/api/super-admin/analytics/nps"),
+    apiGet("/api/super-admin/analytics/bi", observe<SuperAdminBiOverview>(SuperAdminBiOverviewSchema)),
+    apiGet("/api/super-admin/analytics/churn", observe<SuperAdminChurnAnalysis>(SuperAdminChurnAnalysisSchema)),
+    apiGet("/api/super-admin/analytics/nps", observe<SuperAdminNpsAnalytics>(SuperAdminNpsAnalyticsSchema)),
     apiGetEnvelope<SuperAdminSchoolRow[]>("/api/super-admin/schools?limit=100"),
-    apiGet<TrendsView>("/api/super-admin/analytics-bi/trends")
+    apiGet("/api/super-admin/analytics-bi/trends", observe<TrendsView>(localContracts["src/app/super-admin/analytics/page.tsx#1e56f470"]))
   ]);
   const schoolOptions = (schoolsEnvelope.data ?? []).map((school) => ({ label: school.name, value: school.id }));
 
@@ -443,7 +445,7 @@ async function RetentionTab() {
 }
 
 async function RevenueTab() {
-  const report = await apiGet<SuperAdminRevenueReport>("/api/super-admin/analytics/revenue-report");
+  const report = await apiGet("/api/super-admin/analytics/revenue-report", observe<SuperAdminRevenueReport>(SuperAdminRevenueReportSchema));
 
   return (
     <section className="grid gap-[14px]">
@@ -519,12 +521,12 @@ function moduleLabel(module: string) {
 
 async function ProductTab() {
   const [adoption, bi, trends, unused, tickets, logged, productSchools] = await Promise.all([
-    apiGet<SuperAdminProductAdoption>("/api/super-admin/analytics/product-adoption"),
-    apiGet<SuperAdminBiOverview>("/api/super-admin/analytics/bi"),
-    apiGet<TrendsView>("/api/super-admin/analytics-bi/trends"),
-    apiGet<{ measured: string[]; unused: Array<{ school: string; feature: string }> }>("/api/super-admin/analytics-bi/paid-unused"),
-    apiGet<Record<string, { tickets: number; schools: number; sample: string | null }>>("/api/super-admin/analytics-bi/tickets-about"),
-    apiGet<LoggedRequest[]>("/api/super-admin/analytics-bi/feature-requests").catch(() => [] as LoggedRequest[]),
+    apiGet("/api/super-admin/analytics/product-adoption", observe<SuperAdminProductAdoption>(SuperAdminProductAdoptionSchema)),
+    apiGet("/api/super-admin/analytics/bi", observe<SuperAdminBiOverview>(SuperAdminBiOverviewSchema)),
+    apiGet("/api/super-admin/analytics-bi/trends", observe<TrendsView>(localContracts["src/app/super-admin/analytics/page.tsx#1e56f470"])),
+    apiGet("/api/super-admin/analytics-bi/paid-unused", observe<{ measured: string[]; unused: Array<{ school: string; feature: string }> }>(localContracts["src/app/super-admin/analytics/page.tsx#c2dd12db"])),
+    apiGet("/api/super-admin/analytics-bi/tickets-about", observe<Record<string, { tickets: number; schools: number; sample: string | null }>>(localContracts["src/app/super-admin/analytics/page.tsx#ff5871bf"])),
+    apiGet("/api/super-admin/analytics-bi/feature-requests", observe<LoggedRequest[]>(localContracts["src/app/super-admin/analytics/page.tsx#0738d522"])).catch(() => [] as LoggedRequest[]),
     apiGetEnvelope<SuperAdminSchoolRow[]>("/api/super-admin/schools?limit=100")
   ]);
   const requestSchools = (productSchools.data ?? []).map((school) => ({ label: `${school.name} — ${school.plan.toLowerCase()}`, value: school.id }));
@@ -641,7 +643,7 @@ async function ProductTab() {
 
 async function ReportsTab() {
   const [reports, session] = await Promise.all([
-    apiGet<SuperAdminCustomReportRow[]>("/api/super-admin/analytics-bi/reports"),
+    apiGet("/api/super-admin/analytics-bi/reports", observe<SuperAdminCustomReportRow[]>(SuperAdminCustomReportRowListSchema)),
     getServerSession()
   ]);
   const ownerName = session?.name ? `You · ${session.name}` : "You";

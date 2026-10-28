@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
-import { apiGet } from "@/lib/api/server";
+import { apiGet, observe } from "@/lib/api/server";
+import { localContracts } from "@/lib/api/local-contracts.zod";
 import { csvResponse, toCsv } from "@/lib/modules/csv";
 import { AT } from "@/lib/modules/live/m4-forms";
 import type { Section } from "@/lib/modules/live/m4-spool";
@@ -12,7 +13,7 @@ export async function GET(request: Request) {
   const format = url.searchParams.get("format") ?? "";
   if (/pdf|print/i.test(format)) return NextResponse.redirect(new URL(`/print/attendance?${query}`, url));
   try {
-    const data = await apiGet<{ meta: { title: string; period: string; school: string; by: string; generatedAt: string; purpose: string }; sections: Section[] }>(`${AT}/spool?${query}`);
+    const data = await apiGet(`${AT}/spool?${query}`, observe<{ meta: { title: string; period: string; school: string; by: string; generatedAt: string; purpose: string }; sections: Section[] }>(localContracts["src/app/(app)/attendance/spool/route.ts#d213e505"]));
     const intro: Array<Array<string | number>> = [[data.meta.title], [`Period: ${data.meta.period}`], [`Purpose: ${data.meta.purpose}`], [`Prepared by ${data.meta.by} on ${data.meta.generatedAt.slice(0, 10)}`], []];
     const rows: Array<Array<string | number>> = [...intro];
     for (const section of data.sections) rows.push([section.title], section.head, ...section.rows, []);

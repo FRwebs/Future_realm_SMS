@@ -1,4 +1,5 @@
-import { apiGet } from "@/lib/api/server";
+import { apiGet, observe } from "@/lib/api/server";
+import { localContracts } from "@/lib/api/local-contracts.zod";
 import type { ArmRow } from "@/lib/modules/live/m3-types";
 import type { DrawerSpec, PanelTone, TabContent, TableRow } from "@/lib/modules/panels";
 import { bar, pill, row, text } from "@/lib/modules/panels";
@@ -34,8 +35,8 @@ type ArmFigures = { arm: string; formMaster: string; subjects: Set<string>; due:
 
 export async function lessonNotesTab(): Promise<TabContent> {
   const [review, arms] = await Promise.all([
-    apiGet<Review>(`${API}/notes/review`),
-    apiGet<{ arms: ArmRow[] }>(OVERVIEW).then((overview) => overview.arms).catch(() => [] as ArmRow[])
+    apiGet(`${API}/notes/review`, observe<Review>(localContracts["src/lib/modules/live/m3-lesson-notes.ts#e29a79fe"])),
+    apiGet(OVERVIEW, observe<{ arms: ArmRow[] }>(localContracts["src/lib/modules/live/m3-lesson-notes.ts#f9585b0f"])).then((overview) => overview.arms).catch(() => [] as ArmRow[])
   ]);
   const now = review.term.current ?? (review.term.phase === "after" ? 99 : 0);
   const week = review.term.current ? `weeks 1 – ${review.term.current}` : review.term.phase === "after" ? "the whole term" : "before the term opens";

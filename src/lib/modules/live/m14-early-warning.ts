@@ -1,4 +1,5 @@
-import { apiGet } from "@/lib/api/server";
+import { apiGet, observe } from "@/lib/api/server";
+import { localContracts } from "@/lib/api/local-contracts.zod";
 import type { PanelRow, TableCellKind, TableRow } from "@/lib/modules/panels";
 import { pill, row, text } from "@/lib/modules/panels";
 
@@ -10,7 +11,7 @@ const LOCK = "M7 11V8a5 5 0 0 1 10 0v3M6 11h12v9H6z";
 
 /** The plan-gated early-warning panel at the foot of Insights. A school without it is told so, and what it would get. */
 export async function earlyWarningRows(): Promise<PanelRow[]> {
-  const v = await apiGet<Warning>("/api/v1/analytics-reports/early-warning").catch(() => null);
+  const v = await apiGet("/api/v1/analytics-reports/early-warning", observe<Warning>(localContracts["src/lib/modules/live/m14-early-warning.ts#e9c45563"])).catch(() => null);
   if (!v) return [];
   if (!v.entitled) {
     return [row("1fr", [{ type: "note", tone: "neutral", icon: LOCK, title: "Early warning is not part of this school’s plan", body: `${v.why} It names the children likely to fall behind this term — from attendance, results and how both are moving — with the reason for each. It turns on with a plan that includes predictive analytics.` }])];

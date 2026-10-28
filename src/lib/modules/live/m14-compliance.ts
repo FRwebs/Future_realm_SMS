@@ -1,4 +1,5 @@
-import { apiGet } from "@/lib/api/server";
+import { apiGet, observe } from "@/lib/api/server";
+import { localContracts } from "@/lib/api/local-contracts.zod";
 import { AR, addReturnDrawer, downloadArchived, evidenceDrawer, fileReturnDrawer, returnDrawer, STATE_LABEL } from "@/lib/modules/live/m14-forms";
 import type { Compliance, ComplianceReturn } from "@/lib/modules/live/m14-types";
 import { dayLong, plural } from "@/lib/modules/live/m7-format";
@@ -6,7 +7,7 @@ import { name as nameCell, pill, text, type PanelRow, type PanelTone, type TabCo
 
 /** Compliance — every return this school owes, and whether it can be filed today. */
 
-export const loadCompliance = () => apiGet<Compliance>(`${AR}/compliance`);
+export const loadCompliance = () => apiGet(`${AR}/compliance`, observe<Compliance>(localContracts["src/lib/modules/live/m14-compliance.ts#68f0ae49"]));
 
 const DOWNLOAD = "M12 3.5v11M7.5 10l4.5 4.5 4.5-4.5M4.5 19.5h15";
 const WARN = "M12 8.2v4.6M12 16h.02M12 3.6 21 19.4H3z";
@@ -74,7 +75,7 @@ export function complianceTab(c: Compliance): TabContent {
       {
         type: "facts", title: "How a return is produced here", tuck: "How a return is produced", sub: "The same for every body.", per: 1,
         facts: [
-          ["Built from", "Live data at the moment you generate it", "Never a cached or rounded-sm figure"],
+          ["Built from", "Live data at the moment you generate it", "Never a cached or rounded figure"],
           ["Format", "A file you can open in a spreadsheet", "Upload it to the body's portal or template"],
           ["Validation", "Run before anything is produced", "A return with a gap tells you rather than filing short"],
           ["Archived", "Every generated copy is kept", "With who generated it and when"],

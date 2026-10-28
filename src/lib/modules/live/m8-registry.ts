@@ -1,4 +1,5 @@
-import { apiGet } from "@/lib/api/server";
+import { apiGet, observe } from "@/lib/api/server";
+import { localContracts } from "@/lib/api/local-contracts.zod";
 import { plural } from "@/lib/modules/live/m7-format";
 import { listDrawer, moveDrawer, resendDrawer, SR } from "@/lib/modules/live/m8-forms";
 import type { EnrolOptions, FeeState, Registry, RegistryRow, StudentState } from "@/lib/modules/live/m8-types";
@@ -9,9 +10,9 @@ import { name as nameCell, pill, text, type KpiCard, type PanelTone, type TabCon
  * from, so a child opened here and a child opened from their arm land on one record.
  */
 
-export const loadRegistry = () => apiGet<Registry>(`${SR}/registry`);
-export const loadEnrolOptions = () => apiGet<EnrolOptions>(`${SR}/registry/enrol-options`);
-export const loadMoveOptions = () => apiGet<Array<{ id: string; name: string; level: string; seats: number }>>(`${SR}/registry/move-options`);
+export const loadRegistry = () => apiGet(`${SR}/registry`, observe<Registry>(localContracts["src/lib/modules/live/m8-registry.ts#1fd6a805"]));
+export const loadEnrolOptions = () => apiGet(`${SR}/registry/enrol-options`, observe<EnrolOptions>(localContracts["src/lib/modules/live/m8-registry.ts#7fa49bf4"]));
+export const loadMoveOptions = () => apiGet(`${SR}/registry/move-options`, observe<Array<{ id: string; name: string; level: string; seats: number }>>(localContracts["src/lib/modules/live/m8-registry.ts#7c8c1b19"]));
 
 export const studentHref = (id: string, section = "") => `/student-records/registry/${encodeURIComponent(id)}${section}`;
 

@@ -1,6 +1,7 @@
 import { cache } from "react";
 
-import { apiGet } from "@/lib/api/server";
+import { apiGet, observe } from "@/lib/api/server";
+import { localContracts } from "@/lib/api/local-contracts.zod";
 import { ttlCached } from "@/lib/cache/ttl";
 import { getServerSession } from "@/lib/auth/session";
 import { isTeachingRole, type TeachingPersona } from "@/lib/modules/teacher-workspace";
@@ -26,7 +27,7 @@ export const getTeacherWorkspace = cache(async (role: string, schoolId: string):
   if (!isTeachingRole(role)) return null;
   try {
     const session = await getServerSession();
-    const read = () => apiGet<TeacherWorkspaceView>("/api/v1/teacher-workspace/me");
+    const read = () => apiGet("/api/v1/teacher-workspace/me", observe<TeacherWorkspaceView>(localContracts["src/lib/api/teacher-workspace.ts#63c60b62"]));
     // Who a teacher is changes when the office reassigns a class (the API's context stamp moves when it does), not between two clicks.
     return session ? await ttlCached(`tw:${schoolId}:${session.userId}`, 600_000, read, { stamped: true }) : await read();
   } catch {
@@ -43,7 +44,7 @@ export const getTeacherBadges = cache(async (role: string, schoolId: string): Pr
   try {
     const session = await getServerSession();
     if (!session) return {};
-    const counts = await ttlCached(`badge:${schoolId}:${session.userId}`, 20_000, () => apiGet<{ families: number }>("/api/v1/teacher-workspace/badges"));
+    const counts = await ttlCached(`badge:${schoolId}:${session.userId}`, 20_000, () => apiGet("/api/v1/teacher-workspace/badges", observe<{ families: number }>(localContracts["src/lib/api/teacher-workspace.ts#7aba5950"])));
     return counts.families > 0 ? { t_m9: counts.families } : {};
   } catch {
     return {};

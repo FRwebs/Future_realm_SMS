@@ -78,7 +78,7 @@ export function DayStrip({ panel }: { panel: DayStripPanel }) {
   return (
     <section className="min-w-0 overflow-hidden rounded-[14px] border bg-(--color-bg-surface) px-[18px] py-[12px]" style={{ borderColor: "#DEE8E2" }} aria-label={panel.title}>
       <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <h3 className="text-[12.5px] font-semibold" style={{ color: INK }}>{panel.title}</h3>
+        <h2 className="text-[12.5px] font-semibold" style={{ color: INK }}>{panel.title}</h2>
         {panel.sub ? <p className="text-[10.5px]" style={{ color: MUTED }}>{panel.sub}</p> : null}
       </div>
 

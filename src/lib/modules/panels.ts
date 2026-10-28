@@ -313,6 +313,8 @@ export type TableWindow = {
   /** The choice made on each filter, by its label. */
   filters: Record<string, string>;
   exportUrl: string;
+  /** Where any other page of this table is read from (`/table-window`), given the search, filters and page wanted. */
+  pageUrl: string;
 };
 
 /** A named dropdown over one column, e.g. ["State", "All", ["All","Marked","Unmarked"]]. */

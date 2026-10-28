@@ -31,6 +31,16 @@ export default defineConfig({
       // Worktrees the desktop app creates hold full copies of this repo, so
       // without this every test is collected twice — once from a stale copy.
       "**/.claude/worktrees/**"
-    ]
+    ],
+    // What the unit tests cover of the code they are about. Pages, stories and generated files are left out of the sum: pages are driven by
+    // the browser tests, and a number that counts them says nothing about the logic.
+    coverage: {
+      provider: "v8",
+      reporter: ["text-summary", "json-summary"],
+      include: ["src/lib/**/*.{ts,tsx}", "src/hooks/**/*.{ts,tsx}", "src/components/**/*.{ts,tsx}"],
+      exclude: ["**/*.stories.tsx", "src/lib/api/api-routes.ts", "src/lib/modules/content/**", "src/lib/modules/live/**", "src/messages/**"],
+      // A floor just under where the code is today, so it can only be raised: a change that removes tests without removing code fails here.
+      thresholds: { lines: 32, statements: 32, functions: 52, branches: 72 },
+    }
   }
 });

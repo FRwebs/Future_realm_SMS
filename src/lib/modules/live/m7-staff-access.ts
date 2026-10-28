@@ -1,4 +1,5 @@
-import { apiGet } from "@/lib/api/server";
+import { apiGet, observe } from "@/lib/api/server";
+import { localContracts } from "@/lib/api/local-contracts.zod";
 import {
   addExistingAccountDrawer,
   addStaffDrawer,
@@ -58,13 +59,13 @@ export type DirectoryContext = {
 };
 
 export async function loadDirectory() {
-  return apiGet<Directory>(`${API}/directory`);
+  return apiGet(`${API}/directory`, observe<Directory>(localContracts["src/lib/modules/live/m7-staff-access.ts#4b892fe0"]));
 }
 export async function loadOverview() {
-  return apiGet<AccessOverview>(`${API}/access/overview`);
+  return apiGet(`${API}/access/overview`, observe<AccessOverview>(localContracts["src/lib/modules/live/m7-staff-access.ts#7ee71b4d"]));
 }
 export async function loadActivity() {
-  return apiGet<Activity>(`${API}/activity`);
+  return apiGet(`${API}/activity`, observe<Activity>(localContracts["src/lib/modules/live/m7-staff-access.ts#81c0d915"]));
 }
 
 type TeachingLite = { schoolCeiling: number; catalogue: Array<{ id: string; name: string; code?: string; category?: string }> };
@@ -87,9 +88,9 @@ export function uniqueLabels(items: Array<{ id: string; label: string; extra?: s
 /** What the Add-staff wizard needs: roles, the subject and arm catalogue, and the groups. */
 export async function loadDirectoryContext(): Promise<DirectoryContext> {
   const [roles, teaching, structure, access] = await Promise.all([
-    apiGet<RoleOption[]>(`${API}/role-options`),
-    apiGet<TeachingLite>("/api/v1/class-structure/teaching").catch(() => ({ schoolCeiling: 24, catalogue: [] }) as TeachingLite),
-    apiGet<OverviewLite>("/api/v1/class-structure/overview").catch(() => ({ arms: [] }) as OverviewLite),
+    apiGet(`${API}/role-options`, observe<RoleOption[]>(localContracts["src/lib/modules/live/m7-staff-access.ts#cff16fd6"])),
+    apiGet("/api/v1/class-structure/teaching", observe<TeachingLite>(localContracts["src/lib/modules/live/m7-staff-access.ts#1e8d07ea"])).catch(() => ({ schoolCeiling: 24, catalogue: [] }) as TeachingLite),
+    apiGet("/api/v1/class-structure/overview", observe<OverviewLite>(localContracts["src/lib/modules/live/m7-staff-access.ts#d689bfec"])).catch(() => ({ arms: [] }) as OverviewLite),
     loadOverview().catch(() => null),
   ]);
   return {
@@ -418,7 +419,7 @@ export async function staffAccessLiveTab(tabSlug: string): Promise<TabContent | 
     return payrollTab(await loadPayroll());
   }
   if (tabSlug === "leave") {
-    const [data, gaps] = await Promise.all([loadLeave(), apiGet<Gaps>("/api/v1/teacher-workspace/cover/gaps").catch(() => null)]);
+    const [data, gaps] = await Promise.all([loadLeave(), apiGet("/api/v1/teacher-workspace/cover/gaps", observe<Gaps>(localContracts["src/lib/modules/live/m7-staff-access.ts#1150a190"])).catch(() => null)]);
     const content = leaveTab(data);
     return gaps ? { ...content, rows: [...content.rows, gapsPanel(gaps)] } : content;
   }

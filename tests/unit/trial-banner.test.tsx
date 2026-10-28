@@ -4,7 +4,7 @@ import { PanelRows } from "@/components/modules/panel-renderer";
 import type { TabContent } from "@/lib/modules/panels";
 
 const status = vi.hoisted(() => ({ value: {} as Record<string, unknown> }));
-vi.mock("@/lib/api/server", () => ({ apiGet: async (path: string) => (path.endsWith("/trial") ? status.value : { loaded: false }) }));
+vi.mock("@/lib/api/server", () => ({ observe: (schema: unknown) => ({ observed: schema }), apiGet: async (path: string) => (path.endsWith("/trial") ? status.value : { loaded: false }) }));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: () => {}, push: () => {}, replace: () => {} }), usePathname: () => "/" }));
 
 import { trialRow } from "@/lib/modules/live/m1-trial";

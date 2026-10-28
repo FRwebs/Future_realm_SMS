@@ -1,4 +1,5 @@
-import { apiGet } from "@/lib/api/server";
+import { apiGet, observe } from "@/lib/api/server";
+import { localContracts } from "@/lib/api/local-contracts.zod";
 import { bulkDrawer, decideDrawer, HUB, itemHref, messageDrawer, routeHref } from "@/lib/modules/live/m13-forms";
 import type { ItemPage, ItemView, QueueOverview } from "@/lib/modules/live/m13-types";
 import { dayLong, plural } from "@/lib/modules/live/m7-format";
@@ -9,9 +10,9 @@ import { name as nameCell, pill, text, type PanelRow, type PanelTone, type TabCo
 export const loadQueue = (query: { scope?: string; type?: string; state?: string } = {}) => {
   const params = new URLSearchParams();
   for (const [key, value] of Object.entries(query)) if (value) params.set(key, value);
-  return apiGet<QueueOverview>(`${HUB}/queue${params.toString() ? `?${params.toString()}` : ""}`);
+  return apiGet(`${HUB}/queue${params.toString() ? `?${params.toString()}` : ""}`, observe<QueueOverview>(localContracts["src/lib/modules/live/m13-queue.ts#ffe78e9f"]));
 };
-export const loadItem = (key: string) => apiGet<ItemPage>(`${HUB}/item/${encodeURIComponent(key)}`);
+export const loadItem = (key: string) => apiGet(`${HUB}/item/${encodeURIComponent(key)}`, observe<ItemPage>(localContracts["src/lib/modules/live/m13-queue.ts#91865f63"]));
 
 const CHECK = "M5 12.5l4.5 4.5 9-10";
 const WARN = "M12 8.2v4.6M12 16h.02M12 3.6 21 19.4H3z";

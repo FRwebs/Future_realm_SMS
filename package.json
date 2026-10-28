@@ -33,13 +33,18 @@
     "storybook": "storybook dev -p 6006",
     "build-storybook": "storybook build",
     "chromatic": "chromatic --exit-zero-on-changes",
-    "i18n:review": "node scripts/translation-review.mjs"
+    "i18n:review": "node scripts/translation-review.mjs",
+    "prepare": "husky",
+    "test:coverage": "vitest run tests/unit --coverage",
+    "budget": "node scripts/check-bundle-size.mjs",
+    "lighthouse": "lhci autorun",
+    "api:contracts": "node scripts/generate-domain-contracts.mjs"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
   },
   "dependencies": {
-    "@hookform/resolvers": "^3.9.0",
+    "@hookform/resolvers": "^5.9.2",
     "@nestjs/common": "^10.4.2",
     "@nestjs/core": "^10.4.2",
     "@nestjs/platform-express": "^10.4.2",
@@ -77,11 +82,12 @@
     "rxjs": "^7.8.1",
     "swagger-ui-express": "^5.0.1",
     "tailwind-merge": "^2.5.2",
-    "zod": "^3.23.8"
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.14.0",
     "@eslint/js": "^9.12.0",
+    "@lhci/cli": "^0.15.1",
     "@next/bundle-analyzer": "^16.4.3",
     "@next/eslint-plugin-next": "^15.0.0",
     "@playwright/test": "^1.49.0",
@@ -99,15 +105,19 @@
     "@types/qrcode": "^1.5.6",
     "@types/react": "^19.0.1",
     "@types/react-dom": "^19.0.1",
+    "@vitest/coverage-v8": "^2.1.9",
+    "babel-plugin-react-compiler": "^1.0.0",
     "chromatic": "^18.13.3",
     "eslint": "^9.12.0",
     "eslint-plugin-jsx-a11y": "^6.10.2",
     "eslint-plugin-react-hooks": "^7.1.1",
     "eslint-plugin-storybook": "^10.6.4",
     "globals": "^17.13.0",
+    "husky": "^9.1.7",
     "intl-messageformat": "^11.2.15",
     "jsdom": "^29.1.1",
     "knip": "^6.43.0",
+    "lint-staged": "^17.6.0",
     "msw": "^2.15.0",
     "postcss": "^8.4.47",
     "prisma": "^5.20.0",
@@ -121,5 +131,8 @@
     "typescript-eslint": "^8.8.0",
     "vite": "^5.4.21",
     "vitest": "^2.1.2"
+  },
+  "lint-staged": {
+    "*.{ts,tsx,mjs}": "eslint --max-warnings=0"
   }
 }

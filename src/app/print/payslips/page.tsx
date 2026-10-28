@@ -2,7 +2,8 @@ import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 
 import { PrintControls } from "@/components/modules/print-button";
-import { apiGet } from "@/lib/api/server";
+import { apiGet, observe } from "@/lib/api/server";
+import { localContracts } from "@/lib/api/local-contracts.zod";
 import { canOpenModule } from "@/lib/auth/server-access";
 import { getServerSession } from "@/lib/auth/session";
 import { naira } from "@/lib/modules/live/m7-pay-forms";
@@ -21,7 +22,7 @@ export default async function PrintPayslipsPage() {
   if (!session) redirect("/login");
   if (!(await canOpenModule(session, "M07"))) notFound();
 
-  const [data, school] = await Promise.all([loadPayroll(), apiGet<SchoolPayload>("/api/v1/configuration/school-information").catch(() => null)]);
+  const [data, school] = await Promise.all([loadPayroll(), apiGet("/api/v1/configuration/school-information", observe<SchoolPayload>(localContracts["src/app/print/payslips/page.tsx#81f42342"])).catch(() => null)]);
   const slips = data.rows.filter((row) => row.slip);
   if (data.amountsHidden || !slips.length) notFound();
 

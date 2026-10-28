@@ -14,6 +14,8 @@ async function signIn(page: Page, email: string) {
 
 /** Tab through the page, noting each control that takes focus and whether it shows where it is. */
 async function walk(page: Page, presses: number) {
+  // Borders ease from one colour to the next; read them settled, not half-way.
+  await page.addStyleTag({ content: "*,*::before,*::after{transition:none!important;animation:none!important}" });
   const hidden: string[] = [];
   const seen = new Set<string>();
   for (let step = 0; step < presses; step += 1) {
@@ -23,8 +25,18 @@ async function walk(page: Page, presses: number) {
       if (!el || el === document.body) return null;
       const style = getComputedStyle(el);
       const outlined = style.outlineStyle !== "none" && parseFloat(style.outlineWidth) > 0;
-      const shadow = style.boxShadow !== "none";
-      const label = (el.getAttribute("aria-label") || el.textContent || el.getAttribute("name") || el.tagName).trim().replace(/\s+/g, " ").slice(0, 40);
+      let shadow = style.boxShadow !== "none";
+      // A field marks focus by changing its border (or its wrapper's); compare with the same field out of focus.
+      if (!outlined && !shadow && ["INPUT", "SELECT", "TEXTAREA"].includes(el.tagName)) {
+        const chain = [el, el.parentElement, el.parentElement?.parentElement].filter(Boolean) as HTMLElement[];
+        const look = () => chain.map((node) => `${getComputedStyle(node).borderColor}|${getComputedStyle(node).boxShadow}`).join("/");
+        const focused = look();
+        el.blur();
+        const resting = look();
+        el.focus();
+        shadow = focused !== resting;
+      }
+      const label = (el.getAttribute("aria-label") || el.textContent || el.getAttribute("name") || el.getAttribute("placeholder") || el.getAttribute("type") || el.tagName).trim().replace(/\s+/g, " ").slice(0, 40);
       const box = el.getBoundingClientRect();
       return { key: `${el.tagName}|${label}|${Math.round(box.x)},${Math.round(box.y)}`, label: `${el.tagName.toLowerCase()} “${label}”`, visible: outlined || shadow, onScreen: box.width > 0 && box.height > 0 };
     });
@@ -66,10 +78,13 @@ test("a drawer takes focus, keeps it, and gives it back on Escape", async ({ pag
   await expect(page.getByRole("heading", { level: 1 }).first()).toBeVisible({ timeout: 60_000 });
   await page.waitForLoadState("networkidle");
   const opener = page.getByRole("button", { name: "Change password" }).first();
-  await opener.focus();
-  await page.keyboard.press("Enter");
   const dialog = page.getByRole("dialog");
-  await expect(dialog).toBeVisible();
+  // Pressed until it opens: on a cold page the press can land before the page has taken hold, as it could for a person.
+  await expect(async () => {
+    await opener.focus();
+    await page.keyboard.press("Enter");
+    await expect(dialog).toBeVisible({ timeout: 3_000 });
+  }).toPass({ timeout: 60_000 });
   for (let step = 0; step < 12; step += 1) await page.keyboard.press("Tab");
   expect(await dialog.evaluate((node) => node.contains(document.activeElement))).toBe(true);
   await page.keyboard.press("Escape");

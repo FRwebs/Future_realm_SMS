@@ -13,7 +13,9 @@ import { ResourceActionDialog } from "@/components/forms/resource-action-dialog"
 import { BrandingPreview } from "./_branding-preview";
 import { PlanCreateDialog } from "@/components/super-admin/plan-action-dialogs";
 import { ActionMenu } from "@/components/ui/action-menu";
-import { apiGet, apiGetEnvelope } from "@/lib/api/server";
+import { apiGet, apiGetEnvelope, observe } from "@/lib/api/server";
+import { localContracts } from "@/lib/api/local-contracts.zod";
+import { SuperAdminBrandingAssetRowListSchema, SuperAdminChurnAnalysisSchema, SuperAdminFeatureFlagCaseHistorySchema, SuperAdminFeatureFlagRowListSchema, SuperAdminFeatureOverrideRowListSchema, SuperAdminInternalMemberListSchema, SuperAdminPlanLifecycleRowListSchema, SuperAdminPlanRowListSchema, SuperAdminProductAdoptionSchema } from "@/lib/domain/types.zod";
 import { FeatureMatrixTable } from "./_feature-matrix-table";
 import { PlanCardGrid } from "./_plan-cards";
 import type {
@@ -93,8 +95,8 @@ export default async function SuperAdminFeatureFlagsPage({ searchParams }: { sea
   // Fetched once here (in addition to inside ExceptionsTab) purely to compute the "Exceptions"
   // tab badge, which must be visible regardless of which tab is currently active.
   const [overridesForBadge, brandingForBadge] = await Promise.all([
-    apiGet<SuperAdminFeatureOverrideRow[]>("/api/super-admin/feature-flags/overrides"),
-    apiGet<SuperAdminBrandingAssetRow[]>("/api/super-admin/feature-flags/branding")
+    apiGet("/api/super-admin/feature-flags/overrides", observe<SuperAdminFeatureOverrideRow[]>(SuperAdminFeatureOverrideRowListSchema)),
+    apiGet("/api/super-admin/feature-flags/branding", observe<SuperAdminBrandingAssetRow[]>(SuperAdminBrandingAssetRowListSchema))
   ]);
   const now = Date.now();
   const activeOverrideCount = (overridesForBadge ?? []).filter(
@@ -103,7 +105,7 @@ export default async function SuperAdminFeatureFlagsPage({ searchParams }: { sea
   const activeBrandingCount = (brandingForBadge ?? []).filter((item) => item.status === "APPLIED").length;
   const exceptionsCount = activeOverrideCount + activeBrandingCount;
 
-  const members = await apiGet<SuperAdminInternalMember[]>("/api/super-admin/internal-team").catch(() => [] as SuperAdminInternalMember[]);
+  const members = await apiGet("/api/super-admin/internal-team", observe<SuperAdminInternalMember[]>(SuperAdminInternalMemberListSchema)).catch(() => [] as SuperAdminInternalMember[]);
 
   const tabs = [
     { label: "Plans", href: tabHref("plans"), active: tab === "plans" },
@@ -160,12 +162,12 @@ type Currencies = {
 
 async function PlansTab() {
   const [plans, migrations, currencies, churn, adoption, overview] = await Promise.all([
-    apiGet<SuperAdminPlanRow[]>("/api/super-admin/plans"),
-    apiGet<SuperAdminPlanLifecycleRow[]>("/api/super-admin/feature-flags/lifecycle"),
-    apiGet<Currencies>("/api/super-admin/billing-extras/currencies"),
-    apiGet<SuperAdminChurnAnalysis>("/api/super-admin/analytics/churn"),
-    apiGet<SuperAdminProductAdoption>("/api/super-admin/analytics/product-adoption"),
-    apiGet<PlansOverview>("/api/super-admin/plans-features/plans")
+    apiGet("/api/super-admin/plans", observe<SuperAdminPlanRow[]>(SuperAdminPlanRowListSchema)),
+    apiGet("/api/super-admin/feature-flags/lifecycle", observe<SuperAdminPlanLifecycleRow[]>(SuperAdminPlanLifecycleRowListSchema)),
+    apiGet("/api/super-admin/billing-extras/currencies", observe<Currencies>(localContracts["src/app/super-admin/feature-flags/page.tsx#a68898ef"])),
+    apiGet("/api/super-admin/analytics/churn", observe<SuperAdminChurnAnalysis>(SuperAdminChurnAnalysisSchema)),
+    apiGet("/api/super-admin/analytics/product-adoption", observe<SuperAdminProductAdoption>(SuperAdminProductAdoptionSchema)),
+    apiGet("/api/super-admin/plans-features/plans", observe<PlansOverview>(localContracts["src/app/super-admin/feature-flags/page.tsx#0be7b1e9"]))
   ]);
   const ratesByTier = new Map((overview?.rates ?? []).map((row) => [row.tier, row]));
   const tierColumns = adoption?.tierColumns ?? [];
@@ -242,7 +244,7 @@ async function PlansTab() {
             <ResourceActionDialog
               triggerLabel="Author prices in US dollars"
               title="Price the tiers once, in US dollars"
-              description="Each tier’s naira price becomes its dollar price at the term’s rate, rounded-sm to the nearest 50 kobo — so a rate change moves every tier together."
+              description="Each tier’s naira price becomes its dollar price at the term’s rate, rounded to the nearest 50 kobo — so a rate change moves every tier together."
               note="Choose Naira to go back to the built-in naira prices."
               endpoint="/api/super-admin/billing-extras/pricing/usd"
               method="POST"
@@ -310,7 +312,7 @@ async function PlansTab() {
 }
 
 async function TierMatrixTab() {
-  const view = await apiGet<MatrixView>("/api/super-admin/plans-features/matrix");
+  const view = await apiGet("/api/super-admin/plans-features/matrix", observe<MatrixView>(localContracts["src/app/super-admin/feature-flags/page.tsx#27a56409"]));
   const missing = view.registry.filter((row) => !view.features.some((feature) => feature.featureKey === row.key));
 
   return (
@@ -404,7 +406,7 @@ async function RolloutTab() {
 }
 
 async function PlanChangesSection() {
-  const overview = await apiGet<PlansOverview>("/api/super-admin/plans-features/plans");
+  const overview = await apiGet("/api/super-admin/plans-features/plans", observe<PlansOverview>(localContracts["src/app/super-admin/feature-flags/page.tsx#0be7b1e9"]));
   return (
     <div className="grid gap-[14px]">
       <TableCard
@@ -455,8 +457,8 @@ type PriceLockRow = { schoolId: string; school: string; plan: string; tier: stri
 
 async function LifecycleSection() {
   const [migrations, priceLocks] = await Promise.all([
-    apiGet<SuperAdminPlanLifecycleRow[]>("/api/super-admin/feature-flags/lifecycle"),
-    apiGet<PriceLockRow[]>("/api/super-admin/plans-features/price-locks").catch(() => [] as PriceLockRow[])
+    apiGet("/api/super-admin/feature-flags/lifecycle", observe<SuperAdminPlanLifecycleRow[]>(SuperAdminPlanLifecycleRowListSchema)),
+    apiGet("/api/super-admin/plans-features/price-locks", observe<PriceLockRow[]>(localContracts["src/app/super-admin/feature-flags/page.tsx#8e6d1ad7"])).catch(() => [] as PriceLockRow[])
   ]);
 
   return (
@@ -724,11 +726,11 @@ function brandingDecisions(item: SuperAdminBrandingAssetRow): ReactNode {
 
 async function ExceptionsCaseBoard() {
   const [overrides, branding, flags, schoolsEnvelope, caseHistory] = await Promise.all([
-    apiGet<SuperAdminFeatureOverrideRow[]>("/api/super-admin/feature-flags/overrides"),
-    apiGet<SuperAdminBrandingAssetRow[]>("/api/super-admin/feature-flags/branding"),
-    apiGet<SuperAdminFeatureFlagRow[]>("/api/super-admin/feature-flags"),
+    apiGet("/api/super-admin/feature-flags/overrides", observe<SuperAdminFeatureOverrideRow[]>(SuperAdminFeatureOverrideRowListSchema)),
+    apiGet("/api/super-admin/feature-flags/branding", observe<SuperAdminBrandingAssetRow[]>(SuperAdminBrandingAssetRowListSchema)),
+    apiGet("/api/super-admin/feature-flags", observe<SuperAdminFeatureFlagRow[]>(SuperAdminFeatureFlagRowListSchema)),
     apiGetEnvelope<SuperAdminSchoolRow[]>("/api/super-admin/schools?limit=100"),
-    apiGet<SuperAdminFeatureFlagCaseHistory>("/api/super-admin/feature-flag-extras/case-history")
+    apiGet("/api/super-admin/feature-flag-extras/case-history", observe<SuperAdminFeatureFlagCaseHistory>(SuperAdminFeatureFlagCaseHistorySchema))
   ]);
 
   const schools = schoolsEnvelope.data ?? [];
@@ -898,9 +900,9 @@ async function ExceptionsCaseBoard() {
 
 async function FlagsSection() {
   const [flags, history, members, schoolsEnvelope] = await Promise.all([
-    apiGet<SuperAdminFeatureFlagRow[]>("/api/super-admin/plans-features/flags"),
-    apiGet<StageRow[]>("/api/super-admin/plans-features/stage-history"),
-    apiGet<SuperAdminInternalMember[]>("/api/super-admin/internal-team").catch(() => [] as SuperAdminInternalMember[]),
+    apiGet("/api/super-admin/plans-features/flags", observe<SuperAdminFeatureFlagRow[]>(SuperAdminFeatureFlagRowListSchema)),
+    apiGet("/api/super-admin/plans-features/stage-history", observe<StageRow[]>(localContracts["src/app/super-admin/feature-flags/page.tsx#291f65cd"])),
+    apiGet("/api/super-admin/internal-team", observe<SuperAdminInternalMember[]>(SuperAdminInternalMemberListSchema)).catch(() => [] as SuperAdminInternalMember[]),
     apiGetEnvelope<SuperAdminSchoolRow[]>("/api/super-admin/schools?limit=100")
   ]);
   const schoolOptions = (schoolsEnvelope.data ?? []).map((school) => ({ label: school.name, value: school.id }));

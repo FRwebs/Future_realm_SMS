@@ -1,5 +1,7 @@
 import { getServerSession } from "@/lib/auth/session";
-import { apiGet, apiGetEnvelope } from "@/lib/api/server";
+import { apiGet, apiGetEnvelope, observe } from "@/lib/api/server";
+import { localContracts } from "@/lib/api/local-contracts.zod";
+import { SuperAdminAnalyticsOverviewSchema, SuperAdminRevenueReportSchema, SuperAdminRevenueViewSchema } from "@/lib/domain/types.zod";
 import { roleLabels } from "@/lib/auth/roles";
 import { DashboardExportButton, type DashboardExportRow } from "@/components/super-admin/dashboard-export-button";
 import type {
@@ -139,7 +141,7 @@ function CardHeader({ title, meta, sub }: { title: string; meta?: string; sub?: 
   return (
     <div>
       <div className="flex items-center justify-between gap-3">
-        <h3 className="text-[12.5px] font-semibold text-(--color-text-primary)">{title}</h3>
+        <h2 className="text-[12.5px] font-semibold text-(--color-text-primary)">{title}</h2>
         {meta ? <p className="shrink-0 text-[10.5px] text-[#5E6D64]">{meta}</p> : null}
       </div>
       {sub ? <p className="mt-1.5 text-[10.5px] leading-5 text-[#5f6e65]">{sub}</p> : null}
@@ -202,11 +204,11 @@ const tierColors = ["#12796A", "#3F9C86", "#7FBBA8", "#B7D6C9", "#DEE8E2", "#0D2
 export default async function SuperAdminDashboardPage() {
   const session = await getServerSession();
   const [overview, revenue, revenueReport, commissionEnvelope, securityData] = await Promise.all([
-    apiGet<SuperAdminAnalyticsOverview>("/api/super-admin/analytics/overview"),
-    apiGet<SuperAdminRevenueView>("/api/super-admin/analytics/revenue"),
-    apiGet<SuperAdminRevenueReport>("/api/super-admin/analytics/revenue-report"),
+    apiGet("/api/super-admin/analytics/overview", observe<SuperAdminAnalyticsOverview>(SuperAdminAnalyticsOverviewSchema)),
+    apiGet("/api/super-admin/analytics/revenue", observe<SuperAdminRevenueView>(SuperAdminRevenueViewSchema)),
+    apiGet("/api/super-admin/analytics/revenue-report", observe<SuperAdminRevenueReport>(SuperAdminRevenueReportSchema)),
     apiGetEnvelope<SuperAdminPartnerCommissionSummaryRow[]>("/api/super-admin/partners/commission-summary"),
-    apiGet<DashboardSecurityView>("/api/super-admin/security")
+    apiGet("/api/super-admin/security", observe<DashboardSecurityView>(localContracts["src/app/super-admin/page.tsx#96259927"]))
   ]);
   const commissionSummary = commissionEnvelope.data ?? [];
 
@@ -431,9 +433,9 @@ export default async function SuperAdminDashboardPage() {
               <Sparkles className="h-[11.5px] w-[11.5px] shrink-0 text-[#5FD6B4]" />
               <span className="whitespace-nowrap text-[9.5px] font-bold uppercase tracking-[0.13em] text-white/84">{profile.eyebrow}</span>
             </div>
-            <h2 className="max-w-[600px] text-pretty font-(--font-heading) text-[23.5px] font-extrabold leading-[1.1] tracking-[-0.032em] text-white md:text-[29.5px]">
+            <h1 className="max-w-[600px] text-pretty font-(--font-heading) text-[23.5px] font-extrabold leading-[1.1] tracking-[-0.032em] text-white md:text-[29.5px]">
               {platformGreeting(session?.role ?? "SUPER_ADMIN", session?.name)}
-            </h2>
+            </h1>
             <p className="mt-3 max-w-[560px] text-pretty text-[12px] leading-[1.55] text-[rgba(255,255,255,0.62)]">
               {profile.mission} {session ? `${roleLabels[session.role]} · Africa/Lagos.` : ""}
             </p>
@@ -594,7 +596,7 @@ export default async function SuperAdminDashboardPage() {
 
         <section className="rounded-[14px] border border-[#0d2315] bg-[#0d2315] p-5">
           <div className="flex items-center justify-between gap-3">
-            <h3 className="text-[12.5px] font-semibold text-white">Channel &amp; commission</h3>
+            <h2 className="text-[12.5px] font-semibold text-white">Channel &amp; commission</h2>
             <p className="text-[10.5px] text-white/50">Module 13</p>
           </div>
           <p className="mt-2.5 text-[10.5px] leading-5 text-white/60">Accrued on reconciled revenue only — never on an invoice.</p>
@@ -710,7 +712,7 @@ export default async function SuperAdminDashboardPage() {
       <section className="grid items-start gap-[14px] xl:grid-cols-[1.3fr_1fr]">
         <section className="surface-card overflow-hidden p-0">
           <div className="flex items-center justify-between border-b border-(--color-border-muted) px-5 py-4">
-            <h3 className="text-[12.5px] font-semibold text-(--color-text-primary)">Alert centre</h3>
+            <h2 className="text-[12.5px] font-semibold text-(--color-text-primary)">Alert centre</h2>
             <p className="text-[10.5px] font-semibold" style={{ color: "var(--color-accent-primary)" }}>Every alert carries a one-click action</p>
           </div>
           <div className="grid gap-0">
@@ -743,7 +745,7 @@ export default async function SuperAdminDashboardPage() {
 
         <section className="surface-card p-5">
           <div className="flex items-center justify-between">
-            <h3 className="text-[12.5px] font-semibold text-(--color-text-primary)">Activity feed</h3>
+            <h2 className="text-[12.5px] font-semibold text-(--color-text-primary)">Activity feed</h2>
             <span className="flex items-center gap-[4.5px] text-[10px] font-semibold" style={{ color: "var(--color-success)" }}>
               <span className="h-1.5 w-1.5 rounded-full" style={{ background: "var(--color-success)" }} />
               Live
@@ -791,7 +793,7 @@ export default async function SuperAdminDashboardPage() {
 
         <section className="surface-card p-5">
           <div className="flex items-center justify-between">
-            <h3 className="text-[12.5px] font-semibold text-(--color-text-primary)">Geographic distribution</h3>
+            <h2 className="text-[12.5px] font-semibold text-(--color-text-primary)">Geographic distribution</h2>
             <span className="text-[10.5px] font-semibold" style={{ color: "var(--color-accent-primary)" }}>State density view</span>
           </div>
           <div className="mt-3.5 grid grid-cols-[1.1fr_2.4fr_0.7fr_0.9fr] gap-3 border-b border-(--color-border-muted) pb-2.5 text-[9.5px] font-semibold uppercase tracking-wider text-(--color-text-muted)">

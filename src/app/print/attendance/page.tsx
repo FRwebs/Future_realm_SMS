@@ -2,7 +2,8 @@ import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 
 import { PrintControls } from "@/components/modules/print-button";
-import { apiGet } from "@/lib/api/server";
+import { apiGet, observe } from "@/lib/api/server";
+import { localContracts } from "@/lib/api/local-contracts.zod";
 import { canOpenModule } from "@/lib/auth/server-access";
 import { getServerSession } from "@/lib/auth/session";
 import { AT } from "@/lib/modules/live/m4-forms";
@@ -20,7 +21,7 @@ export default async function AttendanceRecordPage({ searchParams }: { searchPar
   if (!(await canOpenModule(session, "M04"))) notFound();
   const query = new URLSearchParams();
   for (const [key, value] of Object.entries(await searchParams)) for (const item of Array.isArray(value) ? value : value === undefined ? [] : [value]) query.append(key, item);
-  const record = await apiGet<Spool>(`${AT}/spool?${query.toString()}`).catch(() => null);
+  const record = await apiGet(`${AT}/spool?${query.toString()}`, observe<Spool>(localContracts["src/app/print/attendance/page.tsx#b2913085"])).catch(() => null);
   if (!record) notFound();
   const { meta, sections } = record;
 

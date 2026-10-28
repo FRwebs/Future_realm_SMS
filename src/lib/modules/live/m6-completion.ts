@@ -1,4 +1,5 @@
-import { apiGet } from "@/lib/api/server";
+import { apiGet, observe } from "@/lib/api/server";
+import { localContracts } from "@/lib/api/local-contracts.zod";
 import { cardDrawer, completionHref, notifyBehind, printDrawer, publishDrawer, RC, releaseDrawer, sendDrawer, withholdDrawer } from "@/lib/modules/live/m6-forms";
 import { publishCard } from "@/lib/modules/live/m6-remarks";
 import type { CompletionArmPage, CompletionOverview } from "@/lib/modules/live/m6-types";
@@ -9,8 +10,8 @@ import { formatDay } from "@/lib/date-format";
 
 /** Completion — which arms can go out, and what is holding the rest. */
 
-export const loadCompletion = () => apiGet<CompletionOverview>(`${RC}/completion`);
-export const loadCompletionArm = (classId: string) => apiGet<CompletionArmPage>(`${RC}/completion/${encodeURIComponent(classId)}`);
+export const loadCompletion = () => apiGet(`${RC}/completion`, observe<CompletionOverview>(localContracts["src/lib/modules/live/m6-completion.ts#f6bbf96f"]));
+export const loadCompletionArm = (classId: string) => apiGet(`${RC}/completion/${encodeURIComponent(classId)}`, observe<CompletionArmPage>(localContracts["src/lib/modules/live/m6-completion.ts#bdc2e2fe"]));
 
 const WARN = "M12 8.2v4.6M12 16h.02M12 3.6 21 19.4H3z";
 const DOWNLOAD = "M12 3.5v11M7.5 10l4.5 4.5 4.5-4.5M4.5 19.5h15";

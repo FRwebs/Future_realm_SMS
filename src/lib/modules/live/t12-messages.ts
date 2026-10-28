@@ -1,4 +1,5 @@
-import { apiGet } from "@/lib/api/server";
+import { apiGet, observe } from "@/lib/api/server";
+import { localContracts } from "@/lib/api/local-contracts.zod";
 import type { TeacherWorkspaceView } from "@/lib/api/teacher-workspace";
 import type { DrawerSpec, PanelFact, PanelTone, TabContent, TableCellKind, TableRow } from "@/lib/modules/panels";
 import { row } from "@/lib/modules/panels";
@@ -43,13 +44,13 @@ function outcome(message: SentRow): { label: string; tone: PanelTone } {
 }
 
 export async function teacherMessagesTab(tabSlug: string, me: TeacherWorkspaceView, query: Record<string, string | undefined>): Promise<TabContent | null | undefined> {
-  if (tabSlug === "compose") return composeTab(await apiGet<ComposeInfo>(`${API}/messages/compose`), query);
+  if (tabSlug === "compose") return composeTab(await apiGet(`${API}/messages/compose`, observe<ComposeInfo>(localContracts["src/lib/modules/live/t12-messages.ts#023f7aa5"])), query);
   if (tabSlug === "sent") {
-    const view = await apiGet<SentView>(`${API}/messages/sent`);
+    const view = await apiGet(`${API}/messages/sent`, observe<SentView>(localContracts["src/lib/modules/live/t12-messages.ts#27cad599"]));
     // The most recent sends open with every recipient (the rest show their summary: eight is what a person looks at): what happened to each, who read it, who answered.
     const details = new Map<string, SentDetail>();
     await Promise.all(view.rows.slice(0, 8).filter((entry) => entry.status === "SENT").map(async (entry) => {
-      try { details.set(entry.id, await apiGet<SentDetail>(`${API}/messages/sent/${entry.id}`)); } catch { /* the drawer falls back to the summary */ }
+      try { details.set(entry.id, await apiGet(`${API}/messages/sent/${entry.id}`, observe<SentDetail>(localContracts["src/lib/modules/live/t12-messages.ts#1d8f451c"]))); } catch { /* the drawer falls back to the summary */ }
     }));
     return sentTab(view, me, details);
   }
