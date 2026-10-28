@@ -3,7 +3,8 @@ import type { Route } from "next";
 
 import { AccessDenied } from "@/components/feedback/access-denied";
 import { FamilyMessages, type FamilyMessage } from "@/components/portals/family-messages";
-import { apiGet } from "@/lib/api/server";
+import { apiGet, observe } from "@/lib/api/server";
+import { localContracts } from "@/lib/api/local-contracts.zod";
 import { canAccessPath, getDefaultPathForRole } from "@/lib/auth/roles";
 import { getServerSession } from "@/lib/auth/session";
 
@@ -12,7 +13,7 @@ export default async function ParentMessagesPage() {
   if (!session) return null;
   if (!canAccessPath(session.role, "/portals/parent")) return <AccessDenied backHref={getDefaultPathForRole(session.role)} />;
 
-  const inbox = await apiGet<{ school: string; unread: number; messages: FamilyMessage[] }>("/api/v1/parent-portal/messages");
+  const inbox = await apiGet("/api/v1/parent-portal/messages", observe<{ school: string; unread: number; messages: FamilyMessage[] }>(localContracts["src/app/(app)/portals/parent/messages/page.tsx#dc5e2d56"]));
 
   return (
     <div className="portal-page">

@@ -213,7 +213,7 @@ export function RegisterMarker({ panel, openDrawer }: { panel: MarkerPanel; open
         <div className="mx-[-18px] flex flex-wrap items-start justify-between gap-[14px] border-b px-[18px] pb-[12px] pt-[14px]" style={{ borderColor: "#EDF3EF" }}>
           <div className="min-w-0 flex-[1_1_260px]">
             <div className="flex flex-wrap items-center gap-2">
-              <h3 className="text-[12.5px] font-semibold" style={{ color: INK }}>Roster · {panel.arm}</h3>
+              <h2 className="text-[12.5px] font-semibold" style={{ color: INK }}>Roster · {panel.arm}</h2>
               <span className="rounded-full border px-[8px] py-[2px] text-[10px] font-semibold" style={{ background: toneOf(submitted ? "positive" : done ? "submitted" : "attention").bg, color: toneOf(submitted ? "positive" : done ? "submitted" : "attention").fg, borderColor: toneOf(submitted ? "positive" : done ? "submitted" : "attention").bd }}>
                 {submitted ? "Submitted" : done ? "Ready" : `${counts.unmarked} unmarked`}
               </span>

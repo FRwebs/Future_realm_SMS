@@ -1,4 +1,5 @@
-import { apiGet } from "@/lib/api/server";
+import { apiGet, observe } from "@/lib/api/server";
+import { localContracts } from "@/lib/api/local-contracts.zod";
 import { plural } from "@/lib/modules/live/m7-format";
 import { FEES, applyUnappliedDrawer, closeDayDrawer, countDrawer, flagDrawer, naira, waiverDrawer } from "@/lib/modules/live/m10-forms";
 import type { Review } from "@/lib/modules/live/m10-types";
@@ -10,7 +11,7 @@ import { formatDay } from "@/lib/date-format";
  * until it has been counted by one person and closed by another.
  */
 
-export const loadReview = () => apiGet<Review>(`${FEES}/review`);
+export const loadReview = () => apiGet(`${FEES}/review`, observe<Review>(localContracts["src/lib/modules/live/m10-review.ts#e29a79fe"]));
 
 const STATE_TONE: Record<string, PanelTone> = { Closed: "positive", "In progress": "progress", Unreconciled: "negative" };
 const dayText = (iso: string) => formatDay(new Date(`${iso}T00:00:00`), { day: "numeric", month: "long" });

@@ -1,4 +1,5 @@
-import { apiGet } from "@/lib/api/server";
+import { apiGet, observe } from "@/lib/api/server";
+import { localContracts } from "@/lib/api/local-contracts.zod";
 import type { TeacherWorkspaceView } from "@/lib/api/teacher-workspace";
 import { area, text } from "@/lib/modules/live/m7-forms";
 import type { CourseCard, DocumentSpec, DrawerSpec, FormField, PanelFact, PanelRow, PanelTone, TabContent, TableCellKind, TableRow, TrayItem } from "@/lib/modules/panels";
@@ -68,21 +69,21 @@ const embed = (component: string, props: Record<string, unknown>): PanelRow => r
 export const courseHref = (id: string) => `/training/catalogue/${id}`;
 export const lessonHref = (id: string, position: number) => `/training/catalogue/${id}/lessons/${position}`;
 export const checkoutHref = "/training/catalogue/checkout";
-export const loadCourse = (id: string) => apiGet<CoursePage>(`${API}/learning/courses/${id}`);
-export const loadLesson = (id: string, position: string) => apiGet<LessonPage>(`${API}/learning/courses/${id}/lessons/${position}`);
-export const loadBasket = () => apiGet<Basket>(`${API}/learning/basket`);
+export const loadCourse = (id: string) => apiGet(`${API}/learning/courses/${id}`, observe<CoursePage>(localContracts["src/lib/modules/live/t19-training.ts#7e17b5f3"]));
+export const loadLesson = (id: string, position: string) => apiGet(`${API}/learning/courses/${id}/lessons/${position}`, observe<LessonPage>(localContracts["src/lib/modules/live/t19-training.ts#56d890c6"]));
+export const loadBasket = () => apiGet(`${API}/learning/basket`, observe<Basket>(localContracts["src/lib/modules/live/t19-training.ts#020b4183"]));
 
 export async function teacherTrainingTab(tabSlug: string, query: Record<string, string | undefined>, me?: TeacherWorkspaceView): Promise<TabContent | null | undefined> {
   void me;
-  if (tabSlug === "for-you") return forYouTab(await apiGet<Home>(`${API}/learning/home`));
+  if (tabSlug === "for-you") return forYouTab(await apiGet(`${API}/learning/home`, observe<Home>(localContracts["src/lib/modules/live/t19-training.ts#70f8bb9a"])));
   if (tabSlug === "catalogue") {
     const [cat, basket] = await Promise.all([
-      apiGet<Catalogue>(`${API}/learning/catalogue`),
+      apiGet(`${API}/learning/catalogue`, observe<Catalogue>(localContracts["src/lib/modules/live/t19-training.ts#5a241023"])),
       loadBasket().catch(() => ({ basket: [], total: 0, totalLabel: "₦0", history: [] } as Basket)),
     ]);
     return catalogueTab(cat, basket, query);
   }
-  if (tabSlug === "certificates") return certificatesTab(await apiGet<Certificates>(`${API}/learning/certificates`));
+  if (tabSlug === "certificates") return certificatesTab(await apiGet(`${API}/learning/certificates`, observe<Certificates>(localContracts["src/lib/modules/live/t19-training.ts#b3e4eb01"])));
   return undefined;
 }
 

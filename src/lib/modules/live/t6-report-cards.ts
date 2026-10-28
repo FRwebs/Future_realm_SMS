@@ -1,4 +1,5 @@
-import { apiGet } from "@/lib/api/server";
+import { apiGet, observe } from "@/lib/api/server";
+import { localContracts } from "@/lib/api/local-contracts.zod";
 import type { TeacherWorkspaceView } from "@/lib/api/teacher-workspace";
 import { cardDrawer, completionHref, formMasterDrawer, remarkHref } from "@/lib/modules/live/m6-forms";
 import type { ArchiveOverview, CardState, CompletionArmPage, CompletionOverview, RemarkPage, RemarksOverview } from "@/lib/modules/live/m6-types";
@@ -31,11 +32,11 @@ const shortDate = (iso: string) => formatDay(new Date(`${iso}T00:00:00Z`), { day
 
 export async function teacherReportCardsTab(tabSlug: string, me: TeacherWorkspaceView): Promise<TabContent | null | undefined> {
   if (tabSlug === "remarks") {
-    const [o, to] = await Promise.all([apiGet<RemarksOverview>(`${RC}/remarks`), apiGet<string | null>(`${API}/remarks/recipient`).catch(() => null)]);
+    const [o, to] = await Promise.all([apiGet(`${RC}/remarks`, observe<RemarksOverview>(localContracts["src/lib/modules/live/t6-report-cards.ts#c6bfd201"])), apiGet(`${API}/remarks/recipient`, observe<string | null>(localContracts["src/lib/modules/live/t6-report-cards.ts#cdb686ad"])).catch(() => null)]);
     return remarksTab(o, me, to);
   }
-  if (tabSlug === "completion") return completionTab(await apiGet<CompletionOverview>(`${RC}/completion`), me);
-  if (tabSlug === "archive") return archiveTab(await apiGet<ArchiveOverview>(`${RC}/archive`), me);
+  if (tabSlug === "completion") return completionTab(await apiGet(`${RC}/completion`, observe<CompletionOverview>(localContracts["src/lib/modules/live/t6-report-cards.ts#f6bbf96f"])), me);
+  if (tabSlug === "archive") return archiveTab(await apiGet(`${RC}/archive`, observe<ArchiveOverview>(localContracts["src/lib/modules/live/t6-report-cards.ts#d068c297"])), me);
   return undefined;
 }
 

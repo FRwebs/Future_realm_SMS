@@ -1,4 +1,5 @@
-import { apiGet } from "@/lib/api/server";
+import { apiGet, observe } from "@/lib/api/server";
+import { localContracts } from "@/lib/api/local-contracts.zod";
 import { articleDrawer, categoryName, priorityName, raiseTicketDrawer, readable, resolveDrawer, ticketDrawer } from "@/lib/modules/live/m16-forms";
 import type { SupportOverview, SyncOverview, Ticket } from "@/lib/modules/live/m16-types";
 import { dayLabel, plural } from "@/lib/modules/live/m7-format";
@@ -147,7 +148,7 @@ export function supportTab(o: SupportOverview): TabContent {
 }
 
 export async function syncSupportLiveTab(tabSlug: string): Promise<TabContent | null | undefined> {
-  if (tabSlug === "sync") return syncTab(await apiGet<SyncOverview>(SYNC));
-  if (tabSlug === "help-support") return supportTab(await apiGet<SupportOverview>(SUPPORT_OVERVIEW));
+  if (tabSlug === "sync") return syncTab(await apiGet(SYNC, observe<SyncOverview>(localContracts["src/lib/modules/live/m16-sync-support.ts#9dc3cf0a"])));
+  if (tabSlug === "help-support") return supportTab(await apiGet(SUPPORT_OVERVIEW, observe<SupportOverview>(localContracts["src/lib/modules/live/m16-sync-support.ts#d9b1260f"])));
   return undefined;
 }

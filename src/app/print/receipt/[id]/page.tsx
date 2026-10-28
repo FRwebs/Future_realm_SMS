@@ -3,7 +3,8 @@ import { notFound, redirect } from "next/navigation";
 
 import { DocumentPaper } from "@/components/modules/document-paper";
 import { PrintControls } from "@/components/modules/print-button";
-import { apiGet } from "@/lib/api/server";
+import { apiGet, observe } from "@/lib/api/server";
+import { localContracts } from "@/lib/api/local-contracts.zod";
 import { canOpenModule } from "@/lib/auth/server-access";
 import { getServerSession } from "@/lib/auth/session";
 import { receiptPaper } from "@/lib/modules/live/documents";
@@ -19,7 +20,7 @@ export default async function ReceiptPage({ params, searchParams }: { params: Pr
   const session = await getServerSession();
   if (!session) redirect("/login");
   if (!(await canOpenModule(session, "M10"))) notFound();
-  const receipt = await apiGet<ReceiptDoc>(`${FEES}/payments/${id}/receipt`).catch(() => null);
+  const receipt = await apiGet(`${FEES}/payments/${id}/receipt`, observe<ReceiptDoc>(localContracts["src/app/print/receipt/[id]/page.tsx#49018a3d"])).catch(() => null);
   if (!receipt) notFound();
   const dup = duplicate === "1" || receipt.receipts > 1;
   return (

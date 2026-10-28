@@ -1,4 +1,5 @@
-import { apiGet } from "@/lib/api/server";
+import { apiGet, observe } from "@/lib/api/server";
+import { localContracts } from "@/lib/api/local-contracts.zod";
 import { API } from "@/lib/modules/live/m7-forms";
 import { dayLong, plural } from "@/lib/modules/live/m7-format";
 import {
@@ -36,9 +37,9 @@ import {
  * or rated by a named person — never a number somebody simply types.
  */
 
-export const loadAppraisal = () => apiGet<AppraisalOverview>(`${API}/appraisal`);
-export const loadModeration = () => apiGet<Moderation>(`${API}/appraisal/moderation`);
-export const loadAppraisalOne = (id: string) => apiGet<AppraisalOne>(`${API}/appraisal/people/${id}`);
+export const loadAppraisal = () => apiGet(`${API}/appraisal`, observe<AppraisalOverview>(localContracts["src/lib/modules/live/m7-appraisal.ts#724e07ab"]));
+export const loadModeration = () => apiGet(`${API}/appraisal/moderation`, observe<Moderation>(localContracts["src/lib/modules/live/m7-appraisal.ts#28f3ebe2"]));
+export const loadAppraisalOne = (id: string) => apiGet(`${API}/appraisal/people/${id}`, observe<AppraisalOne>(localContracts["src/lib/modules/live/m7-appraisal.ts#8e8192f0"]));
 
 const STAGE_TONE: Record<string, PanelTone> = { Complete: "positive", "With you": "attention", "Self-assessment": "progress", "Not started": "neutral" };
 const REGISTER = "/staff-access/appraisal/export";

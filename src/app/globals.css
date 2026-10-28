@@ -1360,12 +1360,10 @@ html[data-density="comfortable"] body {
 }
 
 /*
- * Where keyboard focus is, on every control that can hold it. Written outside the layers so a component's own `outline-hidden` does not
- * take it away: a field that only changed its border colour left someone using Tab unsure where they were.
+ * Where keyboard focus is, on the controls that have no focus look of their own. Written outside the layers so a component's own
+ * `outline-hidden` does not take it away. Text fields, dropdowns and text areas are left out on purpose: each already marks focus by
+ * turning its own border green, and a second ring around that border read as a doubled outline.
  */
-input:focus-visible,
-select:focus-visible,
-textarea:focus-visible,
 summary:focus-visible,
 [tabindex]:not([tabindex='-1']):focus-visible {
   outline: 2px solid #12796a;

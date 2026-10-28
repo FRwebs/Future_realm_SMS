@@ -1,4 +1,5 @@
-import { apiGet } from "@/lib/api/server";
+import { apiGet, observe } from "@/lib/api/server";
+import { localContracts } from "@/lib/api/local-contracts.zod";
 import { dayLabel, dayLong, plural } from "@/lib/modules/live/m7-format";
 import { SB, agreementDrawer, agreementReadDrawer, closureDrawer, exportDrawer, preferencesDrawer, transferDrawer } from "@/lib/modules/live/m11-forms";
 import type { Account } from "@/lib/modules/live/m11-types";
@@ -10,7 +11,7 @@ import { pill, text, type PanelFact, type PanelTone, type TabContent, type Table
  * taking everything out, and closing.
  */
 
-export const loadAccount = () => apiGet<Account>(`${SB}/account`);
+export const loadAccount = () => apiGet(`${SB}/account`, observe<Account>(localContracts["src/lib/modules/live/m11-account.ts#85dfa32c"]));
 export const exportHref = (token: string) => `/subscription-billing/account/export/${encodeURIComponent(token)}`;
 
 const TRANSFER_STATE: Record<string, string> = { EVIDENCE_COLLECTED: "Evidence with Future Realm", NOTICE_SENT: "Notice sent", OBJECTION_RAISED: "Objection raised", APPROVED: "Approved", EXECUTED: "Completed", FROZEN: "Frozen" };

@@ -2,7 +2,8 @@ import Link from "next/link";
 
 import { TableCard } from "@/components/data-display/table-card";
 import { AccessDenied } from "@/components/feedback/access-denied";
-import { apiGet } from "@/lib/api/server";
+import { apiGet, observe } from "@/lib/api/server";
+import { localContracts } from "@/lib/api/local-contracts.zod";
 import { canAccessPath, getDefaultPathForRole } from "@/lib/auth/roles";
 import { getServerSession } from "@/lib/auth/session";
 import {
@@ -25,7 +26,7 @@ export default async function StudentServicesPage() {
     return <AccessDenied backHref={getDefaultPathForRole(session.role)} />;
   }
 
-  const services = await apiGet<StudentServicesPayload>("/api/v1/student-portal/services");
+  const services = await apiGet("/api/v1/student-portal/services", observe<StudentServicesPayload>(localContracts["src/app/(app)/portals/student/services/page.tsx#c3b321e6"]));
 
   return (
     <div className="portal-page">

@@ -11,7 +11,8 @@ import { TableCard } from "@/components/data-display/table-card";
 import { ResourceActionDialog } from "@/components/forms/resource-action-dialog";
 import type { ResourceField } from "@/components/forms/resource-form";
 import { ActionMenu } from "@/components/ui/action-menu";
-import { apiGet, apiGetEnvelope } from "@/lib/api/server";
+import { apiGet, apiGetEnvelope, observe } from "@/lib/api/server";
+import { localContracts } from "@/lib/api/local-contracts.zod";
 import type { SuperAdminPartnerDealRow, SuperAdminSchoolRow } from "@/lib/domain/types";
 import { formatCurrency, formatDate } from "@/lib/utils/formatters";
 
@@ -106,7 +107,7 @@ export default async function PartnersPage({ searchParams }: { searchParams?: Pr
   const params = searchParams ? await searchParams : {};
   const activeTab = params.tab === "registrations" ? "registrations" : params.tab === "commission" ? "commission" : params.tab === "statements" ? "statements" : "partners";
 
-  const registry = await apiGet<Registry>("/api/super-admin/partners/registry");
+  const registry = await apiGet("/api/super-admin/partners/registry", observe<Registry>(localContracts["src/app/super-admin/partners/page.tsx#1fd6a805"]));
   const partnerOptions = registry.partners.map((partner) => ({ label: partner.name, value: partner.id }));
 
   const tabs = [
@@ -162,8 +163,8 @@ export default async function PartnersPage({ searchParams }: { searchParams?: Pr
 async function PartnersTab({ registry, focus }: { registry: Registry; focus?: string }) {
   const k = registry.kpis;
   const [performance, mapped] = await Promise.all([
-    apiGet<Performance>("/api/super-admin/partners/performance"),
-    focus ? apiGet<MappedSchool[]>(`/api/super-admin/partners/${focus}/schools`).catch(() => [] as MappedSchool[]) : Promise.resolve([] as MappedSchool[])
+    apiGet("/api/super-admin/partners/performance", observe<Performance>(localContracts["src/app/super-admin/partners/page.tsx#63c90455"])),
+    focus ? apiGet(`/api/super-admin/partners/${focus}/schools`, observe<MappedSchool[]>(localContracts["src/app/super-admin/partners/page.tsx#ae926f8c"])).catch(() => [] as MappedSchool[]) : Promise.resolve([] as MappedSchool[])
   ]);
   const focused = registry.partners.find((partner) => partner.id === focus);
 
@@ -323,7 +324,7 @@ async function PartnersTab({ registry, focus }: { registry: Registry; focus?: st
 async function RegistrationsTab({ partnerOptions }: { partnerOptions: Array<{ label: string; value: string }> }) {
   const [dealsEnvelope, disputes, schoolsEnvelope] = await Promise.all([
     apiGetEnvelope<Deal[]>("/api/super-admin/partners/deals"),
-    apiGet<Dispute[]>("/api/super-admin/partners/disputes"),
+    apiGet("/api/super-admin/partners/disputes", observe<Dispute[]>(localContracts["src/app/super-admin/partners/page.tsx#1941c989"])),
     apiGetEnvelope<SuperAdminSchoolRow[]>("/api/super-admin/schools?limit=100")
   ]);
   const deals = dealsEnvelope.data ?? [];
@@ -429,7 +430,7 @@ async function RegistrationsTab({ partnerOptions }: { partnerOptions: Array<{ la
 /* ───────────────────────── Commission ───────────────────────── */
 
 async function CommissionTab() {
-  const commission = await apiGet<Commission>("/api/super-admin/partners/commission");
+  const commission = await apiGet("/api/super-admin/partners/commission", observe<Commission>(localContracts["src/app/super-admin/partners/page.tsx#4bfc46bc"]));
   return (
     <div className="grid gap-[14px]">
       <FlowSteps
@@ -489,8 +490,8 @@ async function CommissionTab() {
 
 async function StatementsTab({ focus }: { focus?: string }) {
   const [statements, detail] = await Promise.all([
-    apiGet<Statement[]>("/api/super-admin/partners/statements"),
-    focus ? apiGet<StatementDetail>(`/api/super-admin/partners/statements/${focus}`).catch(() => null) : Promise.resolve(null)
+    apiGet("/api/super-admin/partners/statements", observe<Statement[]>(localContracts["src/app/super-admin/partners/page.tsx#defad8d0"])),
+    focus ? apiGet(`/api/super-admin/partners/statements/${focus}`, observe<StatementDetail>(localContracts["src/app/super-admin/partners/page.tsx#0ee5897a"])).catch(() => null) : Promise.resolve(null)
   ]);
   return (
     <div className="grid gap-[14px]">

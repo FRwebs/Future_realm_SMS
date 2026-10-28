@@ -1,7 +1,8 @@
 import type { CalEvent, Message } from "@/lib/modules/live/student/shared";
 import { headers } from "next/headers";
 
-import { apiGet } from "@/lib/api/server";
+import { apiGet, observe } from "@/lib/api/server";
+import { localContracts } from "@/lib/api/local-contracts.zod";
 import { SW } from "@/lib/api/student-workspace";
 import { addDays, askDrawer, dShort, loadAskable, loadAssignments, loadAttendance, loadCalendar, loadMe, loadMessages, MONTHS } from "@/lib/modules/live/student/shared";
 import type { StudentContent } from "@/lib/modules/live/student/shared";
@@ -24,7 +25,7 @@ async function absolute(path: string): Promise<string> {
 }
 
 export async function calendarPage(query: Record<string, string | undefined>): Promise<StudentContent> {
-  const [me, cal, work, link] = await Promise.all([loadMe(), loadCalendar(), loadAssignments(), apiGet<{ path: string }>(`${SW}/calendar-link`).catch(() => null)]);
+  const [me, cal, work, link] = await Promise.all([loadMe(), loadCalendar(), loadAssignments(), apiGet(`${SW}/calendar-link`, observe<{ path: string }>(localContracts["src/lib/modules/live/student/school.ts#5f2e8814"])).catch(() => null)]);
   const feed = link ? await absolute(link.path) : null;
   const phone: DrawerSpec | null = feed ? {
     kicker: "Calendar", title: "Add to my phone’s calendar", mode: "info", sub: "A private link that keeps your phone’s calendar up to date by itself.",

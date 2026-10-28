@@ -1,3 +1,4 @@
+import { schoolContextContract } from "@/lib/api/contracts";
 import { cache } from "react";
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
@@ -12,7 +13,6 @@ import { studentNavigation } from "@/lib/modules/student-workspace";
 import { teacherNavigation } from "@/lib/modules/teacher-workspace";
 import { getServerPermissions } from "@/lib/auth/server-access";
 import { getServerSession } from "@/lib/auth/session";
-import type { SchoolContextView } from "@/lib/domain/types";
 import { getDefaultPermissionsForRole } from "@/lib/navigation/registry";
 
 export const metadata: Metadata = {
@@ -22,7 +22,7 @@ export const metadata: Metadata = {
 const getCachedSchoolContext = cache(async (schoolId: string) => {
   try {
     const session = await getServerSession();
-    const read = () => apiGet<SchoolContextView>("/api/v1/dashboard/context");
+    const read = () => apiGet("/api/v1/dashboard/context", schoolContextContract);
     // The school's name, session and term barely move, and the context stamp ends this the moment they do.
     return session ? await ttlCached(`ctx:${schoolId}:${session.userId}`, 600_000, read, { stamped: true }) : await read();
   } catch {

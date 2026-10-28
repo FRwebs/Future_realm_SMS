@@ -1,4 +1,5 @@
-import { apiGet } from "@/lib/api/server";
+import { apiGet, observe } from "@/lib/api/server";
+import { localContracts } from "@/lib/api/local-contracts.zod";
 import { area, select } from "@/lib/modules/live/m7-forms";
 import type { DrawerSpec, FormField, PanelFact, PanelRow, PanelTone, TabContent, TableCellKind, TableRow } from "@/lib/modules/panels";
 import { pill, row, text } from "@/lib/modules/panels";
@@ -27,11 +28,11 @@ export type ChildPage = {
 
 const short = (iso: string | null) => (iso ? formatDay(new Date(iso), { day: "numeric", month: "short", timeZone: "Africa/Lagos" }) : "—");
 export const observeHref = (studentId: string) => `/score-entry-results/enter/observe/${studentId}`;
-export const loadChild = (studentId: string) => apiGet<ChildPage>(`${API}/observations/${studentId}`);
+export const loadChild = (studentId: string) => apiGet(`${API}/observations/${studentId}`, observe<ChildPage>(localContracts["src/lib/modules/live/t5-observations.ts#eb977ad0"]));
 
 export async function teacherObservationsTab(tabSlug: string): Promise<TabContent | null | undefined> {
-  if (tabSlug === "enter") return enterTab(await apiGet<List>(`${API}/observations`));
-  if (tabSlug === "results") return resultsTab(await apiGet<Summary>(`${API}/observations/summary`));
+  if (tabSlug === "enter") return enterTab(await apiGet(`${API}/observations`, observe<List>(localContracts["src/lib/modules/live/t5-observations.ts#a1fffaaa"])));
+  if (tabSlug === "results") return resultsTab(await apiGet(`${API}/observations/summary`, observe<Summary>(localContracts["src/lib/modules/live/t5-observations.ts#12b71c3e"])));
   return undefined;
 }
 

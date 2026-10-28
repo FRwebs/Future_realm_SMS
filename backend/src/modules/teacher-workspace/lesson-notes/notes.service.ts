@@ -9,7 +9,7 @@ import { TeacherSchemeService, type WeekView } from "./scheme.service";
 import { GRID_SUFFIX, PLACEHOLDER, countWritten, focusWeek, letterhead, noteState, sectionsFor, termsOf, type Group, type Term } from "./shared";
 
 const DAY = 86_400_000;
-const noteSchema = z.object({ sections: z.record(z.string()).default({}), termId: z.string().optional(), /** The note's updatedAt as the writer last saw it; null means they saw none. Left out, nothing is checked. */ base: z.string().nullable().optional() });
+const noteSchema = z.object({ sections: z.record(z.string(), z.string()).default({}), termId: z.string().optional(), /** The note's updatedAt as the writer last saw it; null means they saw none. Left out, nothing is checked. */ base: z.string().nullable().optional() });
 const submitSchema = z.object({ reply: z.string().trim().max(2000).optional(), termId: z.string().optional() });
 const decideSchema = z.object({ decision: z.enum(["sign", "return"]), note: z.string().trim().max(2000).optional(), section: z.string().optional() });
 const bulkSign = z.object({ planIds: z.array(z.string()).min(1, "Choose the notes to sign.").max(100) });

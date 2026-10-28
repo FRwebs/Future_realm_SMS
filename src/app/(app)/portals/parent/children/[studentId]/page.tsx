@@ -4,7 +4,8 @@ import type { Route } from "next";
 import { TableCard } from "@/components/data-display/table-card";
 import { AccessDenied } from "@/components/feedback/access-denied";
 import { ActionMenu, ActionMenuLink } from "@/components/ui/action-menu";
-import { apiGet } from "@/lib/api/server";
+import { apiGet, observe } from "@/lib/api/server";
+import { ParentChildPortalViewSchema } from "@/lib/domain/types.zod";
 import { canAccessPath, getDefaultPathForRole } from "@/lib/auth/roles";
 import { getServerSession } from "@/lib/auth/session";
 import { ParentChildPortalView } from "@/lib/domain/types";
@@ -21,7 +22,7 @@ export default async function ParentChildOverviewPage({ params }: PageProps) {
   }
 
   const { studentId } = await params;
-  const child = await apiGet<ParentChildPortalView>(`/api/v1/parent-portal/children/${studentId}`);
+  const child = await apiGet(`/api/v1/parent-portal/children/${studentId}`, observe<ParentChildPortalView>(ParentChildPortalViewSchema));
   // What the school keeps back from guardians (School Configuration → Policies) is not fetched at all; the page just stops pointing at it.
   const hidden = new Set(child.hidden ?? []);
   const has = (page: string) => !hidden.has(page);

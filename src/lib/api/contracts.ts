@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import type { MyPermissionsView, ParentProfileView, PlatformSyncView, SchoolContextView } from "@/lib/domain/types";
+import type { MyProfile } from "@/lib/modules/account";
 import type { TimetableDetail } from "@/lib/modules/live/m3-types";
 
 /**
@@ -118,6 +120,63 @@ export const timetableDetailContract = z
       })
       .passthrough(),
     arms: z.array(z.object({ id: z.string(), name: z.string(), level: z.string() }).passthrough()),
-    subjects: z.record(z.array(z.object({ subjectId: z.string(), name: z.string(), periods: z.number() }).passthrough())),
+    subjects: z.record(z.string(), z.array(z.object({ subjectId: z.string(), name: z.string(), periods: z.number() }).passthrough())),
   })
-  .passthrough() as unknown as z.ZodType<TimetableDetail, z.ZodTypeDef, unknown>;
+  .passthrough() as unknown as z.ZodType<TimetableDetail>;
+
+/* ------------------------------------------------------------------ reads the server makes for a page */
+
+/**
+ * The page code was written against hand-made types; a contract for one of those reads checks the real answer against the shape the
+ * page relies on, and hands back that same type — so nothing downstream changes, and a mismatch is caught at the edge.
+ */
+const typed = <T,>() => (schema: z.ZodTypeAny) => schema as unknown as z.ZodType<T>;
+
+/** The school a signed-in person is in, and its current session and term (`/dashboard/context`). */
+export const schoolContextContract = typed<SchoolContextView>()(z.object({
+  schoolName: z.string(),
+  schoolSlug: z.string().nullish(),
+  currentSession: z.string(),
+  currentTerm: z.string(),
+}));
+
+/** What the Back Office has decided the school's own app must show and obey (`/platform-sync`). */
+export const platformSyncContract = typed<PlatformSyncView>()(z.object({
+  school: z.object({ name: z.string(), plan: z.string(), tier: z.string(), status: z.string(), billingStatus: z.string(), trialEndsAt: z.string().nullable() }),
+  pendingSwitch: z.object({ to: z.string(), from: z.string().nullable() }).nullable(),
+  readOnly: z.object({ reason: z.string(), kind: z.enum(["maintenance", "trial"]) }).nullable(),
+  platformMessage: z.string().nullable(),
+  windows: z.array(z.object({ id: z.string(), title: z.string(), message: z.string(), startsAt: z.string(), endsAt: z.string(), active: z.boolean() })),
+  announcements: z.array(z.object({ id: z.string(), title: z.string(), body: z.string(), type: z.enum(["INFO", "WARNING", "CRITICAL", "NEW_FEATURE", "PROMOTION"]), publishedAt: z.string().nullable() })),
+  switchedOff: z.array(z.object({ slug: z.string(), name: z.string(), scope: z.enum(["platform", "school"]), reason: z.string() })),
+}));
+
+/** What a person may do in their school (`/roles-management/permissions/my`): the list is what every page checks. */
+export const myPermissionsContract = typed<MyPermissionsView>()(z.object({ permissions: z.array(z.string()), grouped: z.array(z.object({ module: z.string() }).passthrough()) }));
+
+/** The person's own profile (`/profile/me`): only what the account pages read from it. */
+export const myProfileContract = typed<MyProfile>()(
+  z.object({
+    preferredName: z.string().nullish(),
+    phone: z.string().nullish(),
+    alternateEmail: z.string().nullish(),
+    mfaEnabled: z.boolean().nullish(),
+    locale: z.string().nullish(),
+    preferences: z.record(z.string(), z.unknown()).nullish(),
+    lastLoginAt: z.string().nullish(),
+    accountStatus: z.string().nullish(),
+  }).passthrough(),
+);
+
+/** A parent's own record and the children linked to it (`/parent-portal/profile`). */
+export const parentProfileContract = typed<ParentProfileView>()(z.object({
+  parentId: z.string(),
+  parentName: z.string(),
+  relationship: z.string().nullish(),
+  phone: z.string().nullish(),
+  email: z.string().nullish(),
+  address: z.string().nullish(),
+  canReceiveSms: z.boolean(),
+  canReceiveEmail: z.boolean(),
+  linkedChildren: z.array(z.object({ studentId: z.string(), studentName: z.string(), className: z.string(), admissionNumber: z.string() })),
+}));

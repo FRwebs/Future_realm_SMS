@@ -1,3 +1,4 @@
+import { myProfileContract, parentProfileContract } from "@/lib/api/contracts";
 import Link from "next/link";
 import type { Route } from "next";
 import { getTranslations } from "next-intl/server";
@@ -11,7 +12,6 @@ import { canAccessPath, getDefaultPathForRole } from "@/lib/auth/roles";
 import { getServerSession } from "@/lib/auth/session";
 import { languagePanel, type AccountWords, type MyProfile } from "@/lib/modules/account";
 import { row } from "@/lib/modules/panels";
-import { ParentProfileView } from "@/lib/domain/types";
 import { formatNigeriaClassName } from "@/lib/school-options";
 
 export default async function ParentProfilePage() {
@@ -22,8 +22,8 @@ export default async function ParentProfilePage() {
   }
 
   const [profile, mine] = await Promise.all([
-    apiGet<ParentProfileView>("/api/v1/parent-portal/profile"),
-    apiGet<MyProfile>("/api/v1/profile/me").catch(() => ({}) as MyProfile),
+    apiGet("/api/v1/parent-portal/profile", parentProfileContract),
+    apiGet("/api/v1/profile/me", myProfileContract).catch(() => ({}) as MyProfile),
   ]);
   const t = await getTranslations("shell.account");
   const words: AccountWords = {

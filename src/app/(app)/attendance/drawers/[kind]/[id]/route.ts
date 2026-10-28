@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
-import { apiGet } from "@/lib/api/server";
+import { apiGet, observe } from "@/lib/api/server";
+import { localContracts } from "@/lib/api/local-contracts.zod";
 import { AT, closeCaseDrawer, decideExplanationDrawer, notifyPersonDrawer, openCaseDrawer, sendRecordDrawer, studentCaseFacts, teacherFacts, viewExplanationDrawer } from "@/lib/modules/live/m4-forms";
 import { loadTeacher } from "@/lib/modules/live/m4-compliance";
 import { loadOptions } from "@/lib/modules/live/m4-register";
@@ -18,7 +19,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ kin
   const { kind, id } = await params;
   try {
     if (kind === "student") {
-      const c = await apiGet<StudentCase>(`${AT}/students/${encodeURIComponent(id)}`);
+      const c = await apiGet(`${AT}/students/${encodeURIComponent(id)}`, observe<StudentCase>(localContracts["src/app/(app)/attendance/drawers/[kind]/[id]/route.ts#f5254341"]));
       const spec: Partial<DrawerSpec> = {
         mode: "view", kicker: "Log", title: `${c.student.name} · attendance`,
         sub: "The whole term, and what the school has already done about it.",
@@ -44,7 +45,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ kin
       return NextResponse.json(spec);
     }
     if (kind === "explanation") {
-      const detail = await apiGet<ExplanationDetail>(`${AT}/explanations/${encodeURIComponent(id)}`);
+      const detail = await apiGet(`${AT}/explanations/${encodeURIComponent(id)}`, observe<ExplanationDetail>(localContracts["src/app/(app)/attendance/drawers/[kind]/[id]/route.ts#b529baba"]));
       return NextResponse.json(detail.open ? decideExplanationDrawer(detail) : viewExplanationDrawer(detail));
     }
     return NextResponse.json({ error: "That record is not one Attendance opens." }, { status: 404 });

@@ -33,7 +33,7 @@ export class ApiRequestError extends Error {
   }
 }
 
-export async function apiJson<T>(path: string, signal?: AbortSignal, contract?: z.ZodType<T, z.ZodTypeDef, unknown>): Promise<T> {
+export async function apiJson<T>(path: string, signal?: AbortSignal, contract?: z.ZodType<T>): Promise<T> {
   const response = await fetch(path, { credentials: "include", headers: { Accept: "application/json" }, signal });
   let body: { ok?: boolean; success?: boolean; data?: T; error?: string; message?: string } | null = null;
   try {

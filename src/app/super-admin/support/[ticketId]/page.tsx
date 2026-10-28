@@ -5,7 +5,8 @@ import { ViewTracker } from "@/components/super-admin/view-tracker";
 import { StatusBadge } from "@/components/data-display/status-badge";
 import { TableCard } from "@/components/data-display/table-card";
 import { ResourceActionDialog } from "@/components/forms/resource-action-dialog";
-import { apiGet, apiGetEnvelope } from "@/lib/api/server";
+import { apiGet, apiGetEnvelope, observe } from "@/lib/api/server";
+import { SuperAdminTicketDetailSchema } from "@/lib/domain/types.zod";
 import type { SuperAdminInternalMember, SuperAdminTicketDetail } from "@/lib/domain/types";
 import { formatDate } from "@/lib/utils/formatters";
 
@@ -22,7 +23,7 @@ const statusOptions = [
 export default async function SuperAdminTicketDetailPage({ params }: { params: Promise<{ ticketId: string }> }) {
   const { ticketId } = await params;
   const [ticket, agentsEnvelope] = await Promise.all([
-    apiGet<SuperAdminTicketDetail>(`/api/super-admin/support/tickets/${ticketId}`),
+    apiGet(`/api/super-admin/support/tickets/${ticketId}`, observe<SuperAdminTicketDetail>(SuperAdminTicketDetailSchema)),
     apiGetEnvelope<SuperAdminInternalMember[]>("/api/super-admin/internal-team?status=ACTIVE")
   ]);
   const cannedEnvelope = await apiGetEnvelope<Array<{ id: string; title: string; category: string }>>("/api/super-admin/support/canned-responses").catch(() => ({ data: [] as Array<{ id: string; title: string; category: string }> }));

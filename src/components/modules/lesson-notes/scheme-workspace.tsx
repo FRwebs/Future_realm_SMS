@@ -213,7 +213,7 @@ function Workspace({ overview, scheme, initialWeek }: WorkspaceProps) {
 
   /* starting */
   async function applyOutline(id: string) {
-    const result = await run<{ filled: number; kept: number; from: string }>("outline-solid", `${LN_API}/curriculum/${scheme!.subjectId}/catalogue/apply`, "POST", { entryId: id, replace: true, termId: scheme!.term.id }, (data) => `Filled ${data.filled} week${data.filled === 1 ? "" : "s"} from ${data.from}.`);
+    const result = await run<{ filled: number; kept: number; from: string }>("outline", `${LN_API}/curriculum/${scheme!.subjectId}/catalogue/apply`, "POST", { entryId: id, replace: true, termId: scheme!.term.id }, (data) => `Filled ${data.filled} week${data.filled === 1 ? "" : "s"} from ${data.from}.`);
     if (result) router.refresh();
   }
   async function importFile(event: React.ChangeEvent<HTMLInputElement>) {
@@ -274,7 +274,7 @@ function Workspace({ overview, scheme, initialWeek }: WorkspaceProps) {
         <div className="flex flex-wrap items-start justify-between gap-[14px] border-b px-[18px] pb-[12px] pt-[14px]" style={{ borderColor: RULE }}>
           <div className="min-w-0 flex-[1_1_260px]">
             <div className="flex flex-wrap items-center gap-2">
-              <h3 className="text-pretty text-[12.5px] font-semibold leading-[1.3]" style={{ color: INK }}>{readOnly ? `${scheme.owner ?? "The owner"}’s ${scheme.earlyYears ? "weekly plan" : "scheme of work"}` : scheme.earlyYears ? "Weekly plan" : "Scheme of work"} · {scheme.subject}</h3>
+              <h2 className="text-pretty text-[12.5px] font-semibold leading-[1.3]" style={{ color: INK }}>{readOnly ? `${scheme.owner ?? "The owner"}’s ${scheme.earlyYears ? "weekly plan" : "scheme of work"}` : scheme.earlyYears ? "Weekly plan" : "Scheme of work"} · {scheme.subject}</h2>
               {tag ? <Chip tone={tagTone}>{tag}</Chip> : null}
             </div>
             <p className="mt-[3.5px] text-[10.5px] leading-normal" style={{ color: MUTED }}>{scheme.arms.join(", ")} · {scheme.term.name}, {scheme.term.session}{scheme.schemeStatus !== "None" ? ` · scheme ${scheme.schemeStatus.toLowerCase()}` : ""}</p>
@@ -323,7 +323,7 @@ function Workspace({ overview, scheme, initialWeek }: WorkspaceProps) {
                       <select className={inputClass} value={replace ?? scheme.catalogue[0]!.id} onChange={(event) => setReplace(event.target.value)} aria-label="Outline">
                         {scheme.catalogue.map((entry) => <option key={entry.id} value={entry.id}>{entry.curriculum} · {entry.stage}{entry.own ? " · your school’s" : ""} — {entry.topics} topics</option>)}
                       </select>
-                      <Btn kind="primary" busy={busy === "outline-solid"} onClick={() => applyOutline(replace ?? scheme.catalogue[0]!.id)}>Fill the term</Btn>
+                      <Btn kind="primary" busy={busy === "outline"} onClick={() => applyOutline(replace ?? scheme.catalogue[0]!.id)}>Fill the term</Btn>
                     </div>
                   ) : <p className="mt-auto text-[10.5px] font-semibold" style={{ color: "#8A6410" }}>No published outline matches {scheme.subject} at this stage in {scheme.term.name}. Your school can load one from Excel in Coverage.</p>}
                 </div>

@@ -1,4 +1,5 @@
-import { apiGet } from "@/lib/api/server";
+import { apiGet, observe } from "@/lib/api/server";
+import { localContracts } from "@/lib/api/local-contracts.zod";
 import type { PanelFact, PanelTone, TabContent, TableRow } from "@/lib/modules/panels";
 import { pill, row, text } from "@/lib/modules/panels";
 import { formatDay } from "@/lib/date-format";
@@ -27,7 +28,7 @@ const tone = (kind: string): PanelTone => (kind === "Attention" ? "attention" : 
 
 export async function teacherCalendarTab(tabSlug: string): Promise<TabContent | null | undefined> {
   if (tabSlug !== "calendar") return undefined;
-  const c = await apiGet<CalendarView>("/api/v1/teacher-workspace/calendar");
+  const c = await apiGet("/api/v1/teacher-workspace/calendar", observe<CalendarView>(localContracts["src/lib/modules/live/t2-calendar.ts#8416e138"]));
   const t = c.term;
 
   const rows: TableRow[] = c.dates.map((entry) => ({

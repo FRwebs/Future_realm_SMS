@@ -1,4 +1,5 @@
-import { apiGet } from "@/lib/api/server";
+import { apiGet, observe } from "@/lib/api/server";
+import { localContracts } from "@/lib/api/local-contracts.zod";
 import { checks, text } from "@/lib/modules/live/m7-forms";
 import type { DrawerSpec, FormField, PanelFact, PanelRow, TabContent, TableCellKind, TableRow } from "@/lib/modules/panels";
 import { pill, row, text as cell } from "@/lib/modules/panels";
@@ -20,7 +21,7 @@ type Overview = {
 const day = (iso: string | null) => (iso ? formatDay(new Date(iso), { day: "numeric", month: "short", year: "numeric", timeZone: "Africa/Lagos" }) : "Never");
 
 export async function integrationsTab(): Promise<TabContent> {
-  const v = await apiGet<Overview>(API);
+  const v = await apiGet(API, observe<Overview>(localContracts["src/lib/modules/live/m15-integrations.ts#0efc2e6b"]));
   const live = v.keys.filter((key) => !key.revoked);
   const labelOf = (scope: string) => v.scopes.find((entry) => entry.key === scope)?.label ?? scope;
   const create: DrawerSpec = {

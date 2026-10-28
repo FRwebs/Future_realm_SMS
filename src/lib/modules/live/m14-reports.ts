@@ -1,4 +1,5 @@
-import { apiGet } from "@/lib/api/server";
+import { apiGet, observe } from "@/lib/api/server";
+import { localContracts } from "@/lib/api/local-contracts.zod";
 import { AR, buildReportDrawer, downloadCustom, downloadDataset, downloadStandard, generateDrawer, removeDefinitionDrawer } from "@/lib/modules/live/m14-forms";
 import type { ReportsOverview } from "@/lib/modules/live/m14-types";
 import { plural } from "@/lib/modules/live/m7-format";
@@ -6,7 +7,7 @@ import { name as nameCell, text, type PanelRow, type TabContent } from "@/lib/mo
 
 /** Reports — every document this school issues, and all of its data. */
 
-export const loadReports = () => apiGet<ReportsOverview>(`${AR}/reports`);
+export const loadReports = () => apiGet(`${AR}/reports`, observe<ReportsOverview>(localContracts["src/lib/modules/live/m14-reports.ts#bd6dd61a"]));
 
 const PLUS = "M12 5.5v13M5.5 12h13";
 const DOWNLOAD = "M12 3.5v11M7.5 10l4.5 4.5 4.5-4.5M4.5 19.5h15";

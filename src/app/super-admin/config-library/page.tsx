@@ -7,7 +7,9 @@ import { ReferenceList } from "@/components/data-display/reference-list";
 import { TableCard } from "@/components/data-display/table-card";
 import { ResourceActionDialog } from "@/components/forms/resource-action-dialog";
 import { formatDate } from "@/lib/utils/formatters";
-import { apiGet, apiGetEnvelope } from "@/lib/api/server";
+import { apiGet, apiGetEnvelope, observe } from "@/lib/api/server";
+import { localContracts } from "@/lib/api/local-contracts.zod";
+import { SuperAdminConfigLibrarySchema } from "@/lib/domain/types.zod";
 import type { SuperAdminConfigLibrary } from "@/lib/domain/types";
 import { CatalogueImport } from "@/components/modules/catalogue-import";
 import { CARD_STEPS, cardFields } from "./_card-form";
@@ -81,10 +83,10 @@ function tabHref(tab: string) {
 
 export default async function SuperAdminConfigLibraryPage({ searchParams }: { searchParams?: Promise<{ tab?: string }> }) {
   const { tab = "curricula" } = searchParams ? await searchParams : {};
-  const data = await apiGet<SuperAdminConfigLibrary>("/api/super-admin/config-library");
+  const data = await apiGet("/api/super-admin/config-library", observe<SuperAdminConfigLibrary>(SuperAdminConfigLibrarySchema));
   const [classAssignments, classOptions] = await Promise.all([
-    apiGet<ClassAssignmentRow[]>("/api/super-admin/config-library/class-assignments").catch(() => [] as ClassAssignmentRow[]),
-    apiGet<Array<{ value: string; label: string }>>("/api/super-admin/config-library/class-options").catch(() => [] as Array<{ value: string; label: string }>)
+    apiGet("/api/super-admin/config-library/class-assignments", observe<ClassAssignmentRow[]>(localContracts["src/app/super-admin/config-library/page.tsx#8562ebbd"])).catch(() => [] as ClassAssignmentRow[]),
+    apiGet("/api/super-admin/config-library/class-options", observe<Array<{ value: string; label: string }>>(localContracts["src/app/super-admin/config-library/page.tsx#b265b9c5"])).catch(() => [] as Array<{ value: string; label: string }>)
   ]);
 
   // Defensive fetch: this endpoint lives in its own newly-added module, so if it's ever
@@ -131,7 +133,7 @@ export default async function SuperAdminConfigLibraryPage({ searchParams }: { se
     { label: "Country Settings", href: tabHref("country-settings"), active: tab === "country-settings", badge: extras.countrySettings.length },
     { label: "Topic Catalogue", href: tabHref("topic-catalogue"), active: tab === "topic-catalogue" }
   ];
-  const catalogue = tab === "topic-catalogue" ? await apiGet<Array<{ id: string; curriculum: string; subject: string; stage: string; term: number; source: string | null; topics: number; updatedAt: string }>>("/api/super-admin/curriculum-catalogue").catch(() => []) : [];
+  const catalogue = tab === "topic-catalogue" ? await apiGet("/api/super-admin/curriculum-catalogue", observe<Array<{ id: string; curriculum: string; subject: string; stage: string; term: number; source: string | null; topics: number; updatedAt: string }>>(localContracts["src/app/super-admin/config-library/page.tsx#3ffaef24"])).catch(() => []) : [];
 
   return (
     <div className="grid gap-[14px]">

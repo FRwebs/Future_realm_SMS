@@ -1,4 +1,5 @@
-import { apiGet } from "@/lib/api/server";
+import { apiGet, observe } from "@/lib/api/server";
+import { localContracts } from "@/lib/api/local-contracts.zod";
 import { HUB } from "@/lib/modules/live/m13-forms";
 import type { PerformanceData } from "@/lib/modules/live/m13-types";
 import { plural } from "@/lib/modules/live/m7-format";
@@ -6,7 +7,7 @@ import { name as nameCell, text, type PanelRow, type PanelTone, type TabContent,
 
 /** Performance — are decisions actually being made? Time to a decision, never a score or a rating. */
 
-export const loadPerformance = () => apiGet<PerformanceData>(`${HUB}/performance`);
+export const loadPerformance = () => apiGet(`${HUB}/performance`, observe<PerformanceData>(localContracts["src/lib/modules/live/m13-performance.ts#f56b5717"]));
 
 const DOWNLOAD = "M12 3.5v11M7.5 10l4.5 4.5 4.5-4.5M4.5 19.5h15";
 const speed = (days: number | null): PanelTone | undefined => (days === null ? undefined : days >= 4 ? "negative" : days >= 2 ? "attention" : "positive");

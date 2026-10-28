@@ -56,7 +56,7 @@ export function StudentInbox({ messages, empty, base, openDrawer }: StudentInbox
       {open ? (
         <article className="min-w-0 px-[18px] py-[16px]">
           <span className="rounded-full border px-[8px] py-[2.5px] text-[10px] font-semibold" style={{ background: toneOf(CAT_TONE[open.cat] ?? "neutral").bg, color: toneOf(CAT_TONE[open.cat] ?? "neutral").fg, borderColor: toneOf(CAT_TONE[open.cat] ?? "neutral").bd }}>{open.cat}</span>
-          <h3 className="mt-[8px] text-balance text-[15px] font-extrabold tracking-[-0.01em]" style={{ color: "#0D2315" }}>{open.title}</h3>
+          <h2 className="mt-[8px] text-balance text-[15px] font-extrabold tracking-[-0.01em]" style={{ color: "#0D2315" }}>{open.title}</h2>
           <p className="mt-[3px] text-[10.5px]" style={{ color: "#5E6D64" }}>
             {open.cat === "Sent" ? `From you · to ${open.to}` : `From ${open.from}${open.role ? ` · ${open.role}` : ""}`} · {open.when}
           </p>

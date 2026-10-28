@@ -7,7 +7,8 @@ import { DetailTabs } from "@/components/data-display/detail-tabs";
 import { StatusBadge } from "@/components/data-display/status-badge";
 import { TableCard } from "@/components/data-display/table-card";
 import { ResourceActionDialog } from "@/components/forms/resource-action-dialog";
-import { apiGet, apiGetEnvelope } from "@/lib/api/server";
+import { apiGet, apiGetEnvelope, observe } from "@/lib/api/server";
+import { SuperAdminSchoolDetailSchema } from "@/lib/domain/types.zod";
 import type { SuperAdminSchoolDetail, SuperAdminSchoolGroup } from "@/lib/domain/types";
 import { formatDate } from "@/lib/utils/formatters";
 
@@ -172,7 +173,7 @@ export default async function SuperAdminSchoolDetailPage({
 }) {
   const { schoolId } = await params;
   const { tab = "overview" } = searchParams ? await searchParams : {};
-  const school = await apiGet<SuperAdminSchoolDetail>(`/api/super-admin/schools/${schoolId}`);
+  const school = await apiGet(`/api/super-admin/schools/${schoolId}`, observe<SuperAdminSchoolDetail>(SuperAdminSchoolDetailSchema));
   const groupsEnvelope = await apiGetEnvelope<SuperAdminSchoolGroup[]>("/api/super-admin/schools/groups");
   const availableGroups = groupsEnvelope.data ?? [];
 

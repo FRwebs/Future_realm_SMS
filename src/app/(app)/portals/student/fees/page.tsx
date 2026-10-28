@@ -2,7 +2,8 @@ import Link from "next/link";
 
 import { TableCard } from "@/components/data-display/table-card";
 import { AccessDenied } from "@/components/feedback/access-denied";
-import { apiGet } from "@/lib/api/server";
+import { apiGet, observe } from "@/lib/api/server";
+import { PortalFinanceItemListSchema } from "@/lib/domain/types.zod";
 import { canAccessPath, getDefaultPathForRole } from "@/lib/auth/roles";
 import { getServerSession } from "@/lib/auth/session";
 import { PortalFinanceItem } from "@/lib/domain/types";
@@ -15,7 +16,7 @@ export default async function StudentFeesPage() {
     return <AccessDenied backHref={getDefaultPathForRole(session.role)} />;
   }
 
-  const fees = await apiGet<PortalFinanceItem[]>("/api/v1/student-portal/fees");
+  const fees = await apiGet("/api/v1/student-portal/fees", observe<PortalFinanceItem[]>(PortalFinanceItemListSchema));
   const outstanding = fees.reduce((sum, item) => sum + item.balance, 0);
 
   return (

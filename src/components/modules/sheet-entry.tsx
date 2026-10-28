@@ -183,7 +183,7 @@ export function SheetEntry({ panel, openDrawer }: { panel: SheetEntryPanel; open
       <section className={SHELL} style={{ borderColor: "#DEE8E2" }} aria-label={`Score grid · ${panel.subject}, ${panel.arm}`}>
         <div className="mx-[-18px] flex flex-wrap items-start justify-between gap-[14px] border-b px-[18px] pb-[12px] pt-[14px]" style={{ borderColor: "#EDF3EF" }}>
           <div className="min-w-0 flex-[1_1_260px]">
-            <h3 className="text-[12.5px] font-semibold" style={{ color: INK }}>Score grid · {panel.subject}, {panel.arm}</h3>
+            <h2 className="text-[12.5px] font-semibold" style={{ color: INK }}>Score grid · {panel.subject}, {panel.arm}</h2>
             <p className="mt-[3.5px] text-[10.5px] leading-normal" style={{ color: MUTED }}>Every column head carries its maximum. Type a mark, or A for absent.</p>
           </div>
           <p className="text-right text-[10.5px] leading-[1.45]" style={{ color: MUTED }}>{panel.rows.length} children · {panel.status}</p>

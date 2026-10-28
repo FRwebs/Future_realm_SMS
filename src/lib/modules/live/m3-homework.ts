@@ -1,4 +1,5 @@
-import { apiGet } from "@/lib/api/server";
+import { apiGet, observe } from "@/lib/api/server";
+import { localContracts } from "@/lib/api/local-contracts.zod";
 import type { PanelTone, TabContent, TableRow } from "@/lib/modules/panels";
 import { bar, pill, row, text } from "@/lib/modules/panels";
 import { formatDay } from "@/lib/date-format";
@@ -15,7 +16,7 @@ const pct = (part: number, whole: number) => (whole ? Math.round((part / whole) 
 const days = (count: number) => `${count} ${count === 1 ? "day" : "days"}`;
 
 export async function homeworkTab(): Promise<TabContent> {
-  const d = await apiGet<School>("/api/v1/teacher-workspace/student-work/school");
+  const d = await apiGet("/api/v1/teacher-workspace/student-work/school", observe<School>(localContracts["src/lib/modules/live/m3-homework.ts#f2f3d66a"]));
   const t = d.totals;
   const back = pct(t.handed, t.expected);
   const tone = (value: number, good: number, ok: number): PanelTone => (value >= good ? "positive" : value >= ok ? "attention" : "negative");

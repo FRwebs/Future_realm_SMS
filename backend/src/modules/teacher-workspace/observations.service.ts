@@ -12,7 +12,7 @@ export const DEFAULT_AREAS = ["Communication and language", "Personal, social an
 export const DEFAULT_BANDS = ["Emerging", "Developing", "Secure", "Exceeding"];
 const DAY = 86_400_000;
 
-const saveSchema = z.object({ areas: z.record(z.string()).default({}), note: z.string().trim().max(2000).optional(), photoA: z.string().optional(), photoB: z.string().optional() });
+const saveSchema = z.object({ areas: z.record(z.string(), z.string()).default({}), note: z.string().trim().max(2000).optional(), photoA: z.string().optional(), photoB: z.string().optional() });
 const MAX_PHOTO = 1_400_000;
 const IMAGE = /^data:image\/(png|jpe?g|webp);base64,[A-Za-z0-9+/=]+$/;
 

@@ -253,7 +253,7 @@ function StandardTableCardBody({
       <div className="border-b border-(--color-border-default) px-5 py-4">
         <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
           <div>
-            <h3 className="font-(--font-display) text-[16px] font-bold text-(--color-text-primary)">{title}</h3>
+            <h2 className="font-(--font-display) text-[16px] font-bold text-(--color-text-primary)">{title}</h2>
             {description ? (
               <p className="mt-1 max-w-3xl text-[12.5px] leading-5 text-(--color-text-secondary)">
                 {description}

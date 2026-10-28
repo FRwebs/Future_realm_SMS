@@ -36,7 +36,7 @@ export function StudentCalendar({ items, today, months, legend }: StudentCalenda
     <div className="grid min-w-0 gap-[14px] lg:grid-cols-[minmax(0,1.65fr)_minmax(0,1fr)]">
       <section className="min-w-0 rounded-[14px] border bg-(--color-bg-surface) p-[14px]" style={{ borderColor: "#DEE8E2" }}>
         <div className="mb-[10px] flex flex-wrap items-center justify-between gap-[8px]">
-          <h3 className="text-[12.5px] font-semibold" style={{ color: "#0D2315" }}>{month.label}</h3>
+          <h2 className="text-[12.5px] font-semibold" style={{ color: "#0D2315" }}>{month.label}</h2>
           <div className="flex items-center gap-[4px]">
             <button type="button" disabled={index === 0} onClick={() => go(index - 1)} className="rounded-[8px] border px-[10px] py-[4px] text-[11px] font-semibold disabled:opacity-40" style={{ borderColor: "#DEE8E2", color: "#435048" }} aria-label="Earlier month">‹</button>
             <button type="button" onClick={() => { setIndex(startIndex); setSelected(today); }} className="rounded-[8px] border px-[10px] py-[4px] text-[11px] font-semibold" style={{ borderColor: "#DEE8E2", color: "#435048" }}>Today</button>
@@ -74,7 +74,7 @@ export function StudentCalendar({ items, today, months, legend }: StudentCalenda
       </section>
 
       <section className="min-w-0 rounded-[14px] border bg-(--color-bg-surface) px-[16px] pb-[8px] pt-[14px]" style={{ borderColor: "#DEE8E2" }}>
-        <h3 className="text-[12.5px] font-semibold" style={{ color: "#0D2315" }}>{longDay(selected)}</h3>
+        <h2 className="text-[12.5px] font-semibold" style={{ color: "#0D2315" }}>{longDay(selected)}</h2>
         <p className="mt-[3px] text-[10.5px]" style={{ color: "#5E6D64" }}>{chosen.length ? `${chosen.length} on this day.` : "Nothing on this day."}</p>
         <ul className="mt-[8px]">
           {chosen.map((item) => {

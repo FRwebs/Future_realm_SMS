@@ -1,6 +1,7 @@
 import { cache } from "react";
 
-import { apiGet } from "@/lib/api/server";
+import { apiGet, observe } from "@/lib/api/server";
+import { localContracts } from "@/lib/api/local-contracts.zod";
 import { getServerSession } from "@/lib/auth/session";
 import { ttlCached } from "@/lib/cache/ttl";
 
@@ -20,7 +21,7 @@ export const getStudentBadges = cache(async (role: string): Promise<StudentBadge
   try {
     const session = await getServerSession();
     if (!session) return { counts: {}, tones: {}, hidden: [] };
-    const counts = await ttlCached(`sbadge:${session.schoolId}:${session.userId}`, 15_000, () => apiGet<{ work: number; late: number; unread: number; hidden: string[] }>(`${SW}/badges`));
+    const counts = await ttlCached(`sbadge:${session.schoolId}:${session.userId}`, 15_000, () => apiGet(`${SW}/badges`, observe<{ work: number; late: number; unread: number; hidden: string[] }>(localContracts["src/lib/api/student-workspace.ts#d531ce8e"])));
     return {
       counts: { s_assignments: counts.work, s_messages: counts.unread },
       tones: { s_assignments: counts.work ? (counts.late ? "danger" : "warning") : undefined },
@@ -58,8 +59,8 @@ export const getStudentChrome = cache(async (role: string): Promise<StudentChrom
     if (!session) return null;
     return await ttlCached(`schrome:${session.schoolId}:${session.userId}`, 60_000, async () => {
       const [me, timetable] = await Promise.all([
-        apiGet<StudentMe>(`${SW}/me`),
-        apiGet<StudentTimetable>(`${SW}/timetable`).catch(() => ({ slots: [], published: false }) as StudentTimetable),
+        apiGet(`${SW}/me`, observe<StudentMe>(localContracts["src/lib/api/student-workspace.ts#8ebf1ffe"])),
+        apiGet(`${SW}/timetable`, observe<StudentTimetable>(localContracts["src/lib/api/student-workspace.ts#d6067f58"])).catch(() => ({ slots: [], published: false }) as StudentTimetable),
       ]);
       const weekday = new Date(`${me.today}T00:00:00Z`).getUTCDay();
       const today = timetable.published

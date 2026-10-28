@@ -1,4 +1,5 @@
-import { apiGet } from "@/lib/api/server";
+import { apiGet, observe } from "@/lib/api/server";
+import { localContracts } from "@/lib/api/local-contracts.zod";
 import type { TeacherWorkspaceView } from "@/lib/api/teacher-workspace";
 import { area, choice, fixed, select, text as field, toggle } from "@/lib/modules/live/m7-forms";
 import type { DrawerSpec, PanelFact, PanelRow, TabContent, TableCellKind, TableRow } from "@/lib/modules/panels";
@@ -26,7 +27,7 @@ const pair = (items: Array<{ value: string; label: string }>) => Object.fromEntr
 
 export async function teacherStudentsTab(tabSlug: string, me: TeacherWorkspaceView, permissions: string[]): Promise<TabContent | null | undefined> {
   if (tabSlug !== "registry") return undefined;
-  return studentsTab(await apiGet<StudentsView>(`${API}/students`), me, new Set(permissions));
+  return studentsTab(await apiGet(`${API}/students`, observe<StudentsView>(localContracts["src/lib/modules/live/t8-students.ts#d82b02f9"])), me, new Set(permissions));
 }
 
 const label = (student: { name: string; adm: string; arm: string }) => `${student.name} · ${student.arm} · ${student.adm}`;
@@ -178,4 +179,4 @@ export function teacherWellbeing(name: string, arm: string, adm: string, alert: 
   return { title: name, desc: `${arm} · ${adm} · what you may see is a flag and the strategies — and nothing behind them.`, rows };
 }
 export type { StudentsView };
-export const loadMyStudents = () => apiGet<StudentsView>(`${API}/students`);
+export const loadMyStudents = () => apiGet(`${API}/students`, observe<StudentsView>(localContracts["src/lib/modules/live/t8-students.ts#d82b02f9"]));

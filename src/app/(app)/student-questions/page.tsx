@@ -2,7 +2,8 @@ import type { Metadata } from "next";
 
 import { AccessDenied } from "@/components/feedback/access-denied";
 import { ModuleWorkspace } from "@/components/modules/module-workspace";
-import { apiGet } from "@/lib/api/server";
+import { apiGet, observe } from "@/lib/api/server";
+import { localContracts } from "@/lib/api/local-contracts.zod";
 import { getTeacherWorkspace } from "@/lib/api/teacher-workspace";
 import { getServerSession } from "@/lib/auth/session";
 import type { DrawerSpec, TableRow } from "@/lib/modules/panels";
@@ -31,7 +32,7 @@ export default async function StudentQuestionsPage() {
   if (!session) return null;
   const teacher = await getTeacherWorkspace(session.role, session.schoolId);
   if (!teacher) return <AccessDenied backHref="/command-center/today" />;
-  const data = await apiGet<{ items: Item[]; waiting: number; observed?: Observed[] }>("/api/v1/teacher-workspace/student-questions");
+  const data = await apiGet("/api/v1/teacher-workspace/student-questions", observe<{ items: Item[]; waiting: number; observed?: Observed[] }>(localContracts["src/app/(app)/student-questions/page.tsx#77fdea80"]));
   const rows: TableRow[] = data.items.map((item) => ({
     drawer: replyDrawer(item), keywords: `${item.student} ${item.topic} ${item.arm}`,
     cells: [

@@ -12,6 +12,7 @@ import { ApiExceptionFilter } from "../common/api-exception.filter";
 import { CtxStampInterceptor } from "../common/ctx-stamp.interceptor";
 import { dateFormatContext } from "../common/date-format";
 import { enrichOpenApiDocument } from "../common/openapi-docs";
+import { SecretStripInterceptor } from "../common/secret-strip.interceptor";
 
 function buildAllowedOrigins() {
   const origins = new Set<string>([
@@ -58,7 +59,7 @@ async function configureNestApp(app: INestApplication) {
     }),
   );
   app.useGlobalFilters(new ApiExceptionFilter());
-  app.useGlobalInterceptors(new CtxStampInterceptor());
+  app.useGlobalInterceptors(new CtxStampInterceptor(), new SecretStripInterceptor());
 
   const config = new DocumentBuilder()
     .setTitle("FutureRealm SMS API")

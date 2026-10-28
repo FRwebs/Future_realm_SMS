@@ -2,7 +2,8 @@ import type { Metadata } from "next";
 
 import { AccessDenied } from "@/components/feedback/access-denied";
 import { ModuleWorkspace } from "@/components/modules/module-workspace";
-import { apiGet } from "@/lib/api/server";
+import { apiGet, observe } from "@/lib/api/server";
+import { localContracts } from "@/lib/api/local-contracts.zod";
 import { getTeacherWorkspace } from "@/lib/api/teacher-workspace";
 import { getServerSession } from "@/lib/auth/session";
 import type { DrawerSpec, TableRow } from "@/lib/modules/panels";
@@ -37,7 +38,7 @@ export default async function StudentWorkPage() {
   const session = await getServerSession();
   if (!session) return null;
   if (!(await getTeacherWorkspace(session.role, session.schoolId))) return <AccessDenied backHref="/command-center/today" />;
-  const data = await apiGet<Overview>(API);
+  const data = await apiGet(API, observe<Overview>(localContracts["src/app/(app)/student-work/page.tsx#0efc2e6b"]));
   const setDrawer: DrawerSpec = {
     kicker: "Homework", title: "Set homework", mode: "form", sub: "Every child in the arm is told in-app. Homework is practice — it never counts towards the CA.",
     fields: [

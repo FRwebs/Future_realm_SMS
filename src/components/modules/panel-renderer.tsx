@@ -9,7 +9,7 @@ import { FlowPanelView, GridPanelView, QuotesPanelView } from "@/components/modu
 import Link from "next/link";
 import type { Route } from "next";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { useEffect, useState } from "react";
 import {
   ArrowRight,
   ChevronDown,
@@ -36,7 +36,8 @@ import type {
   Trigger,
 } from "@/lib/modules/panels";
 import { readCookie, readableError } from "@/lib/modules/submit";
-import { narrowRows, tableCsv, csvFileName } from "@/lib/modules/table-query";
+import { tableCsv, csvFileName } from "@/lib/modules/table-query";
+import { useLocalTable, useServedTable, type TableEngine } from "@/components/modules/use-table-engine";
 import { cardIcon } from "@/lib/modules/card-icons";
 import { CARD_BORDER, INK, MUTED, toneOf } from "@/lib/modules/tones";
 import { useUiText } from "@/hooks/use-ui-text";
@@ -277,12 +278,12 @@ export function PanelHeader({
     >
       <div className="min-w-0 flex-[1_1_260px]">
         <div className="flex flex-wrap items-center gap-2">
-          <h3
+          <h2
             className="text-pretty text-[12.5px] font-semibold leading-[1.3]"
             style={{ color: INK }}
           >
             {title}
-          </h3>
+          </h2>
           {tag ? (
             <span
               className="inline-flex items-center gap-[5px] rounded-full border px-[8px] py-[2px] text-[10px] font-semibold"
@@ -571,83 +572,41 @@ function pageNumbers(count: number, current: number): Array<number | null> {
  * A table with the controls the mockup gives it: a search box, column filters,
  * row selection with bulk actions, and paging. Everything narrows the rows in
  * place, and the count under the table always describes what you are looking at.
+ *
+ * The engine under it is TanStack: Table searches, filters, pages and selects; and a long list, which arrives one page at a time, has the
+ * page asked for fetched with TanStack Query (the one on screen stays until the next is ready). See `use-table-engine`.
  */
-function TablePanel({
-  panel,
-  openDrawer,
-}: {
-  panel: Extract<Panel, { type: "table" }>;
-  openDrawer: OpenDrawer;
-}) {
-  // A long table arrives as one page of a longer list (`panel.window`): its search, filters and page live in the address, and the server
-  // does the narrowing. A short table narrows its own rows here, as it always has.
-  const served = panel.window;
-  const [query, setQuery] = useState(served?.q ?? "");
-  const [filterValues, setFilterValues] = useState<Record<string, string>>(() =>
-    served?.filters ?? Object.fromEntries(
-      (panel.filters ?? []).map((filter) => [filter.label, filter.value]),
-    ),
-  );
-  const [selected, setSelected] = useState<Set<TableRow>>(new Set());
-  const [page, setPage] = useState(0);
+function TablePanel({ panel, openDrawer }: { panel: Extract<Panel, { type: "table" }>; openDrawer: OpenDrawer }) {
+  return panel.window ? <ServedTablePanel panel={panel} openDrawer={openDrawer} /> : <LocalTablePanel panel={panel} openDrawer={openDrawer} />;
+}
+
+function LocalTablePanel({ panel, openDrawer }: { panel: Extract<Panel, { type: "table" }>; openDrawer: OpenDrawer }) {
+  const engine = useLocalTable(panel.rows, panel.filters, panel.per, Boolean(panel.selectable));
+  return <TableView panel={panel} openDrawer={openDrawer} engine={engine} />;
+}
+
+function ServedTablePanel({ panel, openDrawer }: { panel: Extract<Panel, { type: "table" }>; openDrawer: OpenDrawer }) {
+  const engine = useServedTable(panel.window!, panel.rows, panel.filters, Boolean(panel.selectable));
+  return <TableView panel={panel} openDrawer={openDrawer} engine={engine} />;
+}
+
+function TableView({ panel, openDrawer, engine }: { panel: Extract<Panel, { type: "table" }>; openDrawer: OpenDrawer; engine: TableEngine }) {
   const router = useRouter();
   const ui = useUiText();
-  const [navigating, startNavigation] = useTransition();
-  const typing = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  /** Ask the server for a different page, search or filter: the address changes, the page is drawn again. */
-  function ask(patch: Record<string, string | null>) {
-    if (!served) return;
-    // Read from the address bar at the moment of asking: it is what the person is looking at, and it keeps every other control's choice.
-    const next = new URLSearchParams(window.location.search);
-    for (const [key, value] of Object.entries(patch)) {
-      if (value === null || value === "") next.delete(`${served.key}_${key}`);
-      else next.set(`${served.key}_${key}`, value);
-    }
-    setSelected(new Set());
-    startNavigation(() => router.replace(`${window.location.pathname}${next.toString() ? `?${next.toString()}` : ""}` as Route, { scroll: false }));
-  }
-  useEffect(() => () => { if (typing.current) clearTimeout(typing.current); }, []);
-
   const noun = panel.noun ?? "row";
   const nounPlural = panel.nounPlural ?? `${noun}s`;
-
-  const filtered = useMemo(() => (served ? panel.rows : narrowRows(panel.rows, panel.filters, query, filterValues)), [served, panel.rows, panel.filters, query, filterValues]);
-
-  // Any list long enough to need it is paged, without each page asking for it.
-  const perPage = served ? served.size : panel.per ?? (filtered.length > 12 ? 12 : filtered.length);
-  const pageCount = served
-    ? Math.max(1, Math.ceil(served.matched / served.size))
-    : perPage > 0 ? Math.max(1, Math.ceil(filtered.length / perPage)) : 1;
-  const safePage = served ? served.page - 1 : Math.min(page, pageCount - 1);
-  const visible = served || perPage <= 0 ? filtered : filtered.slice(safePage * perPage, safePage * perPage + perPage);
-  const shownTotal = served ? served.matched : filtered.length;
-  const turnTo = (index: number) => (served ? ask({ p: index === 0 ? null : String(index + 1) }) : setPage(index));
+  const { query, filterValues, visible, filteredRows, perPage, pageCount, shownTotal, everyRow, turnTo } = engine;
+  const safePage = engine.pageIndex;
+  const navigating = engine.busy;
+  const allVisibleSelected = engine.allVisibleSelected;
+  const served = panel.window ? { exportUrl: engine.exportUrl ?? panel.window.exportUrl } : null;
+  const toggleRow = engine.toggleRow;
+  const toggleAllVisible = engine.toggleAllVisible;
+  const selectedCount = engine.selectedRows.length;
+  const isSelected = engine.isSelected;
+  const filtered = filteredRows;
 
   const hasControls = Boolean(panel.search || panel.filters?.length);
-  const allVisibleSelected = visible.length > 0 && visible.every((row) => selected.has(row));
-
-  // A row is ticked by what it is, not where it sits, so a filter or a page turn
-  // never moves a tick onto a different record.
-  function toggleRow(row: TableRow) {
-    setSelected((current) => {
-      const next = new Set(current);
-      if (next.has(row)) next.delete(row);
-      else next.add(row);
-      return next;
-    });
-  }
-
-  function toggleAllVisible() {
-    setSelected((current) => {
-      const next = new Set(current);
-      visible.forEach((row) => {
-        if (allVisibleSelected) next.delete(row);
-        else next.add(row);
-      });
-      return next;
-    });
-  }
 
   /** The ticked rows, or every row that passes the filters when none is ticked. On a long table "every row" is the server's to say. */
   function exportRows(onlySelected: boolean) {
@@ -655,7 +614,7 @@ function TablePanel({
       window.location.assign(served.exportUrl);
       return;
     }
-    const rows = onlySelected ? panel.rows.filter((row) => selected.has(row)) : filtered;
+    const rows = onlySelected ? engine.selectedRows : filtered;
     const blob = new Blob([`\uFEFF${tableCsv(panel.head, rows)}`], { type: "text/csv;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
@@ -668,7 +627,7 @@ function TablePanel({
   /** A bulk drawer, told which rows it is about. */
   function forSelection(act: PanelAction): DrawerSpec | null {
     if (!act.drawer || !act.selection) return act.drawer ?? null;
-    const rows = panel.rows.filter((row) => selected.has(row));
+    const rows = engine.selectedRows;
     const ids = rows.map((row) => row.id).filter((id): id is string => Boolean(id));
     const names = rows.map((row) => {
       const first = row.cells[0];
@@ -722,7 +681,6 @@ function TablePanel({
   // The meta line asserts a count; the pager states the truth below it. Where the two disagree the
   // line says which it is, appended — so an authored figure can never contradict the rows.
   const claimed = panel.meta?.match(/^([\d,]+)\s+(\S+)/);
-  const everyRow = served ? served.total : panel.rows.length;
   const metaLine =
     panel.meta && claimed && claimed[2].toLowerCase().replace(/[^a-z]/g, "") === nounPlural.toLowerCase().replace(/[^a-z]/g, "") && Number(claimed[1].replace(/,/g, "")) !== shownTotal
       ? `${panel.meta} · showing ${shownTotal.toLocaleString("en-NG")}`
@@ -757,8 +715,7 @@ function TablePanel({
         >
           {panel.search ? (
             <label
-              className="flex min-w-[232px] items-center gap-2 rounded-[9px] border bg-white px-[11px] py-[7px]"
-              style={{ borderColor: "#DEE8E2" }}
+              className="flex min-w-[232px] items-center gap-2 rounded-[9px] border bg-white px-[11px] py-[7px] border-[#DEE8E2] focus-within:border-[#12796A]"
             >
               <Search
                 className="h-[12.5px] w-[12.5px] flex-none"
@@ -768,15 +725,7 @@ function TablePanel({
               <input
                 type="search"
                 value={query}
-                onChange={(event) => {
-                  const text = event.target.value;
-                  setQuery(text);
-                  setPage(0);
-                  if (served) {
-                    if (typing.current) clearTimeout(typing.current);
-                    typing.current = setTimeout(() => ask({ q: text.trim() || null, p: null }), 350);
-                  }
-                }}
+                onChange={(event) => engine.setQuery(event.target.value)}
                 placeholder={ui(panel.search)}
                 aria-label={ui(panel.search)}
                 className="min-w-0 flex-1 border-none bg-transparent text-[11.5px] outline-hidden"
@@ -785,12 +734,7 @@ function TablePanel({
               {query ? (
                 <button
                   type="button"
-                  onClick={() => {
-                    setQuery("");
-                    setPage(0);
-                    if (typing.current) clearTimeout(typing.current);
-                    ask({ q: null, p: null });
-                  }}
+                  onClick={() => engine.setQuery("")}
                   aria-label={ui("Clear search")}
                   className="flex flex-none"
                 >
@@ -807,8 +751,8 @@ function TablePanel({
           {(panel.filters ?? []).map((filter) => (
             <label
               key={filter.label}
-              className="relative flex cursor-pointer items-center gap-[6px] whitespace-nowrap rounded-[9px] border bg-white py-[7px] pl-[10px] pr-[26px] text-[11px] transition hover:border-[#BFDCD1] hover:bg-[#F7FAF8]"
-              style={{ borderColor: "#DEE8E2", color: INK }}
+              className="relative flex cursor-pointer items-center gap-[6px] whitespace-nowrap rounded-[9px] border bg-white py-[7px] pl-[10px] pr-[26px] text-[11px] transition border-[#DEE8E2] focus-within:border-[#12796A] hover:border-[#BFDCD1] hover:bg-[#F7FAF8]"
+              style={{ color: INK }}
             >
               <span style={{ color: MUTED }}>{filter.label}</span>
               <select
@@ -819,12 +763,7 @@ function TablePanel({
                     router.push(target as Route);
                     return;
                   }
-                  setFilterValues((current) => ({
-                    ...current,
-                    [filter.label]: event.target.value,
-                  }));
-                  setPage(0);
-                  if (served) ask({ [`f${(panel.filters ?? []).indexOf(filter)}`]: event.target.value === filter.options[0] ? null : event.target.value, p: null });
+                  engine.setFilter(filter, event.target.value);
                 }}
                 className="cursor-pointer appearance-none border-none bg-transparent font-semibold outline-hidden"
               >
@@ -848,13 +787,20 @@ function TablePanel({
         </div>
       ) : null}
 
-      {panel.selectable && selected.size > 0 ? (
+      {engine.failure ? (
+        <div role="alert" className="mx-[-18px] flex flex-wrap items-center gap-[10px] border-b px-[18px] py-[9px] text-[11.5px]" style={{ background: "#FDF3F3", borderColor: "#F3E0E0", color: "#B23B3B" }}>
+          <span>{engine.failure}</span>
+          <button type="button" onClick={engine.retry} className="font-semibold underline underline-offset-2">Try again</button>
+        </div>
+      ) : null}
+
+      {panel.selectable && selectedCount > 0 ? (
         <div className="mx-[-18px] px-[11px] pt-[11px]">
           <div className="flex flex-wrap items-center justify-between gap-[11px] rounded-[12px] bg-[#0D2315] px-[14px] py-[10px]">
             <div className="flex items-center gap-[10px]">
               <button
                 type="button"
-                onClick={() => setSelected(new Set())}
+                onClick={engine.clearSelection}
                 aria-label={ui("Clear selection")}
                 className="flex h-[15.5px] w-[15.5px] flex-none items-center justify-center rounded-[5px] bg-white"
               >
@@ -865,12 +811,12 @@ function TablePanel({
                 />
               </button>
               <span className="text-[11.5px] font-semibold text-white">
-                {selected.size} {selected.size === 1 ? noun : nounPlural}{" "}
+                {selectedCount} {selectedCount === 1 ? noun : nounPlural}{" "}
                 selected
               </span>
               <button
                 type="button"
-                onClick={() => setSelected(new Set())}
+                onClick={engine.clearSelection}
                 className="text-[10.5px] text-white/60 hover:text-white"
               >
                 Clear
@@ -893,7 +839,7 @@ function TablePanel({
                 }
                 const spec = forSelection(act);
                 // A bulk action that goes to another page carries the ticked rows with it, as the page's own query.
-                const ids = panel.rows.filter((row) => selected.has(row)).map((row) => row.id).filter((id): id is string => Boolean(id));
+                const ids = engine.selectedRows.map((row) => row.id).filter((id): id is string => Boolean(id));
                 const href = act.href && act.selection ? `${act.href}${act.href.includes("?") ? "&" : "?"}${act.selection.key}=${ids.map(encodeURIComponent).join(",")}` : act.href;
                 return (
                   <TriggerControl
@@ -975,7 +921,7 @@ function TablePanel({
             <tbody>
               {visible.map((tableRow, index) => {
                 const absolute = safePage * perPage + index;
-                const isSelected = selected.has(tableRow);
+                const rowSelected = isSelected(tableRow);
                 // A row opens exactly what its own first action opens; with none authored it
                 // opens the row read back. A table whose cells are the controls says so.
                 const ownAction = tableRow.cells.find((cell): cell is Extract<TableCellKind, { kind: "action" }> => cell.kind === "action" && Boolean(cell.href || cell.drawer));
@@ -988,7 +934,7 @@ function TablePanel({
                     key={absolute}
                     className={cn(
                       "transition-colors duration-150 hover:bg-[#F1F8F4]",
-                      isSelected && "bg-[#F1F8F4]",
+                      rowSelected && "bg-[#F1F8F4]",
                       opens && "cursor-pointer",
                     )}
                     style={{ borderBottom: "1px solid #F2F7F4" }}
@@ -1007,7 +953,7 @@ function TablePanel({
                       <td className="py-[11px] pl-[18px] pr-[9px] align-middle">
                         <input
                           type="checkbox"
-                          checked={isSelected}
+                          checked={rowSelected}
                           onChange={() => toggleRow(tableRow)}
                           aria-label={`Select this ${noun}`}
                           className="h-[14.5px] w-[14.5px] accent-[#0d2315]"
@@ -1920,7 +1866,7 @@ export function PanelView({
       <section className="min-w-0 overflow-hidden rounded-[14px]" style={{ background: "#0D2315" }} aria-label={panel.title ?? "Stages"}>
         {panel.title || panel.sub ? (
           <div className="px-[16px] pt-[12px]">
-            {panel.title ? <h3 className="text-[12px] font-semibold text-white">{panel.title}</h3> : null}
+            {panel.title ? <h2 className="text-[12px] font-semibold text-white">{panel.title}</h2> : null}
             {panel.sub ? <p className="mt-[2px] text-[10.5px]" style={{ color: "rgba(255,255,255,0.55)" }}>{panel.sub}</p> : null}
           </div>
         ) : null}
@@ -2411,9 +2357,9 @@ function FormPanel({
       <p className="text-[10.5px] font-semibold uppercase tracking-[0.08em] text-(--color-text-muted)">
         Not built yet
       </p>
-      <h3 className="mt-1.5 text-[14px] font-bold text-(--color-text-primary)">
+      <h2 className="mt-1.5 text-[14px] font-bold text-(--color-text-primary)">
         {panel.title}
-      </h3>
+      </h2>
       <p className="mt-1.5 text-[12.5px] leading-[1.55] text-(--color-text-secondary)">
         {panel.body}
       </p>

@@ -1,5 +1,6 @@
 "use client";
 
+import { columnVisibilityFeature, rowSelectionFeature, tableFeatures, useTable, type ColumnDef, type RowSelectionState, type ColumnVisibilityState } from "@tanstack/react-table";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -53,6 +54,11 @@ const COLUMNS = [
   { key: "churn", label: "Churn risk" },
   { key: "actions", label: "", fixed: true }
 ] as const;
+
+/** The table's row selection and its switchable columns are TanStack Table's; the markup around them is ours. */
+const features = tableFeatures({ rowSelectionFeature, columnVisibilityFeature });
+const tableColumns: Array<ColumnDef<typeof features, SuperAdminSchoolRow>> = COLUMNS.map((column) => ({ id: column.key, header: column.label, enableHiding: !("fixed" in column), accessorFn: () => "" }));
+const HIDDEN_KEY = "fr:schools:hidden";
 
 function riskColor(value: number) {
   if (value >= 60) return "var(--color-danger)";
@@ -151,18 +157,29 @@ export function SchoolBulkTable({ schools, filterBar, paginationFooter }: { scho
   const router = useRouter();
   const dialogNotice = useNotice();
   const barNotice = useNotice();
-  const [selected, setSelected] = useState<Record<string, boolean>>({});
-  const [hidden, setHidden] = useState<string[]>([]);
+  const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
+  const [columnVisibility, setColumnVisibility] = useState<ColumnVisibilityState>({});
   const [columnsOpen, setColumnsOpen] = useState(false);
+  const table = useTable({
+    features,
+    columns: tableColumns,
+    data: schools,
+    getRowId: (school) => school.id,
+    state: { rowSelection, columnVisibility },
+    onRowSelectionChange: setRowSelection,
+    onColumnVisibilityChange: (updater) => {
+      const next = typeof updater === "function" ? updater(columnVisibility) : updater;
+      setColumnVisibility(next);
+      try { window.localStorage.setItem(HIDDEN_KEY, JSON.stringify(Object.keys(next).filter((key) => next[key] === false))); } catch { /* best effort */ }
+    },
+  });
+  // Which columns this person switched off is remembered on this device.
   useEffect(() => {
-    try { setHidden(JSON.parse(window.localStorage.getItem("fr:schools:hidden") ?? "[]") as string[]); } catch { /* storage may be blocked */ }
+    try { setColumnVisibility(Object.fromEntries((JSON.parse(window.localStorage.getItem(HIDDEN_KEY) ?? "[]") as string[]).map((key) => [key, false]))); } catch { /* storage may be blocked */ }
   }, []);
-  const hide = (key: string) => (hidden.includes(key) ? "hidden" : "");
-  const toggleColumn = (key: string) => {
-    const next = hidden.includes(key) ? hidden.filter((item) => item !== key) : [...hidden, key];
-    setHidden(next);
-    try { window.localStorage.setItem("fr:schools:hidden", JSON.stringify(next)); } catch { /* best effort */ }
-  };
+  const selected = rowSelection;
+  const hidden = Object.keys(columnVisibility).filter((key) => columnVisibility[key] === false);
+  const hide = (key: string) => (columnVisibility[key] === false ? "hidden" : "");
   const [statusDialogOpen, setStatusDialogOpen] = useState(false);
   const [managerDialogOpen, setManagerDialogOpen] = useState(false);
   const [notifyDialogOpen, setNotifyDialogOpen] = useState(false);
@@ -175,28 +192,14 @@ export function SchoolBulkTable({ schools, filterBar, paginationFooter }: { scho
 
   const selectedIds = useMemo(() => Object.keys(selected).filter((id) => selected[id]), [selected]);
   const selectedSchools = useMemo(() => schools.filter((school) => selected[school.id]), [schools, selected]);
-  const allChecked = schools.length > 0 && selectedIds.length === schools.length;
-  const someChecked = selectedIds.length > 0 && !allChecked;
+  const allChecked = table.getIsAllRowsSelected();
+  const someChecked = table.getIsSomeRowsSelected();
 
-  function toggleSchool(id: string) {
-    setSelected((current) => ({ ...current, [id]: !current[id] }));
-  }
-
-  function toggleAll() {
-    if (allChecked || someChecked) {
-      setSelected({});
-    } else {
-      setSelected(Object.fromEntries(schools.map((school) => [school.id, true])));
-    }
-  }
-
-  function clearSelection() {
-    setSelected({});
-  }
-
-  function selectOnly(id: string) {
-    setSelected({ [id]: true });
-  }
+  const toggleSchool = (id: string) => table.getRow(id).toggleSelected();
+  // One press clears whatever is ticked, or ticks everything when nothing is.
+  const toggleAll = () => table.toggleAllRowsSelected(!(allChecked || someChecked));
+  const clearSelection = () => table.resetRowSelection(true);
+  const selectOnly = (id: string) => setRowSelection({ [id]: true });
 
   useEffect(() => { dialogNotice.clear(); // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [statusDialogOpen, managerDialogOpen, notifyDialogOpen]);
@@ -420,7 +423,7 @@ export function SchoolBulkTable({ schools, filterBar, paginationFooter }: { scho
                   <div className="absolute right-[18px] top-[calc(100%-2px)] z-20 w-[210px] rounded-[12px] border border-[#DEE8E2] bg-white p-2 shadow-[0_18px_40px_-18px_rgba(13,35,21,0.45)]">
                     {COLUMNS.filter((column) => !("fixed" in column)).map((column) => (
                       <label key={column.key} className="flex cursor-pointer items-center gap-2 rounded-[8px] px-2 py-[7px] text-[11.5px] text-[#435048] hover:bg-[#F1F8F4]">
-                        <input type="checkbox" checked={!hidden.includes(column.key)} onChange={() => toggleColumn(column.key)} className="h-[13px] w-[13px] accent-[#0D2315]" />
+                        <input type="checkbox" checked={table.getColumn(column.key)?.getIsVisible() ?? true} onChange={() => table.getColumn(column.key)?.toggleVisibility()} className="h-[13px] w-[13px] accent-[#0D2315]" />
                         {column.label}
                       </label>
                     ))}

@@ -3,7 +3,8 @@ import type { Route } from "next";
 
 import { TableCard } from "@/components/data-display/table-card";
 import { AccessDenied } from "@/components/feedback/access-denied";
-import { apiGet } from "@/lib/api/server";
+import { apiGet, observe } from "@/lib/api/server";
+import { ParentChildPortalViewListSchema } from "@/lib/domain/types.zod";
 import { canAccessPath, getDefaultPathForRole } from "@/lib/auth/roles";
 import { getServerSession } from "@/lib/auth/session";
 import { ParentChildPortalView } from "@/lib/domain/types";
@@ -17,7 +18,7 @@ export default async function ParentChildrenPage() {
     return <AccessDenied backHref={getDefaultPathForRole(session.role)} />;
   }
 
-  const children = await apiGet<ParentChildPortalView[]>("/api/v1/parent-portal/children");
+  const children = await apiGet("/api/v1/parent-portal/children", observe<ParentChildPortalView[]>(ParentChildPortalViewListSchema));
   const hidden = new Set(children[0]?.hidden ?? []);
 
   return (

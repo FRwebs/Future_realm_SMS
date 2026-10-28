@@ -1,3 +1,4 @@
+import { platformSyncContract } from "@/lib/api/contracts";
 import { cache } from "react";
 
 import { apiGet } from "@/lib/api/server";
@@ -12,7 +13,7 @@ import type { PlatformSyncView } from "@/lib/domain/types";
 export const getPlatformSync = cache(async (schoolId: string): Promise<PlatformSyncView | null> => {
   try {
     const session = await getServerSession();
-    const read = () => apiGet<PlatformSyncView>("/api/v1/platform-sync");
+    const read = () => apiGet("/api/v1/platform-sync", platformSyncContract);
     // Thirty seconds at most, and sooner if the stamp moves: a module switched off shows within moments. A window that merely starts on the clock is why it is not longer.
     return session ? await ttlCached(`sync:${schoolId}:${session.userId}`, 30_000, read, { stamped: true }) : await read();
   } catch {

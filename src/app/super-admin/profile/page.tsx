@@ -1,7 +1,8 @@
 import { StatusBadge } from "@/components/data-display/status-badge";
 import { TableCard } from "@/components/data-display/table-card";
 import { ResourceActionDialog } from "@/components/forms/resource-action-dialog";
-import { apiGet, apiGetEnvelope } from "@/lib/api/server";
+import { apiGet, apiGetEnvelope, observe } from "@/lib/api/server";
+import { localContracts } from "@/lib/api/local-contracts.zod";
 import { roleLabels } from "@/lib/auth/roles";
 import { getServerSession } from "@/lib/auth/session";
 import { getDefaultPermissionsForRole } from "@/lib/navigation/registry";
@@ -102,7 +103,7 @@ function FieldLine({ label, value }: { label: string; value?: React.ReactNode })
 export default async function SuperAdminProfilePage() {
   const session = await getServerSession();
   const [profile, sessionsEnvelope, auditEnvelope] = await Promise.all([
-    apiGet<SuperAdminMyProfile>("/api/v1/profile/me"),
+    apiGet("/api/v1/profile/me", observe<SuperAdminMyProfile>(localContracts["src/app/super-admin/profile/page.tsx#a209944e"])),
     apiGetEnvelope<SuperAdminInternalSession[]>("/api/super-admin/internal-team/sessions").catch(() => null),
     apiGetEnvelope<AuditLogRow[]>("/api/super-admin/audit-logs?limit=50").catch(() => null)
   ]);

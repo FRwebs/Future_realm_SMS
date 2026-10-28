@@ -93,7 +93,7 @@ const documentSchema = z.object({
 });
 
 const editRequestSchema = z.object({
-  fields: z.union([z.record(z.unknown()), z.string().trim().min(2)]),
+  fields: z.union([z.record(z.string(), z.unknown()), z.string().trim().min(2)]),
   reason: optionalText,
 });
 

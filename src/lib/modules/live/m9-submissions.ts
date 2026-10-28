@@ -1,4 +1,5 @@
-import { apiGet } from "@/lib/api/server";
+import { apiGet, observe } from "@/lib/api/server";
+import { localContracts } from "@/lib/api/local-contracts.zod";
 import { plural } from "@/lib/modules/live/m7-format";
 import { logSubmissionDrawer, resolveDrawer, viewDrawer, PG } from "@/lib/modules/live/m9-forms";
 import type { SubmissionOptions, Submissions } from "@/lib/modules/live/m9-types";
@@ -9,8 +10,8 @@ import { text, type TabContent, type TrackerRow } from "@/lib/modules/panels";
  * school accepts, how fast it promises to answer and who reviews each is the school's own list.
  */
 
-export const loadSubmissions = () => apiGet<Submissions>(`${PG}/submissions`);
-export const loadSubmissionOptions = () => apiGet<SubmissionOptions>(`${PG}/submissions/options`);
+export const loadSubmissions = () => apiGet(`${PG}/submissions`, observe<Submissions>(localContracts["src/lib/modules/live/m9-submissions.ts#d6f33c15"]));
+export const loadSubmissionOptions = () => apiGet(`${PG}/submissions/options`, observe<SubmissionOptions>(localContracts["src/lib/modules/live/m9-submissions.ts#27e541e9"]));
 
 export function submissionsTab(data: Submissions, o: SubmissionOptions): TabContent {
   const { totals } = data;

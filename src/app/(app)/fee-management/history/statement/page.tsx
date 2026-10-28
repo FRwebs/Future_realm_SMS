@@ -3,7 +3,8 @@ import Link from "next/link";
 import type { Route } from "next";
 
 import { AccessDenied } from "@/components/feedback/access-denied";
-import { apiGet } from "@/lib/api/server";
+import { apiGet, observe } from "@/lib/api/server";
+import { localContracts } from "@/lib/api/local-contracts.zod";
 import { canOpenModule } from "@/lib/auth/server-access";
 import { getServerSession } from "@/lib/auth/session";
 import { FEES, naira } from "@/lib/modules/live/m10-forms";
@@ -36,7 +37,7 @@ export default async function StatementPage({ searchParams }: { searchParams: Pr
   for (const [key, value] of Object.entries(query)) if (value) params.set(key, value);
   const scope = query.scope ?? "The whole school";
   const period = query.period ?? "This session";
-  const data = await apiGet<Statement>(`${FEES}/history/statement?${params.toString()}`).catch(() => null);
+  const data = await apiGet(`${FEES}/history/statement?${params.toString()}`, observe<Statement>(localContracts["src/app/(app)/fee-management/history/statement/page.tsx#a72ca256"])).catch(() => null);
   const total = data?.rows.reduce((sum, row) => sum + row.amount, 0) ?? 0;
   const csv = `/fee-management/history/statement/csv?${params.toString()}`;
 

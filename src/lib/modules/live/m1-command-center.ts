@@ -1,5 +1,6 @@
 import { sampleRow, trialRow } from "@/lib/modules/live/m1-trial";
-import { apiGet } from "@/lib/api/server";
+import { apiGet, observe } from "@/lib/api/server";
+import { localContracts } from "@/lib/api/local-contracts.zod";
 import { linkIsOpen, switchedOffSlugs } from "@/lib/api/platform-sync";
 import { getServerSession } from "@/lib/auth/session";
 import type { KpiCard, Panel, PanelFact, TabContent } from "@/lib/modules/panels";
@@ -62,8 +63,8 @@ type HubQueue = { waiting: Array<{ key: string; type: string; typeName: string; 
 
 /** What is waiting on this person, from the queue that reads every module — not only the decisions raised in the queue itself. */
 async function waitingOnMe(): Promise<ApiApproval[]> {
-  const hub = await apiGet<HubQueue>("/api/v1/approvals-hub/queue").catch(() => null);
-  if (!hub) return apiGet<ApiApproval[]>("/api/v1/approvals/queue?assignee=me").catch(() => [] as ApiApproval[]);
+  const hub = await apiGet("/api/v1/approvals-hub/queue", observe<HubQueue>(localContracts["src/lib/modules/live/m1-command-center.ts#c46fa727"])).catch(() => null);
+  if (!hub) return apiGet("/api/v1/approvals/queue?assignee=me", observe<ApiApproval[]>(localContracts["src/lib/modules/live/m1-command-center.ts#83dc5473"])).catch(() => [] as ApiApproval[]);
   return hub.waiting.map((item) => ({ id: item.key, key: item.key, kind: item.type, typeName: item.typeName, title: item.title, summary: item.summary, blocking: item.blocking, status: item.state, requestedBy: item.requester?.name ?? null, assignedTo: null, ageDays: item.age, overdue: item.overdue, raisedAt: item.raisedAt }));
 }
 
@@ -476,7 +477,7 @@ export async function commandCenterLiveTab(
 
   if (tabSlug === "today") {
     const [data, queue, trial, sample] = await Promise.all([
-      apiGet<ApiToday>("/api/v1/command-center/today"),
+      apiGet("/api/v1/command-center/today", observe<ApiToday>(localContracts["src/lib/modules/live/m1-command-center.ts#7bd6f981"])),
       waitingOnMe(),
       trialRow(),
       sampleRow(),
@@ -502,10 +503,10 @@ export async function commandCenterLiveTab(
 
   if (tabSlug === "oversight") {
     const [sheets, cards, queue, data] = await Promise.all([
-      apiGet<BroadsheetRow[]>("/api/v1/academics/broadsheets").catch(() => [] as BroadsheetRow[]),
-      apiGet<ReportCardRow[]>("/api/v1/academics/report-cards").catch(() => [] as ReportCardRow[]),
+      apiGet("/api/v1/academics/broadsheets", observe<BroadsheetRow[]>(localContracts["src/lib/modules/live/m1-command-center.ts#b1221398"])).catch(() => [] as BroadsheetRow[]),
+      apiGet("/api/v1/academics/report-cards", observe<ReportCardRow[]>(localContracts["src/lib/modules/live/m1-command-center.ts#5313e024"])).catch(() => [] as ReportCardRow[]),
       waitingOnMe(),
-      apiGet<ApiToday>("/api/v1/command-center/today"),
+      apiGet("/api/v1/command-center/today", observe<ApiToday>(localContracts["src/lib/modules/live/m1-command-center.ts#7bd6f981"])),
     ]);
     return oversightTab(sheets ?? [], cards ?? [], queue ?? [], data?.term ?? null, off);
   }

@@ -1,4 +1,5 @@
-import { apiGet } from "@/lib/api/server";
+import { apiGet, observe } from "@/lib/api/server";
+import { localContracts } from "@/lib/api/local-contracts.zod";
 import { dayLabel, plural } from "@/lib/modules/live/m7-format";
 import { decideChangeDrawer, listDrawer, migrationDrawer, requestChangeDrawer, SR } from "@/lib/modules/live/m8-forms";
 import { studentHref } from "@/lib/modules/live/m8-registry";
@@ -11,7 +12,7 @@ import { name as nameCell, pill, text, type PanelTone, type TabContent, type Tab
  * who did not ask.
  */
 
-export const loadChanges = () => apiGet<Changes>(`${SR}/changes`);
+export const loadChanges = () => apiGet(`${SR}/changes`, observe<Changes>(localContracts["src/lib/modules/live/m8-changes.ts#8aa57de6"]));
 
 const ageText = (item: { age: number; hours: number }) => (item.age >= 1 ? plural(item.age, "day") : `${item.hours} ${item.hours === 1 ? "hour" : "hours"}`);
 
@@ -64,7 +65,7 @@ type Concerns = { canRead: boolean; open: number; urgent: number; rows: Array<{ 
 
 /** The safeguarding lead's list. Anyone else gets nothing back, so the panel is never drawn for them. */
 export async function safeguardingRows(): Promise<import("@/lib/modules/panels").PanelRow[]> {
-  const v = await apiGet<Concerns>(`${SR}/safeguarding`).catch(() => null);
+  const v = await apiGet(`${SR}/safeguarding`, observe<Concerns>(localContracts["src/lib/modules/live/m8-changes.ts#8d57f908"])).catch(() => null);
   if (!v || !v.canRead) return [];
   const decide = (row: Concerns["rows"][number]): import("@/lib/modules/panels").DrawerSpec => ({
     mode: "form", kicker: `${row.child} · ${row.arm}`, title: "Record what was done", sub: "Visible to the safeguarding lead alone. The person who raised it is told it was received — never what you decide.",

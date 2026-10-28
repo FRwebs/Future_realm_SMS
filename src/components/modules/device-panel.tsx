@@ -69,7 +69,7 @@ export function DevicePanel({ title, sub }: { title?: string; sub?: string }) {
     <section className="min-w-0 rounded-[14px] border bg-(--color-bg-surface) px-[18px] pb-[16px] pt-[14px]" style={{ borderColor: "#DEE8E2" }}>
       <header className="flex flex-wrap items-start justify-between gap-[12px]">
         <div>
-          <h3 className="text-[12.5px] font-semibold" style={{ color: INK }}>{title ?? "This device"}</h3>
+          <h2 className="text-[12.5px] font-semibold" style={{ color: INK }}>{title ?? "This device"}</h2>
           <p className="mt-[3px] text-[10.5px]" style={{ color: MUTED }}>{sub ?? `Read from this device at ${device.checked}.`}</p>
         </div>
         <div className="flex flex-wrap gap-2">

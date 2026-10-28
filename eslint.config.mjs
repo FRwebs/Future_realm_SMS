@@ -34,5 +34,5 @@ export default tseslint.config(js.configs.recommended, ...tseslint.configs.recom
   files: ["public/sw.js"],
   languageOptions: { globals: { ...globals.serviceworker } }
 }, {
-  ignores: [".next/**", "dist/**", "node_modules/**", "next-env.d.ts", "postcss.config.js", "playwright-report/**", "test-results/**", "storybook-static/**"]
+  ignores: [".next/**", "dist/**", "node_modules/**", "next-env.d.ts", "postcss.config.js", "playwright-report/**", "test-results/**", "storybook-static/**", ".claude/**"]
 }, storybook.configs["flat/recommended"]);

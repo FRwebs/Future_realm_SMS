@@ -1,4 +1,5 @@
-import { apiGet } from "@/lib/api/server";
+import { apiGet, observe } from "@/lib/api/server";
+import { localContracts } from "@/lib/api/local-contracts.zod";
 import { dayLabel, plural } from "@/lib/modules/live/m7-format";
 import { SB, creditSettingsDrawer, naira, rate2, receiptDrawer, removeCardDrawer, topUpDrawer } from "@/lib/modules/live/m11-forms";
 import { invoiceDocDrawer } from "@/lib/modules/live/documents";
@@ -10,7 +11,7 @@ import { pill, text, type KpiCard, type PanelTone, type TabContent, type TableRo
  * much is left on the two that cost money, and how to put more on.
  */
 
-export const loadCredits = () => apiGet<Credits>(`${SB}/credits`);
+export const loadCredits = () => apiGet(`${SB}/credits`, observe<Credits>(localContracts["src/lib/modules/live/m11-credits.ts#bfac50d6"]));
 
 const level = (balance: number, warnAt: number): PanelTone => (balance < warnAt / 2 ? "negative" : balance < warnAt ? "attention" : "positive");
 

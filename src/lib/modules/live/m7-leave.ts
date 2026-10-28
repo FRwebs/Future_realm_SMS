@@ -1,4 +1,5 @@
-import { apiGet } from "@/lib/api/server";
+import { apiGet, observe } from "@/lib/api/server";
+import { localContracts } from "@/lib/api/local-contracts.zod";
 import { API } from "@/lib/modules/live/m7-forms";
 import { plural } from "@/lib/modules/live/m7-format";
 import {
@@ -27,7 +28,7 @@ import {
  * The sequence and the terms of each type are the school's own — edited on this tab.
  */
 
-export const loadLeave = () => apiGet<LeaveOverview>(`${API}/leave`);
+export const loadLeave = () => apiGet(`${API}/leave`, observe<LeaveOverview>(localContracts["src/lib/modules/live/m7-leave.ts#6e8b7b97"]));
 
 const LEAVE_TONE: Record<string, PanelTone> = { Taken: "positive", Approved: "positive", Waiting: "attention", Declined: "negative", "In sequence": "progress" };
 const REGISTER = "/staff-access/leave/export";

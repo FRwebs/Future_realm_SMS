@@ -1,4 +1,5 @@
-import { apiGet } from "@/lib/api/server";
+import { apiGet, observe } from "@/lib/api/server";
+import { localContracts } from "@/lib/api/local-contracts.zod";
 import { nudgeDrawer } from "@/lib/modules/live/m4-forms";
 import { armReviewHref, approveArmsDrawer, approveReadyDrawer, decisionDrawer, flagOutcomeDrawer, gridHref, reverseDrawer, reviewStudentHref, SR, sheetHref } from "@/lib/modules/live/m5-forms";
 import { type Crumb, gradeTone, num, stateTone, when } from "@/lib/modules/live/m5-enter";
@@ -8,9 +9,9 @@ import { name as nameCell, pill, text, type DrawerSpec, type PanelRow, type Pane
 
 /** Review — which arms are done, and who is holding the rest up. Decisions are taken on the sheet itself. */
 
-export const loadReview = () => apiGet<ReviewOverview>(`${SR}/review`);
-export const loadArmReview = (classId: string) => apiGet<ArmReview>(`${SR}/review/${encodeURIComponent(classId)}`);
-export const loadSheet = (classId: string, subjectId: string) => apiGet<SheetPage>(`${SR}/review/${encodeURIComponent(classId)}/${encodeURIComponent(subjectId)}`);
+export const loadReview = () => apiGet(`${SR}/review`, observe<ReviewOverview>(localContracts["src/lib/modules/live/m5-review.ts#37bbcd1b"]));
+export const loadArmReview = (classId: string) => apiGet(`${SR}/review/${encodeURIComponent(classId)}`, observe<ArmReview>(localContracts["src/lib/modules/live/m5-review.ts#d0f38d1d"]));
+export const loadSheet = (classId: string, subjectId: string) => apiGet(`${SR}/review/${encodeURIComponent(classId)}/${encodeURIComponent(subjectId)}`, observe<SheetPage>(localContracts["src/lib/modules/live/m5-review.ts#e696df33"]));
 
 const WARN = "M12 8.2v4.6M12 16h.02M12 3.6 21 19.4H3z";
 const CHECK = "M5 12.5l4.5 4.5 9-10";

@@ -4,7 +4,9 @@ import { ModuleHero } from "@/components/data-display/module-hero";
 import { StatusBadge } from "@/components/data-display/status-badge";
 import { TableCard } from "@/components/data-display/table-card";
 import { ResourceActionDialog } from "@/components/forms/resource-action-dialog";
-import { apiGet } from "@/lib/api/server";
+import { apiGet, observe } from "@/lib/api/server";
+import { localContracts } from "@/lib/api/local-contracts.zod";
+import { SuperAdminInfraMonitoringSchema, SuperAdminSettingsViewSchema } from "@/lib/domain/types.zod";
 import type { SuperAdminInfraMonitoring, SuperAdminSettingsView } from "@/lib/domain/types";
 import { formatDay } from "@/lib/date-format";
 
@@ -32,7 +34,7 @@ const LIFECYCLE_LABEL: Record<string, string> = {
   ADDRESS_RELEASE: "Release the web address",
 };
 
-const loadPolicy = () => apiGet<Policy>("/api/super-admin/platform-policy");
+const loadPolicy = () => apiGet("/api/super-admin/platform-policy", observe<Policy>(localContracts["src/app/super-admin/settings/page.tsx#bb9cf141"]));
 
 function integrationStatusTone(status: string): "success" | "warning" | "danger" | "neutral" {
   if (status === "HEALTHY") return "success";
@@ -79,13 +81,13 @@ export default async function SuperAdminSettingsPage({ searchParams }: { searchP
 
 async function PlatformTab() {
   const [usage, settings, policy, lifecycle, carriers, library, fx] = await Promise.all([
-    apiGet<{ rows: Array<{ schoolId: string; school: string; status: string; enabled: boolean; students: number; withAccount: number; everSignedIn: number; active: number }>; totals: { students: number; withAccount: number; everSignedIn: number; active: number } }>("/api/super-admin/student-portal/usage").catch(() => null),
-    apiGet<SuperAdminSettingsView>("/api/super-admin/settings"),
+    apiGet("/api/super-admin/student-portal/usage", observe<{ rows: Array<{ schoolId: string; school: string; status: string; enabled: boolean; students: number; withAccount: number; everSignedIn: number; active: number }>; totals: { students: number; withAccount: number; everSignedIn: number; active: number } }>(localContracts["src/app/super-admin/settings/page.tsx#2c4cfc8d"])).catch(() => null),
+    apiGet("/api/super-admin/settings", observe<SuperAdminSettingsView>(SuperAdminSettingsViewSchema)),
     loadPolicy(),
-    apiGet<LifecycleItem[]>("/api/super-admin/lifecycle/preview").catch(() => [] as LifecycleItem[]),
-    apiGet<CarrierStatus>("/api/super-admin/delivery-carriers"),
-    apiGet<{ profiles: Array<{ country: string; isLive: boolean }> }>("/api/super-admin/config-library").catch(() => ({ profiles: [] })),
-    apiGet<{ anchor: "NGN" | "USD"; source: string; ratesFor: string; shockPercent: number; refreshConfigured: boolean; rates: { usd: number }; pending: { moved: string } | null }>("/api/super-admin/billing-extras/currencies").catch(() => null)
+    apiGet("/api/super-admin/lifecycle/preview", observe<LifecycleItem[]>(localContracts["src/app/super-admin/settings/page.tsx#e1dedcad"])).catch(() => [] as LifecycleItem[]),
+    apiGet("/api/super-admin/delivery-carriers", observe<CarrierStatus>(localContracts["src/app/super-admin/settings/page.tsx#4fb2a85a"])),
+    apiGet("/api/super-admin/config-library", observe<{ profiles: Array<{ country: string; isLive: boolean }> }>(localContracts["src/app/super-admin/settings/page.tsx#ce0eb49f"])).catch(() => ({ profiles: [] })),
+    apiGet("/api/super-admin/billing-extras/currencies", observe<{ anchor: "NGN" | "USD"; source: string; ratesFor: string; shockPercent: number; refreshConfigured: boolean; rates: { usd: number }; pending: { moved: string } | null }>(localContracts["src/app/super-admin/settings/page.tsx#d87d35ac"])).catch(() => null)
   ]);
   const openCountries = library.profiles.filter((profile) => profile.isLive).map((profile) => profile.country);
 
@@ -166,7 +168,7 @@ async function PlatformTab() {
             { setting: "Pricing currency", value: fx?.anchor === "USD" ? "USD — authored once per plan" : "NGN — authored directly in naira", state: "Set by Super Admin" },
             { setting: "Rate source", value: fx?.source ? fx.source : fx?.refreshConfigured ? "A rate provider is set up; fetched at term start" : "Entered by hand — set FX_RATES_URL to fetch automatically", state: fx?.refreshConfigured ? "Automatic" : "Manual" },
             { setting: "Rate refresh", value: fx?.ratesFor ? `Fixed for ${fx.ratesFor}; refreshed at term rollover only, never mid-term` : "No rates fixed yet", state: "Enforced" },
-            { setting: "Rounding", value: "Naira prices from dollars are rounded-sm to the nearest 50 kobo; invoices round as set below", state: "Enforced" },
+            { setting: "Rounding", value: "Naira prices from dollars are rounded to the nearest 50 kobo; invoices round as set below", state: "Enforced" },
             { setting: "Currency shock guard", value: `A move above ${fx?.shockPercent ?? 15}% on any currency is held for Finance to decide${fx?.pending ? ` — ${fx.pending.moved} waiting now` : ""}`, state: "Enforced" },
             { setting: "Invoicing currency", value: "The school’s own, always", state: "Enforced" }
           ]}
@@ -275,7 +277,7 @@ async function PlatformTab() {
 }
 
 async function DefaultsTab() {
-  const rawSettings = await apiGet<SuperAdminSettingsView>("/api/super-admin/settings");
+  const rawSettings = await apiGet("/api/super-admin/settings", observe<SuperAdminSettingsView>(SuperAdminSettingsViewSchema));
   type Band = { grade: string; min: number; max: number; remark?: string };
   const settings = { ...rawSettings, defaultGradingScale: (Array.isArray(rawSettings.defaultGradingScale) ? rawSettings.defaultGradingScale : []) as Band[] };
 
@@ -361,7 +363,7 @@ async function DefaultsTab() {
 }
 
 async function NotificationsTab() {
-  const [policy, carriers] = await Promise.all([loadPolicy(), apiGet<CarrierStatus>("/api/super-admin/delivery-carriers")]);
+  const [policy, carriers] = await Promise.all([loadPolicy(), apiGet("/api/super-admin/delivery-carriers", observe<CarrierStatus>(localContracts["src/app/super-admin/settings/page.tsx#4fb2a85a"]))]);
   const m = policy.messaging;
   const carrier = (channel: string) => carriers.carriers.find((entry) => entry.channel === channel);
   return (
@@ -428,7 +430,7 @@ async function NotificationsTab() {
 }
 
 async function SecurityTab() {
-  const carriers = await apiGet<CarrierStatus>("/api/super-admin/delivery-carriers");
+  const carriers = await apiGet("/api/super-admin/delivery-carriers", observe<CarrierStatus>(localContracts["src/app/super-admin/settings/page.tsx#4fb2a85a"]));
   return (
     <TableCard
       title="Internal security"
@@ -489,8 +491,8 @@ function purposeOf(name: string) {
 
 async function IntegrationsTab() {
   const [monitoring, team] = await Promise.all([
-    apiGet<SuperAdminInfraMonitoring>("/api/super-admin/system/monitoring"),
-    apiGet<Array<{ id: string; name: string; role: string; status?: string }>>("/api/super-admin/internal-team").catch(() => [] as Array<{ id: string; name: string; role: string; status?: string }>)
+    apiGet("/api/super-admin/system/monitoring", observe<SuperAdminInfraMonitoring>(SuperAdminInfraMonitoringSchema)),
+    apiGet("/api/super-admin/internal-team", observe<Array<{ id: string; name: string; role: string; status?: string }>>(localContracts["src/app/super-admin/settings/page.tsx#17f86e65"])).catch(() => [] as Array<{ id: string; name: string; role: string; status?: string }>)
   ]);
   const people = (team ?? []).filter((member) => !member.status || member.status === "ACTIVE").map((member) => ({ label: `${member.name} · ${member.role.replaceAll("_", " ").toLowerCase()}`, value: member.id }));
 
