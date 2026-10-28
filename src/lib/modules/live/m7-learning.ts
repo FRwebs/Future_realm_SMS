@@ -1,4 +1,5 @@
-import { apiGet } from "@/lib/api/server";
+import { apiGet, observe } from "@/lib/api/server";
+import { localContracts } from "@/lib/api/local-contracts.zod";
 import { area, checks, fixed, select, text } from "@/lib/modules/live/m7-forms";
 import type { DrawerSpec, FormField, PanelFact, PanelRow, TabContent, TableCellKind, TableRow } from "@/lib/modules/panels";
 import { pill, row, text as cell } from "@/lib/modules/panels";
@@ -31,7 +32,7 @@ const labelOf = (slug: string) => PERSONA_LABELS[slug] ?? slug;
 const slugOf = Object.fromEntries(Object.entries(PERSONA_LABELS).map(([slug, label]) => [label, slug]));
 const day = (iso: string | null) => (iso ? formatDay(new Date(iso), { day: "numeric", month: "short", year: "numeric", timeZone: "Africa/Lagos" }) : "");
 
-export const loadManagedCourse = (id: string) => apiGet<ManagedCourse>(`${API}/courses/${id}`);
+export const loadManagedCourse = (id: string) => apiGet(`${API}/courses/${id}`, observe<ManagedCourse>(localContracts["src/lib/modules/live/m7-learning.ts#f3f0caf2"]));
 
 function courseFields(course: ManagedCourse | null, o: { sections: string[]; formats: string[]; personas: string[]; topics?: string[] }): FormField[] {
   const personaLabels = o.personas.map(labelOf);
@@ -60,7 +61,7 @@ const courseMap = { Title: "title", "What it is about": "summary", Section: "sec
 const courseEncode = { "Written for": slugOf, "Required of": { Everyone: "all", ...slugOf } };
 
 export async function learningTab(): Promise<TabContent> {
-  const v = await apiGet<Manage>(API);
+  const v = await apiGet(API, observe<Manage>(localContracts["src/lib/modules/live/m7-learning.ts#bf58d17e"]));
   const o = { sections: v.sections, formats: v.formats, personas: v.personas, topics: v.topics };
   const create: DrawerSpec = {
     mode: "form", kicker: "Learning", title: "Write a course", sub: "It starts as a draft. Add its lessons, then publish it to the staff it is written for.",

@@ -1,4 +1,5 @@
-import { apiGet } from "@/lib/api/server";
+import { apiGet, observe } from "@/lib/api/server";
+import { localContracts } from "@/lib/api/local-contracts.zod";
 import { cardDrawer, printDrawer, RC, reissueDrawer } from "@/lib/modules/live/m6-forms";
 import type { ArchiveOverview } from "@/lib/modules/live/m6-types";
 import { plural } from "@/lib/modules/live/m7-format";
@@ -11,7 +12,7 @@ export const loadArchive = (query: { term?: string; arm?: string }) => {
   const params = new URLSearchParams();
   if (query.term) params.set("term", query.term);
   if (query.arm) params.set("arm", query.arm);
-  return apiGet<ArchiveOverview>(`${RC}/archive${params.toString() ? `?${params.toString()}` : ""}`);
+  return apiGet(`${RC}/archive${params.toString() ? `?${params.toString()}` : ""}`, observe<ArchiveOverview>(localContracts["src/lib/modules/live/m6-archive.ts#d068c297"]));
 };
 
 const PRINTER = "M7 9V4h10v5M7 17H5a1 1 0 0 1-1-1v-6a1 1 0 0 1 1-1h14a1 1 0 0 1 1 1v6a1 1 0 0 1-1 1h-2M7 14h10v6H7z";

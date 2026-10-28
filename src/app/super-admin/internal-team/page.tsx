@@ -9,7 +9,9 @@ import { TableCard } from "@/components/data-display/table-card";
 import { FilterToolbar } from "@/components/filters/filter-toolbar";
 import { ResourceActionDialog } from "@/components/forms/resource-action-dialog";
 import { ActionMenu } from "@/components/ui/action-menu";
-import { apiGet, apiGetEnvelope } from "@/lib/api/server";
+import { apiGet, apiGetEnvelope, observe } from "@/lib/api/server";
+import { localContracts } from "@/lib/api/local-contracts.zod";
+import { SuperAdminAccessGrantListSchema, SuperAdminDepartmentRowListSchema, SuperAdminInternalMemberListSchema, SuperAdminInternalSessionListSchema, SuperAdminIpAccessRuleListSchema, SuperAdminPermissionTemplateRowListSchema, SuperAdminTeamActivitySchema } from "@/lib/domain/types.zod";
 import type {
   SuperAdminAccessGrant,
   SuperAdminDepartmentRow,
@@ -69,8 +71,8 @@ export default async function SuperAdminInternalTeamPage({ searchParams }: { sea
   const params = searchParams ? await searchParams : {};
   const tab = params.tab ?? "accounts";
   const [departments, rosterForInvite] = await Promise.all([
-    apiGet<SuperAdminDepartmentRow[]>("/api/super-admin/internal-team/departments").catch(() => [] as SuperAdminDepartmentRow[]),
-    apiGet<SuperAdminInternalMember[]>("/api/super-admin/internal-team").catch(() => [] as SuperAdminInternalMember[])
+    apiGet("/api/super-admin/internal-team/departments", observe<SuperAdminDepartmentRow[]>(SuperAdminDepartmentRowListSchema)).catch(() => [] as SuperAdminDepartmentRow[]),
+    apiGet("/api/super-admin/internal-team", observe<SuperAdminInternalMember[]>(SuperAdminInternalMemberListSchema)).catch(() => [] as SuperAdminInternalMember[])
   ]);
   const tabs = [
     { label: "People", href: tabHref("accounts"), active: tab === "accounts" },
@@ -130,12 +132,12 @@ async function PeopleTab({ params }: { params: Record<string, string | undefined
   }
   const [envelope, allMembers, grants, matrix, profiles, departments, headlines] = await Promise.all([
     apiGetEnvelope<SuperAdminInternalMember[]>(`/api/super-admin/internal-team?${query.toString()}`),
-    apiGet<SuperAdminInternalMember[]>("/api/super-admin/internal-team"),
-    apiGet<SuperAdminAccessGrant[]>("/api/super-admin/internal-team/access-grants"),
-    apiGet<MatrixWithLabels>("/api/super-admin/internal-team/permission-grid"),
-    apiGet<Profiles>("/api/super-admin/internal-team/profiles"),
-    apiGet<SuperAdminDepartmentRow[]>("/api/super-admin/internal-team/departments"),
-    apiGet<{ external: number; privilegeChanges90d: number; openAnomalies: number }>("/api/super-admin/internal-team/headlines")
+    apiGet("/api/super-admin/internal-team", observe<SuperAdminInternalMember[]>(SuperAdminInternalMemberListSchema)),
+    apiGet("/api/super-admin/internal-team/access-grants", observe<SuperAdminAccessGrant[]>(SuperAdminAccessGrantListSchema)),
+    apiGet("/api/super-admin/internal-team/permission-grid", observe<MatrixWithLabels>(localContracts["src/app/super-admin/internal-team/page.tsx#ed730774"])),
+    apiGet("/api/super-admin/internal-team/profiles", observe<Profiles>(localContracts["src/app/super-admin/internal-team/page.tsx#0c2a9300"])),
+    apiGet("/api/super-admin/internal-team/departments", observe<SuperAdminDepartmentRow[]>(SuperAdminDepartmentRowListSchema)),
+    apiGet("/api/super-admin/internal-team/headlines", observe<{ external: number; privilegeChanges90d: number; openAnomalies: number }>(localContracts["src/app/super-admin/internal-team/page.tsx#7dce18cf"]))
   ]);
   const moduleOptions = (matrix.modules ?? []).map((id) => ({ label: matrix.labels?.[id] ?? id, value: id }));
   const members = envelope.data ?? [];
@@ -263,9 +265,9 @@ async function PeopleTab({ params }: { params: Record<string, string | undefined
 
 async function RolesTab() {
   const [templates, matrix, customRoles] = await Promise.all([
-    apiGet<SuperAdminPermissionTemplateRow[]>("/api/super-admin/internal-team/permission-templates"),
-    apiGet<MatrixWithLabels>("/api/super-admin/internal-team/permission-grid"),
-    apiGet<CustomRoleRow[]>("/api/super-admin/internal-team/roles").catch(() => [] as CustomRoleRow[])
+    apiGet("/api/super-admin/internal-team/permission-templates", observe<SuperAdminPermissionTemplateRow[]>(SuperAdminPermissionTemplateRowListSchema)),
+    apiGet("/api/super-admin/internal-team/permission-grid", observe<MatrixWithLabels>(localContracts["src/app/super-admin/internal-team/page.tsx#ed730774"])),
+    apiGet("/api/super-admin/internal-team/roles", observe<CustomRoleRow[]>(localContracts["src/app/super-admin/internal-team/page.tsx#c9738a58"])).catch(() => [] as CustomRoleRow[])
   ]);
   const modules = matrix.modules ?? [];
   const members = matrix.members ?? [];
@@ -420,7 +422,7 @@ function formatNaira(amount: number): string {
 }
 
 async function ActivityTab() {
-  const activity = await apiGet<SuperAdminTeamActivity>("/api/super-admin/internal-team/activity");
+  const activity = await apiGet("/api/super-admin/internal-team/activity", observe<SuperAdminTeamActivity>(SuperAdminTeamActivitySchema));
   const totalTickets = activity.members.reduce((sum, m) => sum + m.ticketsResolved, 0);
   const totalActions = activity.members.reduce((sum, m) => sum + m.actionsTaken, 0);
   const sevenDaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
@@ -489,9 +491,9 @@ const ANOMALY_LABEL: Record<string, string> = { OUT_OF_HOURS: "Outside working h
 
 async function SecurityTab() {
   const [sessions, ipRules, anomalies] = await Promise.all([
-    apiGet<SuperAdminInternalSession[]>("/api/super-admin/internal-team/sessions"),
-    apiGet<SuperAdminIpAccessRule[]>("/api/super-admin/internal-team/ip-rules"),
-    apiGet<AnomalyRow[]>("/api/super-admin/internal-team/anomalies")
+    apiGet("/api/super-admin/internal-team/sessions", observe<SuperAdminInternalSession[]>(SuperAdminInternalSessionListSchema)),
+    apiGet("/api/super-admin/internal-team/ip-rules", observe<SuperAdminIpAccessRule[]>(SuperAdminIpAccessRuleListSchema)),
+    apiGet("/api/super-admin/internal-team/anomalies", observe<AnomalyRow[]>(localContracts["src/app/super-admin/internal-team/page.tsx#1e138ced"]))
   ]);
 
   return (
@@ -656,9 +658,9 @@ async function SecurityTab() {
 
 async function DepartmentsTab() {
   const [departments, departmentMembers, deptMatrix] = await Promise.all([
-    apiGet<SuperAdminDepartmentRow[]>("/api/super-admin/internal-team/departments"),
-    apiGet<Record<string, string[]>>("/api/super-admin/internal-team/department-members"),
-    apiGet<MatrixWithLabels>("/api/super-admin/internal-team/permission-grid")
+    apiGet("/api/super-admin/internal-team/departments", observe<SuperAdminDepartmentRow[]>(SuperAdminDepartmentRowListSchema)),
+    apiGet("/api/super-admin/internal-team/department-members", observe<Record<string, string[]>>(localContracts["src/app/super-admin/internal-team/page.tsx#ca45e44b"])),
+    apiGet("/api/super-admin/internal-team/permission-grid", observe<MatrixWithLabels>(localContracts["src/app/super-admin/internal-team/page.tsx#ed730774"]))
   ]);
   const deptModules = (deptMatrix.modules ?? []).map((id) => ({ label: deptMatrix.labels?.[id] ?? id, value: id }));
 

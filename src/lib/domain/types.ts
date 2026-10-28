@@ -360,7 +360,7 @@ export interface NigeriaOperationsDashboardView {
   };
 }
 
-export type SubscriptionPlan = "BASIC" | "STANDARD" | "ENTERPRISE";
+export type SubscriptionPlan = "BASIC" | "STANDARD" | "PROFESSIONAL" | "ENTERPRISE" | "CUSTOM";
 export type TenantStatus = "ACTIVE" | "SUSPENDED" | "TRIAL" | "GRACE_PERIOD" | "ARCHIVED" | "DELETED";
 export type PlatformBillingStatus = "TRIAL" | "ACTIVE" | "OVERDUE" | "SUSPENDED" | "CANCELLED";
 

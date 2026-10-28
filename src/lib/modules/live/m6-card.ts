@@ -1,4 +1,5 @@
-import { apiGet } from "@/lib/api/server";
+import { apiGet, observe } from "@/lib/api/server";
+import { localContracts } from "@/lib/api/local-contracts.zod";
 import { cardPaper, documentUrl } from "@/lib/modules/live/documents";
 import { loadCompletionArm } from "@/lib/modules/live/m6-completion";
 import { publishDrawer, RC, releaseDrawer, sendDrawer, withholdDrawer } from "@/lib/modules/live/m6-forms";
@@ -7,8 +8,8 @@ import type { DocAct, DocumentSpec } from "@/lib/modules/panels";
 
 /** One report card: the document exactly as the family sees it, and what can be done with it. */
 
-export const loadCard = (studentId: string, termId?: string) => apiGet<CardView>(`${RC}/card/${encodeURIComponent(studentId)}${termId ? `?term=${encodeURIComponent(termId)}` : ""}`);
-export const loadPrintSet = (query: URLSearchParams) => apiGet<{ term: { id: string; name: string; session: string }; cards: CardView[]; count: number; drafts: number }>(`${RC}/print?${query.toString()}`);
+export const loadCard = (studentId: string, termId?: string) => apiGet(`${RC}/card/${encodeURIComponent(studentId)}${termId ? `?term=${encodeURIComponent(termId)}` : ""}`, observe<CardView>(localContracts["src/lib/modules/live/m6-card.ts#25d3d20a"]));
+export const loadPrintSet = (query: URLSearchParams) => apiGet(`${RC}/print?${query.toString()}`, observe<{ term: { id: string; name: string; session: string }; cards: CardView[]; count: number; drafts: number }>(localContracts["src/lib/modules/live/m6-card.ts#ca250152"]));
 
 const shortName = (name: string) => name.split(" ").slice(0, 2).map((part, index) => (index === 0 ? part : `${part[0]}.`)).join(" ");
 

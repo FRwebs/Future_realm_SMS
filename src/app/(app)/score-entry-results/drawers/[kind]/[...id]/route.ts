@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
-import { apiGet } from "@/lib/api/server";
+import { apiGet, observe } from "@/lib/api/server";
+import { localContracts } from "@/lib/api/local-contracts.zod";
 import { SR } from "@/lib/modules/live/m5-forms";
 import type { Explain } from "@/lib/modules/live/m5-types";
 import type { DrawerSpec, PanelFact } from "@/lib/modules/panels";
@@ -10,7 +11,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ kin
   const { kind, id } = await params;
   try {
     const [classId, studentId, subjectId] = id;
-    const data = await apiGet<Explain>(`${SR}/results/${encodeURIComponent(classId)}/${encodeURIComponent(studentId)}/explain${kind === "subject" && subjectId ? `?subject=${encodeURIComponent(subjectId)}` : ""}`);
+    const data = await apiGet(`${SR}/results/${encodeURIComponent(classId)}/${encodeURIComponent(studentId)}/explain${kind === "subject" && subjectId ? `?subject=${encodeURIComponent(subjectId)}` : ""}`, observe<Explain>(localContracts["src/app/(app)/score-entry-results/drawers/[kind]/[...id]/route.ts#55cbfd1b"]));
     if (data.kind === "subject") {
       const facts: PanelFact[] = [
         ...data.lines.map((line): PanelFact => [line.name, line.value === null ? "Nothing entered" : line.value === "Absent" ? "Absent" : `${line.value} of ${line.max} · weight ${line.weight}%`, line.at ? `Entered ${line.at}${line.by ? ` by ${line.by}` : ""}${line.corrected ? ` · corrected ${line.corrected}×` : ""}` : line.value === "Absent" ? "Excluded from the total — never scored zero" : "Not counted — never scored zero"]),

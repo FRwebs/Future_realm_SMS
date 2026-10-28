@@ -1,4 +1,5 @@
-import { apiGet } from "@/lib/api/server";
+import { apiGet, observe } from "@/lib/api/server";
+import { localContracts } from "@/lib/api/local-contracts.zod";
 import { integrationsTab } from "@/lib/modules/live/m15-integrations";
 import {
   name as nameCell,
@@ -887,7 +888,7 @@ export async function auditSecurityLiveTab(
   tabSlug: string,
 ): Promise<TabContent | null | undefined> {
   if (tabSlug === "audit-log") {
-    const feed = await apiGet<AuditFeed>("/api/v1/audit/recent?take=120");
+    const feed = await apiGet("/api/v1/audit/recent?take=120", observe<AuditFeed>(localContracts["src/lib/modules/live/m15-audit-security.ts#9cef54f5"]));
     if (!feed) return undefined;
     return auditTab(feed);
   }
@@ -896,8 +897,8 @@ export async function auditSecurityLiveTab(
 
   if (tabSlug === "monitoring") {
     const [payload, integrity] = await Promise.all([
-      apiGet<{ records: LoginAttempt[] }>("/api/v1/configuration/login-history"),
-      apiGet<IntegrityPayload>("/api/v1/governance/integrity"),
+      apiGet("/api/v1/configuration/login-history", observe<{ records: LoginAttempt[] }>(localContracts["src/lib/modules/live/m15-audit-security.ts#5d4467fc"])),
+      apiGet("/api/v1/governance/integrity", observe<IntegrityPayload>(localContracts["src/lib/modules/live/m15-audit-security.ts#7ee26e1d"])),
     ]);
     const base = monitoringTab(payload?.records ?? []);
     // The monitors lead: what needs attention now, which is the tab's job. The
@@ -907,8 +908,8 @@ export async function auditSecurityLiveTab(
 
   if (tabSlug === "data-protection") {
     const [data, register] = await Promise.all([
-      apiGet<DataProtection>("/api/v1/audit/data-protection"),
-      apiGet<DsrPayload>("/api/v1/governance/data-subject-requests"),
+      apiGet("/api/v1/audit/data-protection", observe<DataProtection>(localContracts["src/lib/modules/live/m15-audit-security.ts#ca7b0dc5"])),
+      apiGet("/api/v1/governance/data-subject-requests", observe<DsrPayload>(localContracts["src/lib/modules/live/m15-audit-security.ts#a95b0ee6"])),
     ]);
     if (!data) return undefined;
     const base = dataProtectionTab(data);

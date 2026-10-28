@@ -5,7 +5,9 @@ import { ModuleHero } from "@/components/data-display/module-hero";
 import { ReferenceList } from "@/components/data-display/reference-list";
 import { StatCard } from "@/components/data-display/stat-card";
 import { TableCard } from "@/components/data-display/table-card";
-import { apiGet, apiGetEnvelope } from "@/lib/api/server";
+import { apiGet, apiGetEnvelope, observe } from "@/lib/api/server";
+import { localContracts } from "@/lib/api/local-contracts.zod";
+import { SuperAdminComputationMonitoringSchema, SuperAdminInfraMonitoringSchema } from "@/lib/domain/types.zod";
 import type { SuperAdminComputationMonitoring, SuperAdminInfraMonitoring, SuperAdminInternalMember, SuperAdminTicketRow } from "@/lib/domain/types";
 
 function tabHref(tab: string) {
@@ -107,7 +109,7 @@ const routes: Array<{ subject: string; responsibility: string | null; roles: str
 async function GetHelpTab() {
   const [teamEnvelope, profiles] = await Promise.all([
     apiGetEnvelope<SuperAdminInternalMember[]>("/api/super-admin/internal-team?status=ACTIVE"),
-    apiGet<Record<string, { responsibilities?: string[] }>>("/api/super-admin/internal-team/profiles").catch(() => ({}) as Record<string, { responsibilities?: string[] }>)
+    apiGet("/api/super-admin/internal-team/profiles", observe<Record<string, { responsibilities?: string[] }>>(localContracts["src/app/super-admin/help/page.tsx#eda0ea20"])).catch(() => ({}) as Record<string, { responsibilities?: string[] }>)
   ]);
   const team = teamEnvelope.data ?? [];
   const rows = routes.map((route) => {
@@ -160,9 +162,9 @@ async function GetHelpTab() {
 
 async function PlatformStatusTab() {
   const [monitoring, computation, security, tickets] = await Promise.all([
-    apiGet<SuperAdminInfraMonitoring>("/api/super-admin/system/monitoring"),
-    apiGet<SuperAdminComputationMonitoring>("/api/super-admin/infra-extras/computation").catch(() => null),
-    apiGet<{ incidents?: Array<{ status: string; resolvedAt?: string }> }>("/api/super-admin/security").catch(() => ({ incidents: [] })),
+    apiGet("/api/super-admin/system/monitoring", observe<SuperAdminInfraMonitoring>(SuperAdminInfraMonitoringSchema)),
+    apiGet("/api/super-admin/infra-extras/computation", observe<SuperAdminComputationMonitoring>(SuperAdminComputationMonitoringSchema)).catch(() => null),
+    apiGet("/api/super-admin/security", observe<{ incidents?: Array<{ status: string; resolvedAt?: string }> }>(localContracts["src/app/super-admin/help/page.tsx#c62f83a2"])).catch(() => ({ incidents: [] })),
     apiGetEnvelope<SuperAdminTicketRow[]>("/api/super-admin/support/tickets?limit=100")
   ]);
   const incidents = security.incidents ?? [];

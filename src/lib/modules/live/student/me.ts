@@ -1,9 +1,11 @@
+import { myProfileContract } from "@/lib/api/contracts";
 import { getTranslations } from "next-intl/server";
 
 import { LOCALES } from "@/i18n/locales";
 import { languagePanel, type AccountWords, type MyProfile } from "@/lib/modules/account";
 import { SW } from "@/lib/api/student-workspace";
-import { apiGet } from "@/lib/api/server";
+import { apiGet, observe } from "@/lib/api/server";
+import { localContracts } from "@/lib/api/local-contracts.zod";
 import { askDrawer, dLong, loadAskable, loadMe, loadPrefs } from "@/lib/modules/live/student/shared";
 import type { StudentContent } from "@/lib/modules/live/student/shared";
 import type { DrawerSpec, PanelFact, PanelTone, TableRow } from "@/lib/modules/panels";
@@ -100,9 +102,9 @@ export async function accountPage(): Promise<StudentContent> {
   };
   const [me, sec, devices, mine] = await Promise.all([
     loadMe(),
-    apiGet<{ mustChangePassword: boolean; mfaEnabled: boolean; mfaEnrolledAt: string | null; passwordChangedAt: string | null; createdAt: string; signIns: Array<{ id: string; at: string; success: boolean; device: string; where: string; newDevice: boolean; reason: string | null }> }>(`${SW}/security`),
-    apiGet<Device[]>(`${SW}/sessions`).catch(() => [] as Device[]),
-    apiGet<MyProfile>("/api/v1/profile/me").catch(() => ({}) as MyProfile),
+    apiGet(`${SW}/security`, observe<{ mustChangePassword: boolean; mfaEnabled: boolean; mfaEnrolledAt: string | null; passwordChangedAt: string | null; createdAt: string; signIns: Array<{ id: string; at: string; success: boolean; device: string; where: string; newDevice: boolean; reason: string | null }> }>(localContracts["src/lib/modules/live/student/me.ts#df29f242"])),
+    apiGet(`${SW}/sessions`, observe<Device[]>(localContracts["src/lib/modules/live/student/me.ts#ea64d417"])).catch(() => [] as Device[]),
+    apiGet("/api/v1/profile/me", myProfileContract).catch(() => ({}) as MyProfile),
   ]);
   const change: DrawerSpec = {
     kicker: "Account", title: "Change your password", mode: "form", sub: "Use at least eight characters. You stay signed in here; other devices are asked to sign in again.",

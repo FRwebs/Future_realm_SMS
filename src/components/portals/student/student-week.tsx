@@ -14,7 +14,7 @@ export function StudentWeek({ title, sub, foot, today, now, days, rows }: WeekPr
   return (
     <section className="min-w-0 overflow-hidden rounded-[14px] border bg-(--color-bg-surface) px-[18px] pb-[14px]" style={{ borderColor: "#DEE8E2" }}>
       <div className="mx-[-18px] border-b px-[18px] pb-[12px] pt-[14px]" style={{ borderColor: "#EDF3EF" }}>
-        <h3 className="text-[12.5px] font-semibold" style={{ color: "#0D2315" }}>{title}</h3>
+        <h2 className="text-[12.5px] font-semibold" style={{ color: "#0D2315" }}>{title}</h2>
         <p className="mt-[3.5px] text-[10.5px] leading-normal" style={{ color: "#5E6D64" }}>{sub}</p>
       </div>
       <div className="mx-[-18px] overflow-x-auto px-[18px] pt-[12px]">

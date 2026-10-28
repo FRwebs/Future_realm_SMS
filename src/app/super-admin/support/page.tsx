@@ -11,7 +11,8 @@ import { StatusBadge } from "@/components/data-display/status-badge";
 import { TableCard } from "@/components/data-display/table-card";
 import { FilterToolbar } from "@/components/filters/filter-toolbar";
 import { ResourceActionDialog } from "@/components/forms/resource-action-dialog";
-import { apiGet, apiGetEnvelope } from "@/lib/api/server";
+import { apiGet, apiGetEnvelope, observe } from "@/lib/api/server";
+import { localContracts } from "@/lib/api/local-contracts.zod";
 import type { SuperAdminCannedResponse, SuperAdminDataCorrectionRow, SuperAdminInternalMember, SuperAdminSchoolRow, SuperAdminTicketRow } from "@/lib/domain/types";
 import { formatDate } from "@/lib/utils/formatters";
 
@@ -105,7 +106,7 @@ export default async function SupportTicketsPage({ searchParams }: { searchParam
   const [schoolsEnvelope, agentsEnvelope, board, correctionsEnvelope] = await Promise.all([
     apiGetEnvelope<SuperAdminSchoolRow[]>("/api/super-admin/schools?limit=100"),
     apiGetEnvelope<SuperAdminInternalMember[]>("/api/super-admin/internal-team?status=ACTIVE"),
-    apiGet<Board>("/api/super-admin/support-desk/board"),
+    apiGet("/api/super-admin/support-desk/board", observe<Board>(localContracts["src/app/super-admin/support/page.tsx#e879b0be"])),
     apiGetEnvelope<SuperAdminDataCorrectionRow[]>("/api/super-admin/support/data-corrections")
   ]);
   const schoolOptions = (schoolsEnvelope.data ?? []).map((school) => ({ label: school.name, value: school.id }));
@@ -164,7 +165,7 @@ export default async function SupportTicketsPage({ searchParams }: { searchParam
 async function TicketBoardTab({ board }: { board: Board }) {
   const [envelope, levels] = await Promise.all([
     apiGetEnvelope<SuperAdminTicketRow[]>("/api/super-admin/support/tickets?status=all&limit=100"),
-    apiGet<ServiceLevels>("/api/super-admin/support-desk/service-levels")
+    apiGet("/api/super-admin/support-desk/service-levels", observe<ServiceLevels>(localContracts["src/app/super-admin/support/page.tsx#e002f97b"]))
   ]);
   const tickets = envelope.data ?? [];
   const weekDelta =
@@ -295,8 +296,8 @@ async function TicketQueueTab({ params, schoolOptions, agents, board }: { params
   }
   const [envelope, levels, analytics] = await Promise.all([
     apiGetEnvelope<SuperAdminTicketRow[]>(`/api/super-admin/support/tickets?${query.toString()}`),
-    apiGet<ServiceLevels>("/api/super-admin/support-desk/service-levels"),
-    apiGet<Analytics>("/api/super-admin/support-desk/analytics")
+    apiGet("/api/super-admin/support-desk/service-levels", observe<ServiceLevels>(localContracts["src/app/super-admin/support/page.tsx#e002f97b"])),
+    apiGet("/api/super-admin/support-desk/analytics", observe<Analytics>(localContracts["src/app/super-admin/support/page.tsx#25bc9629"]))
   ]);
   const tickets = envelope.data ?? [];
   const agentChoice = agents.map((agent) => ({ label: agent.name, value: agent.id }));
@@ -485,7 +486,7 @@ async function DataCorrectionsTab({ records }: { records: SuperAdminDataCorrecti
 }
 
 async function KnowledgeTab() {
-  const knowledge = await apiGet<Knowledge>("/api/super-admin/support-desk/knowledge");
+  const knowledge = await apiGet("/api/super-admin/support-desk/knowledge", observe<Knowledge>(localContracts["src/app/super-admin/support/page.tsx#dec1fcca"]));
   const responsesEnvelope = await apiGetEnvelope<SuperAdminCannedResponse[]>("/api/super-admin/support/canned-responses");
   const full = new Map((responsesEnvelope.data ?? []).map((row) => [row.id, row]));
   const lead = (value: string) => value.replaceAll("_", " ").toLowerCase().replace(/^./, (c) => c.toUpperCase());

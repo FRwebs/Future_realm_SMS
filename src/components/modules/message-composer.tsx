@@ -2,7 +2,10 @@
 
 import { useRouter } from "next/navigation";
 import type { Route } from "next";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { useMemo, useRef, useState } from "react";
+import { useForm } from "react-hook-form";
+import { z } from "zod";
 
 import { PANEL_SHELL, PanelHeader } from "@/components/modules/panel-renderer";
 import { MERGE_FIELDS, joinNames, mergeBody, reachOf, smsSegments, unknownFields, type Channel } from "@/lib/messaging/merge";
@@ -10,6 +13,9 @@ import type { DrawerSpec, PanelTone } from "@/lib/modules/panels";
 import { sendJsonForData } from "@/lib/modules/submit";
 import { CARD_BORDER, INK, MUTED, toneOf } from "@/lib/modules/tones";
 import { formatDay } from "@/lib/date-format";
+
+const messageSchema = z.object({ body: z.string().trim().min(8, "Write at least a sentence — 8 characters or more."), ack: z.boolean() });
+type MessageValues = z.infer<typeof messageSchema>;
 
 /**
  * Writing to the families of a class. Everything a teacher needs to be sure before it goes is on this page, live: who it reaches, who it
@@ -41,8 +47,12 @@ export function MessageComposer({ arms, families, wallet, threshold, sender, sms
   const [audience, setAudience] = useState<Audience>(asAudience(prefill?.audience));
   const [picked, setPicked] = useState<string[]>(prefill?.families ?? []);
   const [channel, setChannel] = useState<Channel>(asChannel(prefill?.channel));
-  const [body, setBody] = useState(prefill?.body ?? "");
-  const [ack, setAck] = useState(Boolean(prefill?.acknowledge));
+  const form = useForm<MessageValues>({ resolver: zodResolver(messageSchema), mode: "onChange", defaultValues: { body: prefill?.body ?? "", ack: Boolean(prefill?.acknowledge) } });
+  const { body, ack } = form.watch();
+  const setBody = (next: string | ((current: string) => string)) => form.setValue("body", typeof next === "function" ? next(form.getValues("body")) : next, { shouldValidate: true });
+  const setAck = (next: boolean) => form.setValue("ack", next);
+  const bodyField = form.register("body");
+  const bodyProblem = form.formState.errors.body?.message;
   const [draftId, setDraftId] = useState<string | undefined>(prefill?.draftId);
   const [find, setFind] = useState("");
   const [step, setStep] = useState<"write" | "preview" | "done">("write");
@@ -203,14 +213,14 @@ export function MessageComposer({ arms, families, wallet, threshold, sender, sms
                   {MERGE_FIELDS.map((field) => <button key={field} type="button" onClick={() => insert(field)} className="rounded-full border px-[8px] py-[2px] text-[10px] font-bold" style={{ borderColor: CARD_BORDER, color: "#12796A", background: "#fff" }}>{`{${field}}`}</button>)}
                 </span>
               </span>
-              <textarea ref={box} value={body} onChange={(event) => setBody(event.target.value)} rows={5} placeholder="Dear {Guardian}, …" aria-label="Message" className="min-h-[110px] w-full min-w-0 resize-y rounded-[10px] border-[1.5px] bg-white px-[11.5px] py-[10px] text-[12px] font-medium leading-[1.55] outline-hidden focus:border-[#12796A]" style={{ borderColor: CARD_BORDER, color: INK }} />
+              <textarea {...bodyField} ref={(node) => { bodyField.ref(node); box.current = node; }} aria-invalid={Boolean(bodyProblem)} rows={5} placeholder="Dear {Guardian}, …" aria-label="Message" className="min-h-[110px] w-full min-w-0 resize-y rounded-[10px] border-[1.5px] bg-white px-[11.5px] py-[10px] text-[12px] font-medium leading-[1.55] outline-hidden focus:border-[#12796A]" style={{ borderColor: CARD_BORDER, color: INK }} />
               <span className="flex flex-wrap items-center justify-between gap-[6px] text-[10.5px]" style={{ color: unknown.length ? "#B23B3B" : MUTED }}>
-                <span>{unknown.length ? `${unknown.map((name) => `{${name}}`).join(", ")} ${unknown.length === 1 ? "is not a merge field" : "are not merge fields"} — use {"{Guardian}"}, {"{Child}"} or {"{Class}"}.` : "Families see this from the school, and replies reach the office."}</span>
+                <span>{bodyProblem && body.length > 0 ? bodyProblem : unknown.length ? `${unknown.map((name) => `{${name}}`).join(", ")} ${unknown.length === 1 ? "is not a merge field" : "are not merge fields"} — use {"{Guardian}"}, {"{Child}"} or {"{Class}"}.` : "Families see this from the school, and replies reach the office."}</span>
                 <span>{[...body].length} characters{channel === "SMS" && parts > 1 ? ` · ${parts} parts` : ""}</span>
               </span>
             </div>
             <label className="flex cursor-pointer items-start gap-[9px] rounded-[10px] border px-[12px] py-[10px]" style={{ borderColor: CARD_BORDER }}>
-              <input type="checkbox" aria-label="Ask families to acknowledge" checked={ack} onChange={(event) => setAck(event.target.checked)} className="mt-[2px]" />
+              <input type="checkbox" aria-label="Ask families to acknowledge" {...form.register("ack")} className="mt-[2px]" />
               <span><span className="block text-[12px] font-semibold" style={{ color: INK }}>Ask families to acknowledge</span><span className="block text-[10.5px]" style={{ color: MUTED }}>{ack ? "A reply is asked for — you will see who has acknowledged in Sent." : "No reply needed."}</span></span>
             </label>
             {message ? <p className="rounded-[9px] px-[11px] py-[9px] text-[11.5px]" style={{ background: message.startsWith("Saved") ? toneOf("positive").bg : "#FDF3F3", color: message.startsWith("Saved") ? toneOf("positive").fg : "#B23B3B" }}>{message}</p> : null}

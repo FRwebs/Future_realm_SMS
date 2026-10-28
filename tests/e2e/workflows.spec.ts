@@ -109,3 +109,29 @@ test("a password change the server refuses says why, in the drawer, which stays 
   await expect(dialog.getByText("Password changed")).toHaveCount(0);
   await expect(page.getByRole("alert").first()).toBeVisible(SLOW);
 });
+
+test("a long list turns its pages without redrawing the page, keeps the address in step, and a link to page 2 lands there", async ({ page }) => {
+  await signIn(page, "proprietor@greenfieldcollege.ng");
+  const documents: string[] = [];
+  const windows: string[] = [];
+  page.on("request", (request) => {
+    if (request.resourceType() === "document") documents.push(request.url());
+    if (request.url().includes("/table-window")) windows.push(request.url());
+  });
+  await page.goto("/student-records/registry");
+  await expect(page.getByText(/Showing 1–25 of/).first()).toBeVisible(SLOW);
+  documents.length = 0;
+
+  // Pressed until it is heard: the page may not have taken hold on the first press.
+  await expect(async () => {
+    await page.getByRole("button", { name: "Next page" }).click();
+    await expect(page.getByText(/Showing 26–50 of/).first()).toBeVisible({ timeout: 4_000 });
+  }).toPass({ timeout: 60_000 });
+  expect(documents).toEqual([]);
+  expect(windows.length).toBeGreaterThan(0);
+  expect(page.url()).toMatch(/t\d+_\d+_p=2/);
+
+  const address = new URL(page.url());
+  await page.goto(`${address.pathname}${address.search}`);
+  await expect(page.getByText(/Showing 26–50 of/).first()).toBeVisible(SLOW);
+});

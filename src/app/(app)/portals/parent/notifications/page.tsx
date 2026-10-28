@@ -3,7 +3,8 @@ import type { Route } from "next";
 
 import { TableCard } from "@/components/data-display/table-card";
 import { AccessDenied } from "@/components/feedback/access-denied";
-import { apiGet } from "@/lib/api/server";
+import { apiGet, observe } from "@/lib/api/server";
+import { StudentPortalNotificationViewListSchema } from "@/lib/domain/types.zod";
 import { canAccessPath, getDefaultPathForRole } from "@/lib/auth/roles";
 import { getServerSession } from "@/lib/auth/session";
 import { StudentPortalNotificationView } from "@/lib/domain/types";
@@ -16,7 +17,7 @@ export default async function ParentNotificationsPage() {
     return <AccessDenied backHref={getDefaultPathForRole(session.role)} />;
   }
 
-  const notifications = await apiGet<StudentPortalNotificationView[]>("/api/v1/parent-portal/notifications");
+  const notifications = await apiGet("/api/v1/parent-portal/notifications", observe<StudentPortalNotificationView[]>(StudentPortalNotificationViewListSchema));
 
   return (
     <div className="portal-page">

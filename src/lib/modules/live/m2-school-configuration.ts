@@ -1,5 +1,6 @@
 import { clearSampleDrawer, loadSample, type SampleStatus } from "@/lib/modules/live/m1-trial";
-import { apiGet } from "@/lib/api/server";
+import { apiGet, observe } from "@/lib/api/server";
+import { localContracts } from "@/lib/api/local-contracts.zod";
 import {
   POLICY_DEFINITIONS,
   policySub,
@@ -2935,18 +2936,18 @@ export function curriculumDetailContent(
  */
 export async function curriculumDetail(id: string): Promise<TabContent | null> {
   const [school, subjects, levels] = await Promise.all([
-    apiGet<{ record: SchoolRecord }>(`${CONFIG}/school-information`),
-    apiGet<{ records: SubjectRecord[] }>(`${CONFIG}/subjects`),
-    apiGet<{ records: ClassLevelRecord[] }>(`${CONFIG}/class-levels`),
+    apiGet(`${CONFIG}/school-information`, observe<{ record: SchoolRecord }>(localContracts["src/lib/modules/live/m2-school-configuration.ts#e1750de9"])),
+    apiGet(`${CONFIG}/subjects`, observe<{ records: SubjectRecord[] }>(localContracts["src/lib/modules/live/m2-school-configuration.ts#d9115157"])),
+    apiGet(`${CONFIG}/class-levels`, observe<{ records: ClassLevelRecord[] }>(localContracts["src/lib/modules/live/m2-school-configuration.ts#9b537c25"])),
   ]);
   if (!school?.record) return null;
 
   const [schemes, components, departments] = await Promise.all([
-    apiGet<GradingScheme[]>("/api/v1/academics/grading-schemes").catch(() => [] as GradingScheme[]),
-    apiGet<SectionComponent[]>("/api/v1/academics/section-assessment-components").catch(
+    apiGet("/api/v1/academics/grading-schemes", observe<GradingScheme[]>(localContracts["src/lib/modules/live/m2-school-configuration.ts#c10462b6"])).catch(() => [] as GradingScheme[]),
+    apiGet("/api/v1/academics/section-assessment-components", observe<SectionComponent[]>(localContracts["src/lib/modules/live/m2-school-configuration.ts#4f1dae48"])).catch(
       () => [] as SectionComponent[],
     ),
-    apiGet<{ records: DepartmentRecord[] }>(`${CONFIG}/departments`).catch(() => ({
+    apiGet(`${CONFIG}/departments`, observe<{ records: DepartmentRecord[] }>(localContracts["src/lib/modules/live/m2-school-configuration.ts#6059deac"])).catch(() => ({
       records: [] as DepartmentRecord[],
     })),
   ]);
@@ -2964,7 +2965,7 @@ export async function curriculumDetail(id: string): Promise<TabContent | null> {
 
   // A built curriculum is a record of its own; its name and state replace the
   // live heading, while the layers below still describe what is in force.
-  const built = await apiGet<{ records: CurriculumRecord[] }>(`${CONFIG}/curricula`).catch(() => ({
+  const built = await apiGet(`${CONFIG}/curricula`, observe<{ records: CurriculumRecord[] }>(localContracts["src/lib/modules/live/m2-school-configuration.ts#cfce7c8b"])).catch(() => ({
     records: [] as CurriculumRecord[],
   }));
   const record = (built?.records ?? []).find((item) => item.id === id);
@@ -3651,7 +3652,7 @@ export function allocationDetailContent(structure: FeeStructure): TabContent {
 
 /** The allocation sub-page's loader. */
 export async function allocationDetail(id: string): Promise<TabContent | null> {
-  const structures = await apiGet<FeeStructure[]>("/api/v1/finance/fee-structures").catch(
+  const structures = await apiGet("/api/v1/finance/fee-structures", observe<FeeStructure[]>(localContracts["src/lib/modules/live/m2-school-configuration.ts#637748e7"])).catch(
     () => [] as FeeStructure[],
   );
   const structure = (structures ?? []).find((item) => item.id === id);
@@ -3667,11 +3668,11 @@ type ClassRoomRecord = { id: string; name: string; arm: string | null; level?: s
  */
 export async function allocationBuilderData() {
   const [classPayload, sessions, structures] = await Promise.all([
-    apiGet<Record<string, unknown>>("/api/v1/timetable/classes").catch(() => null),
-    apiGet<{ records: SessionRecord[] }>(`${CONFIG}/sessions-terms`).catch(() => ({
+    apiGet("/api/v1/timetable/classes", observe<Record<string, unknown>>(localContracts["src/lib/modules/live/m2-school-configuration.ts#a8b3816f"])).catch(() => null),
+    apiGet(`${CONFIG}/sessions-terms`, observe<{ records: SessionRecord[] }>(localContracts["src/lib/modules/live/m2-school-configuration.ts#93119071"])).catch(() => ({
       records: [] as SessionRecord[],
     })),
-    apiGet<FeeStructure[]>("/api/v1/finance/fee-structures").catch(() => [] as FeeStructure[]),
+    apiGet("/api/v1/finance/fee-structures", observe<FeeStructure[]>(localContracts["src/lib/modules/live/m2-school-configuration.ts#637748e7"])).catch(() => [] as FeeStructure[]),
   ]);
 
   // The classes resource groups rooms by category; the builder wants them flat.
@@ -3766,7 +3767,7 @@ type FeeStructure = {
   currency: string;
   session: string | null;
   term: string | null;
-  className: string | null;
+  className?: string | null;
   recurrence: string;
   isOneTime: boolean;
   isActive: boolean;
@@ -3965,9 +3966,9 @@ export async function schoolConfigurationLiveTab(
   tabSlug: string,
 ): Promise<TabContent | null | undefined> {
   if (tabSlug === "profile") {
-    const payload = await apiGet<{ record: SchoolRecord }>(`${CONFIG}/school-information`);
+    const payload = await apiGet(`${CONFIG}/school-information`, observe<{ record: SchoolRecord }>(localContracts["src/lib/modules/live/m2-school-configuration.ts#e1750de9"]));
     if (!payload?.record) return undefined;
-    const branding = await apiGet<BrandingVersion[]>("/api/v1/configuration/branding-versions").catch(
+    const branding = await apiGet("/api/v1/configuration/branding-versions", observe<BrandingVersion[]>(localContracts["src/lib/modules/live/m2-school-configuration.ts#2cd86bec"])).catch(
       () => [] as BrandingVersion[],
     );
     return profileTab(payload.record, branding ?? [], await loadSample());
@@ -3975,14 +3976,14 @@ export async function schoolConfigurationLiveTab(
 
   if (tabSlug === "calendar") {
     const [terms, events] = await Promise.all([
-      apiGet<{ records: SessionRecord[] }>(`${CONFIG}/sessions-terms`),
-      apiGet<{ records: CalendarRecord[] }>(`${CONFIG}/school-calendar`),
+      apiGet(`${CONFIG}/sessions-terms`, observe<{ records: SessionRecord[] }>(localContracts["src/lib/modules/live/m2-school-configuration.ts#93119071"])),
+      apiGet(`${CONFIG}/school-calendar`, observe<{ records: CalendarRecord[] }>(localContracts["src/lib/modules/live/m2-school-configuration.ts#8a82ebc9"])),
     ]);
     const [components, windows] = await Promise.all([
-      apiGet<AssessmentComponentRecord[]>("/api/v1/academics/assessments").catch(
+      apiGet("/api/v1/academics/assessments", observe<AssessmentComponentRecord[]>(localContracts["src/lib/modules/live/m2-school-configuration.ts#6f764ade"])).catch(
         () => [] as AssessmentComponentRecord[],
       ),
-      apiGet<{ records: AssessmentWindowRecord[] }>(`${CONFIG}/assessment-windows`).catch(
+      apiGet(`${CONFIG}/assessment-windows`, observe<{ records: AssessmentWindowRecord[] }>(localContracts["src/lib/modules/live/m2-school-configuration.ts#c14fb29e"])).catch(
         () => ({ records: [] as AssessmentWindowRecord[] }),
       ),
     ]);
@@ -3996,23 +3997,23 @@ export async function schoolConfigurationLiveTab(
 
   if (tabSlug === "curriculum") {
     const [school, subjects, levels] = await Promise.all([
-      apiGet<{ record: SchoolRecord }>(`${CONFIG}/school-information`),
-      apiGet<{ records: SubjectRecord[] }>(`${CONFIG}/subjects`),
-      apiGet<{ records: ClassLevelRecord[] }>(`${CONFIG}/class-levels`),
+      apiGet(`${CONFIG}/school-information`, observe<{ record: SchoolRecord }>(localContracts["src/lib/modules/live/m2-school-configuration.ts#e1750de9"])),
+      apiGet(`${CONFIG}/subjects`, observe<{ records: SubjectRecord[] }>(localContracts["src/lib/modules/live/m2-school-configuration.ts#d9115157"])),
+      apiGet(`${CONFIG}/class-levels`, observe<{ records: ClassLevelRecord[] }>(localContracts["src/lib/modules/live/m2-school-configuration.ts#9b537c25"])),
     ]);
     if (!school?.record) return undefined;
     const [schemes, components] = await Promise.all([
-      apiGet<GradingScheme[]>("/api/v1/academics/grading-schemes").catch(
+      apiGet("/api/v1/academics/grading-schemes", observe<GradingScheme[]>(localContracts["src/lib/modules/live/m2-school-configuration.ts#c10462b6"])).catch(
         () => [] as GradingScheme[],
       ),
-      apiGet<SectionComponent[]>("/api/v1/academics/section-assessment-components").catch(
+      apiGet("/api/v1/academics/section-assessment-components", observe<SectionComponent[]>(localContracts["src/lib/modules/live/m2-school-configuration.ts#4f1dae48"])).catch(
         () => [] as SectionComponent[],
       ),
     ]);
-    const built = await apiGet<{ records: CurriculumRecord[] }>(`${CONFIG}/curricula`).catch(
+    const built = await apiGet(`${CONFIG}/curricula`, observe<{ records: CurriculumRecord[] }>(localContracts["src/lib/modules/live/m2-school-configuration.ts#cfce7c8b"])).catch(
       () => ({ records: [] as CurriculumRecord[] }),
     );
-    const library = await apiGet<LibraryView>(`${CONFIG}/library`).catch(() => null);
+    const library = await apiGet(`${CONFIG}/library`, observe<LibraryView>(localContracts["src/lib/modules/live/m2-school-configuration.ts#938f97bf"])).catch(() => null);
     return curriculumTab(
       school.record,
       subjects?.records ?? [],
@@ -4026,17 +4027,17 @@ export async function schoolConfigurationLiveTab(
 
   if (tabSlug === "policies") {
     const [saved, school] = await Promise.all([
-      apiGet<{ records: PolicyItem[] }>(`${CONFIG}/school-policies`).catch(() => ({ records: [] as PolicyItem[] })),
-      apiGet<{ record: SchoolRecord }>(`${CONFIG}/school-information`).catch(() => null),
+      apiGet(`${CONFIG}/school-policies`, observe<{ records: PolicyItem[] }>(localContracts["src/lib/modules/live/m2-school-configuration.ts#7dc6dafc"])).catch(() => ({ records: [] as PolicyItem[] })),
+      apiGet(`${CONFIG}/school-information`, observe<{ record: SchoolRecord }>(localContracts["src/lib/modules/live/m2-school-configuration.ts#e1750de9"])).catch(() => null),
     ]);
     return policiesTab(saved?.records ?? [], school?.record?.country ?? null);
   }
 
   if (tabSlug === "allocations") {
     const [structures, builder, sessions] = await Promise.all([
-      apiGet<FeeStructure[]>("/api/v1/finance/fee-structures"),
+      apiGet("/api/v1/finance/fee-structures", observe<FeeStructure[]>(localContracts["src/lib/modules/live/m2-school-configuration.ts#637748e7"])),
       allocationBuilderData(),
-      apiGet<{ records: SessionRecord[] }>(`${CONFIG}/sessions-terms`).catch(() => ({
+      apiGet(`${CONFIG}/sessions-terms`, observe<{ records: SessionRecord[] }>(localContracts["src/lib/modules/live/m2-school-configuration.ts#93119071"])).catch(() => ({
         records: [] as SessionRecord[],
       })),
     ]);

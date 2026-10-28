@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
-import { apiGet } from "@/lib/api/server";
+import { apiGet, observe } from "@/lib/api/server";
+import { localContracts } from "@/lib/api/local-contracts.zod";
 import { getServerSession } from "@/lib/auth/session";
 import type { PanelFact } from "@/lib/modules/panels";
 
@@ -18,7 +19,7 @@ export async function GET(_request: Request, context: { params: Promise<{ subjec
   if (!session || session.role !== "STUDENT") return NextResponse.json({ error: "This is for students." }, { status: 403 });
   const { subjectId } = await context.params;
   try {
-    const scheme = await apiGet<Scheme>(`/api/v1/student-portal/subjects/${encodeURIComponent(subjectId)}/scheme-of-work`);
+    const scheme = await apiGet(`/api/v1/student-portal/subjects/${encodeURIComponent(subjectId)}/scheme-of-work`, observe<Scheme>(localContracts["src/app/(app)/portals/student/scheme/[subjectId]/route.ts#990897a5"]));
     const current = scheme.topics.find((topic) => topic.weekType === "TEACHING" && !topic.isCovered)?.weekNumber;
     const facts: PanelFact[] = scheme.topics.map((topic) => [
       `Week ${topic.weekNumber}`, topic.topic,

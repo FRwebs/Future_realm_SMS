@@ -1,4 +1,4 @@
-import { internalDevicesContract, internalOwnsContract, membershipsContract, notificationsContract, partnerOverviewContract, plansContract, reportRunContract, slugCheckContract, tierChangePreviewContract, timetableDetailContract } from "@/lib/api/contracts";
+import { internalDevicesContract, myPermissionsContract, myProfileContract, parentProfileContract, platformSyncContract, schoolContextContract, internalOwnsContract, membershipsContract, notificationsContract, partnerOverviewContract, plansContract, reportRunContract, slugCheckContract, tierChangePreviewContract, timetableDetailContract } from "@/lib/api/contracts";
 
 describe("what the browser expects of the API", () => {
   it("reads all three notification feeds the bell can be pointed at", () => {
@@ -48,5 +48,19 @@ describe("what the browser expects of the API", () => {
     const run = { name: "Schools by tier", dimension: "tier", metric: "schoolCount", question: null, locked: false, periodDays: null, compare: false, suppressUnder: 3, showDropoff: false, weightChurned: false, rows: [{ label: "Premium", value: 4, suppressed: false, schools: 4, previous: null, churned: null, churnedSchools: null, schoolNames: [], dropoff: null }] };
     expect(reportRunContract.safeParse(run).success).toBe(true);
     expect(reportRunContract.safeParse({ ...run, rows: [{ label: "x" }] }).success).toBe(false);
+  });
+
+  it("reads what a page asks the server for before it draws anything, as every kind of person gets it", () => {
+    expect(schoolContextContract.safeParse({ schoolName: "Greenfield College", schoolSlug: null, currentSession: "2025/2026", currentTerm: "Second Term" }).success).toBe(true);
+    expect(schoolContextContract.safeParse({ schoolName: "Greenfield College" }).success).toBe(false);
+    const sync = { school: { name: "G", plan: "PREMIUM", tier: "PREMIUM", status: "ACTIVE", billingStatus: "PAID", trialEndsAt: null }, pendingSwitch: null, readOnly: null, platformMessage: null, windows: [], announcements: [], switchedOff: [] };
+    expect(platformSyncContract.safeParse(sync).success).toBe(true);
+    expect(platformSyncContract.safeParse({ ...sync, readOnly: { reason: "x", kind: "someday" } }).success).toBe(false);
+    expect(myPermissionsContract.safeParse({ permissions: ["attendance.view"], grouped: [{ module: "Attendance", permissions: [] }] }).success).toBe(true);
+    expect(myPermissionsContract.safeParse({ permissions: "attendance.view", grouped: [] }).success).toBe(false);
+    // The profile comes back with nulls where nothing is set, and with fields the page does not read.
+    expect(myProfileContract.safeParse({ id: "u", preferredName: null, locale: null, preferences: null, mfaEnabled: false }).success).toBe(true);
+    expect(parentProfileContract.safeParse({ parentId: "p", parentName: "Kemi Adeyemi", relationship: null, phone: "+234", email: null, address: null, canReceiveSms: true, canReceiveEmail: false, linkedChildren: [] }).success).toBe(true);
+    expect(parentProfileContract.safeParse({ parentId: "p", parentName: "K", canReceiveSms: "yes", canReceiveEmail: false, linkedChildren: [] }).success).toBe(false);
   });
 });

@@ -2,7 +2,9 @@ import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 
 import { PrintControls } from "@/components/modules/print-button";
-import { apiGet } from "@/lib/api/server";
+import { apiGet, observe } from "@/lib/api/server";
+import { localContracts } from "@/lib/api/local-contracts.zod";
+import { FeeStructureViewListSchema } from "@/lib/domain/types.zod";
 import { getServerSession } from "@/lib/auth/session";
 import type { FeeStructureView } from "@/lib/domain/types";
 import { canOpenModule } from "@/lib/auth/server-access";
@@ -37,8 +39,8 @@ export default async function PrintAllocationPage({ params, searchParams }: Page
   if (!(await canOpenModule(session, "M02"))) notFound();
 
   const [structures, school] = await Promise.all([
-    apiGet<FeeStructureView[]>("/api/v1/finance/fee-structures").catch(() => [] as FeeStructureView[]),
-    apiGet<SchoolPayload>("/api/v1/configuration/school-information").catch(() => null),
+    apiGet("/api/v1/finance/fee-structures", observe<FeeStructureView[]>(FeeStructureViewListSchema)).catch(() => [] as FeeStructureView[]),
+    apiGet("/api/v1/configuration/school-information", observe<SchoolPayload>(localContracts["src/app/print/allocation/[id]/page.tsx#81f42342"])).catch(() => null),
   ]);
 
   const lists =

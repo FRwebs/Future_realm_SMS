@@ -6,7 +6,8 @@ import { StatCard } from "@/components/data-display/stat-card";
 import { TableCard } from "@/components/data-display/table-card";
 import { ResourceActionDialog } from "@/components/forms/resource-action-dialog";
 import { ImpersonateUserDialog } from "@/components/super-admin/impersonate-user-dialog";
-import { apiGet } from "@/lib/api/server";
+import { apiGet, observe } from "@/lib/api/server";
+import { SuperAdminUserProfileSchema } from "@/lib/domain/types.zod";
 import type { SuperAdminUserProfile } from "@/lib/domain/types";
 import { deviceLabel } from "@/lib/utils/device";
 import { formatDate } from "@/lib/utils/formatters";
@@ -61,7 +62,7 @@ function Fact({ label, children }: { label: string; children: ReactNode }) {
 
 export default async function SuperAdminUserProfilePage({ params }: { params: Promise<{ userId: string }> }) {
   const { userId } = await params;
-  const user = await apiGet<SuperAdminUserProfile>(`/api/super-admin/users/${userId}`);
+  const user = await apiGet(`/api/super-admin/users/${userId}`, observe<SuperAdminUserProfile>(SuperAdminUserProfileSchema));
   const suspended = user.status === "SUSPENDED";
   const pending = !suspended && !user.lastLoginAt;
   const live = user.recentSessions.filter((session) => session.active).length;

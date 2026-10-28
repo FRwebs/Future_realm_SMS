@@ -1,4 +1,5 @@
-import { apiGet } from "@/lib/api/server";
+import { apiGet, observe } from "@/lib/api/server";
+import { localContracts } from "@/lib/api/local-contracts.zod";
 import type { TeacherWorkspaceView } from "@/lib/api/teacher-workspace";
 import { LN_API, type AddOptions, type Letterhead, type NoteData, type Overview, type SchemeData, type Section, type SubjectNotesData, type ThreadEntry } from "@/lib/modules/lesson-notes-types";
 import type { DrawerSpec, PanelRow, PanelTone, TabContent, TableCellKind, TableRow, TrackerRow } from "@/lib/modules/panels";
@@ -22,12 +23,12 @@ type Q = Record<string, string | undefined>;
 /* ───────────────────────── loaders ───────────────────────── */
 
 const withTerm = (termId?: string) => (termId ? `?termId=${encodeURIComponent(termId)}` : "");
-export const loadAddOptions = () => apiGet<AddOptions>(`${API}/curriculum/add/options`);
-export const loadSubjectNotes = (subjectId: string, termId?: string) => apiGet<SubjectNotesData>(`${API}/notes/subject/${subjectId}${withTerm(termId)}`);
-export const loadNote = (subjectId: string, week: string, termId?: string) => apiGet<NoteData>(`${API}/notes/${subjectId}/${week}${withTerm(termId)}`);
-export const loadHistory = (subjectId: string) => apiGet<History>(`${API}/notes/history/${subjectId}`);
-export const loadHistoryNote = (subjectId: string, planId: string) => apiGet<HistoryNote>(`${API}/notes/history/${subjectId}/${planId}`);
-export const loadReviewNote = (planId: string) => apiGet<ReviewNote>(`${API}/notes/review/${planId}`);
+export const loadAddOptions = () => apiGet(`${API}/curriculum/add/options`, observe<AddOptions>(localContracts["src/lib/modules/live/t17-lesson-notes.ts#90a4903f"]));
+export const loadSubjectNotes = (subjectId: string, termId?: string) => apiGet(`${API}/notes/subject/${subjectId}${withTerm(termId)}`, observe<SubjectNotesData>(localContracts["src/lib/modules/live/t17-lesson-notes.ts#a74f686b"]));
+export const loadNote = (subjectId: string, week: string, termId?: string) => apiGet(`${API}/notes/${subjectId}/${week}${withTerm(termId)}`, observe<NoteData>(localContracts["src/lib/modules/live/t17-lesson-notes.ts#82ea12b6"]));
+export const loadHistory = (subjectId: string) => apiGet(`${API}/notes/history/${subjectId}`, observe<History>(localContracts["src/lib/modules/live/t17-lesson-notes.ts#90ccd649"]));
+export const loadHistoryNote = (subjectId: string, planId: string) => apiGet(`${API}/notes/history/${subjectId}/${planId}`, observe<HistoryNote>(localContracts["src/lib/modules/live/t17-lesson-notes.ts#9ce7df73"]));
+export const loadReviewNote = (planId: string) => apiGet(`${API}/notes/review/${planId}`, observe<ReviewNote>(localContracts["src/lib/modules/live/t17-lesson-notes.ts#ad26c4fc"]));
 
 type Landing = {
   persona: string; term: { id: string; name: string; session: string; current: number | null; weeks: number; phase: string }; terms: Array<{ id: string; name: string }>; signer: { name: string } | null;
@@ -60,14 +61,14 @@ const noTerm = (title: string): TabContent => ({ title, desc: "There is no curre
 export async function teacherLessonNotesTab(tabSlug: string, me: TeacherWorkspaceView | undefined, query: Q = {}): Promise<TabContent | null | undefined> {
   try {
     if (tabSlug === "curriculum" && me) return await curriculumTab(query);
-    if (tabSlug === "notes" && me) return notesTab(await apiGet<Landing>(`${API}/notes${withTerm(query.term)}`), query);
+    if (tabSlug === "notes" && me) return notesTab(await apiGet(`${API}/notes${withTerm(query.term)}`, observe<Landing>(localContracts["src/lib/modules/live/t17-lesson-notes.ts#2be3622f"])), query);
   } catch (error) {
     if (error instanceof Error && /No term is current/i.test(error.message)) return noTerm(tabSlug === "notes" ? "Notes" : "Curriculum");
     throw error;
   }
-  if (tabSlug === "review") return reviewTab(await apiGet<Review>(`${API}/notes/review`));
+  if (tabSlug === "review") return reviewTab(await apiGet(`${API}/notes/review`, observe<Review>(localContracts["src/lib/modules/live/t17-lesson-notes.ts#e29a79fe"])));
   if (tabSlug === "coverage") {
-    const [coverage, catalogue] = await Promise.all([apiGet<Coverage>(`${API}/notes/coverage`), apiGet<CatalogueRow[]>("/api/v1/curriculum-catalogue").catch(() => [] as CatalogueRow[])]);
+    const [coverage, catalogue] = await Promise.all([apiGet(`${API}/notes/coverage`, observe<Coverage>(localContracts["src/lib/modules/live/t17-lesson-notes.ts#80e13549"])), apiGet("/api/v1/curriculum-catalogue", observe<CatalogueRow[]>(localContracts["src/lib/modules/live/t17-lesson-notes.ts#6cbb7076"])).catch(() => [] as CatalogueRow[])]);
     const content = coverageTab(coverage);
     return { ...content, launchers: [...(content.launchers ?? []), { label: "Import a curriculum from Excel", href: "/lesson-notes/coverage/import" }], rows: [...content.rows, catalogueRow(catalogue)] };
   }
@@ -77,9 +78,9 @@ export async function teacherLessonNotesTab(tabSlug: string, me: TeacherWorkspac
 /* ───────────────────────── Curriculum ───────────────────────── */
 
 async function curriculumTab(query: Q): Promise<TabContent> {
-  const overview = await apiGet<Overview>(`${API}/curriculum`);
+  const overview = await apiGet(`${API}/curriculum`, observe<Overview>(localContracts["src/lib/modules/live/t17-lesson-notes.ts#0efc2e6b"]));
   const chosen = overview.subjects.find((entry) => entry.subjectId === query.subject) ?? overview.subjects[0];
-  const scheme = chosen ? await apiGet<SchemeData>(`${API}/curriculum/${chosen.subjectId}${withTerm(query.term)}`) : null;
+  const scheme = chosen ? await apiGet(`${API}/curriculum/${chosen.subjectId}${withTerm(query.term)}`, observe<SchemeData>(localContracts["src/lib/modules/live/t17-lesson-notes.ts#65671609"])) : null;
   const week = Number(query.week);
   return {
     title: "Curriculum",
@@ -310,9 +311,9 @@ function catalogueRow(entries: CatalogueRow[]): PanelRow {
     cells: [{ kind: "name", name: entry.subject, sub: `${entry.curriculum} · ${entry.stage} · term ${entry.term}`, avatar: false }, cell(String(entry.topics), { mono: true }), cell(entry.source ?? "—"), pill(entry.own ? "Your school’s" : "Platform", entry.own ? "progress" : "neutral"), entry.own ? { kind: "action", label: "Remove", drawer: remove(entry) } : cell("")] as TableCellKind[],
   }));
   return row("1fr", [{
-    type: "table", title: "Curriculum catalogue", sub: "The outlines a teacher can start a scheme of work from. The platform’s are loaded for every school; load your own from Excel.", meta: `${entries.length} outline${entries.length === 1 ? "" : "s"}`, noun: "outline-solid", nounPlural: "outlines",
-    head: ["Subject", "Topics", "Source", "From", ""], rows, per: 8, search: "Find an outline-solid", noRowOpen: true, empty: "No outline-solid has been loaded.",
-    emptyTitle: "No outline-solid has been loaded", emptyBody: "Load the national or your own curriculum from Excel, and teachers can start a scheme from it instead of a blank page.",
+    type: "table", title: "Curriculum catalogue", sub: "The outlines a teacher can start a scheme of work from. The platform’s are loaded for every school; load your own from Excel.", meta: `${entries.length} outline${entries.length === 1 ? "" : "s"}`, noun: "outline", nounPlural: "outlines",
+    head: ["Subject", "Topics", "Source", "From", ""], rows, per: 8, search: "Find an outline", noRowOpen: true, empty: "No outline has been loaded.",
+    emptyTitle: "No outline has been loaded", emptyBody: "Load the national or your own curriculum from Excel, and teachers can start a scheme from it instead of a blank page.",
   }]);
 }
 

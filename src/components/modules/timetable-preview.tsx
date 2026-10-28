@@ -350,7 +350,7 @@ export function TimetablePreview({
 
       {panel === "publish" ? (
         <section className={cn(CARD, "p-[18px] print:hidden")}>
-          <h3 className="text-[12.5px] font-semibold text-[#0D2315]">Publish {version.name}?</h3>
+          <h2 className="text-[12.5px] font-semibold text-[#0D2315]">Publish {version.name}?</h2>
           <p className="mt-[4px] text-[11px] leading-normal text-[#5E6D64]">
             It replaces the running timetable when it takes effect. The one it replaces is archived and can be published again. A timetable with a teacher in two rooms in one period is refused, and the answer names who.
           </p>
@@ -413,7 +413,7 @@ export function TimetablePreview({
 
       {panel === "copy" ? (
         <section className={cn(CARD, "p-[18px] print:hidden")}>
-          <h3 className="text-[12.5px] font-semibold text-[#0D2315]">Make an editable draft from {version.name}</h3>
+          <h2 className="text-[12.5px] font-semibold text-[#0D2315]">Make an editable draft from {version.name}</h2>
           <p className="mt-[4px] text-[11px] leading-normal text-[#5E6D64]">The running timetable is not changed. The draft is yours to edit and publish when it is ready.</p>
           <input
             value={copyName}

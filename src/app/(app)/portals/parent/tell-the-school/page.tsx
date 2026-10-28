@@ -3,7 +3,8 @@ import type { Route } from "next";
 
 import { AccessDenied } from "@/components/feedback/access-denied";
 import { TellTheSchool, type FamilySubmission, type SubmissionOptions } from "@/components/portals/tell-the-school";
-import { apiGet } from "@/lib/api/server";
+import { apiGet, observe } from "@/lib/api/server";
+import { localContracts } from "@/lib/api/local-contracts.zod";
 import { canAccessPath, getDefaultPathForRole } from "@/lib/auth/roles";
 import { getServerSession } from "@/lib/auth/session";
 
@@ -13,8 +14,8 @@ export default async function TellTheSchoolPage() {
   if (!canAccessPath(session.role, "/portals/parent")) return <AccessDenied backHref={getDefaultPathForRole(session.role)} />;
 
   const [options, submissions] = await Promise.all([
-    apiGet<SubmissionOptions>("/api/v1/parent-portal/submissions/options"),
-    apiGet<FamilySubmission[]>("/api/v1/parent-portal/submissions"),
+    apiGet("/api/v1/parent-portal/submissions/options", observe<SubmissionOptions>(localContracts["src/app/(app)/portals/parent/tell-the-school/page.tsx#27e541e9"])),
+    apiGet("/api/v1/parent-portal/submissions", observe<FamilySubmission[]>(localContracts["src/app/(app)/portals/parent/tell-the-school/page.tsx#07dde341"])),
   ]);
 
   return (

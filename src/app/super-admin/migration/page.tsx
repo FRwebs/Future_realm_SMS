@@ -7,7 +7,9 @@ import { StatCard } from "@/components/data-display/stat-card";
 import { TableCard } from "@/components/data-display/table-card";
 import { FilterToolbar } from "@/components/filters/filter-toolbar";
 import { ResourceActionDialog } from "@/components/forms/resource-action-dialog";
-import { apiGet } from "@/lib/api/server";
+import { apiGet, observe } from "@/lib/api/server";
+import { localContracts } from "@/lib/api/local-contracts.zod";
+import { MigrationJobRowListSchema, MigrationSourceAdapterRowListSchema, SuperAdminInternalMemberListSchema, SuperAdminSchoolRowListSchema, SuperAdminSetupProgressSchema } from "@/lib/domain/types.zod";
 import type {
   MigrationJobRow,
   MigrationSourceAdapterRow,
@@ -37,7 +39,7 @@ function tabHref(tab: string) {
 }
 
 async function loadJobs() {
-  return apiGet<MigrationJobRow[]>("/api/super-admin/migration/jobs");
+  return apiGet("/api/super-admin/migration/jobs", observe<MigrationJobRow[]>(MigrationJobRowListSchema));
 }
 
 export default async function MigrationPage({ searchParams }: { searchParams?: Promise<Record<string, string | undefined>> }) {
@@ -49,7 +51,7 @@ export default async function MigrationPage({ searchParams }: { searchParams?: P
 
   const [jobs, setupProgress] = await Promise.all([
     loadJobs(),
-    apiGet<SuperAdminSetupProgress>("/api/super-admin/migration/setup-progress")
+    apiGet("/api/super-admin/migration/setup-progress", observe<SuperAdminSetupProgress>(SuperAdminSetupProgressSchema))
   ]);
   const invitations = jobs.filter((job) => job.status === "INVITED");
 
@@ -81,8 +83,8 @@ export default async function MigrationPage({ searchParams }: { searchParams?: P
 
 async function NewMigrationJobAction() {
   const [schools, specialists] = await Promise.all([
-    apiGet<SuperAdminSchoolRow[]>("/api/super-admin/schools?limit=100"),
-    apiGet<SuperAdminInternalMember[]>("/api/super-admin/internal-team")
+    apiGet("/api/super-admin/schools?limit=100", observe<SuperAdminSchoolRow[]>(SuperAdminSchoolRowListSchema)),
+    apiGet("/api/super-admin/internal-team", observe<SuperAdminInternalMember[]>(SuperAdminInternalMemberListSchema))
   ]);
 
   const schoolOptions = [
@@ -165,8 +167,8 @@ type Retention = {
 
 async function RetentionTable() {
   const [retention, admins] = await Promise.all([
-    apiGet<Retention>("/api/super-admin/migration/retention"),
-    apiGet<SuperAdminInternalMember[]>("/api/super-admin/internal-team")
+    apiGet("/api/super-admin/migration/retention", observe<Retention>(localContracts["src/app/super-admin/migration/page.tsx#c7199d9e"])),
+    apiGet("/api/super-admin/internal-team", observe<SuperAdminInternalMember[]>(SuperAdminInternalMemberListSchema))
   ]);
   const approvers = admins.filter((member) => member.status === "ACTIVE" && ["SUPER_ADMIN", "PLATFORM_OWNER"].includes(member.role)).map((member) => ({ label: member.name, value: member.id }));
   const tones = {
@@ -216,7 +218,7 @@ async function RetentionTable() {
 }
 
 async function SetupProgressTab({ progress }: { progress: SuperAdminSetupProgress }) {
-  const team = await apiGet<SuperAdminInternalMember[]>("/api/super-admin/internal-team");
+  const team = await apiGet("/api/super-admin/internal-team", observe<SuperAdminInternalMember[]>(SuperAdminInternalMemberListSchema));
   const managerOptions = team.filter((member) => member.status === "ACTIVE").map((member) => ({ label: `${member.name} (${member.role.replaceAll("_", " ")})`, value: member.email }));
   const totalSchools = progress.steps[0]?.reached ?? 0;
   const fullyComplete = progress.steps.length > 0 ? Math.min(...progress.steps.map((s) => s.completed)) : 0;
@@ -307,8 +309,8 @@ async function InvitationsTab({ params }: { params: Record<string, string | unde
   const query = new URLSearchParams();
   for (const key of ["schoolId", "role", "state", "age"]) if (params[key]) query.set(key, params[key] as string);
   const [data, schools] = await Promise.all([
-    apiGet<Invitations>(`/api/super-admin/migration/invitations?${query.toString()}`),
-    apiGet<SuperAdminSchoolRow[]>("/api/super-admin/schools?limit=100")
+    apiGet(`/api/super-admin/migration/invitations?${query.toString()}`, observe<Invitations>(localContracts["src/app/super-admin/migration/page.tsx#9b69a35a"])),
+    apiGet("/api/super-admin/schools?limit=100", observe<SuperAdminSchoolRow[]>(SuperAdminSchoolRowListSchema))
   ]);
   const reasonChoice = (field: string, label: string, reasons: string[]) => ({ field, label, options: reasons.map((reason) => ({ label: reason, value: reason })) });
 
@@ -388,7 +390,7 @@ async function InvitationsTab({ params }: { params: Record<string, string | unde
 }
 
 async function SourceAdaptersTab() {
-  const adapters = await apiGet<MigrationSourceAdapterRow[]>("/api/super-admin/migration/source-adapters");
+  const adapters = await apiGet("/api/super-admin/migration/source-adapters", observe<MigrationSourceAdapterRow[]>(MigrationSourceAdapterRowListSchema));
   const fields = (adapter?: MigrationSourceAdapterRow) => [
     { name: "name", label: "Source system", required: true, defaultValue: adapter?.name ?? "", placeholder: "e.g. Edves, a spreadsheet register" },
     { name: "formats", label: "Accepted formats", defaultValue: adapter?.formats ?? "", placeholder: "e.g. CSV, XLSX, SQL dump" },

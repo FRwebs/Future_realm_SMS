@@ -1,13 +1,17 @@
 "use client";
 
-import { useState } from "react";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useEffect, useMemo, useState } from "react";
+import { useForm } from "react-hook-form";
 import { useRouter } from "next/navigation";
 import { createPortal } from "react-dom";
+import { z } from "zod";
 import { Check, CheckCircle2, Mail, Plus, ShieldCheck, X } from "lucide-react";
 
 import { InlineNotice, useNotice } from "@/components/ui/inline-notice";
 import type { SuperAdminPlanRow } from "@/lib/domain/types";
 import { formatCurrency } from "@/lib/utils/formatters";
+import { useFocusTrap } from "@/lib/ui/focus";
 
 type Tone = "idle" | "good" | "warn" | "bad";
 
@@ -25,6 +29,45 @@ const TONE_COLORS: Record<Tone, { bg: string; fg: string }> = {
   good: { bg: "var(--color-success-dim)", fg: "var(--color-success)" },
   warn: { bg: "var(--color-warning-dim)", fg: "var(--color-warning)" },
   bad: { bg: "var(--color-danger-dim)", fg: "var(--color-danger)" },
+};
+
+const wizardSchema = z.object({
+  schoolName: z.string().trim().min(2, "Enter the school's full name."),
+  slug: z.string(),
+  country: z.string(),
+  state: z.string(),
+  city: z.string(),
+  lga: z.string(),
+  address: z.string(),
+  schoolType: z.string(),
+  curriculum: z.string(),
+  levels: z.record(z.string(), z.boolean()),
+  studentCount: z.string(),
+  cacNumber: z.string(),
+  firstName: z.string().trim().min(1, "Enter the administrator's first name."),
+  lastName: z.string().trim().min(1, "Enter the administrator's last name."),
+  position: z.string(),
+  gender: z.string(),
+  email: z.string().trim().min(1, "Enter the administrator's email.").email("That does not look like an email address."),
+  phone: z.string(),
+  sendChannels: z.record(z.string(), z.boolean()),
+  tier: z.string(),
+  accountType: z.string(),
+  trialEndDate: z.string(),
+  billingCycle: z.string(),
+  leadSource: z.string(),
+  partnerName: z.string(),
+  accountManager: z.string(),
+  notificationCredits: z.string(),
+  internalNote: z.string(),
+});
+type WizardValues = z.infer<typeof wizardSchema>;
+
+/** What each step asks for, so Continue checks only the part of the form the person is looking at. */
+const STEP_FIELDS: Record<number, Array<keyof WizardValues>> = {
+  1: ["schoolName"],
+  2: ["firstName", "lastName", "email"],
+  3: [],
 };
 
 const AUTO_ITEMS = [
@@ -111,40 +154,34 @@ export function AddSchoolWizard({ plans }: { plans: SuperAdminPlanRow[] }) {
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState<{ id: string; slug: string } | null>(null);
 
-  // Step 1 — school details
-  const [schoolName, setSchoolName] = useState("");
-  const [slug, setSlug] = useState("");
-  const [country, setCountry] = useState("Nigeria");
-  const [state, setState] = useState("Lagos");
-  const [city, setCity] = useState("");
-  const [lga, setLga] = useState("");
-  const [address, setAddress] = useState("");
-  const [schoolType, setSchoolType] = useState("Private");
-  const [curriculum, setCurriculum] = useState("Nigerian NERDC");
-  const [levels, setLevels] = useState<Record<string, boolean>>({ Nursery: true, Primary: true, JSS: true, SSS: false });
-  const [studentCount, setStudentCount] = useState("");
-  const [cacNumber, setCacNumber] = useState("");
-
-  // Step 2 — primary administrator
-  const [firstName, setFirstName] = useState("");
-  const [lastName, setLastName] = useState("");
-  const [position, setPosition] = useState("Proprietor / School Owner");
-  const [gender, setGender] = useState("Female");
-  const [email, setEmail] = useState("");
-  const [phone, setPhone] = useState("");
-  const [sendChannels, setSendChannels] = useState<Record<string, boolean>>({ Email: true, WhatsApp: true, SMS: false });
-
-  // Step 3 — commercial & assignment
   const defaultPlan = plans.find((plan) => plan.name === "Standard") ?? plans[0];
-  const [tier, setTier] = useState(defaultPlan?.plan ?? "BASIC");
-  const [accountType, setAccountType] = useState("Trial");
-  const [trialEndDate, setTrialEndDate] = useState("");
-  const [billingCycle, setBillingCycle] = useState("Per semester");
-  const [leadSource, setLeadSource] = useState("Direct");
-  const [partnerName, setPartnerName] = useState("None");
-  const [accountManager, setAccountManager] = useState("");
-  const [notificationCredits, setNotificationCredits] = useState("2,000 credits");
-  const [internalNote, setInternalNote] = useState("");
+  const defaults = useMemo<WizardValues>(
+    () => ({
+      schoolName: "", slug: "", country: "Nigeria", state: "Lagos", city: "", lga: "", address: "", schoolType: "Private", curriculum: "Nigerian NERDC",
+      levels: { Nursery: true, Primary: true, JSS: true, SSS: false }, studentCount: "", cacNumber: "",
+      firstName: "", lastName: "", position: "Proprietor / School Owner", gender: "Female", email: "", phone: "", sendChannels: { Email: true, WhatsApp: true, SMS: false },
+      tier: defaultPlan?.plan ?? "BASIC", accountType: "Trial", trialEndDate: "", billingCycle: "Per semester", leadSource: "Direct", partnerName: "None",
+      accountManager: "", notificationCredits: "2,000 credits", internalNote: "",
+    }),
+    [defaultPlan?.plan],
+  );
+  const form = useForm<WizardValues>({ resolver: zodResolver(wizardSchema), defaultValues: defaults });
+  const { schoolName, slug, levels, email, phone, firstName, lastName, sendChannels, tier, accountType, trialEndDate, accountManager, internalNote, address, city, state, country } = form.watch();
+  const panel = useFocusTrap<HTMLDivElement>(open);
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") closeWizard();
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  });
+  /** A field's registration, marked invalid when the form has something to say about it. */
+  const field = (name: keyof WizardValues) => ({ ...form.register(name), "aria-invalid": Boolean(form.formState.errors[name]) });
+  const problem = (name: keyof WizardValues) => {
+    const message = form.formState.errors[name]?.message;
+    return message ? <p role="alert" className="mt-[5px] text-[10.5px] text-danger">{String(message)}</p> : null;
+  };
 
   function openWizard() {
     setOpen(true);
@@ -157,49 +194,11 @@ export function AddSchoolWizard({ plans }: { plans: SuperAdminPlanRow[] }) {
   }
 
   function resetForm() {
-    setSchoolName("");
-    setSlug("");
-    setCountry("Nigeria");
-    setState("Lagos");
-    setCity("");
-    setLga("");
-    setAddress("");
-    setSchoolType("Private");
-    setCurriculum("Nigerian NERDC");
-    setLevels({ Nursery: true, Primary: true, JSS: true, SSS: false });
-    setStudentCount("");
-    setCacNumber("");
-    setFirstName("");
-    setLastName("");
-    setPosition("Proprietor / School Owner");
-    setGender("Female");
-    setEmail("");
-    setPhone("");
-    setSendChannels({ Email: true, WhatsApp: true, SMS: false });
-    setTier(defaultPlan?.plan ?? "BASIC");
-    setAccountType("Trial");
-    setTrialEndDate("");
-    setBillingCycle("Per semester");
-    setLeadSource("Direct");
-    setPartnerName("None");
-    setAccountManager("");
-    setNotificationCredits("2,000 credits");
-    setInternalNote("");
+    form.reset(defaults);
   }
 
   async function handleCreate() {
     const adminName = `${firstName.trim()} ${lastName.trim()}`.trim();
-
-    if (schoolName.trim().length < 2) {
-      notice.warning("The school needs a name", "Enter the school's full name to continue.");
-      setStep(1);
-      return;
-    }
-    if (adminName.length < 2 || !email.trim()) {
-      notice.warning("The administrator's details are needed", "Enter the primary administrator's name and email.");
-      setStep(2);
-      return;
-    }
 
     notice.clear();
     setSubmitting(true);
@@ -251,7 +250,15 @@ export function AddSchoolWizard({ plans }: { plans: SuperAdminPlanRow[] }) {
     }
   }
 
-  function handleNext() {
+  async function handleNext() {
+    // Each step is checked as it is left, and a step that is not right is shown, with the field that needs attention.
+    const ready = await form.trigger(STEP_FIELDS[step]);
+    if (!ready) {
+      const first = STEP_FIELDS[step]!.map((name) => form.formState.errors[name]?.message).find(Boolean);
+      notice.warning(step === 1 ? "The school needs a name" : "The administrator's details are needed", String(first ?? "Check the highlighted fields."));
+      return;
+    }
+    notice.clear();
     if (step >= 3) {
       void handleCreate();
       return;
@@ -290,7 +297,7 @@ export function AddSchoolWizard({ plans }: { plans: SuperAdminPlanRow[] }) {
 
       {open && typeof document !== "undefined" ? createPortal(
         <div className="fixed inset-0 z-(--z-modal) flex items-start justify-center overflow-y-auto bg-ink/55 p-6 backdrop-blur-xs">
-          <div className="modal-surface my-4 w-full max-w-[820px] overflow-hidden rounded-[18px] bg-white shadow-[0_50px_100px_-40px_rgba(13,35,21,0.6)]">
+          <div ref={panel} role="dialog" aria-modal="true" aria-label="Onboard a school" tabIndex={-1} className="modal-surface my-4 w-full max-w-[820px] overflow-hidden rounded-[18px] bg-white shadow-[0_50px_100px_-40px_rgba(13,35,21,0.6)] outline-hidden">
             <div className="relative overflow-hidden px-[23.5px] py-[20px]" style={{ background: "#0d2315" }}>
               <svg className="pointer-events-none absolute inset-0 h-full w-full opacity-50" viewBox="0 0 800 200" preserveAspectRatio="xMidYMid slice">
                 <circle cx="720" cy="20" r="130" stroke="rgba(255,255,255,0.07)" strokeWidth="1" fill="none" />
@@ -350,15 +357,15 @@ export function AddSchoolWizard({ plans }: { plans: SuperAdminPlanRow[] }) {
                 <div className="grid grid-cols-2 gap-x-[16px] gap-y-[13.5px]">
                   <div className="col-span-2">
                     <Field label="School name">
-                      <input value={schoolName} onChange={(e) => setSchoolName(e.target.value)} placeholder="Power House School" className={inputClass} />
+                      <input {...field("schoolName")} placeholder="Power House School" className={inputClass} />
                     </Field>
+                    {problem("schoolName")}
                   </div>
                   <div className="col-span-2">
                     <Field label="Short name — creates the permanent web address">
                       <div className="flex items-center rounded-[9px] border-[1.5px] border-[#dee8e2] px-[11.5px] py-[10px] focus-within:border-[#12796a]">
                         <input
-                          value={slug}
-                          onChange={(e) => setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""))}
+                          {...form.register("slug", { onChange: (e) => form.setValue("slug", e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "")) })}
                           placeholder="powerhouse"
                           className="min-w-0 w-40 border-none bg-transparent text-[12px] font-semibold text-[#0d2315] outline-hidden"
                         />
@@ -374,14 +381,14 @@ export function AddSchoolWizard({ plans }: { plans: SuperAdminPlanRow[] }) {
                     <p className="mt-[5.5px] text-[10px] text-[#5f6e65]">{sl.note}</p>
                   </div>
                   <Field label="Country">
-                    <select value={country} onChange={(e) => setCountry(e.target.value)} className={inputClass}>
+                    <select {...field("country")} className={inputClass}>
                       <option>Nigeria</option>
                       <option>Ghana</option>
                       <option>Kenya</option>
                     </select>
                   </Field>
                   <Field label="State">
-                    <select value={state} onChange={(e) => setState(e.target.value)} className={inputClass}>
+                    <select {...field("state")} className={inputClass}>
                       <option>Lagos</option>
                       <option>FCT Abuja</option>
                       <option>Kano</option>
@@ -389,18 +396,18 @@ export function AddSchoolWizard({ plans }: { plans: SuperAdminPlanRow[] }) {
                     </select>
                   </Field>
                   <Field label="City">
-                    <input value={city} onChange={(e) => setCity(e.target.value)} placeholder="Ikeja" className={inputClass} />
+                    <input {...field("city")} placeholder="Ikeja" className={inputClass} />
                   </Field>
                   <Field label="LGA">
-                    <input value={lga} onChange={(e) => setLga(e.target.value)} placeholder="Ikeja" className={inputClass} />
+                    <input {...field("lga")} placeholder="Ikeja" className={inputClass} />
                   </Field>
                   <div className="col-span-2">
                     <Field label="Registered address">
-                      <input value={address} onChange={(e) => setAddress(e.target.value)} placeholder="14 Aminu Kano Crescent, Wuse II" className={inputClass} />
+                      <input {...field("address")} placeholder="14 Aminu Kano Crescent, Wuse II" className={inputClass} />
                     </Field>
                   </div>
                   <Field label="School type">
-                    <select value={schoolType} onChange={(e) => setSchoolType(e.target.value)} className={inputClass}>
+                    <select {...field("schoolType")} className={inputClass}>
                       <option>Private</option>
                       <option>Mission / Faith-based</option>
                       <option>NGO</option>
@@ -409,7 +416,7 @@ export function AddSchoolWizard({ plans }: { plans: SuperAdminPlanRow[] }) {
                     </select>
                   </Field>
                   <Field label="Curriculum">
-                    <select value={curriculum} onChange={(e) => setCurriculum(e.target.value)} className={inputClass}>
+                    <select {...field("curriculum")} className={inputClass}>
                       <option>Nigerian NERDC</option>
                       <option>British</option>
                       <option>American</option>
@@ -421,15 +428,15 @@ export function AddSchoolWizard({ plans }: { plans: SuperAdminPlanRow[] }) {
                     <p className="mb-[8px] text-[10.5px] font-semibold text-[#435048]">Levels operated</p>
                     <div className="flex flex-wrap gap-[8px]">
                       {["Nursery", "Primary", "JSS", "SSS"].map((name) => (
-                        <Chip key={name} label={name} on={!!levels[name]} onToggle={() => setLevels((cur) => ({ ...cur, [name]: !cur[name] }))} />
+                        <Chip key={name} label={name} on={!!levels[name]} onToggle={() => form.setValue("levels", { ...levels, [name]: !levels[name] })} />
                       ))}
                     </div>
                   </div>
                   <Field label="Estimated student count">
-                    <input value={studentCount} onChange={(e) => setStudentCount(e.target.value)} placeholder="480" className={inputClass} />
+                    <input {...field("studentCount")} placeholder="480" className={inputClass} />
                   </Field>
                   <Field label="CAC number" hint="optional">
-                    <input value={cacNumber} onChange={(e) => setCacNumber(e.target.value)} placeholder="RC-1284772" className={inputClass} />
+                    <input {...field("cacNumber")} placeholder="RC-1284772" className={inputClass} />
                   </Field>
                 </div>
               ) : null}
@@ -443,13 +450,15 @@ export function AddSchoolWizard({ plans }: { plans: SuperAdminPlanRow[] }) {
                     </p>
                   </div>
                   <Field label="First name">
-                    <input value={firstName} onChange={(e) => setFirstName(e.target.value)} placeholder="Hauwa" className={inputClass} />
+                    <input {...field("firstName")} placeholder="Hauwa" className={inputClass} />
+                    {problem("firstName")}
                   </Field>
                   <Field label="Last name">
-                    <input value={lastName} onChange={(e) => setLastName(e.target.value)} placeholder="Ibrahim" className={inputClass} />
+                    <input {...field("lastName")} placeholder="Ibrahim" className={inputClass} />
+                    {problem("lastName")}
                   </Field>
                   <Field label="Position">
-                    <select value={position} onChange={(e) => setPosition(e.target.value)} className={inputClass}>
+                    <select {...field("position")} className={inputClass}>
                       <option>Proprietor / School Owner</option>
                       <option>Director</option>
                       <option>Principal</option>
@@ -458,15 +467,16 @@ export function AddSchoolWizard({ plans }: { plans: SuperAdminPlanRow[] }) {
                     </select>
                   </Field>
                   <Field label="Gender">
-                    <select value={gender} onChange={(e) => setGender(e.target.value)} className={inputClass}>
+                    <select {...field("gender")} className={inputClass}>
                       <option>Female</option>
                       <option>Male</option>
                     </select>
                   </Field>
                   <div>
                     <Field label="Email address">
-                      <input value={email} onChange={(e) => setEmail(e.target.value)} type="email" placeholder="admin@powerhouse.edu.ng" className={inputClass} />
+                      <input {...field("email")} type="email" placeholder="admin@powerhouse.edu.ng" className={inputClass} />
                     </Field>
+                    {problem("email")}
                     <div className="mt-[6.5px] flex items-center gap-[6.5px]">
                       <Mail className="h-3 w-3 shrink-0" style={{ color: "#12796a" }} />
                       <p className="text-[10px] font-medium" style={{ color: "#17604f" }}>Used to sign in and receive the invitation link</p>
@@ -474,7 +484,7 @@ export function AddSchoolWizard({ plans }: { plans: SuperAdminPlanRow[] }) {
                   </div>
                   <div>
                     <Field label="Phone number">
-                      <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+234 803 442 1180" className={inputClass} />
+                      <input {...field("phone")} placeholder="+234 803 442 1180" className={inputClass} />
                     </Field>
                     <p className="mt-[6.5px] text-[10px] text-[#5f6e65]">WhatsApp and SMS notice sent alongside the email</p>
                   </div>
@@ -482,7 +492,7 @@ export function AddSchoolWizard({ plans }: { plans: SuperAdminPlanRow[] }) {
                     <p className="mb-[8px] text-[10.5px] font-semibold text-[#435048]">Send the invitation</p>
                     <div className="flex flex-wrap gap-[8px]">
                       {["Email", "WhatsApp", "SMS"].map((name) => (
-                        <Chip key={name} label={name} on={!!sendChannels[name]} onToggle={() => setSendChannels((cur) => ({ ...cur, [name]: !cur[name] }))} />
+                        <Chip key={name} label={name} on={!!sendChannels[name]} onToggle={() => form.setValue("sendChannels", { ...sendChannels, [name]: !sendChannels[name] })} />
                       ))}
                     </div>
                   </div>
@@ -492,7 +502,7 @@ export function AddSchoolWizard({ plans }: { plans: SuperAdminPlanRow[] }) {
               {step === 3 ? (
                 <div className="grid grid-cols-2 gap-x-[16px] gap-y-[13.5px]">
                   <Field label="Subscription tier" hint="Live rate card">
-                    <select value={tier} onChange={(e) => setTier(e.target.value)} className={inputClass}>
+                    <select {...field("tier")} className={inputClass}>
                       {plans.length === 0 ? (
                         <option value="BASIC">No active plans configured</option>
                       ) : (
@@ -505,17 +515,17 @@ export function AddSchoolWizard({ plans }: { plans: SuperAdminPlanRow[] }) {
                     </select>
                   </Field>
                   <Field label="Account type">
-                    <select value={accountType} onChange={(e) => setAccountType(e.target.value)} className={inputClass}>
+                    <select {...field("accountType")} className={inputClass}>
                       <option>Trial</option>
                       <option>Paid</option>
                       <option>Pilot</option>
                     </select>
                   </Field>
                   <Field label="Trial end date">
-                    <input value={trialEndDate} onChange={(e) => setTrialEndDate(e.target.value)} type="date" className={inputClass} />
+                    <input {...field("trialEndDate")} type="date" className={inputClass} />
                   </Field>
                   <Field label="Billing cycle">
-                    <select value={billingCycle} onChange={(e) => setBillingCycle(e.target.value)} className={inputClass}>
+                    <select {...field("billingCycle")} className={inputClass}>
                       <option>Per semester</option>
                       <option>Trial term</option>
                       <option>NGO / Mission discount</option>
@@ -523,7 +533,7 @@ export function AddSchoolWizard({ plans }: { plans: SuperAdminPlanRow[] }) {
                   </Field>
                   <div>
                     <Field label="How we got this school">
-                      <select value={leadSource} onChange={(e) => setLeadSource(e.target.value)} className={inputClass}>
+                      <select {...field("leadSource")} className={inputClass}>
                         <option>Direct</option>
                         <option>Partner</option>
                         <option>Website</option>
@@ -533,21 +543,21 @@ export function AddSchoolWizard({ plans }: { plans: SuperAdminPlanRow[] }) {
                     <p className="mt-[6.5px] text-[10px] text-[#5f6e65]">Drives partner commission — recorded on the deal</p>
                   </div>
                   <Field label="Partner name">
-                    <select value={partnerName} onChange={(e) => setPartnerName(e.target.value)} className={inputClass}>
+                    <select {...field("partnerName")} className={inputClass}>
                       <option>None</option>
                       <option>GSR Education Partners</option>
                       <option>Northern Schools Alliance</option>
                     </select>
                   </Field>
                   <Field label="Assigned account manager">
-                    <input value={accountManager} onChange={(e) => setAccountManager(e.target.value)} placeholder="Search team member" className={inputClass} />
+                    <input {...field("accountManager")} placeholder="Search team member" className={inputClass} />
                   </Field>
                   <Field label="Notification credit allowance">
-                    <input value={notificationCredits} onChange={(e) => setNotificationCredits(e.target.value)} className={inputClass} />
+                    <input {...field("notificationCredits")} className={inputClass} />
                   </Field>
                   <div className="col-span-2">
                     <Field label="Internal note" hint="visible to the platform team only">
-                      <input value={internalNote} onChange={(e) => setInternalNote(e.target.value)} placeholder="Deal closed 12 Aug · 3-year agreement signed by the proprietor" className={inputClass} />
+                      <input {...field("internalNote")} placeholder="Deal closed 12 Aug · 3-year agreement signed by the proprietor" className={inputClass} />
                     </Field>
                   </div>
                   <div className="col-span-2 rounded-xl border border-[#e6eee9] bg-[#f7faf8] px-[16px] py-4">
@@ -576,7 +586,7 @@ export function AddSchoolWizard({ plans }: { plans: SuperAdminPlanRow[] }) {
                 </button>
                 <button
                   type="button"
-                  onClick={handleNext}
+                  onClick={() => void handleNext()}
                   disabled={submitting}
                   className="btn-primary rounded-[8px] px-[17px] py-[10px] text-[11.5px] disabled:cursor-not-allowed disabled:opacity-60"
                 >

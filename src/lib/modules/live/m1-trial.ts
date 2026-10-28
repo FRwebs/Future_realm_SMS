@@ -1,4 +1,5 @@
-import { apiGet } from "@/lib/api/server";
+import { apiGet, observe } from "@/lib/api/server";
+import { localContracts } from "@/lib/api/local-contracts.zod";
 import type { DrawerSpec, PanelRow } from "@/lib/modules/panels";
 import { formatDay } from "@/lib/date-format";
 
@@ -35,7 +36,7 @@ const startDrawer = (days: number): DrawerSpec => ({
 
 export type SampleStatus = { loaded: false } | { loaded: true; students: number; days: number; subjects: number };
 
-export const loadSample = () => apiGet<SampleStatus>("/api/v1/onboarding/sample").catch(() => ({ loaded: false }) as SampleStatus);
+export const loadSample = () => apiGet("/api/v1/onboarding/sample", observe<SampleStatus>(localContracts["src/lib/modules/live/m1-trial.ts#d2d7395b"])).catch(() => ({ loaded: false }) as SampleStatus);
 
 /** Removing the sample class: what goes, and what is certain to stay. */
 export const clearSampleDrawer = (sample: Extract<SampleStatus, { loaded: true }>): DrawerSpec => ({
@@ -62,7 +63,7 @@ export async function sampleRow(): Promise<PanelRow | null> {
 }
 
 export async function trialRow(): Promise<PanelRow | null> {
-  const status = await apiGet<TrialStatus>("/api/v1/onboarding/trial").catch(() => null);
+  const status = await apiGet("/api/v1/onboarding/trial", observe<TrialStatus>(localContracts["src/lib/modules/live/m1-trial.ts#50948c50"])).catch(() => null);
   if (!status || status.state === "none") return null;
   if (status.state === "not-started") {
     return { cols: "1fr", panels: [{ type: "note", tone: "attention", icon: CLOCK, title: "Your free trial has not started", body: `Your school is set up and ready to use. Your ${status.days} free days begin when you start them — nothing is counted until then.`, acts: [{ label: "Start my free trial", primary: true, drawer: startDrawer(status.days) }] }] };

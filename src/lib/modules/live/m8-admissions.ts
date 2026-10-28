@@ -1,4 +1,5 @@
-import { apiGet } from "@/lib/api/server";
+import { apiGet, observe } from "@/lib/api/server";
+import { localContracts } from "@/lib/api/local-contracts.zod";
 import { dayLabel, dayLong, plural } from "@/lib/modules/live/m7-format";
 import { addApplicationDrawer, addSessionDrawer, advanceDrawer, applicantContactDrawer, bulkDeclineDrawer, bulkOfferDrawer, declineDrawer, reopenDrawer, requestDocumentsDrawer, scheduleDrawer, SR } from "@/lib/modules/live/m8-forms";
 import type { AdmissionOptions, AdmissionsBoard, Applicant, ApplicantRow, DiarySession, Stage } from "@/lib/modules/live/m8-types";
@@ -15,10 +16,10 @@ export const STAGES: Stage[] = ["Enquiry", "Applied", "Assessed", "Offered", "Ac
 const STAGE_SUB = ["Not yet applied", "Form and fee in", "Screening scored", "Letter issued", "Deposit received", "On the registry"];
 const STAGE_TONE: Record<string, PanelTone> = { Enquiry: "neutral", Applied: "progress", Assessed: "progress", Offered: "submitted", Accepted: "positive", Enrolled: "positive", Declined: "negative", Waitlisted: "attention" };
 
-export const loadBoard = () => apiGet<AdmissionsBoard>(`${SR}/admissions`);
-export const loadAdmissionOptions = () => apiGet<AdmissionOptions>(`${SR}/admissions/options`);
-export const loadApplicant = (id: string) => apiGet<Applicant>(`${SR}/admissions/${encodeURIComponent(id)}`);
-export const loadPipeline = (state: string) => apiGet<{ state: string; rows: ApplicantRow[]; cycles: AdmissionsBoard["cycles"]; cycle: string }>(`${SR}/admissions/pipeline/${encodeURIComponent(state)}`);
+export const loadBoard = () => apiGet(`${SR}/admissions`, observe<AdmissionsBoard>(localContracts["src/lib/modules/live/m8-admissions.ts#b6c1bdb6"]));
+export const loadAdmissionOptions = () => apiGet(`${SR}/admissions/options`, observe<AdmissionOptions>(localContracts["src/lib/modules/live/m8-admissions.ts#b8c5934b"]));
+export const loadApplicant = (id: string) => apiGet(`${SR}/admissions/${encodeURIComponent(id)}`, observe<Applicant>(localContracts["src/lib/modules/live/m8-admissions.ts#1560dc40"]));
+export const loadPipeline = (state: string) => apiGet(`${SR}/admissions/pipeline/${encodeURIComponent(state)}`, observe<{ state: string; rows: ApplicantRow[]; cycles: AdmissionsBoard["cycles"]; cycle: string }>(localContracts["src/lib/modules/live/m8-admissions.ts#14ccb53d"]));
 
 export const applicantHref = (id: string) => `/student-records/admissions/${encodeURIComponent(id)}`;
 export const pipelineHref = (state: string) => `/student-records/admissions/pipeline/${encodeURIComponent(state)}`;

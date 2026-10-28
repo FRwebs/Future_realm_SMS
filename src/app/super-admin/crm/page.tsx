@@ -3,7 +3,8 @@ import Link from "next/link";
 import { DetailTabs } from "@/components/data-display/detail-tabs";
 import { TableCard } from "@/components/data-display/table-card";
 import { ResourceActionDialog } from "@/components/forms/resource-action-dialog";
-import { apiGet } from "@/lib/api/server";
+import { apiGet, observe } from "@/lib/api/server";
+import { localContracts } from "@/lib/api/local-contracts.zod";
 import { formatCurrency, formatDate } from "@/lib/utils/formatters";
 
 type CrmAccount = {
@@ -111,7 +112,7 @@ function tabHref(tab: string) {
 
 export default async function SuperAdminCrmPage({ searchParams }: { searchParams?: Promise<{ tab?: string }> }) {
   const { tab = "accounts" } = searchParams ? await searchParams : {};
-  const data = await apiGet<CrmView>("/api/super-admin/crm");
+  const data = await apiGet("/api/super-admin/crm", observe<CrmView>(localContracts["src/app/super-admin/crm/page.tsx#d2105b34"]));
   const atRisk = (data.accounts ?? []).filter((account) => account.healthScore < 60).length;
   const pipelineValue = (data.leads ?? []).filter((lead) => lead.stage !== "WON" && lead.stage !== "LOST").reduce((sum, lead) => sum + Number(lead.estimatedMrr ?? 0), 0);
   const averageNps = data.nps?.length

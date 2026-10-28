@@ -1,4 +1,5 @@
-import { apiGet } from "@/lib/api/server";
+import { apiGet, observe } from "@/lib/api/server";
+import { localContracts } from "@/lib/api/local-contracts.zod";
 import { AR } from "@/lib/modules/live/m14-forms";
 import type { Insights } from "@/lib/modules/live/m14-types";
 import { plural } from "@/lib/modules/live/m7-format";
@@ -6,7 +7,7 @@ import { text, type PanelRow, type PanelTone, type TabContent } from "@/lib/modu
 
 /** Insights — four segments: academic, attendance, financial, engagement. Every figure read from the school's own records. */
 
-export const loadInsights = () => apiGet<Insights>(`${AR}/insights`);
+export const loadInsights = () => apiGet(`${AR}/insights`, observe<Insights>(localContracts["src/lib/modules/live/m14-insights.ts#b4510362"]));
 
 const DOWNLOAD = "M12 3.5v11M7.5 10l4.5 4.5 4.5-4.5M4.5 19.5h15";
 const CHART = "M3.5 20.5h17M7 20.5v-6M11.6 20.5V8.5M16.2 20.5v-9M20.5 20.5V5.5";

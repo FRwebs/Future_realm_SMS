@@ -878,16 +878,17 @@ export function Topbar({
 
           {studentChrome ? null : (
           <div className="min-w-[96px] max-w-[340px] flex-[0_1_auto]">
-            <h1
+            <p
               className={cn(
-                "truncate text-(--color-text-primary)",
+                // Drawn as the heading it used to be (the page's own title is the h1): same face, same tightening.
+                "truncate font-(family-name:--font-heading) tracking-[-0.02em] text-(--color-text-primary)",
                 portalType === "super_admin"
                   ? "text-[13.5px] font-semibold leading-[1.22]"
                   : "font-(family-name:--font-heading) text-[12.5px] font-bold leading-tight",
               )}
             >
               {contextTitle}
-            </h1>
+            </p>
             <div className="mt-0.5 flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[9.5px] font-medium leading-[1.3] text-(--color-text-muted)">
               {contextMeta
                 .filter(

@@ -150,7 +150,7 @@ export function CreateWizard({ spec }: { spec: DrawerSpec }) {
         ? steps.slice(0, -1).map((entry, i) => (
             <section key={entry.title} className={CARD} style={BORDER}>
               <header className="flex items-center justify-between gap-3 px-[18px] pt-[14px]">
-                <h3 className="text-[12.5px] font-semibold" style={{ color: INK }}>{entry.title}</h3>
+                <h2 className="text-[12.5px] font-semibold" style={{ color: INK }}>{entry.title}</h2>
                 <button type="button" onClick={() => setIndex(i)} className="rounded-[8px] border bg-white px-[10px] py-[5px] text-[10.5px] font-semibold" style={{ borderColor: "#CFDDD5", color: "#435048" }}>
                   Edit this step
                 </button>
@@ -170,7 +170,7 @@ export function CreateWizard({ spec }: { spec: DrawerSpec }) {
       <section className={CARD} style={BORDER}>
         <header className="px-[18px] pt-[15px]">
           <div className="flex flex-wrap items-baseline justify-between gap-2">
-            <h3 className="text-[13px] font-semibold" style={{ color: INK }}>{reviewing ? "Check this, then create the record" : step.title}</h3>
+            <h2 className="text-[13px] font-semibold" style={{ color: INK }}>{reviewing ? "Check this, then create the record" : step.title}</h2>
             <span className="text-[10.5px] font-semibold tabular-nums" style={{ color: MUTED }}>Step {index + 1} of {steps.length}</span>
           </div>
           {step.hint ? <p className="mt-[3px] text-[11px] leading-normal" style={{ color: MUTED }}>{reviewing ? (page?.reviewDesc ?? step.hint) : step.hint}</p> : null}
@@ -203,7 +203,7 @@ export function CreateWizard({ spec }: { spec: DrawerSpec }) {
         <section className={`${CARD} px-[18px] py-[14px]`} style={BORDER}>
           {index > 0 ? (
             <>
-              <h3 className="text-[12.5px] font-semibold" style={{ color: INK }}>Entered so far</h3>
+              <h2 className="text-[12.5px] font-semibold" style={{ color: INK }}>Entered so far</h2>
               <p className="mt-[2px] text-[10.5px]" style={{ color: MUTED }}>Go back to any step to change it.</p>
               <dl className="mt-[10px] grid gap-x-[16px] gap-y-[9px] sm:grid-cols-2">
                 {readBack(steps.slice(0, index).flatMap((entry) => entry.fields)).filter(([, value]) => value !== "—").map(([label, value]) => (
@@ -216,7 +216,7 @@ export function CreateWizard({ spec }: { spec: DrawerSpec }) {
             </>
           ) : page ? (
             <>
-              <h3 className="text-[12.5px] font-semibold" style={{ color: INK }}>{page.railTitle}</h3>
+              <h2 className="text-[12.5px] font-semibold" style={{ color: INK }}>{page.railTitle}</h2>
               <dl className="mt-[10px] grid gap-x-[16px] gap-y-[10px] sm:grid-cols-3">
                 {page.rail.map(([title, body]) => (
                   <div key={title} className="min-w-0">

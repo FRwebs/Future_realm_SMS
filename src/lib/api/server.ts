@@ -1,5 +1,6 @@
 import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
+import type { z } from "zod";
 import { cache } from "react";
 
 import { resolveDirectApiGet } from "@/lib/api/direct";
@@ -100,7 +101,41 @@ export async function apiGetEnvelope<T>(path: string): Promise<ApiEnvelope<T>> {
   );
 }
 
-export async function apiGet<T>(path: string): Promise<T> {
+/**
+ * A read that is checked but never refused. The shape is compared with what the API answered, a difference is reported once (in the
+ * server log, where it is noticed) and the page still gets the answer: for the many reads that have no hand-written contract, noticing a
+ * change is worth having and a page that stops working over a stray field is not.
+ */
+export type Observed<T> = { observed: z.ZodType<unknown>; type?: T };
+export const observe = <T,>(schema: z.ZodType<unknown>): Observed<T> => ({ observed: schema });
+const reported = new Set<string>();
+
+/**
+ * Reads from the API for a page. Given a contract, the answer is checked against it before the page uses it, so an API that changes
+ * shape fails here, naming the path, instead of as an `undefined` somewhere in the page. Given an observation (`observe(Schema)`), the
+ * same check is made and a difference is reported without stopping the page.
+ */
+export async function apiGet<T>(path: string, contract?: z.ZodType<T> | Observed<T>): Promise<T> {
   const body = await apiGetEnvelope<T>(path);
-  return body.data as T;
+  if (!contract) return body.data as T;
+  if ("observed" in contract) {
+    const seen = contract.observed.safeParse(body.data);
+    if (!seen.success) {
+      const issue = seen.error.issues[0];
+      // In a test run the difference stops the page, so a walk across the screens fails on the page whose read has drifted.
+      if (process.env.CONTRACT_MODE === "strict") throw new Error(`${path.split("?")[0]} differs from its type — ${issue?.path.join(".") || "(root)"}: ${issue?.message}`);
+      const key = `${path.split("?")[0]}|${issue?.path.join(".")}|${issue?.code}`;
+      if (!reported.has(key)) {
+        reported.add(key);
+        console.warn(`[contract] ${path.split("?")[0]} differs from its type — ${issue?.path.join(".") || "(root)"}: ${issue?.message}${seen.error.issues.length > 1 ? ` (+${seen.error.issues.length - 1} more)` : ""}`);
+      }
+    }
+    return body.data as T;
+  }
+  const checked = contract.safeParse(body.data);
+  if (!checked.success) {
+    console.error(`${path} answered in a shape the page does not expect`, checked.error.issues);
+    throw new Error(`${path} answered in a shape the page does not expect`);
+  }
+  return checked.data;
 }
