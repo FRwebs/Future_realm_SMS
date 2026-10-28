@@ -3659,7 +3659,7 @@ export class SuperAdminService {
       prisma.platformSession.findMany({ where: { revokedAt: null, expiresAt: { gt: new Date() } }, include: { user: true, school: true }, orderBy: { lastActivityAt: "desc" }, take: 50 }),
       prisma.loginAttempt.findMany({ include: { school: true }, orderBy: { createdAt: "desc" }, take: 50 }),
       prisma.dataPrivacyRequest.findMany({ include: { school: true, handledBy: true }, orderBy: { createdAt: "desc" }, take: 50 }),
-      prisma.backupRecord.findMany({ include: { school: true }, orderBy: { startedAt: "desc" }, take: 20 }),
+      prisma.backupRecord.findMany({ include: { school: { select: { id: true, name: true } } }, orderBy: { startedAt: "desc" }, take: 20 }),
       prisma.systemLog.findMany({ orderBy: { createdAt: "desc" }, take: 50 }),
       prisma.securityIncident.findMany({ include: { reportedBy: true, resolvedBy: true }, orderBy: { detectedAt: "desc" }, take: 50 }),
       prisma.user.count({ where: { role: { in: platformRoleList }, deletedAt: null, isActive: true } }),
