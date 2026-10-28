@@ -1,12 +1,13 @@
 import { AT } from "@/lib/modules/live/m4-forms";
-import { apiGet } from "@/lib/api/server";
+import { apiGet, observe } from "@/lib/api/server";
+import { localContracts } from "@/lib/api/local-contracts.zod";
 import { dayStrip, markHref, tone } from "@/lib/modules/live/m4-register";
 import type { MarkState, Overview } from "@/lib/modules/live/m4-types";
 import { name as nameCell, pill, text, type PanelRow, type TabContent, type TableRow } from "@/lib/modules/panels";
 
 /** Mark — taking a register. It starts by choosing the arm, because a register is always one arm's. */
 
-export const loadMarkState = (classId: string, date?: string) => apiGet<MarkState>(`${AT}/mark/${encodeURIComponent(classId)}${date ? `?date=${encodeURIComponent(date)}` : ""}`);
+export const loadMarkState = (classId: string, date?: string) => apiGet(`${AT}/mark/${encodeURIComponent(classId)}${date ? `?date=${encodeURIComponent(date)}` : ""}`, observe<MarkState>(localContracts["src/lib/modules/live/m4-mark.ts#9a87b92c"]));
 
 const WARN = "M12 8.2v4.6M12 16h.02M12 3.6 21 19.4H3z";
 

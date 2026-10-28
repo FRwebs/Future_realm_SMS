@@ -108,9 +108,9 @@ export function ScoreGrid({ panel }: { panel: ScoreSheetPanel }) {
         className="min-w-0 overflow-hidden rounded-[14px] border bg-(--color-bg-surface) px-[18px] py-[16px]"
         style={{ borderColor: CARD_BORDER }}
       >
-        <h3 className="text-[12.5px] font-semibold" style={{ color: INK }}>
+        <h2 className="text-[12.5px] font-semibold" style={{ color: INK }}>
           {panel.title}
-        </h3>
+        </h2>
         <p className="mt-[6px] text-[11px] leading-[1.55]" style={{ color: MUTED }}>
           {panel.emptyNote ?? "Nobody is on this class's roll, so there is nothing to score."}
         </p>
@@ -128,9 +128,9 @@ export function ScoreGrid({ panel }: { panel: ScoreSheetPanel }) {
         style={{ borderBottom: "1px solid #EDF3EF" }}
       >
         <div className="min-w-0">
-          <h3 className="text-[12.5px] font-semibold leading-[1.3]" style={{ color: INK }}>
+          <h2 className="text-[12.5px] font-semibold leading-[1.3]" style={{ color: INK }}>
             {panel.title}
-          </h3>
+          </h2>
           {panel.sub ? (
             <p className="mt-[3px] text-[10.5px] leading-normal" style={{ color: MUTED }}>
               {panel.sub}

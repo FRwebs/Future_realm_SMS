@@ -1,5 +1,6 @@
 import { receiptDrawer } from "@/lib/modules/live/documents";
-import { apiGet } from "@/lib/api/server";
+import { apiGet, observe } from "@/lib/api/server";
+import { localContracts } from "@/lib/api/local-contracts.zod";
 import { dayLabel, plural } from "@/lib/modules/live/m7-format";
 import { FEES, naira, nairaShort } from "@/lib/modules/live/m10-forms";
 import type { History } from "@/lib/modules/live/m10-types";
@@ -10,7 +11,7 @@ import { name as nameCell, pill, text, type KpiCard, type PanelTone, type TabCon
  * hand a board, a bank or an auditor.
  */
 
-export const loadHistory = () => apiGet<History>(`${FEES}/history`);
+export const loadHistory = () => apiGet(`${FEES}/history`, observe<History>(localContracts["src/lib/modules/live/m10-history.ts#90ccd649"]));
 
 const STATEMENT = "/fee-management/history/statement";
 const rateTone = (pct: number | null): PanelTone => (pct === null ? "neutral" : pct >= 90 ? "positive" : pct >= 80 ? "attention" : "negative");

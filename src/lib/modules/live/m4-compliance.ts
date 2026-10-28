@@ -1,4 +1,5 @@
-import { apiGet } from "@/lib/api/server";
+import { apiGet, observe } from "@/lib/api/server";
+import { localContracts } from "@/lib/api/local-contracts.zod";
 import { AT, nudgeDrawer, notifyPersonDrawer, reassignDrawer, spoolDrawer } from "@/lib/modules/live/m4-forms";
 import { markHref, staffRecordHref, tone } from "@/lib/modules/live/m4-register";
 import type { Compliance, Options, TeacherRecord } from "@/lib/modules/live/m4-types";
@@ -8,8 +9,8 @@ import { formatDay } from "@/lib/date-format";
 
 /** Compliance is about the adults: who marked, when, and who broke the school's own rule. */
 
-export const loadCompliance = () => apiGet<Compliance>(`${AT}/compliance`);
-export const loadTeacher = (id: string) => apiGet<TeacherRecord>(`${AT}/teachers/${encodeURIComponent(id)}`);
+export const loadCompliance = () => apiGet(`${AT}/compliance`, observe<Compliance>(localContracts["src/lib/modules/live/m4-compliance.ts#68f0ae49"]));
+export const loadTeacher = (id: string) => apiGet(`${AT}/teachers/${encodeURIComponent(id)}`, observe<TeacherRecord>(localContracts["src/lib/modules/live/m4-compliance.ts#fec732e3"]));
 
 const WARN = "M12 8.2v4.6M12 16h.02M12 3.6 21 19.4H3z";
 const BELL = "M12 3.5A5.5 5.5 0 0 0 6.5 9v3.2L5 15.5h14l-1.5-3.3V9A5.5 5.5 0 0 0 12 3.5z";

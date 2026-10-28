@@ -1,4 +1,5 @@
-import { apiGet } from "@/lib/api/server";
+import { apiGet, observe } from "@/lib/api/server";
+import { localContracts } from "@/lib/api/local-contracts.zod";
 import {
   armEditDrawer,
   ceilingDrawer,
@@ -68,7 +69,7 @@ function standing(average: number | null): string {
 }
 
 export async function armPage(armId: string): Promise<(TabContent & { heading: string }) | null> {
-  const detail = await apiGet<ArmDetail>(`${BASE}/arms/${armId}`).catch(() => null);
+  const detail = await apiGet(`${BASE}/arms/${armId}`, observe<ArmDetail>(localContracts["src/lib/modules/live/m3-pages.ts#38b70d7e"])).catch(() => null);
   if (!detail) return null;
   const [overview, teaching] = await Promise.all([loadOverview(), loadTeaching()]);
 
@@ -555,7 +556,7 @@ function dateText(iso: string | null | undefined): string {
 
 /** One child, read from the arm they sit in: attendance, results, fees and who to call. */
 export async function studentPage(armId: string, studentId: string): Promise<(TabContent & { armName: string }) | null> {
-  const student = await apiGet<StudentInArm>(`${BASE}/arms/${armId}/students/${studentId}`).catch(() => null);
+  const student = await apiGet(`${BASE}/arms/${armId}/students/${studentId}`, observe<StudentInArm>(localContracts["src/lib/modules/live/m3-pages.ts#6c14fc99"])).catch(() => null);
   if (!student) return null;
 
   const { attendance, result, fees } = student;

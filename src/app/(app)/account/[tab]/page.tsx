@@ -1,3 +1,4 @@
+import { myProfileContract, schoolContextContract } from "@/lib/api/contracts";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
@@ -10,7 +11,6 @@ import { getUiText } from "@/i18n/ui-text";
 import { accountContentFor, accountTabs, type AccountWords, type MyProfile } from "@/lib/modules/account";
 import { getServerSession } from "@/lib/auth/session";
 import { apiGet } from "@/lib/api/server";
-import type { SchoolContextView } from "@/lib/domain/types";
 
 type PageProps = { params: Promise<{ tab: string }> };
 
@@ -35,14 +35,14 @@ export default async function AccountTabPage({ params }: PageProps) {
 
   // The page is about the person, so it is written against them and the school
   // they are signed in to — never a fixed name.
-  const schoolContext = await apiGet<SchoolContextView>("/api/v1/dashboard/context").catch(
+  const schoolContext = await apiGet("/api/v1/dashboard/context", schoolContextContract).catch(
     () => null,
   );
   const schoolName = schoolContext?.schoolName ?? "your school";
 
   // What is actually on file, so a field that has a value shows it and one that
   // does not says so — rather than the page assuming either way.
-  const profile = await apiGet<MyProfile>("/api/v1/profile/me").catch(() => ({}) as MyProfile);
+  const profile = await apiGet("/api/v1/profile/me", myProfileContract).catch(() => ({}) as MyProfile);
 
   const t = await getTranslations("shell.account");
   const ui = await getUiText();

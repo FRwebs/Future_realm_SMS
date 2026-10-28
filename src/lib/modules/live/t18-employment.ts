@@ -1,4 +1,5 @@
-import { apiGet } from "@/lib/api/server";
+import { apiGet, observe } from "@/lib/api/server";
+import { localContracts } from "@/lib/api/local-contracts.zod";
 import type { TeacherWorkspaceView } from "@/lib/api/teacher-workspace";
 import { area, fixed, select, text } from "@/lib/modules/live/m7-forms";
 import type { DrawerSpec, FormField, Panel, PanelFact, PanelRow, PanelTone, StepItem, TabContent, TableCellKind, TableRow } from "@/lib/modules/panels";
@@ -50,14 +51,14 @@ const short = (iso: string | null) => (iso ? formatDay(new Date(iso), { day: "nu
 const leaveTone = (status: string): PanelTone => (status === "Approved" || status === "Taken" ? "positive" : status === "Declined" ? "negative" : "submitted");
 
 export async function teacherEmploymentTab(tabSlug: string, me: TeacherWorkspaceView, permissions: string[]): Promise<TabContent | null | undefined> {
-  if (tabSlug === "leave") return leaveTab(await apiGet<Leave>(`${API}/employment/leave`));
+  if (tabSlug === "leave") return leaveTab(await apiGet(`${API}/employment/leave`, observe<Leave>(localContracts["src/lib/modules/live/t18-employment.ts#7e3520a9"])));
   if (tabSlug === "my-assignments") {
     const mayAssign = me.persona === "head-of-department";
-    const [assignments, gaps] = await Promise.all([apiGet<Assignments>(`${API}/employment/assignments`), mayAssign ? apiGet<Gaps>(`${API}/cover/gaps`).catch(() => null) : Promise.resolve(null)]);
+    const [assignments, gaps] = await Promise.all([apiGet(`${API}/employment/assignments`, observe<Assignments>(localContracts["src/lib/modules/live/t18-employment.ts#057d58c7"])), mayAssign ? apiGet(`${API}/cover/gaps`, observe<Gaps>(localContracts["src/lib/modules/live/t18-employment.ts#1150a190"])).catch(() => null) : Promise.resolve(null)]);
     return assignmentsTab(assignments, gaps);
   }
-  if (tabSlug === "appraisal") return appraisalTab(await apiGet<Appraisal>(`${API}/employment/appraisal`));
-  if (tabSlug === "payslips") return payslipsTab(await apiGet<Payslips>(`${API}/employment/payslips`));
+  if (tabSlug === "appraisal") return appraisalTab(await apiGet(`${API}/employment/appraisal`, observe<Appraisal>(localContracts["src/lib/modules/live/t18-employment.ts#da404ff1"])));
+  if (tabSlug === "payslips") return payslipsTab(await apiGet(`${API}/employment/payslips`, observe<Payslips>(localContracts["src/lib/modules/live/t18-employment.ts#80aa96da"])));
   void permissions;
   return undefined;
 }

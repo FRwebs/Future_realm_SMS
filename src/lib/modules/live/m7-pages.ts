@@ -1,4 +1,5 @@
-import { apiGet } from "@/lib/api/server";
+import { apiGet, observe } from "@/lib/api/server";
+import { localContracts } from "@/lib/api/local-contracts.zod";
 import {
   ACTIONS,
   API,
@@ -52,9 +53,9 @@ import {
 export type RecordSection = "personal" | "assignments" | "payments" | "access";
 export type PageContent = TabContent & { crumb?: { label: string; href: string }; name?: string };
 
-const loadRecord = (id: string) => apiGet<StaffRecord>(`${API}/staff/${id}`);
-const loadPerson = (userId: string) => apiGet<PersonAccess>(`${API}/access/people/${userId}`);
-const loadTemplate = (name: string) => apiGet<TemplateGrid>(`${API}/access/templates/${encodeURIComponent(name)}`);
+const loadRecord = (id: string) => apiGet(`${API}/staff/${id}`, observe<StaffRecord>(localContracts["src/lib/modules/live/m7-pages.ts#8b6a5a75"]));
+const loadPerson = (userId: string) => apiGet(`${API}/access/people/${userId}`, observe<PersonAccess>(localContracts["src/lib/modules/live/m7-pages.ts#023d12f1"]));
+const loadTemplate = (name: string) => apiGet(`${API}/access/templates/${encodeURIComponent(name)}`, observe<TemplateGrid>(localContracts["src/lib/modules/live/m7-pages.ts#00d9538d"]));
 
 /* ───────────────────────── marks and plain words ───────────────────────── */
 
@@ -746,7 +747,7 @@ export async function offboardChooser(): Promise<PageContent> {
 }
 
 export async function offboardingPage(id: string): Promise<{ content: PageContent; plan: OffboardingPlan } | null> {
-  const plan = await apiGet<OffboardingPlan>(`${API}/staff/${id}/offboarding`).catch(() => null);
+  const plan = await apiGet(`${API}/staff/${id}/offboarding`, observe<OffboardingPlan>(localContracts["src/lib/modules/live/m7-pages.ts#2a638795"])).catch(() => null);
   if (!plan) return null;
   const first = plan.name.split(" ")[0];
   const drawer = offboardDrawer(plan);

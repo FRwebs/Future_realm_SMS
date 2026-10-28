@@ -5,7 +5,8 @@ import { ModuleWorkspace } from "@/components/modules/module-workspace";
 import { VerifyPayment } from "@/components/modules/verify-payment";
 import { canOpenModule } from "@/lib/auth/server-access";
 import { getServerSession } from "@/lib/auth/session";
-import { apiGet } from "@/lib/api/server";
+import { apiGet, observe } from "@/lib/api/server";
+import { localContracts } from "@/lib/api/local-contracts.zod";
 import { SB } from "@/lib/modules/live/m11-forms";
 
 /** The pages Subscription & Billing opens from its tabs: where a payment lands, and where an export is taken. */
@@ -33,7 +34,7 @@ export async function ExportView({ token }: { token: string }) {
   const ok = await allowed();
   if (ok === null) return null;
   if (!ok) return <AccessDenied backHref="/command-center/today" />;
-  const grant = await apiGet<Grant>(`${SB}/account/export/${encodeURIComponent(token)}`).catch(() => null);
+  const grant = await apiGet(`${SB}/account/export/${encodeURIComponent(token)}`, observe<Grant>(localContracts["src/components/modules/subscription-billing-views.tsx#c02329c4"])).catch(() => null);
   if (!grant) notFound();
   return (
     <ModuleWorkspace

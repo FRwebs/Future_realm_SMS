@@ -1,8 +1,9 @@
+import { myPermissionsContract } from "@/lib/api/contracts";
 import { cache } from "react";
 
 import { apiGet } from "@/lib/api/server";
 import { forgetFor, ttlCached } from "@/lib/cache/ttl";
-import type { SessionUser, MyPermissionsView } from "@/lib/domain/types";
+import type { SessionUser } from "@/lib/domain/types";
 import { isSchoolStaffRole, moduleLevelForRole, schoolPermissionsForRole } from "@/lib/modules/school-access";
 import { schoolModules, schoolPermissionKey } from "@/lib/modules/school-modules";
 import { canAccessPathWithPermissions, getDefaultPermissionsForRole } from "@/lib/navigation/registry";
@@ -20,7 +21,7 @@ async function loadPermissions(schoolId: string, userId: string, role: SessionUs
 
   try {
     // Kept while nothing that could change it has changed (the API's context stamp), and ten minutes at most: a page asks for this on every click. The API still checks every call it serves.
-    const payload = await ttlCached(`perm:${schoolId}:${userId}:${role}`, 600_000, () => apiGet<MyPermissionsView>(`/api/v1/school/${schoolId}/roles-management/permissions/my`), { stamped: true });
+    const payload = await ttlCached(`perm:${schoolId}:${userId}:${role}`, 600_000, () => apiGet(`/api/v1/school/${schoolId}/roles-management/permissions/my`, myPermissionsContract), { stamped: true });
     // What the server resolved is the whole answer for school staff: it already carries the
     // role template, and it also carries what the school took away from this person. Merging
     // the static grid back in would quietly give every revoked action back.

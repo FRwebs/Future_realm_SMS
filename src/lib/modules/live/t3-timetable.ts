@@ -1,4 +1,5 @@
-import { apiGet } from "@/lib/api/server";
+import { apiGet, observe } from "@/lib/api/server";
+import { localContracts } from "@/lib/api/local-contracts.zod";
 import type { TeacherWorkspaceView } from "@/lib/api/teacher-workspace";
 import { area, choice, fixed, select, text } from "@/lib/modules/live/m7-forms";
 import type { DrawerSpec, PanelRow, PanelTone, TabContent, TableCellKind, TableRow } from "@/lib/modules/panels";
@@ -51,11 +52,11 @@ const sheetTone = (state: string): PanelTone => (state === "Returned" ? "negativ
 
 export async function teacherTimetableTab(tabSlug: string, me: TeacherWorkspaceView, permissions: string[]): Promise<TabContent | null | undefined> {
   if (tabSlug === "timetable") {
-    const [view, school] = await Promise.all([apiGet<TimetableView>("/api/v1/teacher-workspace/timetable"), apiGet<{ schoolName: string }>("/api/v1/dashboard/context").catch(() => ({ schoolName: "" }))]);
+    const [view, school] = await Promise.all([apiGet("/api/v1/teacher-workspace/timetable", observe<TimetableView>(localContracts["src/lib/modules/live/t3-timetable.ts#d38c0243"])), apiGet("/api/v1/dashboard/context", observe<{ schoolName: string }>(localContracts["src/lib/modules/live/t3-timetable.ts#2d102099"])).catch(() => ({ schoolName: "" }))]);
     return timetableTab(view, me, school.schoolName, permissions);
   }
   if (tabSlug === "teaching") {
-    const [view, questions] = await Promise.all([apiGet<TeachingView>("/api/v1/teacher-workspace/teaching"), apiGet<Question[]>(QUESTIONS)]);
+    const [view, questions] = await Promise.all([apiGet("/api/v1/teacher-workspace/teaching", observe<TeachingView>(localContracts["src/lib/modules/live/t3-timetable.ts#363f0c90"])), apiGet(QUESTIONS, observe<Question[]>(localContracts["src/lib/modules/live/t3-timetable.ts#2fa3b16b"]))]);
     return teachingTab(view, questions, me);
   }
   return undefined;

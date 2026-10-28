@@ -1,4 +1,5 @@
-import { apiGet } from "@/lib/api/server";
+import { apiGet, observe } from "@/lib/api/server";
+import { localContracts } from "@/lib/api/local-contracts.zod";
 import { homeworkTab } from "@/lib/modules/live/m3-homework";
 import { lessonNotesTab } from "@/lib/modules/live/m3-lesson-notes";
 import {
@@ -89,19 +90,19 @@ const STATE_TONE: Record<string, PanelTone> = {
 };
 
 export async function loadOverview() {
-  return apiGet<Overview>(`${BASE}/overview`);
+  return apiGet(`${BASE}/overview`, observe<Overview>(localContracts["src/lib/modules/live/m3-class-timetable.ts#0efc2e6b"]));
 }
 export async function loadTeaching() {
-  return apiGet<Teaching>(`${BASE}/teaching`);
+  return apiGet(`${BASE}/teaching`, observe<Teaching>(localContracts["src/lib/modules/live/m3-class-timetable.ts#e5a9f044"]));
 }
 export async function loadCoverage() {
-  return apiGet<Coverage>(`${BASE}/coverage`);
+  return apiGet(`${BASE}/coverage`, observe<Coverage>(localContracts["src/lib/modules/live/m3-class-timetable.ts#80e13549"]));
 }
 export async function loadTimetables() {
-  return apiGet<TimetableList>(`${BASE}/timetables`);
+  return apiGet(`${BASE}/timetables`, observe<TimetableList>(localContracts["src/lib/modules/live/m3-class-timetable.ts#79892f81"]));
 }
 export async function loadTimetable(id: string) {
-  return apiGet<TimetableDetail>(`${BASE}/timetables/${id}`);
+  return apiGet(`${BASE}/timetables/${id}`, observe<TimetableDetail>(localContracts["src/lib/modules/live/m3-class-timetable.ts#d4d6cfd1"]));
 }
 
 type TermRecord = { id: string; name: string };
@@ -109,7 +110,7 @@ type SessionRecord = { name: string; terms: TermRecord[] };
 
 /** Every term the school has, as "Second Term · 2025/2026" paired with its id. */
 export async function loadTermChoices(): Promise<Named[]> {
-  const sessions = await apiGet<{ records: SessionRecord[] }>(`${CONFIG}/sessions-terms`).catch(() => ({
+  const sessions = await apiGet(`${CONFIG}/sessions-terms`, observe<{ records: SessionRecord[] }>(localContracts["src/lib/modules/live/m3-class-timetable.ts#93119071"])).catch(() => ({
     records: [] as SessionRecord[],
   }));
   return (sessions?.records ?? []).flatMap((session) =>
@@ -753,7 +754,7 @@ async function teachingTab(teaching: Teaching, overview: Overview, list: Timetab
       tone: loadTone(teacher),
     }));
 
-  const schemes = await apiGet<SchemeRow[]>("/api/v1/scheme-of-work").catch(() => [] as SchemeRow[]);
+  const schemes = await apiGet("/api/v1/scheme-of-work", observe<SchemeRow[]>(localContracts["src/lib/modules/live/m3-class-timetable.ts#5fac1ecf"])).catch(() => [] as SchemeRow[]);
   const coveredWeeks = schemes.reduce((sum, row) => sum + row.coveredWeeks, 0);
   const teachingWeeks = schemes.reduce((sum, row) => sum + row.teachingWeeks, 0);
 

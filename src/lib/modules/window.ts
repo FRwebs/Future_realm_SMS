@@ -18,12 +18,15 @@ export type WindowTarget = { module: string; tab: string; query: Record<string, 
 
 export const windowKey = (r: number, p: number) => `t${r}_${p}`;
 
-export function exportAddress(target: WindowTarget, r: number, p: number) {
+const addressOf = (route: string, target: WindowTarget, r: number, p: number) => {
   const params = new URLSearchParams({ m: target.module, t: target.tab, r: String(r), p: String(p) });
   const query = Object.fromEntries(Object.entries(target.query).filter(([, value]) => value !== undefined));
   if (Object.keys(query).length) params.set("q", JSON.stringify(query));
-  return `/table-export?${params.toString()}`;
-}
+  return `${route}?${params.toString()}`;
+};
+
+export const exportAddress = (target: WindowTarget, r: number, p: number) => addressOf("/table-export", target, r, p);
+export const pageAddress = (target: WindowTarget, r: number, p: number) => addressOf("/table-window", target, r, p);
 
 /** The search, filter choices and page this table was asked for, read from the address. */
 export function askedOf(key: string, filters: Array<{ label: string; value: string }>, query: Record<string, string | undefined>) {
@@ -46,7 +49,7 @@ export function narrowTable(panel: { rows: TableRow[]; filters?: Array<{ label: 
   return {
     rows: all ? narrowed : narrowed.slice((page - 1) * WINDOW_SIZE, page * WINDOW_SIZE),
     matched: narrowed.length,
-    window: { key, page, size: WINDOW_SIZE, matched: narrowed.length, total: panel.rows.length, q: asked.q, filters: asked.values, exportUrl: exportAddress(target, address.r, address.p) },
+    window: { key, page, size: WINDOW_SIZE, matched: narrowed.length, total: panel.rows.length, q: asked.q, filters: asked.values, exportUrl: exportAddress(target, address.r, address.p), pageUrl: pageAddress(target, address.r, address.p) },
   };
 }
 

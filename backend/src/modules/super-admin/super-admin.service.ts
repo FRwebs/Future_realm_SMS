@@ -220,10 +220,10 @@ const settingsSchema = z.object({
   maintenanceMode: z.preprocess((value) => value === true || value === "true", z.boolean()).optional(),
   platformAnnouncement: z.string().max(500).optional(),
   defaultGradingScale: z.unknown().optional(),
-  globalModuleAvailability: z.record(z.boolean()).optional()
+  globalModuleAvailability: z.record(z.string(), z.boolean()).optional()
 });
 
-const featureSchema = z.record(z.boolean());
+const featureSchema = z.record(z.string(), z.boolean());
 const featurePayloadSchema = z.union([featureSchema, z.object({ features: featureSchema })]);
 
 const ticketCategoryValues = ["BILLING", "TECHNICAL_BUG", "FEATURE_REQUEST", "ACCOUNT_ACCESS", "DATA_ISSUE", "RESULT_COMPUTATION", "NOTIFICATION_DELIVERY", "SYNC_OFFLINE_ISSUE", "DATA_CORRECTION_REQUEST", "FEE_MANAGEMENT", "DATA_MIGRATION", "ONBOARDING_SETUP", "OTHER"] as const;
@@ -438,7 +438,7 @@ const internalDepartmentSchema = z.object({
 
 const permissionTemplateSchema = z.object({
   roleName: z.enum(platformRoleValues),
-  defaultGrid: z.record(z.enum(["NONE", "VIEW", "EDIT", "FULL"]))
+  defaultGrid: z.record(z.string(), z.enum(["NONE", "VIEW", "EDIT", "FULL"]))
 });
 
 const accessGrantSchema = z.object({
@@ -3600,9 +3600,10 @@ export class SuperAdminService {
     assertAnyPlatformRole(session, new Set<UserRole>(["PLATFORM_OWNER", "PLATFORM_ADMIN", "SALES_MANAGER", "SUPPORT_AGENT", "SUPER_ADMIN"]));
     const [schools, interactions, leads, nps] = await Promise.all([
       prisma.school.findMany({ where: { deletedAt: null }, include: { accountManager: true, _count: { select: { supportTickets: true, crmInteractions: true } } }, orderBy: { healthScore: "asc" }, take: 50 }),
-      prisma.crmInteraction.findMany({ include: { school: true, createdBy: true }, orderBy: { createdAt: "desc" }, take: 50 }),
-      prisma.lead.findMany({ include: { assignedTo: true }, orderBy: { updatedAt: "desc" }, take: 100 }),
-      prisma.npsResponse.findMany({ include: { school: true }, orderBy: { createdAt: "desc" }, take: 50 })
+      // Only what the page shows of the people and schools around a record: a whole user row carries a password hash and a two-step secret.
+      prisma.crmInteraction.findMany({ include: { school: { select: { id: true, name: true } }, createdBy: { select: { id: true, firstName: true, lastName: true } } }, orderBy: { createdAt: "desc" }, take: 50 }),
+      prisma.lead.findMany({ include: { assignedTo: { select: { id: true, firstName: true, lastName: true } } }, orderBy: { updatedAt: "desc" }, take: 100 }),
+      prisma.npsResponse.findMany({ include: { school: { select: { id: true, name: true } } }, orderBy: { createdAt: "desc" }, take: 50 })
     ]);
     return this.response({
       accounts: schools.map((school) => ({
@@ -3617,7 +3618,8 @@ export class SuperAdminService {
         nextBillingAt: school.nextBillingAt?.toISOString()
       })),
       interactions,
-      leads,
+      // Money held as an exact decimal travels as text; the page adds these up, so they leave here as numbers.
+      leads: leads.map((lead) => ({ ...lead, estimatedMrr: Number(lead.estimatedMrr) })),
       nps
     });
   }
@@ -3858,7 +3860,8 @@ export class SuperAdminService {
       prisma.school.groupBy({ by: ["plan"], where: { deletedAt: null }, _count: true })
     ]);
     const subscriberCounts = new Map(schoolsByPlan.map((row) => [row.plan, row._count]));
-    return this.response(plans.map((plan) => ({ ...plan, subscriberCount: subscriberCounts.get(plan.plan) ?? 0 })));
+    // Prices are money held as exact decimals, which travel as text; the page does sums with them, so they leave here as numbers.
+    return this.response(plans.map((plan) => ({ ...plan, monthlyPrice: Number(plan.monthlyPrice), annualPrice: Number(plan.annualPrice), subscriberCount: subscriberCounts.get(plan.plan) ?? 0 })));
   }
 
   async createPlan(session: SessionPayload, payload: unknown) {

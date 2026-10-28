@@ -9,7 +9,8 @@ import { StatCard } from "@/components/data-display/stat-card";
 import { StatusBadge } from "@/components/data-display/status-badge";
 import { TableCard } from "@/components/data-display/table-card";
 import { ResourceActionDialog } from "@/components/forms/resource-action-dialog";
-import { apiGet, apiGetEnvelope } from "@/lib/api/server";
+import { apiGet, apiGetEnvelope, observe } from "@/lib/api/server";
+import { localContracts } from "@/lib/api/local-contracts.zod";
 import type { SuperAdminAuditLogRow, SuperAdminSchoolRow } from "@/lib/domain/types";
 import { formatDate } from "@/lib/utils/formatters";
 
@@ -188,10 +189,10 @@ function tabHref(tab: string) {
 export default async function SuperAdminSecurityPage({ searchParams }: { searchParams?: Promise<{ tab?: string }> }) {
   const { tab = "audit" } = searchParams ? await searchParams : {};
   const [data, overview, schoolsEnvelope, actors] = await Promise.all([
-    apiGet<SecurityView>("/api/super-admin/security"),
-    apiGet<ComplianceOverview>("/api/super-admin/compliance"),
+    apiGet("/api/super-admin/security", observe<SecurityView>(localContracts["src/app/super-admin/security/page.tsx#6c2431fe"])),
+    apiGet("/api/super-admin/compliance", observe<ComplianceOverview>(localContracts["src/app/super-admin/security/page.tsx#3ec9b9fb"])),
     apiGetEnvelope<SuperAdminSchoolRow[]>("/api/super-admin/schools?limit=100"),
-    apiGet<Array<{ id: string; name: string; role: string }>>("/api/super-admin/compliance/audit-actors").catch(() => [])
+    apiGet("/api/super-admin/compliance/audit-actors", observe<Array<{ id: string; name: string; role: string }>>(localContracts["src/app/super-admin/security/page.tsx#11ec60f0"])).catch(() => [])
   ]);
   const schools = schoolsEnvelope.data ?? [];
   const openIncidents = (data.incidents ?? []).filter((incident) => incident.status !== "RESOLVED").length;
@@ -252,7 +253,7 @@ export default async function SuperAdminSecurityPage({ searchParams }: { searchP
 async function AuditLogTab({ sessions, attempts, mfaCoverage, signIn }: { sessions: PlatformSession[]; attempts: LoginAttempt[]; mfaCoverage: { enabled: number; total: number }; signIn: ComplianceOverview["signIn"] }) {
   const [envelope, exportsList] = await Promise.all([
     apiGetEnvelope<SuperAdminAuditLogRow[]>("/api/super-admin/audit-logs?limit=30"),
-    apiGet<AuditExportRow[]>("/api/super-admin/compliance/audit-exports").catch(() => [] as AuditExportRow[])
+    apiGet("/api/super-admin/compliance/audit-exports", observe<AuditExportRow[]>(localContracts["src/app/super-admin/security/page.tsx#fe939a7e"])).catch(() => [] as AuditExportRow[])
   ]);
   const logs = envelope.data ?? [];
   const adminSessions = sessions.filter((s) => s.user && platformRoles.has(s.user.role));
@@ -548,7 +549,7 @@ function ObligationState({ state }: { state: string }) {
 }
 
 async function ComplianceTab({ incidents, privacy, overview }: { incidents: SecurityIncident[]; privacy: PrivacyRequest[]; overview: ComplianceOverview }) {
-  const report = await apiGet<ComplianceReport>("/api/super-admin/security/compliance-report");
+  const report = await apiGet("/api/super-admin/security/compliance-report", observe<ComplianceReport>(localContracts["src/app/super-admin/security/page.tsx#6f2ddcb3"]));
   const openRequests = privacy.filter((request) => request.status === "OPEN" || request.status === "IN_REVIEW").length;
   const shortestClockDays = privacy
     .filter((request) => request.status === "OPEN" || request.status === "IN_REVIEW")

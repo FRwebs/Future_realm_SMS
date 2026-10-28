@@ -1,6 +1,7 @@
 import { cardDrawer } from "@/lib/modules/live/m6-forms";
 import { receiptDrawer } from "@/lib/modules/live/documents";
-import { apiGet } from "@/lib/api/server";
+import { apiGet, observe } from "@/lib/api/server";
+import { localContracts } from "@/lib/api/local-contracts.zod";
 import { dayLabel, dayLong, plural } from "@/lib/modules/live/m7-format";
 import { attendanceSessionDrawer, collectorDrawer, documentDrawer, endSupportPlanDrawer, mapGuardianDrawer, noteDrawer, requestChangeDrawer, sensitiveDrawer, SR, supportPlanDrawer } from "@/lib/modules/live/m8-forms";
 import { FEE_TONE, STATE_TONE, attTone, gradeTone, loadRegistry, studentHref } from "@/lib/modules/live/m8-registry";
@@ -28,9 +29,9 @@ export const SECTIONS: Array<{ section: RecordSection; label: string; path: stri
 
 export type RecordPage = { content: TabContent & { crumb?: { label: string; href: string } }; tabs: Array<{ href: string; label: string }>; name: string };
 
-export const loadDossier = (id: string) => apiGet<Dossier>(`${SR}/students/${encodeURIComponent(id)}`);
-export const loadTermResult = (id: string, termId: string) => apiGet<TermResult>(`${SR}/students/${encodeURIComponent(id)}/results/${encodeURIComponent(termId)}`);
-export const loadGuardianPool = () => apiGet<{ guardians: Array<{ id: string; name: string; phone: string; children: number }> }>("/api/v1/parents-guardians/guardians/options").then((options) => options.guardians);
+export const loadDossier = (id: string) => apiGet(`${SR}/students/${encodeURIComponent(id)}`, observe<Dossier>(localContracts["src/lib/modules/live/m8-record.ts#8ed65788"]));
+export const loadTermResult = (id: string, termId: string) => apiGet(`${SR}/students/${encodeURIComponent(id)}/results/${encodeURIComponent(termId)}`, observe<TermResult>(localContracts["src/lib/modules/live/m8-record.ts#2f880105"]));
+export const loadGuardianPool = () => apiGet("/api/v1/parents-guardians/guardians/options", observe<{ guardians: Array<{ id: string; name: string; phone: string; children: number }> }>(localContracts["src/lib/modules/live/m8-record.ts#7537ad4f"])).then((options) => options.guardians);
 
 const naira = (value: number | null | undefined) => (value === null || value === undefined ? "—" : `₦${Math.round(value).toLocaleString("en-NG")}`);
 const stateTone = (state: string): PanelTone => (/Published|Approved|Verified|Complete|Paid|Active|Closed|Resolved|Delivered/.test(state) ? "positive" : /Blocked|Missing|Overdue|Not activated|Failing/.test(state) ? "negative" : /Draft|Submitted|Generated|Part|Awaiting|Monitoring|Not generated|Not started|Invited/.test(state) ? "attention" : "neutral");

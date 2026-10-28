@@ -4,6 +4,8 @@ import Link from "next/link";
 import type { Route } from "next";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useForm } from "react-hook-form";
+import { z } from "zod";
 
 import { Btn, Card, Chip, CARD_BORDER, Confirm, INK, Label, MUTED, GRID_DAYS, GRID_SLOTS, composeGrid, inputClass, longDate, notesHtml, parseGrid, printSheet, useToast, useWrite } from "@/components/modules/lesson-notes/kit";
 import { GRID_SUFFIX, LN_API, stateLabel, stateTone, type Letterhead, type NoteData, type Section, type ThreadEntry } from "@/lib/modules/lesson-notes-types";
@@ -37,9 +39,16 @@ export function NoteDocument({ data }: { data: NoteData }) {
   const { busy, run } = useWrite(toast.show);
   const editableState = data.state === "Not started" || data.state === "Draft" || data.state === "Returned";
   const editable = !data.readOnly && editableState;
-  const [text, setText] = useState<Record<string, string>>(data.text);
+  // What is written, by section. The form knows what differs from what was last saved, so "unsaved changes" and the warning before leaving
+  // are its to say rather than a flag kept by hand beside it.
+  // Every section starts as written or as empty, so a section typed into and emptied again is back to what was saved.
+  const seeded = (written: Record<string, string>) => ({ text: { ...Object.fromEntries(data.sections.map((section) => [section.key, ""])), ...written } });
+  const form = useForm<{ text: Record<string, string> }>({ defaultValues: seeded(data.text) });
+  const text = form.watch("text");
+  const dirty = form.formState.isDirty;
+  const setText = (next: Record<string, string> | ((current: Record<string, string>) => Record<string, string>)) =>
+    form.setValue("text", typeof next === "function" ? next(form.getValues("text")) : next, { shouldDirty: true });
   const [view, setView] = useState<"write" | "read">(editable ? "write" : "read");
-  const [dirty, setDirty] = useState(false);
   const [reply, setReply] = useState("");
   const [confirm, setConfirm] = useState<null | "submit" | "withdraw" | "revise">(null);
   const [started, setStarted] = useState(data.state !== "Not started");
@@ -48,7 +57,8 @@ export function NoteDocument({ data }: { data: NoteData }) {
   const [version, setVersion] = useState<string | null>(data.updatedAt);
   const [stale, setStale] = useState(false);
 
-  useEffect(() => { setText(data.text); setDirty(false); setVersion(data.updatedAt); setStale(false); }, [data.text, data.planId, data.state, data.updatedAt]);
+  useEffect(() => { form.reset(seeded(data.text)); setVersion(data.updatedAt); setStale(false); // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data.text, data.planId, data.state, data.updatedAt]);
   useEffect(() => {
     if (!dirty) return;
     const warn = (event: BeforeUnloadEvent) => { if (readDevicePreferences().confirmLeave) event.preventDefault(); };
@@ -64,12 +74,11 @@ export function NoteDocument({ data }: { data: NoteData }) {
   const termQuery = `?term=${data.term.id}`;
 
   function set(key: string, value: string) {
-    setText((current) => ({ ...current, [key]: value }));
-    setDirty(true);
+    form.setValue(`text.${key}`, value, { shouldDirty: true });
   }
   async function save(quiet = false) {
     const result = await run<{ id: string; state: string; written: number; updatedAt: string }>("save", `${LN_API}/notes/${data.subjectId}/${data.week}`, "POST", { sections: text, termId: data.term.id, base: version }, quiet ? undefined : "Saved.", (message) => { if (/changed after you opened/i.test(message)) setStale(true); });
-    if (result) { setDirty(false); setVersion(result.updatedAt); router.refresh(); }
+    if (result) { form.reset({ text: form.getValues("text") }); setVersion(result.updatedAt); router.refresh(); }
     return result;
   }
   async function submit() {
@@ -106,20 +115,18 @@ export function NoteDocument({ data }: { data: NoteData }) {
   const fromScheme = () => {
     const next = { ...text };
     for (const section of sections) if (!has(next[section.key]) && data.draft[section.key]) next[section.key] = data.draft[section.key]!;
-    setText(next); setDirty(true); setStarted(true);
+    setText(next); setStarted(true);
   };
   const reuse = () => {
     if (!data.reuse) return;
     const earlier = data.reuse.sections;
     setText({ ...text, ...Object.fromEntries(sections.flatMap((s) => [[s.key, earlier[s.key] ?? ""], ...(s.kind === "week-grid" && earlier[`${s.key}${GRID_SUFFIX}`] ? [[`${s.key}${GRID_SUFFIX}`, earlier[`${s.key}${GRID_SUFFIX}`]!]] : [])])) });
-    setDirty(true);
     setStarted(true);
   };
   const setGrid = (key: string, day: string, slot: string, value: string) => {
     const grid = parseGrid(text[`${key}${GRID_SUFFIX}`]);
     grid[day] = { ...(grid[day] ?? {}), [slot]: value };
     setText((current) => ({ ...current, [`${key}${GRID_SUFFIX}`]: JSON.stringify(grid), [key]: composeGrid(grid) }));
-    setDirty(true);
   };
   const hasDraft = useMemo(() => Object.values(data.draft).some(has), [data.draft]);
 
@@ -188,7 +195,7 @@ export function NoteDocument({ data }: { data: NoteData }) {
                 ) : view === "write" && editable ? (
                   <>
                     <p className="mt-1 text-[11px]" style={{ color: MUTED }}>{section.hint}</p>
-                    <textarea className={`${inputClass} mt-2 min-h-[110px] leading-[1.65]`} value={text[section.key] ?? ""} onChange={(event) => set(section.key, event.target.value)} placeholder={section.placeholder} aria-label={section.label} />
+                    <textarea className={`${inputClass} mt-2 min-h-[110px] leading-[1.65]`} {...form.register(`text.${section.key}`)} placeholder={section.placeholder} aria-label={section.label} />
                   </>
                 ) : has(text[section.key]) ? (
                   <p className="mt-2 whitespace-pre-wrap text-[12.5px] leading-[1.75]" style={{ color: INK }}>{text[section.key]}</p>
@@ -265,8 +272,10 @@ export function NoteReader({ data }: { data: ReaderData }) {
   const toast = useToast();
   const { busy, run } = useWrite(toast.show);
   const [panel, setPanel] = useState<null | "sign" | "return">(null);
-  const [section, setSection] = useState("");
-  const [comment, setComment] = useState("");
+  // What the reviewer says. A note sent back needs a comment the teacher can act on; one that is signed may have none.
+  const decision = useForm<{ section: string; comment: string }>({ defaultValues: { section: "", comment: "" } });
+  const { section, comment } = decision.watch();
+  const returnSchema = z.object({ comment: z.string().trim().min(1, "Say what to change — a return without a comment cannot be acted on.") });
 
   async function decide(decision: "sign" | "return") {
     const result = await run(decision, `${LN_API}/notes/review/${data.id}/decide`, "POST", { decision, note: comment.trim() || undefined, section: section || undefined }, decision === "sign" ? "Signed. The teacher is told." : "Returned. The teacher is told.");
@@ -308,11 +317,11 @@ export function NoteReader({ data }: { data: ReaderData }) {
         </div>
         <div className="grid min-w-0 grid-cols-[minmax(0,1fr)] gap-3 lg:sticky lg:top-4"><Thread thread={data.thread} /></div>
       </div>
-      {panel === "sign" ? <Confirm title="Sign this note?" body="The teacher is told, and it is ready to teach from." confirm="Sign it" busy={busy === "sign"} onConfirm={() => decide("sign")} onCancel={() => setPanel(null)}><label className="mt-3 block"><Label>A word for the teacher (optional)</Label><textarea className={`${inputClass} min-h-[60px]`} value={comment} onChange={(event) => setComment(event.target.value)} /></label></Confirm> : null}
+      {panel === "sign" ? <Confirm title="Sign this note?" body="The teacher is told, and it is ready to teach from." confirm="Sign it" busy={busy === "sign"} onConfirm={() => decide("sign")} onCancel={() => setPanel(null)}><label className="mt-3 block"><Label>A word for the teacher (optional)</Label><textarea className={`${inputClass} min-h-[60px]`} {...decision.register("comment")} /></label></Confirm> : null}
       {panel === "return" ? (
-        <Confirm title="Return this note" body="Say what to change. The teacher sees it beside the section." confirm="Return it" danger busy={busy === "return"} onConfirm={() => { if (!comment.trim()) return toast.show("Say what to change — a return without a comment cannot be acted on.", "bad"); void decide("return"); }} onCancel={() => setPanel(null)}>
-          <label className="mt-3 block"><Label>Section</Label><select className={inputClass} value={section} onChange={(event) => setSection(event.target.value)}><option value="">Not one section</option>{data.sections.map((s) => <option key={s.key} value={s.key}>{s.label}</option>)}</select></label>
-          <label className="mt-3 block"><Label>What to change</Label><textarea className={`${inputClass} min-h-[80px]`} value={comment} onChange={(event) => setComment(event.target.value)} placeholder="Be specific." /></label>
+        <Confirm title="Return this note" body="Say what to change. The teacher sees it beside the section." confirm="Return it" danger busy={busy === "return"} onConfirm={() => { const checked = returnSchema.safeParse(decision.getValues()); if (!checked.success) { const message = checked.error.issues[0]!.message; decision.setError("comment", { message }); return toast.show(message, "bad"); } void decide("return"); }} onCancel={() => setPanel(null)}>
+          <label className="mt-3 block"><Label>Section</Label><select className={inputClass} {...decision.register("section")}><option value="">Not one section</option>{data.sections.map((s) => <option key={s.key} value={s.key}>{s.label}</option>)}</select></label>
+          <label className="mt-3 block"><Label>What to change</Label><textarea className={`${inputClass} min-h-[80px]`} {...decision.register("comment")} aria-invalid={Boolean(decision.formState.errors.comment)} placeholder="Be specific." />{decision.formState.errors.comment ? <span role="alert" className="mt-1 block text-[11px]" style={{ color: "#B23B3B" }}>{decision.formState.errors.comment.message}</span> : null}</label>
         </Confirm>
       ) : null}
     </div>

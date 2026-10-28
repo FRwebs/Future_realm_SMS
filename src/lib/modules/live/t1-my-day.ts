@@ -1,4 +1,5 @@
-import { apiGet } from "@/lib/api/server";
+import { apiGet, observe } from "@/lib/api/server";
+import { localContracts } from "@/lib/api/local-contracts.zod";
 import type { TeacherWorkspaceView } from "@/lib/api/teacher-workspace";
 import { teacherModules, teacherNavigation } from "@/lib/modules/teacher-workspace";
 import type { KpiCard, Panel, PanelRow, PanelTone, TabContent, TableRow, TrackerRow } from "@/lib/modules/panels";
@@ -65,9 +66,9 @@ const shortDay = (iso: string) => formatDay(new Date(iso), { day: "numeric", mon
 const clockOf = (iso: string) => new Intl.DateTimeFormat("en-GB", { hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "Africa/Lagos" }).format(new Date(iso));
 
 export async function teacherMyDayTab(tabSlug: string, me: TeacherWorkspaceView, permissions: string[]): Promise<TabContent | null | undefined> {
-  if (tabSlug === "oversight") return oversightTab(await apiGet<OversightView>("/api/v1/teacher-workspace/oversight"));
+  if (tabSlug === "oversight") return oversightTab(await apiGet("/api/v1/teacher-workspace/oversight", observe<OversightView>(localContracts["src/lib/modules/live/t1-my-day.ts#d212aa81"])));
   if (tabSlug !== "today") return undefined;
-  return todayTab(await apiGet<DayView>("/api/v1/teacher-workspace/day"), me, permissions);
+  return todayTab(await apiGet("/api/v1/teacher-workspace/day", observe<DayView>(localContracts["src/lib/modules/live/t1-my-day.ts#362e85b9"])), me, permissions);
 }
 
 function todayTab(d: DayView, me: TeacherWorkspaceView, permissions: string[]): TabContent {

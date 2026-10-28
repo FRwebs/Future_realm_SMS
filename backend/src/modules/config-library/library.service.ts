@@ -46,7 +46,7 @@ const cardSchema = z.object({
   applicableCurricula: z.preprocess((v) => (Array.isArray(v) ? v : typeof v === "string" && v ? v.split(",").map((x) => x.trim()).filter(Boolean) : []), z.array(z.string())).default([]),
   baseOnId: z.string().trim().optional().transform((v) => v || undefined),
   targetRelease: z.string().trim().optional().transform((v) => v || undefined),
-  spec: specSchema.default({ sections: {} })
+  spec: specSchema.prefault({ sections: {} })
 });
 
 type Finding = { test: string; state: "PASS" | "PARTIAL" | "FAIL"; note: string };

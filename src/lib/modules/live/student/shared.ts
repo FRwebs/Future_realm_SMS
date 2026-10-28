@@ -1,5 +1,6 @@
 import { formatDay, isDefaultDateFormat } from "@/lib/date-format";
-import { apiGet } from "@/lib/api/server";
+import { apiGet, observe } from "@/lib/api/server";
+import { localContracts } from "@/lib/api/local-contracts.zod";
 import { SW } from "@/lib/api/student-workspace";
 import type { DrawerSpec, FormField, PanelTone, TabContent } from "@/lib/modules/panels";
 
@@ -42,16 +43,16 @@ export type Card = {
 };
 export type Askable = { formMasterReads?: boolean; people: Array<{ id: string; name: string; role: string }> };
 
-export const loadMe = () => apiGet<Me>(`${SW}/me`);
-export const loadTimetable = () => apiGet<Timetable>(`${SW}/timetable`);
-export const loadSubjects = () => apiGet<Subjects>(`${SW}/subjects`);
-export const loadAssignments = () => apiGet<Assignments>(`${SW}/assignments`);
-export const loadAttendance = () => apiGet<AttendanceData>(`${SW}/attendance`);
-export const loadCalendar = () => apiGet<{ events: CalEvent[] }>(`${SW}/calendar`);
-export const loadMessages = () => apiGet<{ formMaster: { id: string; name: string } | null; items: Message[] }>(`${SW}/messages`);
-export const loadCards = () => apiGet<{ cards: Card[] }>(`${SW}/cards`);
-export const loadAskable = () => apiGet<Askable>(`${SW}/askable`);
-export const loadPrefs = () => apiGet<{ matrix: Record<string, boolean>; quiet: string; remind: string }>(`${SW}/prefs`);
+export const loadMe = () => apiGet(`${SW}/me`, observe<Me>(localContracts["src/lib/modules/live/student/shared.ts#94563ec3"]));
+export const loadTimetable = () => apiGet(`${SW}/timetable`, observe<Timetable>(localContracts["src/lib/modules/live/student/shared.ts#c48b6278"]));
+export const loadSubjects = () => apiGet(`${SW}/subjects`, observe<Subjects>(localContracts["src/lib/modules/live/student/shared.ts#278947de"]));
+export const loadAssignments = () => apiGet(`${SW}/assignments`, observe<Assignments>(localContracts["src/lib/modules/live/student/shared.ts#057d58c7"]));
+export const loadAttendance = () => apiGet(`${SW}/attendance`, observe<AttendanceData>(localContracts["src/lib/modules/live/student/shared.ts#eb8b1f16"]));
+export const loadCalendar = () => apiGet(`${SW}/calendar`, observe<{ events: CalEvent[] }>(localContracts["src/lib/modules/live/student/shared.ts#6e6d1b5e"]));
+export const loadMessages = () => apiGet(`${SW}/messages`, observe<{ formMaster: { id: string; name: string } | null; items: Message[] }>(localContracts["src/lib/modules/live/student/shared.ts#c1aeb3a1"]));
+export const loadCards = () => apiGet(`${SW}/cards`, observe<{ cards: Card[] }>(localContracts["src/lib/modules/live/student/shared.ts#d72eefce"]));
+export const loadAskable = () => apiGet(`${SW}/askable`, observe<Askable>(localContracts["src/lib/modules/live/student/shared.ts#e5f9316b"]));
+export const loadPrefs = () => apiGet(`${SW}/prefs`, observe<{ matrix: Record<string, boolean>; quiet: string; remind: string }>(localContracts["src/lib/modules/live/student/shared.ts#d7cc4072"]));
 
 /** What a page hands the shell: the tab content plus the strip of tabs inside the page. */
 export type StudentContent = TabContent & { eyebrow?: string; tabs?: Array<{ label: string; count?: number }>; tab?: string };

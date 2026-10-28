@@ -10,7 +10,8 @@ import { applicantPage, loadAdmissionOptions, loadApplicant, loadPipeline, pipel
 import { enrolDrawer } from "@/lib/modules/live/m8-forms";
 import { loadEnrolOptions, loadMoveOptions } from "@/lib/modules/live/m8-registry";
 import { SECTIONS, studentRecordPage, type RecordSection } from "@/lib/modules/live/m8-record";
-import { apiGet } from "@/lib/api/server";
+import { apiGet, observe } from "@/lib/api/server";
+import { localContracts } from "@/lib/api/local-contracts.zod";
 import { getTeacherWorkspace } from "@/lib/api/teacher-workspace";
 import { loadMyStudents, changeDrawer, incidentDrawer, concernDrawer, teacherWellbeing, type TeacherSupportPlan } from "@/lib/modules/live/t8-students";
 import { loadDossier } from "@/lib/modules/live/m8-record";
@@ -69,7 +70,7 @@ export async function StudentRecordView({ id, section, termId, from, arm }: { id
 
   let crumb: { label: string; href: string } | undefined;
   if (from === "arm" && arm) {
-    const found = await apiGet<{ name: string }>(`/api/v1/class-structure/arms/${encodeURIComponent(arm)}`).catch(() => null);
+    const found = await apiGet(`/api/v1/class-structure/arms/${encodeURIComponent(arm)}`, observe<{ name: string }>(localContracts["src/components/modules/student-records-views.tsx#af4ef86b"])).catch(() => null);
     crumb = { label: `Back to ${found?.name ?? "the arm"}`, href: `/class-timetable/classes/${arm}` };
   }
   const page = await studentRecordPage(id, known.section as RecordSection, { termId, from: crumb });

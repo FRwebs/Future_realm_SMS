@@ -15,7 +15,7 @@ vi.mock("next/navigation", () => ({
 }));
 
 const apiGet = vi.fn();
-vi.mock("@/lib/api/server", () => ({ apiGet: (...args: unknown[]) => apiGet(...args) }));
+vi.mock("@/lib/api/server", () => ({ observe: (schema: unknown) => ({ observed: schema }), apiGet: (...args: unknown[]) => apiGet(...args) }));
 
 const markup = (tab: Pick<TabContent, "rows">) => renderToStaticMarkup(<PanelRows rows={tab.rows} />);
 

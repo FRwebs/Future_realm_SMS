@@ -20,28 +20,31 @@ export function rowText(tableRow: TableRow): string[] {
   return [...cells, tableRow.keywords ?? ""];
 }
 
-export function narrowRows(rows: TableRow[], filters: TableFilter[] | undefined, needleText: string, values: Record<string, string>): TableRow[] {
+/** Whether one row passes the words searched for and the choice made on each filter. */
+export function rowMatches(tableRow: TableRow, filters: TableFilter[] | undefined, needleText: string, values: Record<string, string>): boolean {
   const needle = needleText.trim().toLowerCase();
-  return rows.filter((tableRow) => {
-    const texts = rowText(tableRow);
-    if (needle && !texts.some((value) => value.toLowerCase().includes(needle))) return false;
-    for (const filter of filters ?? []) {
-      const chosen = values[filter.label];
-      // The first option is the "all" one and never narrows anything; a switcher between pages never narrows this one.
-      if (!chosen || chosen === filter.options[0] || filter.go) continue;
-      if (filter.since) {
-        const hours = filter.since[chosen];
-        if (hours === undefined) continue;
-        const happened = tableRow.at ? Date.parse(tableRow.at) : NaN;
-        if (Number.isNaN(happened) || happened < Date.now() - hours * 3_600_000) return false;
-        continue;
-      }
-      const haystack = filter.column !== undefined ? [texts[filter.column] ?? ""] : texts;
-      const wanted = (filter.match?.[chosen] ?? chosen).toLowerCase();
-      if (!haystack.some((value) => value.toLowerCase().includes(wanted))) return false;
+  const texts = rowText(tableRow);
+  if (needle && !texts.some((value) => value.toLowerCase().includes(needle))) return false;
+  for (const filter of filters ?? []) {
+    const chosen = values[filter.label];
+    // The first option is the "all" one and never narrows anything; a switcher between pages never narrows this one.
+    if (!chosen || chosen === filter.options[0] || filter.go) continue;
+    if (filter.since) {
+      const hours = filter.since[chosen];
+      if (hours === undefined) continue;
+      const happened = tableRow.at ? Date.parse(tableRow.at) : NaN;
+      if (Number.isNaN(happened) || happened < Date.now() - hours * 3_600_000) return false;
+      continue;
     }
-    return true;
-  });
+    const haystack = filter.column !== undefined ? [texts[filter.column] ?? ""] : texts;
+    const wanted = (filter.match?.[chosen] ?? chosen).toLowerCase();
+    if (!haystack.some((value) => value.toLowerCase().includes(wanted))) return false;
+  }
+  return true;
+}
+
+export function narrowRows(rows: TableRow[], filters: TableFilter[] | undefined, needleText: string, values: Record<string, string>): TableRow[] {
+  return rows.filter((tableRow) => rowMatches(tableRow, filters, needleText, values));
 }
 
 const csvCell = (value: TableCellKind | undefined) => {

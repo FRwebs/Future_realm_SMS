@@ -20,6 +20,9 @@ const securityHeaders = [
 
 const nextConfig: NextConfig = {
   typedRoutes: true,
+  // The React Compiler memoises components and hooks automatically. A component it cannot prove safe to memoise is left exactly as written,
+  // so this only ever removes needless re-renders; the browser tests run against it as they do against everything else.
+  experimental: { reactCompiler: true },
   allowedDevOrigins: ["127.0.0.1", "localhost"],
   async headers() {
     return [

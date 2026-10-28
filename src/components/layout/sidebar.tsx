@@ -225,7 +225,7 @@ function SidebarContent({
 
       {!collapsed && (
         <div className="px-4 pb-[14px] pt-0">
-          <label className="flex items-center gap-[9px] rounded-[11px] border border-[rgba(255,255,255,0.13)] bg-[rgba(255,255,255,0.09)] px-[11px] py-[9px]">
+          <label className="flex items-center gap-[9px] rounded-[11px] border border-[rgba(255,255,255,0.13)] bg-[rgba(255,255,255,0.09)] px-[11px] py-[9px] focus-within:border-[rgba(255,255,255,0.55)]">
             <Search className="h-[15px] w-[15px] shrink-0 text-[rgba(255,255,255,0.6)]" />
             <input
               value={search}

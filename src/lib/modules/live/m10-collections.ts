@@ -1,5 +1,6 @@
 import { receiptDrawer } from "@/lib/modules/live/documents";
-import { apiGet } from "@/lib/api/server";
+import { apiGet, observe } from "@/lib/api/server";
+import { localContracts } from "@/lib/api/local-contracts.zod";
 import { dayLabel, dayLong, plural } from "@/lib/modules/live/m7-format";
 import { FEES, adjustDrawer, meetingDrawer, naira, nairaShort, planDrawer, recordPaymentDrawer, remindersDrawer, writeOffDrawer } from "@/lib/modules/live/m10-forms";
 import type { Collections, FamilyDetail, FamilyRow, FormClass } from "@/lib/modules/live/m10-types";
@@ -21,9 +22,9 @@ import {
  * conversation — never a row for each child.
  */
 
-export const loadCollections = () => apiGet<Collections>(`${FEES}/collections`);
-export const loadFormClass = () => apiGet<FormClass>(`${FEES}/collections/form-class`);
-export const loadFamily = (id: string) => apiGet<FamilyDetail>(`${FEES}/families/${encodeURIComponent(id)}`);
+export const loadCollections = () => apiGet(`${FEES}/collections`, observe<Collections>(localContracts["src/lib/modules/live/m10-collections.ts#4bbb632f"]));
+export const loadFormClass = () => apiGet(`${FEES}/collections/form-class`, observe<FormClass>(localContracts["src/lib/modules/live/m10-collections.ts#5959592b"]));
+export const loadFamily = (id: string) => apiGet(`${FEES}/families/${encodeURIComponent(id)}`, observe<FamilyDetail>(localContracts["src/lib/modules/live/m10-collections.ts#b3018928"]));
 
 export const BUCKET_TONE: Record<string, PanelTone> = { Current: "positive", "30 days": "submitted", "60 days": "attention", "90+ days": "negative" };
 export const STAGE_TONE: Record<string, PanelTone> = { "Not started": "neutral", "First reminder": "attention", "Second reminder": "attention", "Meeting requested": "progress", "On a payment plan": "positive" };

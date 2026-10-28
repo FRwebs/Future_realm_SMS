@@ -10,7 +10,7 @@ import type { SupportOverview, SyncOverview } from "@/lib/modules/live/m16-types
 import type { TabContent } from "@/lib/modules/panels";
 
 vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: () => {}, push: () => {}, replace: () => {} }), usePathname: () => "/" }));
-vi.mock("@/lib/api/server", () => ({ apiGet: async () => ({}) }));
+vi.mock("@/lib/api/server", () => ({ observe: (schema: unknown) => ({ observed: schema }), apiGet: async () => ({}) }));
 
 const markup = (tab: Pick<TabContent, "rows">) => renderToStaticMarkup(<PanelRows rows={tab.rows} />);
 

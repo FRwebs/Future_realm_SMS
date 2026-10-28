@@ -1,4 +1,5 @@
-import { apiGet } from "@/lib/api/server";
+import { apiGet, observe } from "@/lib/api/server";
+import { localContracts } from "@/lib/api/local-contracts.zod";
 import { AT, decideCorrectionDrawer, openCaseDrawer, sendRecordDrawer, spoolDrawer, viewCorrectionDrawer } from "@/lib/modules/live/m4-forms";
 import { dayHref, markHref, pct, rateTone, staffRecordHref, tone, trendHref, weekHref } from "@/lib/modules/live/m4-register";
 import type { Log, Options, Trend, Week } from "@/lib/modules/live/m4-types";
@@ -8,9 +9,9 @@ import { formatDay } from "@/lib/date-format";
 
 /** The Log is the children over time: a trend per arm, who needs attention, and what the school has done about it. */
 
-export const loadLog = () => apiGet<Log>(`${AT}/log`);
+export const loadLog = () => apiGet(`${AT}/log`, observe<Log>(localContracts["src/lib/modules/live/m4-log.ts#8bf95ea3"]));
 export const loadTrend = (classId: string) => apiGet<Trend>(`${AT}/register/${encodeURIComponent(classId)}/trend`);
-export const loadWeek = (classId: string, start?: string) => apiGet<Week>(`${AT}/register/${encodeURIComponent(classId)}/week${start ? `?start=${encodeURIComponent(start)}` : ""}`);
+export const loadWeek = (classId: string, start?: string) => apiGet(`${AT}/register/${encodeURIComponent(classId)}/week${start ? `?start=${encodeURIComponent(start)}` : ""}`, observe<Week>(localContracts["src/lib/modules/live/m4-log.ts#f82be68a"]));
 
 const WARN = "M12 8.2v4.6M12 16h.02M12 3.6 21 19.4H3z";
 const DOWNLOAD = "M12 3.5v11M7.5 10l4.5 4.5 4.5-4.5M4.5 19.5h15";

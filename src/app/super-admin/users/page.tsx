@@ -19,7 +19,8 @@ import { TableCard } from "@/components/data-display/table-card";
 import { FilterToolbar } from "@/components/filters/filter-toolbar";
 import { ResourceActionDialog } from "@/components/forms/resource-action-dialog";
 import { ActionMenu, ActionMenuLink } from "@/components/ui/action-menu";
-import { apiGet, apiGetEnvelope } from "@/lib/api/server";
+import { apiGet, apiGetEnvelope, observe } from "@/lib/api/server";
+import { localContracts } from "@/lib/api/local-contracts.zod";
 import type {
   SuperAdminAccountRecoveryRow,
   SuperAdminDuplicateFlagRow,
@@ -350,7 +351,7 @@ type MembershipView = {
 
 async function MembershipsSection() {
   const [view, schoolsEnvelope] = await Promise.all([
-    apiGet<MembershipView>("/api/super-admin/users/insights/memberships").catch(() => null),
+    apiGet("/api/super-admin/users/insights/memberships", observe<MembershipView>(localContracts["src/app/super-admin/users/page.tsx#dc546464"])).catch(() => null),
     apiGetEnvelope<Array<{ id: string; name: string }>>("/api/super-admin/schools?limit=100").catch(() => ({ data: [] as Array<{ id: string; name: string }> }))
   ]);
   const schoolOptions = (schoolsEnvelope.data ?? []).map((school) => ({ label: school.name, value: school.id }));
@@ -742,7 +743,7 @@ const REPAIR_STATE: Record<string, { label: string; bg: string; fg: string }> = 
 };
 
 async function RepairQueue() {
-  const view = await apiGet<RepairView>("/api/super-admin/user-case-review-context/repair-queue").catch(() => null);
+  const view = await apiGet("/api/super-admin/user-case-review-context/repair-queue", observe<RepairView>(localContracts["src/app/super-admin/users/page.tsx#a33dd1fc"])).catch(() => null);
   const k = view?.kpis;
   const rows = view?.rows ?? [];
   return (
@@ -801,7 +802,7 @@ const ACTIVITY_TONE: Record<string, { bg: string; fg: string }> = {
 };
 
 async function IndividualTeachersTab({ params }: { params: Record<string, string | undefined> }) {
-  const view = await apiGet<TeacherView>("/api/super-admin/users/insights/teachers");
+  const view = await apiGet("/api/super-admin/users/insights/teachers", observe<TeacherView>(localContracts["src/app/super-admin/users/page.tsx#78499c98"]));
   const q = (params.search ?? "").toLowerCase();
   const teachers = view.teachers.filter((t) => !q || `${t.name} ${t.school ?? ""} ${t.city ?? ""} ${t.subjects.join(" ")}`.toLowerCase().includes(q));
   const messageFields = [
@@ -922,8 +923,8 @@ type Restriction = { id: string; guardian: string; email: string; school: string
 async function SupportAccessTab() {
   const [envelope, elevations, restrictions] = await Promise.all([
     apiGetEnvelope<SuperAdminImpersonationLogRow[]>("/api/super-admin/users/impersonation-log"),
-    apiGet<Elevation[]>("/api/super-admin/users/support-access/elevations").catch(() => [] as Elevation[]),
-    apiGet<Restriction[]>("/api/super-admin/users/support-access/restrictions").catch(() => [] as Restriction[])
+    apiGet("/api/super-admin/users/support-access/elevations", observe<Elevation[]>(localContracts["src/app/super-admin/users/page.tsx#178c9837"])).catch(() => [] as Elevation[]),
+    apiGet("/api/super-admin/users/support-access/restrictions", observe<Restriction[]>(localContracts["src/app/super-admin/users/page.tsx#109b3e02"])).catch(() => [] as Restriction[])
   ]);
   const events = envelope.data ?? [];
 

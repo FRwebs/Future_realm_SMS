@@ -6,6 +6,16 @@ import {
   HttpStatus
 } from "@nestjs/common";
 import type { Response } from "express";
+import { ZodError } from "zod";
+
+/** What a refused input says, in words: the field and what is wrong with it — not the validator's own report. */
+export function sayWhatIsWrong(error: ZodError): string {
+  const lines = error.issues.slice(0, 3).map((issue) => {
+    const field = issue.path.length ? String(issue.path[issue.path.length - 1]) : "";
+    return field ? `${field}: ${issue.message}` : issue.message;
+  });
+  return lines.join("; ") + (error.issues.length > 3 ? ` (and ${error.issues.length - 3} more)` : "");
+}
 
 @Catch()
 export class ApiExceptionFilter implements ExceptionFilter {
@@ -29,7 +39,7 @@ export class ApiExceptionFilter implements ExceptionFilter {
 
     response.status(HttpStatus.BAD_REQUEST).json({
       ok: false,
-      error: exception instanceof Error ? exception.message : "Unexpected error"
+      error: exception instanceof ZodError ? sayWhatIsWrong(exception) : exception instanceof Error ? exception.message : "Unexpected error"
     });
   }
 }

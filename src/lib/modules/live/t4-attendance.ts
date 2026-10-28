@@ -1,4 +1,5 @@
-import { apiGet } from "@/lib/api/server";
+import { apiGet, observe } from "@/lib/api/server";
+import { localContracts } from "@/lib/api/local-contracts.zod";
 import type { TeacherWorkspaceView } from "@/lib/api/teacher-workspace";
 import type { MarkerStudent, PanelRow, PanelTone, TabContent, TableCellKind, TableRow } from "@/lib/modules/panels";
 import { pill, row, text } from "@/lib/modules/panels";
@@ -77,17 +78,17 @@ const dayWords = (iso: string) => formatDay(new Date(iso), { weekday: "long", da
 
 export async function teacherAttendanceTab(tabSlug: string, me: TeacherWorkspaceView, permissions: string[], query: Record<string, string | undefined>): Promise<TabContent | null | undefined> {
   const held = new Set(permissions);
-  if (tabSlug === "mark") return markTab(await apiGet<RegistersView>(`${API}/registers`), me, held);
+  if (tabSlug === "mark") return markTab(await apiGet(`${API}/registers`, observe<RegistersView>(localContracts["src/lib/modules/live/t4-attendance.ts#9e919aae"])), me, held);
   if (tabSlug === "register") {
     // Without an arm named, the tab is the index of every register held; naming one
     // opens that register's own history, which is what the index links to.
     if (!query.arm) {
       // An API that predates the index still serves the per-arm history, so fall back
       // to it rather than failing the whole tab during a rolling deploy.
-      const index = await apiGet<RegisterIndex>(`${API}/register-index`).catch(() => null);
+      const index = await apiGet(`${API}/register-index`, observe<RegisterIndex>(localContracts["src/lib/modules/live/t4-attendance.ts#bc3e7357"])).catch(() => null);
       if (index) return registerIndexTab(index);
     }
-    return registerTab(await apiGet<ArmHistory | PeriodHistory>(`${API}/register-history${query.arm ? `?class=${encodeURIComponent(query.arm)}` : ""}`));
+    return registerTab(await apiGet(`${API}/register-history${query.arm ? `?class=${encodeURIComponent(query.arm)}` : ""}`, observe<ArmHistory | PeriodHistory>(localContracts["src/lib/modules/live/t4-attendance.ts#5d679d9e"])));
   }
   return undefined;
 }
@@ -285,7 +286,7 @@ function registerTab(h: ArmHistory | PeriodHistory): TabContent {
 }
 
 export const loadPeriodState = (classId: string, subjectId: string, period: string, date?: string) =>
-  apiGet<PeriodState>(`${API}/period-registers/${encodeURIComponent(classId)}/${encodeURIComponent(subjectId)}/${encodeURIComponent(period)}${date ? `?date=${encodeURIComponent(date)}` : ""}`);
+  apiGet(`${API}/period-registers/${encodeURIComponent(classId)}/${encodeURIComponent(subjectId)}/${encodeURIComponent(period)}${date ? `?date=${encodeURIComponent(date)}` : ""}`, observe<PeriodState>(localContracts["src/lib/modules/live/t4-attendance.ts#ce7d8c71"]));
 
 /** One period's register, taken: the same marker a daily register uses, pointed at the period's own endpoints. */
 export function periodMarkPage(s: PeriodState): TabContent & { crumb: { label: string; href: string } } {

@@ -1,4 +1,5 @@
-import { apiGet } from "@/lib/api/server";
+import { apiGet, observe } from "@/lib/api/server";
+import { localContracts } from "@/lib/api/local-contracts.zod";
 import { API } from "@/lib/modules/live/m7-forms";
 import {
   approveRunDrawer,
@@ -38,9 +39,9 @@ import {
  * computed from a band and a step — nothing here is a figure somebody typed for a person.
  */
 
-export const loadPayroll = () => apiGet<PayrollOverview>(`${API}/payroll`);
-export const loadBand = (id: string) => apiGet<BandDetail>(`${API}/payroll/bands/${id}`);
-export const loadPayPerson = (id: string) => apiGet<PayPerson>(`${API}/payroll/people/${id}`);
+export const loadPayroll = () => apiGet(`${API}/payroll`, observe<PayrollOverview>(localContracts["src/lib/modules/live/m7-payroll.ts#ebe34eee"]));
+export const loadBand = (id: string) => apiGet(`${API}/payroll/bands/${id}`, observe<BandDetail>(localContracts["src/lib/modules/live/m7-payroll.ts#0950aa8d"]));
+export const loadPayPerson = (id: string) => apiGet(`${API}/payroll/people/${id}`, observe<PayPerson>(localContracts["src/lib/modules/live/m7-payroll.ts#47377043"]));
 
 export const PAY_TONE: Record<string, PanelTone> = {
   Paid: "positive",
@@ -290,7 +291,7 @@ export function payrollTab(data: PayrollOverview): TabContent {
               ["2 · Allowances", "Added by band, not by person", "Who draws each is part of the band"],
               ["3 · Proration", "By working day", "Starters and unpaid leave only"],
               ["4 · Statutory deductions", "From the profile", "PAYE, pension, national housing"],
-              ["5 · Net pay", "What reaches the bank", setup.roundNet ? "Rounded to the nearest 100" : "To the naira, never rounded-sm"],
+              ["5 · Net pay", "What reaches the bank", setup.roundNet ? "Rounded to the nearest 100" : "To the naira, never rounded"],
               ["Nothing else", "No free-text pay line exists", "Because that is how quiet, permanent errors get in"],
             ],
           },

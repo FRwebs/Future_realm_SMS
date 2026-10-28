@@ -1,4 +1,5 @@
-import { apiGet } from "@/lib/api/server";
+import { apiGet, observe } from "@/lib/api/server";
+import { localContracts } from "@/lib/api/local-contracts.zod";
 import { notifyPersonDrawer } from "@/lib/modules/live/m4-forms";
 import { bandDrawer, cardDrawer, formMasterDrawer, notifyBehind, RC, remarkHref, reviewDrawer } from "@/lib/modules/live/m6-forms";
 import type { PublishDate, RemarkPage, RemarksOverview } from "@/lib/modules/live/m6-types";
@@ -13,9 +14,9 @@ export const loadRemarks = (query: { level?: string; arm?: string }) => {
   const params = new URLSearchParams();
   if (query.level) params.set("level", query.level);
   if (query.arm) params.set("arm", query.arm);
-  return apiGet<RemarksOverview>(`${RC}/remarks${params.toString() ? `?${params.toString()}` : ""}`);
+  return apiGet(`${RC}/remarks${params.toString() ? `?${params.toString()}` : ""}`, observe<RemarksOverview>(localContracts["src/lib/modules/live/m6-remarks.ts#c6bfd201"]));
 };
-export const loadRemarkPage = (classId: string, studentId: string) => apiGet<RemarkPage>(`${RC}/remarks/${encodeURIComponent(classId)}/${encodeURIComponent(studentId)}`);
+export const loadRemarkPage = (classId: string, studentId: string) => apiGet(`${RC}/remarks/${encodeURIComponent(classId)}/${encodeURIComponent(studentId)}`, observe<RemarkPage>(localContracts["src/lib/modules/live/m6-remarks.ts#ef32aa57"]));
 
 const WARN = "M12 8.2v4.6M12 16h.02M12 3.6 21 19.4H3z";
 const PEN = "M4 20h4L19 9l-4-4L4 16zM14.5 5.5l4 4";

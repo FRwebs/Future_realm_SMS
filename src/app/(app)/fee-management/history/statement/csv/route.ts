@@ -1,4 +1,5 @@
-import { apiGet } from "@/lib/api/server";
+import { apiGet, observe } from "@/lib/api/server";
+import { localContracts } from "@/lib/api/local-contracts.zod";
 import { csvResponse, toCsv } from "@/lib/modules/csv";
 
 type Statement = { rows: Array<{ receipt: string; student: string; adm: string; arm: string; section: string; amount: number; mode: string; reference: string; by: string; date: string; invoice: string }> };
@@ -7,7 +8,7 @@ type Statement = { rows: Array<{ receipt: string; student: string; adm: string; 
 export async function GET(request: Request) {
   const query = new URL(request.url).searchParams.toString();
   try {
-    const data = await apiGet<Statement>(`/api/v1/fee-management/history/statement?${query}`);
+    const data = await apiGet(`/api/v1/fee-management/history/statement?${query}`, observe<Statement>(localContracts["src/app/(app)/fee-management/history/statement/csv/route.ts#a72ca256"]));
     const rows = data.rows.map((row) => [row.date, row.receipt, row.student, row.adm, row.arm, row.section, row.amount, row.mode, row.reference, row.by, row.invoice]);
     return csvResponse("fee-statement.csv", toCsv(["Date", "Receipt", "Student", "Admission number", "Class and arm", "Section", "Amount", "Method", "Reference", "Recorded by", "Invoice"], rows));
   } catch {

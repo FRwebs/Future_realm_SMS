@@ -41,11 +41,20 @@ jobs:
       - run: npm run prisma:seed
       - run: npm run lint
       - run: npm run type-check
+      # The runtime checks for the API's answers are generated from the types; a type changed without regenerating fails here.
+      - run: node scripts/generate-domain-contracts.mjs --check
       # Files and dependencies nothing uses.
       - run: npm run knip
       - run: npm run test
+      # A floor under how much of the logic the unit tests cover (vitest.config.ts); it can only be raised.
+      - run: npm run test:coverage
       - run: npm run build
+      # Each page's first-load JavaScript against its limit (scripts/check-bundle-size.mjs).
+      - run: npm run budget
       - run: npm run build-storybook
+      # Known-vulnerable packages. Advisory: a finding in a dev tool should not stop a school's fix from shipping.
+      - run: npm audit --audit-level=high
+        continue-on-error: true
 
   # Drives the built app in a real browser: accessibility (axe) on the screens and overlays people use most, and the offline page.
   # Advisory until it has run green on this repository once; then drop continue-on-error so it blocks like the rest.
@@ -88,7 +97,8 @@ jobs:
       - run: npx playwright install --with-deps chromium
       - name: Start the API and the web app
         run: |
-          npm run start > server.log 2>&1 &
+          # Strict: a read whose answer no longer matches the type its page was written against stops that page, so the walk below names it.
+          CONTRACT_MODE=strict npm run start > server.log 2>&1 &
           for i in $(seq 1 60); do
             curl -sf http://127.0.0.1:3000/login > /dev/null && curl -sf http://127.0.0.1:4000/api/health > /dev/null && exit 0
             sleep 2
@@ -96,6 +106,14 @@ jobs:
           cat server.log
           exit 1
       - run: npm run test:a11y
+      - name: Every screen opens against the types it was written for
+        run: npx playwright test tests/e2e/contract-walk.spec.ts
+      - name: Keyboard, whole-task and page-structure checks
+        run: npx playwright test tests/e2e/keyboard.spec.ts tests/e2e/workflows.spec.ts tests/e2e/structure.spec.ts tests/e2e/aria.spec.ts tests/e2e/smoke.spec.ts
+      # Lighthouse on the public screens: accessibility must hold; speed is a warning until there is a baseline to hold it to.
+      - name: Lighthouse
+        run: npm run lighthouse
+        continue-on-error: true
       - name: Offline page
         run: PWA_BASE_URL=http://127.0.0.1:3000 npx playwright test tests/e2e/pwa.spec.ts
       - uses: actions/upload-artifact@v4

@@ -1,4 +1,5 @@
-import { apiGet } from "@/lib/api/server";
+import { apiGet, observe } from "@/lib/api/server";
+import { localContracts } from "@/lib/api/local-contracts.zod";
 import type { TeacherWorkspaceView } from "@/lib/api/teacher-workspace";
 import { articleDrawer, raiseTicketDrawer, ticketDrawer } from "@/lib/modules/live/m16-forms";
 import type { SupportOverview, SyncOverview } from "@/lib/modules/live/m16-types";
@@ -17,8 +18,8 @@ const ago = (minutes: number | null) => (minutes === null ? "—" : minutes < 1 
 const since = (iso: string | null) => (iso ? ago(Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 60_000))) : "Never");
 
 export async function teacherSyncSupportTab(tabSlug: string, me: TeacherWorkspaceView): Promise<TabContent | null | undefined> {
-  if (tabSlug === "sync") return syncTab(await apiGet<SyncOverview>("/api/v1/sync/overview"), me);
-  if (tabSlug === "help-support") return helpTab(await apiGet<SupportOverview>("/api/v1/support/overview"), me);
+  if (tabSlug === "sync") return syncTab(await apiGet("/api/v1/sync/overview", observe<SyncOverview>(localContracts["src/lib/modules/live/t16-sync-support.ts#9dc3cf0a"])), me);
+  if (tabSlug === "help-support") return helpTab(await apiGet("/api/v1/support/overview", observe<SupportOverview>(localContracts["src/lib/modules/live/t16-sync-support.ts#d9b1260f"])), me);
   return undefined;
 }
 

@@ -177,7 +177,7 @@ export function BackOfficeTable({ title, description, meta, emptyState, actions,
       {hasHead ? (
         <div className="flex flex-wrap items-start justify-between gap-[12.5px] border-b border-[#EDF3EF] px-[18px] pb-[12.5px] pt-[14.5px]">
           <div className="min-w-0 flex-[1_1_300px]">
-            <h3 className="text-pretty text-[12.5px] font-semibold leading-[1.3] text-(--color-text-primary)">{title}</h3>
+            <h2 className="text-pretty text-[12.5px] font-semibold leading-[1.3] text-(--color-text-primary)">{title}</h2>
             {description ? <p className="mt-[3.5px] text-pretty text-[10.5px] leading-normal text-[#5f6e65]">{description}</p> : null}
           </div>
           {actions || meta ? (

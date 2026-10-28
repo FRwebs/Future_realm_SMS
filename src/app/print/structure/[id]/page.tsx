@@ -3,7 +3,8 @@ import { notFound, redirect } from "next/navigation";
 
 import { DocumentPaper } from "@/components/modules/document-paper";
 import { PrintControls } from "@/components/modules/print-button";
-import { apiGet } from "@/lib/api/server";
+import { apiGet, observe } from "@/lib/api/server";
+import { localContracts } from "@/lib/api/local-contracts.zod";
 import { canOpenModule } from "@/lib/auth/server-access";
 import { getServerSession } from "@/lib/auth/session";
 import { structurePaper } from "@/lib/modules/live/documents";
@@ -19,7 +20,7 @@ export default async function PrintStructurePage({ params }: { params: Promise<{
   const session = await getServerSession();
   if (!session) redirect("/login");
   if (!(await canOpenModule(session, "M10"))) notFound();
-  const [structure, school] = await Promise.all([loadStructure(id).catch(() => null), apiGet<SchoolPayload>("/api/v1/configuration/school-information").catch(() => null)]);
+  const [structure, school] = await Promise.all([loadStructure(id).catch(() => null), apiGet("/api/v1/configuration/school-information", observe<SchoolPayload>(localContracts["src/app/print/structure/[id]/page.tsx#81f42342"])).catch(() => null)]);
   if (!structure) notFound();
   const letterhead = { name: school?.record?.name ?? "School", place: [school?.record?.address, school?.record?.city].filter(Boolean).join(", "), contact: school?.record?.mainPhone ?? undefined };
   return (

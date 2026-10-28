@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
-import { apiGet } from "@/lib/api/server";
+import { apiGet, observe } from "@/lib/api/server";
+import { localContracts } from "@/lib/api/local-contracts.zod";
 import { invoicePaper, receiptPaper, structurePaper } from "@/lib/modules/live/documents";
 import { FEES } from "@/lib/modules/live/m10-forms";
 import type { ReceiptDoc } from "@/lib/modules/live/m10-types";
@@ -22,11 +23,11 @@ export async function GET(request: Request, { params }: { params: Promise<{ kind
   try {
     if (kind === "card") return NextResponse.json({ mode: "document", doc: await cardDocument(await loadCard(id, query.get("term") ?? undefined)) } satisfies Partial<DrawerSpec>);
     if (kind === "receipt") {
-      const receipt = await apiGet<ReceiptDoc>(`${FEES}/payments/${encodeURIComponent(id)}/receipt`);
+      const receipt = await apiGet(`${FEES}/payments/${encodeURIComponent(id)}/receipt`, observe<ReceiptDoc>(localContracts["src/app/(app)/documents/[kind]/[id]/route.ts#49018a3d"]));
       return NextResponse.json({ mode: "document", doc: receiptPaper(receipt, query.get("duplicate") === "1" || receipt.receipts > 1) } satisfies Partial<DrawerSpec>);
     }
     if (kind === "structure") {
-      const [structure, school] = await Promise.all([loadStructure(id), apiGet<SchoolPayload>("/api/v1/configuration/school-information").catch(() => null)]);
+      const [structure, school] = await Promise.all([loadStructure(id), apiGet("/api/v1/configuration/school-information", observe<SchoolPayload>(localContracts["src/app/(app)/documents/[kind]/[id]/route.ts#81f42342"])).catch(() => null)]);
       const letterhead = { name: school?.record?.name ?? "School", place: [school?.record?.address, school?.record?.city].filter(Boolean).join(", "), contact: school?.record?.mainPhone ?? undefined };
       return NextResponse.json({ mode: "document", doc: structurePaper(structure, letterhead) } satisfies Partial<DrawerSpec>);
     }

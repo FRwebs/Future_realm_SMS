@@ -1,5 +1,6 @@
 import { cardDrawer } from "@/lib/modules/live/m6-forms";
-import { apiGet } from "@/lib/api/server";
+import { apiGet, observe } from "@/lib/api/server";
+import { localContracts } from "@/lib/api/local-contracts.zod";
 import { type Crumb, gradeTone, num, stateTone, when } from "@/lib/modules/live/m5-enter";
 import { armReviewHref, correctionLabel, correctionTone, decideCorrectionDrawer, requestCorrectionDrawer, resultArmHref, resultStudentHref, SR, viewCorrectionDrawer } from "@/lib/modules/live/m5-forms";
 import type { ArmBroadsheet, Correction, CorrectionOptions, ResultsOverview, StudentPage } from "@/lib/modules/live/m5-types";
@@ -8,11 +9,11 @@ import { name as nameCell, pill, text, type DrawerSpec, type ListItem, type Pane
 
 /** Results begin at the school, then any arm's broadsheet, then any child — read from approved sheets only. */
 
-export const loadResults = () => apiGet<ResultsOverview>(`${SR}/results`);
-export const loadArmResult = (classId: string) => apiGet<ArmBroadsheet>(`${SR}/results/${encodeURIComponent(classId)}`);
-export const loadStudent = (classId: string, studentId: string) => apiGet<StudentPage>(`${SR}/results/${encodeURIComponent(classId)}/${encodeURIComponent(studentId)}`);
-export const loadCorrections = (classId?: string) => apiGet<{ rows: Correction[] }>(`${SR}/corrections${classId ? `?classId=${encodeURIComponent(classId)}` : ""}`);
-export const loadCorrectionOptions = () => apiGet<CorrectionOptions>(`${SR}/corrections/options`);
+export const loadResults = () => apiGet(`${SR}/results`, observe<ResultsOverview>(localContracts["src/lib/modules/live/m5-results.ts#fa85312d"]));
+export const loadArmResult = (classId: string) => apiGet(`${SR}/results/${encodeURIComponent(classId)}`, observe<ArmBroadsheet>(localContracts["src/lib/modules/live/m5-results.ts#15ab908a"]));
+export const loadStudent = (classId: string, studentId: string) => apiGet(`${SR}/results/${encodeURIComponent(classId)}/${encodeURIComponent(studentId)}`, observe<StudentPage>(localContracts["src/lib/modules/live/m5-results.ts#f4b50d81"]));
+export const loadCorrections = (classId?: string) => apiGet(`${SR}/corrections${classId ? `?classId=${encodeURIComponent(classId)}` : ""}`, observe<{ rows: Correction[] }>(localContracts["src/lib/modules/live/m5-results.ts#a68f8349"]));
+export const loadCorrectionOptions = () => apiGet(`${SR}/corrections/options`, observe<CorrectionOptions>(localContracts["src/lib/modules/live/m5-results.ts#a54cfa7a"]));
 
 const WARN = "M12 8.2v4.6M12 16h.02M12 3.6 21 19.4H3z";
 const DOWNLOAD = "M12 3.5v11M7.5 10l4.5 4.5 4.5-4.5M4.5 19.5h15";

@@ -1,4 +1,5 @@
-import { apiGet } from "@/lib/api/server";
+import { apiGet, observe } from "@/lib/api/server";
+import { localContracts } from "@/lib/api/local-contracts.zod";
 import type { TeacherWorkspaceView } from "@/lib/api/teacher-workspace";
 import { schoolPermissionKey } from "@/lib/modules/school-modules";
 import { gridHref, previewHref } from "@/lib/modules/live/m5-forms";
@@ -105,9 +106,9 @@ const broadsheetHref = (classId: string) => `/score-entry-results/results/${clas
 export async function teacherScoresTab(tabSlug: string, me: TeacherWorkspaceView, permissions: string[]): Promise<TabContent | null | undefined> {
   // An early-years teacher describes what they saw; they do not enter scores.
   if (me.persona === "early-years" && (tabSlug === "enter" || tabSlug === "results")) return teacherObservationsTab(tabSlug);
-  if (tabSlug === "enter") return enterTab(await apiGet<SheetsView>(`${API}/sheets`), me);
-  if (tabSlug === "results") return resultsTab(await apiGet<ResultsView>(`${API}/results`), permissions);
-  if (tabSlug === "review") return reviewTab(await apiGet<OversightView>(`${API}/oversight`));
+  if (tabSlug === "enter") return enterTab(await apiGet(`${API}/sheets`, observe<SheetsView>(localContracts["src/lib/modules/live/t5-scores.ts#d4a7b720"])), me);
+  if (tabSlug === "results") return resultsTab(await apiGet(`${API}/results`, observe<ResultsView>(localContracts["src/lib/modules/live/t5-scores.ts#fe9de27e"])), permissions);
+  if (tabSlug === "review") return reviewTab(await apiGet(`${API}/oversight`, observe<OversightView>(localContracts["src/lib/modules/live/t5-scores.ts#d212aa81"])));
   return undefined;
 }
 
@@ -337,7 +338,7 @@ export function teacherPreviewPage(g: Grid, v: SheetsView): Content {
   };
 }
 
-export const loadSheets = () => apiGet<SheetsView>(`${API}/sheets`);
+export const loadSheets = () => apiGet(`${API}/sheets`, observe<SheetsView>(localContracts["src/lib/modules/live/t5-scores.ts#d4a7b720"]));
 
 /* ───────────────────────── Results ───────────────────────── */
 
@@ -411,9 +412,9 @@ function resultsTab(r: ResultsView, permissions: string[]): TabContent {
   };
 }
 
-export const loadSubjectResult = (classId: string, subjectId: string) => apiGet<SubjectResult>(`${API}/results/${encodeURIComponent(classId)}/${encodeURIComponent(subjectId)}`);
-export const loadStudentResult = (classId: string, subjectId: string, studentId: string) => apiGet<StudentResult>(`${API}/results/${encodeURIComponent(classId)}/${encodeURIComponent(subjectId)}/students/${encodeURIComponent(studentId)}`);
-export const loadFormBroadsheet = (classId: string) => apiGet<FormBroadsheet>(`${API}/broadsheet/${encodeURIComponent(classId)}`);
+export const loadSubjectResult = (classId: string, subjectId: string) => apiGet(`${API}/results/${encodeURIComponent(classId)}/${encodeURIComponent(subjectId)}`, observe<SubjectResult>(localContracts["src/lib/modules/live/t5-scores.ts#f2ab7006"]));
+export const loadStudentResult = (classId: string, subjectId: string, studentId: string) => apiGet(`${API}/results/${encodeURIComponent(classId)}/${encodeURIComponent(subjectId)}/students/${encodeURIComponent(studentId)}`, observe<StudentResult>(localContracts["src/lib/modules/live/t5-scores.ts#a69b53c4"]));
+export const loadFormBroadsheet = (classId: string) => apiGet(`${API}/broadsheet/${encodeURIComponent(classId)}`, observe<FormBroadsheet>(localContracts["src/lib/modules/live/t5-scores.ts#a6402a33"]));
 
 const cellOf = (value: number | "ABS" | null | undefined): TableCellKind => (value === null || value === undefined ? text("—", { tone: "neutral" }) : value === "ABS" ? pill("ABS", "withheld") : text(String(value), { mono: true }));
 

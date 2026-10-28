@@ -7,7 +7,9 @@ import { StatCard } from "@/components/data-display/stat-card";
 import { StatusBadge } from "@/components/data-display/status-badge";
 import { TableCard } from "@/components/data-display/table-card";
 import { ResourceActionDialog } from "@/components/forms/resource-action-dialog";
-import { apiGet } from "@/lib/api/server";
+import { apiGet, observe } from "@/lib/api/server";
+import { localContracts } from "@/lib/api/local-contracts.zod";
+import { SuperAdminComputationMonitoringSchema, SuperAdminFeatureFlagRowListSchema, SuperAdminInfraMonitoringSchema } from "@/lib/domain/types.zod";
 import type { SuperAdminComputationMonitoring, SuperAdminFeatureFlagRow, SuperAdminInfraMonitoring } from "@/lib/domain/types";
 import { formatDate } from "@/lib/utils/formatters";
 
@@ -24,7 +26,7 @@ function tabHref(tab: string) {
 
 export default async function SuperAdminSystemPage({ searchParams }: { searchParams?: Promise<{ tab?: string }> }) {
   const { tab = "health" } = searchParams ? await searchParams : {};
-  const data = await apiGet<SuperAdminInfraMonitoring>("/api/super-admin/system/monitoring");
+  const data = await apiGet("/api/super-admin/system/monitoring", observe<SuperAdminInfraMonitoring>(SuperAdminInfraMonitoringSchema));
 
   const tabs = [
     { label: "Health", href: tabHref("health"), active: tab === "health" },
@@ -194,7 +196,7 @@ function SyncQueueTab({ data }: { data: SuperAdminInfraMonitoring }) {
 type DeliveryFailures = { sent: number; failed: number; held: number; reasons: Array<{ reason: string; channel: string; count: number }> };
 
 async function DeliveryTab({ data }: { data: SuperAdminInfraMonitoring }) {
-  const failures = await apiGet<DeliveryFailures>("/api/super-admin/communications/delivery-failures").catch(() => null);
+  const failures = await apiGet("/api/super-admin/communications/delivery-failures", observe<DeliveryFailures>(localContracts["src/app/super-admin/system/page.tsx#57da9197"])).catch(() => null);
   const topReason = (channel: string) => failures?.reasons.find((row) => row.channel === channel);
   const thresholds: Record<string, { warning: string; critical: string }> = {
     EMAIL: { warning: "> 3%", critical: "> 10%" },
@@ -259,7 +261,7 @@ async function DeliveryTab({ data }: { data: SuperAdminInfraMonitoring }) {
 }
 
 async function ComputationTab() {
-  const data = await apiGet<SuperAdminComputationMonitoring>("/api/super-admin/infra-extras/computation");
+  const data = await apiGet("/api/super-admin/infra-extras/computation", observe<SuperAdminComputationMonitoring>(SuperAdminComputationMonitoringSchema));
   const comp = data.computation;
 
   return (
@@ -402,7 +404,7 @@ function BackupsTab({ data }: { data: SuperAdminInfraMonitoring }) {
 }
 
 async function FlagStatusTab() {
-  const flags = await apiGet<SuperAdminFeatureFlagRow[]>("/api/super-admin/feature-flags");
+  const flags = await apiGet("/api/super-admin/feature-flags", observe<SuperAdminFeatureFlagRow[]>(SuperAdminFeatureFlagRowListSchema));
 
   return (
     <TableCard
