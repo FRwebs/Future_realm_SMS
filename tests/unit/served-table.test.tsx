@@ -35,6 +35,15 @@ function renderTable(panel: Panel) {
 /** The page asked for, as the server is told it. */
 const askedOf = (request: Request) => JSON.parse(new URL(request.url).searchParams.get("q") ?? "{}") as Record<string, string>;
 
+/**
+ * The rows as the table draws them.
+ *
+ * Every table is also rendered as a phone list, and which one a person sees is
+ * CSS's decision — so in jsdom both are present and a bare `getByText` finds
+ * the name twice. These assertions are about the table, so they say so.
+ */
+const inTable = () => within(screen.getByRole("table"));
+
 describe("a long list that arrives a page at a time", () => {
   it("fetches the page asked for, keeps the address in step, and never redraws the page around it", async () => {
     const asked: Array<Record<string, string>> = [];
@@ -47,12 +56,12 @@ describe("a long list that arrives a page at a time", () => {
     renderTable(panelOf(1, ["Ada", "Bola"]));
 
     // The first view was drawn with the page; nothing was fetched to show it.
-    expect(screen.getByText("Ada")).toBeInTheDocument();
+    expect(inTable().getByText("Ada")).toBeInTheDocument();
     expect(asked).toHaveLength(0);
 
     await userEvent.click(screen.getByRole("button", { name: "Next page" }));
-    expect(await screen.findByText("Chidi")).toBeInTheDocument();
-    expect(screen.queryByText("Ada")).toBeNull();
+    expect(await inTable().findByText("Chidi")).toBeInTheDocument();
+    expect(inTable().queryByText("Ada")).toBeNull();
     expect(asked.some((query) => query.t0_0_p === "2")).toBe(true);
     expect(window.location.search).toContain("t0_0_p=2");
     expect(replace).not.toHaveBeenCalled();
@@ -69,13 +78,13 @@ describe("a long list that arrives a page at a time", () => {
     }));
     renderTable(panelOf(1, ["Ada", "Bola"]));
     await userEvent.click(screen.getByRole("button", { name: "Next page" }));
-    await screen.findByText("Chidi");
+    await inTable().findByText("Chidi");
     await userEvent.click(screen.getByRole("button", { name: "Next page" }));
     // Page 3 has not arrived: page 2 is still there, and says it is busy.
-    expect(screen.getByText("Chidi")).toBeInTheDocument();
+    expect(inTable().getByText("Chidi")).toBeInTheDocument();
     await waitFor(() => expect(document.querySelector("[aria-busy='true']")).not.toBeNull());
     release();
-    expect(await screen.findByText("Efe")).toBeInTheDocument();
+    expect(await inTable().findByText("Efe")).toBeInTheDocument();
   });
 
   it("searches on the server after a pause, and says so plainly when a page cannot be had", async () => {
@@ -86,7 +95,7 @@ describe("a long list that arrives a page at a time", () => {
     }));
     renderTable(panelOf(1, ["Ada", "Bola"]));
     await userEvent.type(screen.getByRole("searchbox", { name: "Search students" }), "dayo");
-    expect(await screen.findByText("Dayo")).toBeInTheDocument();
+    expect(await inTable().findByText("Dayo")).toBeInTheDocument();
     expect(window.location.search).toContain("t0_0_q=dayo");
 
     await userEvent.clear(screen.getByRole("searchbox", { name: "Search students" }));
@@ -105,7 +114,7 @@ describe("a long list that arrives a page at a time", () => {
     await userEvent.click(screen.getAllByRole("checkbox", { name: "Select this student" })[0]!);
     expect(screen.getByText(/1 student\s+selected/)).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "Next page" }));
-    await screen.findByText("Chidi");
+    await inTable().findByText("Chidi");
     expect(screen.queryByText(/selected/)).toBeNull();
   });
 });
