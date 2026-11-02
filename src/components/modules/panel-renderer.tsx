@@ -1578,6 +1578,74 @@ export function PanelView({
     );
   }
 
+  if (panel.type === "calendar") {
+    const columns = panel.per ?? 5;
+    return (
+      <section className={PANEL_SHELL} style={{ borderColor: CARD_BORDER }}>
+        <PanelHeader title={panel.title} sub={panel.sub} openDrawer={openDrawer} />
+        {panel.acts?.length ? (
+          <div className="mb-[10px] flex flex-wrap gap-[5px]">
+            {panel.acts.map((act) => (
+              <Link
+                key={act.label + act.href}
+                href={act.href as Route}
+                className="rounded-[8px] border px-[10px] py-[5px] text-[10.5px] font-semibold"
+                style={act.on ? { background: INK, color: "#fff", borderColor: INK } : { background: "#fff", color: "#435048", borderColor: CARD_BORDER }}
+              >
+                {act.label}
+              </Link>
+            ))}
+          </div>
+        ) : null}
+        {panel.dow?.length ? (
+          <div className="mb-[5px] grid gap-[6px]" style={{ gridTemplateColumns: `repeat(${columns}, minmax(0,1fr))` }}>
+            {panel.dow.map((day) => (
+              <span key={day} className="text-[9.5px] font-bold uppercase tracking-[0.07em]" style={{ color: MUTED }}>{day}</span>
+            ))}
+          </div>
+        ) : null}
+        <div className="grid gap-[6px]" style={{ gridTemplateColumns: `repeat(${columns}, minmax(0,1fr))` }}>
+          {panel.cells.map((cell, index) => {
+            if (cell.blank) return <span key={`blank-${index}`} className="min-h-[62px]" />;
+            const swatch = cell.tone ? toneOf(cell.tone) : null;
+            const style = {
+              background: swatch ? swatch.bg : "#FBFDFC",
+              border: swatch ? `1px solid ${swatch.bd}` : "1px dashed #E4EDE8",
+              boxShadow: cell.today ? "inset 0 0 0 1.5px #0D2315" : undefined,
+            } as React.CSSProperties;
+            const body = (
+              <>
+                <span className="text-[11.5px] font-bold" style={{ color: swatch ? INK : "#AAB8B0" }}>{cell.label}</span>
+                {cell.note ? (
+                  <span className="truncate text-[9.5px] font-bold" style={{ color: swatch ? swatch.fg : "#AAB8B0" }}>{cell.note}</span>
+                ) : null}
+              </>
+            );
+            const className = "flex min-h-[62px] min-w-0 flex-col justify-between rounded-[10px] p-[7px] text-left";
+            const trigger = cell as Partial<Trigger>;
+            if (trigger.href) return <Link key={`${cell.label}-${index}`} href={trigger.href as Route} className={className} style={style}>{body}</Link>;
+            if (trigger.drawer) {
+              const spec = trigger.drawer;
+              return <button key={`${cell.label}-${index}`} type="button" onClick={() => openDrawer(spec)} className={className} style={style}>{body}</button>;
+            }
+            return <span key={`${cell.label}-${index}`} className={className} style={style}>{body}</span>;
+          })}
+        </div>
+        {panel.legend?.length ? (
+          <div className="mt-[10px] flex flex-wrap items-center gap-x-[14px] gap-y-[5px]">
+            {panel.legend.map((entry) => (
+              <span key={entry.label} className="flex items-center gap-[5px] text-[9.5px] font-semibold" style={{ color: "#5F6E65" }}>
+                <span className="h-[8px] w-[8px] rounded-full" style={{ background: toneOf(entry.tone).dot }} />
+                {entry.label}
+              </span>
+            ))}
+          </div>
+        ) : null}
+        {panel.foot ? <PanelFoot>{panel.foot}</PanelFoot> : null}
+      </section>
+    );
+  }
+
   if (panel.type === "line") {
     const unit = panel.unit ?? "%";
     // An empty pair of axes says nothing. A chart with nothing on record says so.
