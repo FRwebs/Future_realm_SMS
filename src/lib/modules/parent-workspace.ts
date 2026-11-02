@@ -49,6 +49,24 @@ const NEEDS_POLICY: Partial<Record<ParentPageSlug, string>> = {
   learning: "Timetable",
 };
 
+/**
+ * The four pages that get their own tab at the bottom of a phone, from the
+ * mobile mockup's own `tabMods()`.
+ *
+ * They are what a parent comes back for — is my child in school, how are they
+ * doing, what do I owe — while everything else is done once and left, so it
+ * lives behind More.
+ */
+export const PARENT_PHONE_TABS: ParentPageSlug[] = ["overview", "attendance", "results", "fees"];
+
+/** The name a page goes by in that bar, where a label has a fifth of a phone to fit in. */
+export const parentPhoneTabLabel: Record<string, string> = {
+  overview: "Home", attendance: "Attendance", results: "Results", fees: "Fees",
+  learning: "Timetable", messages: "Messages", calendar: "Calendar", meetings: "Meetings",
+  consents: "Forms", requests: "Requests", profile: "Profiles", prefs: "Notifications",
+  account: "Account", sync: "Sync",
+};
+
 /** The pages a school's visibility policy leaves standing — the rail and the phone's bar share this. */
 export const visibleParentPages = (sees: string[]): string[] =>
   parentPages.filter((page) => { const needed = NEEDS_POLICY[page.slug]; return !needed || sees.includes(needed); }).map((page) => page.slug);
