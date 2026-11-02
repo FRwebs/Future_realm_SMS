@@ -39,8 +39,10 @@ export const preferencesSchema = z
     notifyBy: z.array(z.enum(NOTIFY_BY)),
     quietHours: z.enum(QUIET_HOURS),
     dateFormat: z.enum(DATE_FORMATS),
+    /** A parent with several children: one message to the family naming them all, or one message for each child. */
+    digest: z.enum(["combine", "separate"]),
     /** A parent's choice of which kind of school message reaches them by SMS or email, keyed "academic:SMS". Off only when false. */
-    familyNotify: z.record(z.string().regex(/^(academic|financial|events|general):(SMS|Email)$/), z.boolean()),
+    familyNotify: z.record(z.string().regex(/^(academic|financial|events|general):(SMS|Email|WhatsApp)$/), z.boolean()),
   })
   .partial();
 export type Preferences = z.infer<typeof preferencesSchema>;

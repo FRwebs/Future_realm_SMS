@@ -87,6 +87,17 @@ export class ParentWorkspaceController {
     return { ok: true, data: await this.workspace.messages(session, child?.trim() || "all") };
   }
 
+  /** The forms the school has sent this family, and what they have answered. */
+  @Get("forms")
+  async forms(@CurrentSession() session: SessionPayload) {
+    return { ok: true, data: await this.workspace.forms(session) };
+  }
+
+  @Post("forms/:id/answer")
+  async answerForm(@CurrentSession() session: SessionPayload, @Param("id") id: string, @Body() body: unknown) {
+    return { ok: true, data: await this.workspace.answerForm(session, id, body) };
+  }
+
   /** Every consent the school holds from this family. */
   @Get("consents")
   async consents(@CurrentSession() session: SessionPayload) {

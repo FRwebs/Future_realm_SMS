@@ -26,3 +26,23 @@ describe("what a family chose to hear", () => {
     expect(familyAllows(null, "SMS", "Fees are due").ok).toBe(true);
   });
 });
+
+describe("WhatsApp is opt-in", () => {
+  it("writes to a family only for the kinds it switched on", async () => {
+    const { familyAllows: allows, whatsappChosen } = await import("@/lib/messaging/family-choices");
+    const chosen = { familyNotify: { "financial:WhatsApp": true } };
+    expect(allows(chosen, "WHATSAPP", "Fees are due").ok).toBe(true);
+    expect(allows(chosen, "WHATSAPP", "Report card is ready").ok).toBe(false);
+    expect(allows(null, "WHATSAPP", "Fees are due").ok).toBe(false);
+    expect(allows({ familyNotify: { "financial:SMS": true } }, "WHATSAPP", "Fees are due").ok).toBe(false);
+    expect(whatsappChosen(chosen)).toBe(true);
+    expect(whatsappChosen({ familyNotify: { "financial:WhatsApp": false } })).toBe(false);
+  });
+
+  it("sends a safety notice to anyone who opted in at all, and an unclassified message too", async () => {
+    const { familyAllows: allows } = await import("@/lib/messaging/family-choices");
+    const chosen = { familyNotify: { "general:WhatsApp": true } };
+    expect(allows(chosen, "WHATSAPP", "Urgent: school closed today").ok).toBe(true);
+    expect(allows(chosen, "WHATSAPP", "Hello there").ok).toBe(true);
+  });
+});

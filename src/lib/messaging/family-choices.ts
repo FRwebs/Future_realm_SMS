@@ -14,7 +14,7 @@ export const FAMILY_KINDS = [
 export type FamilyKind = (typeof FAMILY_KINDS)[number]["key"];
 
 /** The channels a family can switch. In-app is the record and cannot be switched off. */
-export const FAMILY_CHANNELS = ["SMS", "Email"] as const;
+export const FAMILY_CHANNELS = ["SMS", "Email", "WhatsApp"] as const;
 
 export const NEVER_HELD_BACK = /emergency|safeguarding|urgent|closure|closed today|evacuat|lockdown|unwell|sick bay|accident|missing child/i;
 
@@ -28,14 +28,25 @@ const KINDS: Array<[RegExp, FamilyKind]> = [
 /** What kind of message this is, or null when the words do not say. */
 export const kindOfMessage = (text: string): FamilyKind | null => KINDS.find(([pattern]) => pattern.test(text))?.[1] ?? null;
 
-export type FamilyChoices = { familyNotify?: Record<string, boolean> } | null | undefined;
+/** Whether a family switched WhatsApp on for anything at all. */
+export const whatsappChosen = (choices: FamilyChoices): boolean => Object.entries(choices?.familyNotify ?? {}).some(([key, value]) => key.endsWith(":WhatsApp") && value === true);
+
+export type FamilyChoices = { familyNotify?: Record<string, boolean>; digest?: "combine" | "separate" } | null | undefined;
 
 /**
  * Whether a message may go to a family on this channel. Only an explicit "off" holds a message back; a family that never chose
  * is sent everything, as it always was.
  */
-export function familyAllows(choices: FamilyChoices, channel: "IN_APP" | "SMS" | "EMAIL", text: string): { ok: true } | { ok: false; reason: string } {
-  if (channel === "IN_APP" || NEVER_HELD_BACK.test(text)) return { ok: true };
+export function familyAllows(choices: FamilyChoices, channel: "IN_APP" | "SMS" | "EMAIL" | "WHATSAPP", text: string): { ok: true } | { ok: false; reason: string } {
+  if (channel === "IN_APP") return { ok: true };
+  // WhatsApp is opt-in: a family is written to there only for the kinds it switched on. A safety notice goes to anyone who opted in at all.
+  if (channel === "WHATSAPP") {
+    if (NEVER_HELD_BACK.test(text)) return { ok: true };
+    const kind = kindOfMessage(text);
+    const on = kind ? choices?.familyNotify?.[`${kind}:WhatsApp`] === true : whatsappChosen(choices);
+    return on ? { ok: true } : { ok: false, reason: `This family has not chosen WhatsApp for ${kind ?? "this kind of"} messages — nothing was sent.` };
+  }
+  if (NEVER_HELD_BACK.test(text)) return { ok: true };
   const kind = kindOfMessage(text);
   if (!kind) return { ok: true };
   const word = channel === "SMS" ? "SMS" : "Email";

@@ -12,15 +12,16 @@ import type { ParentContent } from "@/lib/modules/live/parent/shared";
 
 type Prefs = {
   matrix: Record<string, boolean>; quiet: string; quietOptions: string[];
-  reach: { sms: boolean; email: boolean; phone: string | null; address: string | null };
+  digest: "combine" | "separate";
+  reach: { sms: boolean; email: boolean; whatsapp: boolean; phone: string | null; address: string | null };
 };
 
-const CHANNELS = [
+const channelsFor = (whatsapp: boolean) => [
   { key: "In-app", label: "In-app", sub: "Always available", locked: true },
   { key: "SMS", label: "SMS", sub: "Paid for by the school" },
   { key: "Email", label: "Email", sub: "From the school" },
-  // Drawn because the mockup draws it, and fixed off because the school has no WhatsApp sender yet.
-  { key: "WhatsApp", label: "WhatsApp", sub: "Not offered yet", unavailable: true },
+  // Opt-in: the school writes to a family on WhatsApp only for the kinds it switched on. Drawn, and fixed off, where the school's plan has none.
+  whatsapp ? { key: "WhatsApp", label: "WhatsApp", sub: "Only if you choose it" } : { key: "WhatsApp", label: "WhatsApp", sub: "Not offered by your school", unavailable: true },
 ];
 
 /** Quiet hours are held in the account as the window to keep quiet, so each is offered in the words the delivery worker obeys. */
@@ -40,6 +41,7 @@ export async function prefsPage(): Promise<ParentContent> {
   const gaps = [
     !prefs.reach.sms ? "The school has no mobile number it may text for you, so the SMS column has no effect until it does." : "",
     !prefs.reach.email ? "The school has no email address it may write to for you, so the Email column has no effect until it does." : "",
+    prefs.reach.whatsapp ? "WhatsApp is off until you switch it on, one kind of message at a time, and messages go to the mobile number the school holds for you." : "",
   ].filter(Boolean).join(" ");
   const quietOptions = prefs.quietOptions.map((option) => QUIET_WORDS[option] ?? `Not ${option.replace(" WAT", "")}`);
   const toLabel = (value: string) => QUIET_WORDS[value] ?? `Not ${value.replace(" WAT", "")}`;
@@ -52,19 +54,20 @@ export async function prefsPage(): Promise<ParentContent> {
         props: {
           base: PW,
           categories: FAMILY_KINDS.map((kind) => ({ key: kind.key, label: kind.label, sub: kind.sub })),
-          channels: CHANNELS,
+          channels: channelsFor(prefs.reach.whatsapp),
           matrix: prefs.matrix,
           defaults: Object.fromEntries(FAMILY_KINDS.flatMap((kind) => [[`${kind.key}:SMS`, true], [`${kind.key}:Email`, true]])),
-          quiet: toLabel(prefs.quiet), remind: "Combine them",
-          quietOptions, remindOptions: ["Combine them"],
+          quiet: toLabel(prefs.quiet), remind: prefs.digest === "separate" ? "Separate messages" : "Combine them",
+          quietOptions, remindOptions: ["Combine them", "Separate messages"],
+          remindCodes: { "Combine them": "combine", "Separate messages": "separate" },
           // The embed saves what was clicked; the page turns the words back into what the account keeps.
           quietCodes: Object.fromEntries(prefs.quietOptions.map((option) => [toLabel(option), option])),
           foot: `Safety and emergency messages — closures, safeguarding, your child’s safety — always reach you on every channel, whatever you choose here. Everything also appears in the portal. ${gaps}`.trim(),
           copy: {
-            lead: "Channels by kind of message", sub: "Everything always appears here in the portal. SMS and email follow these choices the next time the school writes.",
+            lead: "Channels by kind of message", sub: "Everything always appears here in the portal. SMS, email and WhatsApp follow these choices the next time the school writes.",
             first: "Kind of message", timing: "When and how",
             quietTitle: "Quiet hours", quietSub: "Texts and emails in this window wait until it ends — except safety messages.",
-            remindTitle: "One message for all your children", remindSub: "Writing about two of your children? The school sends one message to your family with every name in it. Separate messages are not offered yet.",
+            remindTitle: "One message for all your children", remindSub: "Writing about two of your children? Get one message with every name in it, or a message for each child. Each message sent by SMS or WhatsApp is one credit for the school.",
             remindField: "digest",
           },
         },

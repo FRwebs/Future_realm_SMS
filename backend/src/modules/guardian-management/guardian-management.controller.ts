@@ -11,6 +11,7 @@ import { SessionGuard } from "../../auth/session.guard";
 import { ok } from "../student-records/records.shared";
 import { ConsentService } from "./consent.service";
 import { FamiliesService } from "./families.service";
+import { FormsService } from "./forms.service";
 import { SubmissionsService } from "./submissions.service";
 
 /**
@@ -24,7 +25,8 @@ export class GuardianManagementController {
   constructor(
     private readonly families: FamiliesService,
     private readonly consent: ConsentService,
-    private readonly submissions: SubmissionsService
+    private readonly submissions: SubmissionsService,
+    private readonly forms: FormsService
   ) {}
 
   /* guardians */
@@ -175,5 +177,27 @@ export class GuardianManagementController {
   @RequirePermission("parents-guardians.consent.edit")
   recordFamily(@CurrentSession() session: SessionPayload, @Param("id") id: string, @Body() body: Record<string, unknown>) {
     return ok(this.consent.recordFamily(session, id, body), "Consent recorded.");
+  }
+
+  /* forms */
+
+  @Get("forms")
+  @RequirePermission("parents-guardians.forms.view")
+  formsOverview(@CurrentSession() session: SessionPayload) {
+    return ok(this.forms.overview(session));
+  }
+
+  @Post("forms")
+  @UseGuards(SessionGuard, CsrfGuard, PermissionsGuard)
+  @RequirePermission("parents-guardians.forms.create")
+  sendForm(@CurrentSession() session: SessionPayload, @Body() body: Record<string, unknown>) {
+    return ok(this.forms.create(session, body), "Form sent to families.");
+  }
+
+  @Post("forms/:id/close")
+  @UseGuards(SessionGuard, CsrfGuard, PermissionsGuard)
+  @RequirePermission("parents-guardians.forms.edit")
+  closeForm(@CurrentSession() session: SessionPayload, @Param("id") id: string) {
+    return ok(this.forms.close(session, id), "Form closed.");
   }
 }

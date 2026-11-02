@@ -1,4 +1,4 @@
-import { joinNames, mergeBody, reachOf, smsSegments, unknownFields } from "@/lib/messaging/merge";
+import { joinNames, mergeBody, reachOf, smsSegments, unknownFields, whatsappText } from "@/lib/messaging/merge";
 
 const family = { Guardian: "Mrs Kemi Adeyemi", Child: "Ayomide", Class: "JSS 2 Gold" };
 
@@ -56,5 +56,17 @@ describe("who a message can reach", () => {
     expect(reachOf("EMAIL", base)).toEqual({ ok: true });
     expect(reachOf("EMAIL", { ...base, email: "" })).toMatchObject({ ok: false });
     expect(reachOf("EMAIL", { ...base, canEmail: false })).toMatchObject({ ok: false });
+  });
+});
+
+describe("WhatsApp reach", () => {
+  const contact = { phone: "08031234567", email: null, canSms: true, canEmail: true };
+  it("needs a mobile number and the family's own choice", () => {
+    expect(reachOf("WHATSAPP", { ...contact, canWhatsApp: true }).ok).toBe(true);
+    expect(reachOf("WHATSAPP", contact).ok).toBe(false);
+    expect(reachOf("WHATSAPP", { ...contact, phone: "12345", canWhatsApp: true }).ok).toBe(false);
+  });
+  it("reads a message onto one line, as a template parameter must be", () => {
+    expect(whatsappText("Dear parent,\n\nFees are due.\t Thanks")).toBe("Dear parent, Fees are due. Thanks");
   });
 });
