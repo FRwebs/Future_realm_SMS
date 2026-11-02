@@ -116,7 +116,7 @@ jobs:
         continue-on-error: true
       - name: Offline page
         run: PWA_BASE_URL=http://127.0.0.1:3000 npx playwright test tests/e2e/pwa.spec.ts
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: failure()
         with:
           name: playwright-results
