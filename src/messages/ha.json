@@ -323,7 +323,13 @@
     "run_this_now": "Gudanar da wannan yanzu?",
     "update_password": "Sabunta kalmar sirri",
     "change_password": "Canza kalmar sirri",
-    "sign_out": "Fita"
+    "sign_out": "Fita",
+    "timetable_and_lessons": "Jadawalin Darasi da Darussa",
+    "results_and_reports": "Sakamako da Rahotanni",
+    "meetings": "Taruka",
+    "fees_and_payments": "Kuɗin Makaranta da Biyan Kuɗi",
+    "forms_and_consents": "Fom da Izini",
+    "requests": "Buƙatu"
   },
   "shell": {
     "expandSidebar": "Faɗaɗa mashigin gefe",
