@@ -1,5 +1,5 @@
-import { Body, Controller, Get, Param, Post, Put, Query, Req, UseGuards } from "@nestjs/common";
-import type { Request } from "express";
+import { Body, Controller, Get, Param, Post, Put, Query, Req, Res, UseGuards } from "@nestjs/common";
+import type { Request, Response } from "express";
 import { ApiTags } from "@nestjs/swagger";
 
 import type { SessionPayload } from "../../../../src/lib/auth/session-core";
@@ -56,6 +56,18 @@ export class ParentWorkspaceController {
   @Get("calendar")
   async calendar(@CurrentSession() session: SessionPayload, @Query("child") child?: string) {
     return { ok: true, data: await this.workspace.calendar(session, child?.trim() || "all") };
+  }
+
+  /** The family's private calendar-feed address, made on first ask. */
+  @Get("calendar-link")
+  async calendarLink(@CurrentSession() session: SessionPayload) {
+    return { ok: true, data: await this.workspace.calendarLink(session) };
+  }
+
+  /** Replace the address, so the old one stops working. */
+  @Post("calendar-link/reset")
+  async resetCalendarLink(@CurrentSession() session: SessionPayload) {
+    return { ok: true, data: await this.workspace.calendarLink(session, true) };
   }
 
   /** Meetings with the school, and what was agreed. */
@@ -116,6 +128,16 @@ export class ParentWorkspaceController {
     return { ok: true, data: await this.workspace.profile(session, child?.trim() || "all") };
   }
 
+  /** The file a family attached to a child's document. */
+  @Get("profile/documents/:id/file")
+  async documentFile(@CurrentSession() session: SessionPayload, @Param("id") id: string, @Res() response: Response) {
+    const file = await this.workspace.documentFile(session, id);
+    response.setHeader("Content-Type", file.mime);
+    response.setHeader("Content-Disposition", `inline; filename="${file.name.replace(/[^\w.\- ]/g, "_")}"`);
+    response.setHeader("Cache-Control", "private, no-store");
+    response.send(file.bytes);
+  }
+
   /** A request to correct what the school holds, or to add a person to those who may collect. */
   @Post("profile/requests")
   async requestChange(@CurrentSession() session: SessionPayload, @Body() body: unknown) {
@@ -165,5 +187,20 @@ export class ParentWorkspaceController {
   @Put("prefs")
   async savePrefs(@CurrentSession() session: SessionPayload, @Body() body: unknown) {
     return { ok: true, data: await this.workspace.saveNotifications(session, body) };
+  }
+}
+
+/** The feed a phone's calendar reads. There is no sign-in: the address itself is the secret, and the parent can replace it. */
+@ApiTags("parent-portal")
+@Controller("v1/parent-calendar")
+export class ParentCalendarFeedController {
+  constructor(private readonly workspace: ParentWorkspaceService) {}
+
+  @Get(":file")
+  async feed(@Param("file") file: string, @Res() response: Response) {
+    const text = await this.workspace.calendarFeed(file.replace(/\.ics$/, ""));
+    response.setHeader("Content-Type", "text/calendar; charset=utf-8");
+    response.setHeader("Cache-Control", "private, max-age=300");
+    response.send(text);
   }
 }

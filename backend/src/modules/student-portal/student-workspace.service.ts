@@ -70,8 +70,8 @@ const utcStamp = (iso: string, clockText: string) => {
 };
 
 /** A calendar feed in the one format every phone reads. Whole days stay whole days; timed events are placed in UTC. */
-export function icsFor(name: string, entries: Array<{ id: string; date: string; end: string; title: string; time: string; where: string; note: string }>): string {
-  const lines = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//FutureRealm//Student calendar//EN", "CALSCALE:GREGORIAN", `X-WR-CALNAME:${icsText(name)}`];
+export function icsFor(name: string, entries: Array<{ id: string; date: string; end: string; title: string; time: string; where: string; note: string }>, product = "Student calendar"): string {
+  const lines = ["BEGIN:VCALENDAR", "VERSION:2.0", `PRODID:-//FutureRealm//${product}//EN`, "CALSCALE:GREGORIAN", `X-WR-CALNAME:${icsText(name)}`];
   const stamp = new Date().toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "");
   for (const entry of entries) {
     const times = entry.time.match(/(\d{2}:\d{2})\D+(\d{2}:\d{2})/);

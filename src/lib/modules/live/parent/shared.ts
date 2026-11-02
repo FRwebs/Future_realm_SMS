@@ -1,3 +1,5 @@
+import { headers } from "next/headers";
+
 import { apiGet, observe } from "@/lib/api/server";
 import { localContracts } from "@/lib/api/local-contracts.zod";
 import type { PanelTone, TabContent } from "@/lib/modules/panels";
@@ -61,3 +63,15 @@ export const dayOf = (iso: string) => new Date(`${iso}T00:00:00Z`);
 export const dShort = (iso: string) => dayOf(iso).toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone: "UTC" });
 export const dLong = (iso: string) => dayOf(iso).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" });
 export const dDow = (iso: string) => dayOf(iso).toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", timeZone: "UTC" });
+
+/** The address a phone is given. It is built from the address this page was opened at, so it works wherever the school is hosted. */
+export async function absolute(path: string): Promise<string> {
+  try {
+    const list = await headers();
+    const host = list.get("x-forwarded-host") ?? list.get("host");
+    const proto = list.get("x-forwarded-proto") ?? (host?.startsWith("localhost") ? "http" : "https");
+    return host ? `${proto}://${host}${path}` : path;
+  } catch {
+    return path;
+  }
+}

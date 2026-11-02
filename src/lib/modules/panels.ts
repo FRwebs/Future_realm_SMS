@@ -526,6 +526,11 @@ export type FormField = {
    * and kept on the record as it is, so nothing depends on a file store.
    */
   | { kind: "asset"; options: [keep: string, upload: string, remove: string] }
+  /**
+   * A document a person attaches: a scan or a photo of the paper. Read in the browser and sent whole as a data URL with its name, so the
+   * answer is `{ name, data, size }`; a file larger than `maxKb` is refused where it is chosen, not after the upload.
+   */
+  | { kind: "file"; accept?: string; maxKb?: number }
 );
 
 /**
