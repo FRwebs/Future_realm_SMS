@@ -383,6 +383,20 @@ export function termShort(term: string, session: string): string {
   return years ? `${n} ${years[1]!.slice(2)}/${years[2]!.slice(2)}` : `${n} ${session}`;
 }
 
+/**
+ * One day in a `calendar`. A blank cell is the padding before a month's first
+ * weekday — it is not a day, so it says nothing and does nothing.
+ */
+export type CalendarCell = {
+  label: string;
+  /** The one line inside the cell: what the mark was, or why there is none. */
+  note?: string;
+  tone?: PanelTone;
+  /** Ringed, because it is today. */
+  today?: boolean;
+  blank?: boolean;
+} & Partial<Trigger>;
+
 /** One point on a `line` panel. A null value is a gap — the line breaks rather than being drawn across it. */
 export type LinePoint = {
   label: string;
@@ -998,6 +1012,30 @@ export type Panel =
   | DayStripPanel
   | SheetEntryPanel
   | { type: "bars"; title: string; sub?: string; rows: BarRow[]; foot?: string }
+  /**
+   * A month of days as a grid, each saying what happened on it.
+   *
+   * A calendar is the one shape that answers "which days" without being read
+   * line by line: a parent scanning a term for absences sees the pattern — a
+   * run of Mondays, a week in March — that the same days as a list would hide.
+   * Weekend columns are simply left out, because a school week is five days and
+   * a seven-column grid spends two of them on nothing.
+   */
+  | {
+      type: "calendar";
+      title: string;
+      sub?: string;
+      /** Columns — five for a school week. */
+      per?: number;
+      /** The column headings. */
+      dow?: string[];
+      /** Which month is being shown, as chips above the grid. */
+      acts?: Array<{ label: string; href: string; on?: boolean }>;
+      cells: CalendarCell[];
+      /** What the colours mean. Left out, no key is drawn. */
+      legend?: Array<{ label: string; tone: PanelTone }>;
+      foot?: string;
+    }
   /**
    * A measure over time: one point per day, week, term or cycle, joined by a
    * line, with the range the values actually occupy filling the plot rather

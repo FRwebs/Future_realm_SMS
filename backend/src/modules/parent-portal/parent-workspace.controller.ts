@@ -27,6 +27,12 @@ export class ParentWorkspaceController {
     return { ok: true, data: await this.workspace.me(session) };
   }
 
+  /** Every mark the school has made. `child` is a child's id, or "all". */
+  @Get("attendance")
+  async attendance(@CurrentSession() session: SessionPayload, @Query("child") child?: string) {
+    return { ok: true, data: await this.workspace.attendance(session, child?.trim() || "all") };
+  }
+
   /** What to say under each child's name in the top bar, page by page. */
   @Get("switcher")
   async switcher(@CurrentSession() session: SessionPayload) {

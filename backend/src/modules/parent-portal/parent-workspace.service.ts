@@ -131,8 +131,8 @@ export class ParentWorkspaceService {
         orderBy: { dueOn: "asc" },
       }),
       prisma.studentAttendance.findMany({
-        where: { schoolId: session.schoolId, studentId: { in: ids }, status: "ABSENT", reason: null, ...(term ? { termId: term.id } : {}) },
-        select: { studentId: true, date: true },
+        where: { schoolId: session.schoolId, studentId: { in: ids }, status: "ABSENT", ...(term ? { termId: term.id } : {}) },
+        select: { studentId: true, date: true, reason: true },
         orderBy: { date: "desc" },
         take: 40,
       }),
@@ -182,7 +182,7 @@ export class ParentWorkspaceService {
         items.push({
           kind: "absence", childId: row.studentId, child: firstOf.get(row.studentId) ?? "",
           label: `Away on ${longDay(date)}`,
-          sub: "Marked absent on the morning register. No explanation yet.",
+          sub: row.reason ? `Marked absent. The school noted: ${row.reason}` : "Marked absent on the morning register. No explanation yet.",
           pill: "Not explained", tone: "attention",
           action: "Explain", href: `/portals/parent/requests?child=${row.studentId}&new=absence&date=${date}`, due: date,
         });
@@ -368,11 +368,11 @@ export class ParentWorkspaceService {
    * and says nothing it cannot back up.
    */
   async switcher(session: SessionPayload) {
-    const { children, term, policy } = await this.context(session);
+    const { children, term, policy, guardian } = await this.context(session);
     const ids = children.map((student) => student.id);
     const today = isoDay(new Date());
 
-    const [needs, marks, termMarks, invoices] = await Promise.all([
+    const [needs, marks, termMarks, invoices, explanations] = await Promise.all([
       this.needs(session, "all"),
       ids.length
         ? prisma.studentAttendance.findMany({
@@ -383,7 +383,7 @@ export class ParentWorkspaceService {
       ids.length && term
         ? prisma.studentAttendance.findMany({
             where: { schoolId: session.schoolId, studentId: { in: ids }, termId: term.id },
-            select: { studentId: true, status: true, reason: true },
+            select: { studentId: true, status: true, date: true },
           })
         : Promise.resolve([]),
       ids.length && policy.sees.has("Fees")
@@ -392,7 +392,12 @@ export class ParentWorkspaceService {
             select: { studentId: true, balance: true, dueOn: true },
           })
         : Promise.resolve([]),
+      prisma.guardianSubmission.findMany({
+        where: { schoolId: session.schoolId, guardianId: guardian.id, type: { contains: "absence", mode: "insensitive" } },
+        select: { studentId: true, dates: true },
+      }),
     ]);
+    const explainedDates = new Set(explanations.flatMap((row) => (row.dates ?? []).map((date) => `${row.studentId ?? ""}:${date}`)));
 
     const statFor = (id: string | null) => {
       const family = id === null;
@@ -412,7 +417,7 @@ export class ParentWorkspaceService {
       const presentToday = marks.filter((mark) => theirIds.has(mark.studentId) && (mark.status === "PRESENT" || mark.status === "LATE")).length;
       const markedToday = marks.filter((mark) => theirIds.has(mark.studentId)).length;
       const theirTerm = termMarks.filter((mark) => theirIds.has(mark.studentId));
-      const unexplained = theirTerm.filter((mark) => mark.status === "ABSENT" && !mark.reason).length;
+      const unexplained = theirTerm.filter((mark) => mark.status === "ABSENT" && !explainedDates.has(`${mark.studentId}:${isoDay(mark.date)}`)).length;
       const present = theirTerm.filter((mark) => mark.status === "PRESENT" || mark.status === "LATE").length;
       const pct = theirTerm.length ? `${Math.round((present / theirTerm.length) * 1000) / 10}%` : null;
       const attendance: Stat = !policy.sees.has("Attendance")
@@ -453,6 +458,107 @@ export class ParentWorkspaceService {
     return {
       family: statFor(null),
       children: Object.fromEntries(children.map((student) => [student.id, statFor(student.id)])),
+    };
+  }
+/* ───────────────────────── attendance ───────────────────────── */
+
+  /**
+   * Every mark the school has made, for one child or the whole family.
+   *
+   * A parent asks three things of attendance: is my child in school today, how
+   * has the term gone, and is there anything I still owe the school an
+   * explanation for. The third is the one that matters most and the one a
+   * school chases, so an absence with no reason against it is carried
+   * separately rather than left to be counted out of a calendar.
+   *
+   * Late counts as present, because that is what the register means — a child
+   * who arrived late was in school.
+   */
+  async attendance(session: SessionPayload, scope: string) {
+    const { children, policy, guardian } = await this.context(session);
+    if (!policy.sees.has("Attendance")) throw new ForbiddenException("Your school has not made attendance visible to parents.");
+    const mine = scope === "all" ? children : children.filter((student) => student.id === scope);
+    const ids = mine.map((student) => student.id);
+    if (!ids.length) return { children: [], terms: [], days: [], explained: [] };
+
+    const [terms, marks, explanations] = await Promise.all([
+      prisma.term.findMany({
+        where: { schoolId: session.schoolId },
+        include: { academicSession: { select: { name: true } } },
+        orderBy: { startDate: "asc" },
+      }),
+      prisma.studentAttendance.findMany({
+        where: { schoolId: session.schoolId, studentId: { in: ids }, subjectId: null },
+        select: { studentId: true, termId: true, date: true, status: true, reason: true, reasonCode: true, markedAt: true, markedBy: { select: { firstName: true, lastName: true } } },
+        orderBy: { date: "desc" },
+      }),
+      // What the family has already written in about, so a mark the school has
+      // not yet acted on is not counted against them twice.
+      prisma.guardianSubmission.findMany({
+        where: { schoolId: session.schoolId, guardianId: guardian.id, type: { contains: "absence", mode: "insensitive" } },
+        select: { studentId: true, dates: true, state: true },
+      }),
+    ]);
+
+    const explained = new Set(explanations.flatMap((row) => (row.dates ?? []).map((date) => `${row.studentId ?? ""}:${date}`)));
+    const today = isoDay(new Date());
+    const present = (status: string) => status === "PRESENT" || status === "LATE";
+
+    // Only the terms this family actually has marks in, newest last.
+    const termsWithMarks = terms.filter((term) => marks.some((mark) => mark.termId === term.id));
+
+    const perChild = mine.map((student) => {
+      const theirs = marks.filter((mark) => mark.studentId === student.id);
+      const todayMark = theirs.find((mark) => isoDay(mark.date) === today) ?? null;
+      const byTerm = termsWithMarks.map((term) => {
+        const days = theirs.filter((mark) => mark.termId === term.id);
+        const marked = days.length;
+        const here = days.filter((mark) => present(mark.status)).length;
+        const away = days.filter((mark) => !present(mark.status)).length;
+        const late = days.filter((mark) => mark.status === "LATE").length;
+        const unexplained = days.filter((mark) => mark.status === "ABSENT" && !explained.has(`${student.id}:${isoDay(mark.date)}`)).length;
+        return {
+          id: term.id,
+          label: `${term.name} ${term.academicSession.name}`,
+          short: term.name.replace(/ Term$/, ""),
+          session: term.academicSession.name,
+          start: isoDay(term.startDate),
+          end: isoDay(term.endDate),
+          current: Boolean(term.isCurrent),
+          marked,
+          present: here,
+          away,
+          late,
+          unexplained,
+          pct: marked ? Math.round((here / marked) * 1000) / 10 : null,
+        };
+      });
+      return {
+        id: student.id,
+        name: [student.firstName, student.middleName, student.lastName].filter(Boolean).join(" "),
+        first: student.firstName,
+        arm: armName(student.currentClass?.name, student.currentClass?.arm),
+        today: todayMark ? { status: todayMark.status, reason: todayMark.reason, at: todayMark.markedAt ? todayMark.markedAt.toISOString() : null } : null,
+        terms: byTerm,
+      };
+    });
+
+    return {
+      children: perChild,
+      /** Every mark, so a page can draw a calendar or a list without asking again. */
+      days: marks.map((mark) => ({
+        childId: mark.studentId,
+        termId: mark.termId,
+        date: isoDay(mark.date),
+        status: mark.status,
+        reason: mark.reason,
+        code: mark.reasonCode,
+        by: mark.markedBy ? `${mark.markedBy.firstName} ${mark.markedBy.lastName}` : "",
+        at: mark.markedAt ? mark.markedAt.toISOString() : null,
+        /** The family has written in about this one; the school has not changed the mark yet. */
+        explained: explained.has(`${mark.studentId}:${isoDay(mark.date)}`),
+      })),
+      today,
     };
   }
 }
