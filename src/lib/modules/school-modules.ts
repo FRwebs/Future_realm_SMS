@@ -206,6 +206,7 @@ export const schoolModules: SchoolModule[] = [
       { slug: "guardians", label: "Guardians" },
       { slug: "submissions", label: "Submissions" },
       { slug: "consent", label: "Consent" },
+      { slug: "forms", label: "Forms" },
     ],
   },
   {

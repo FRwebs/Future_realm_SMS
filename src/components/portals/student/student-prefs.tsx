@@ -9,6 +9,8 @@ export type PrefsProps = {
   matrix: Record<string, boolean>; defaults: Record<string, boolean>; quiet: string; remind: string; quietOptions: string[]; remindOptions: string[]; foot: string;
   /** What the account keeps for each label in `quietOptions`, when the two are not the same words. */
   quietCodes?: Record<string, string>;
+  /** The same for the second row of choices (`remindOptions`). */
+  remindCodes?: Record<string, string>;
   /** Words that differ between a student's page and a parent's; the student's are the defaults. */
   copy?: { lead?: string; sub?: string; first?: string; quietTitle?: string; quietSub?: string; remindTitle?: string; remindSub?: string; timing?: string; remindField?: string };
 };
@@ -16,7 +18,7 @@ export type PrefsProps = {
 const SWITCH = "relative h-[20px] w-[34px] flex-none rounded-full transition-colors duration-150";
 
 /** Which of five kinds of news reach the student, and where; saved the moment it changes. */
-export function StudentPrefs({ base, categories, channels, matrix, defaults, quiet, remind, quietOptions, remindOptions, foot, copy, quietCodes }: PrefsProps) {
+export function StudentPrefs({ base, categories, channels, matrix, defaults, quiet, remind, quietOptions, remindOptions, foot, copy, quietCodes, remindCodes }: PrefsProps) {
   const [values, setValues] = useState(matrix);
   const [hours, setHours] = useState(quiet);
   const [reminder, setReminder] = useState(remind);
@@ -80,7 +82,7 @@ export function StudentPrefs({ base, categories, channels, matrix, defaults, qui
         <h2 className="text-[12.5px] font-semibold" style={{ color: "#0D2315" }}>{copy?.timing ?? "Timing"}</h2>
         <div className="mt-[10px] grid gap-[14px] sm:grid-cols-2">
           <div><p className="text-[11.5px] font-semibold" style={{ color: "#0D2315" }}>{copy?.quietTitle ?? "Quiet hours"}</p><p className="mb-[8px] mt-[2px] text-[10.5px]" style={{ color: "#5E6D64" }}>{copy?.quietSub ?? "No email in these hours, except safety notices."}</p>{chips(hours, quietOptions, setHours, "quiet", quietCodes)}</div>
-          <div><p className="text-[11.5px] font-semibold" style={{ color: "#0D2315" }}>{copy?.remindTitle ?? "Remind me about work that is due"}</p><p className="mb-[8px] mt-[2px] text-[10.5px]" style={{ color: "#5E6D64" }}>{copy?.remindSub ?? "One reminder, at 16:00."}</p>{chips(reminder, remindOptions, setReminder, copy?.remindField ?? "remind")}</div>
+          <div><p className="text-[11.5px] font-semibold" style={{ color: "#0D2315" }}>{copy?.remindTitle ?? "Remind me about work that is due"}</p><p className="mb-[8px] mt-[2px] text-[10.5px]" style={{ color: "#5E6D64" }}>{copy?.remindSub ?? "One reminder, at 16:00."}</p>{chips(reminder, remindOptions, setReminder, copy?.remindField ?? "remind", remindCodes)}</div>
         </div>
       </section>
     </div>

@@ -46,8 +46,14 @@ export function smsSegments(text: string): number {
   return length <= 160 ? 1 : Math.ceil(length / 153);
 }
 
-export type Channel = "IN_APP" | "SMS" | "EMAIL";
-export type Contact = { phone: string | null; email: string | null; canSms: boolean; canEmail: boolean };
+export type Channel = "IN_APP" | "SMS" | "EMAIL" | "WHATSAPP";
+export type Contact = { phone: string | null; email: string | null; canSms: boolean; canEmail: boolean; /** The family chose to be written to on WhatsApp. It is opt-in: never assumed. */ canWhatsApp?: boolean };
+
+/**
+ * A WhatsApp template takes its words as one parameter, and Meta refuses a parameter with a line break, a tab or more than three spaces
+ * running — so a message written as paragraphs is read onto one line.
+ */
+export const whatsappText = (text: string): string => text.replace(/\s*[\r\n\t]+\s*/g, " ").replace(/ {4,}/g, "   ").trim().slice(0, 1000);
 
 /** A Nigerian mobile number, in any of the ways people write one. */
 export function normalPhone(value: string | null | undefined): string {
@@ -59,6 +65,12 @@ export const validMobile = (value: string | null | undefined): boolean => /^0[78
 /** Whether a message on this channel can reach this family, and if it cannot, why — in words the sender can act on. */
 export function reachOf(channel: Channel, contact: Contact): { ok: true } | { ok: false; reason: string } {
   if (channel === "IN_APP") return { ok: true };
+  if (channel === "WHATSAPP") {
+    if (!contact.phone?.trim() || contact.phone.trim() === "—") return { ok: false, reason: "No phone number on file — nothing was sent." };
+    if (!validMobile(contact.phone)) return { ok: false, reason: "The number on file is not a Nigerian mobile number — nothing was sent." };
+    if (!contact.canWhatsApp) return { ok: false, reason: "This family has not chosen to be written to on WhatsApp — nothing was sent." };
+    return { ok: true };
+  }
   if (channel === "SMS") {
     if (!contact.phone?.trim() || contact.phone.trim() === "—") return { ok: false, reason: "No phone number on file — nothing was sent." };
     if (!validMobile(contact.phone)) return { ok: false, reason: "The number on file is not a Nigerian mobile number — nothing was sent." };

@@ -12,8 +12,8 @@ import { formatDay } from "@/lib/date-format";
 
 type ComposeInfo = {
   arms: Array<{ id: string; name: string; roll: number }>;
-  families: Array<{ id: string; name: string; phone: string; email: string; children: string[]; arms: string[]; canSms: boolean; canEmail: boolean; portal: string; language: string }>;
-  wallet: { sms: number };
+  families: Array<{ id: string; name: string; phone: string; email: string; children: string[]; arms: string[]; canSms: boolean; canEmail: boolean; canWhatsApp: boolean; portal: string; language: string }>;
+  wallet: { sms: number; whatsapp: number }; whatsappOffered: boolean;
   threshold: number | null;
   sender: string;
   smsNaira: number;
@@ -75,7 +75,7 @@ function composeTab(info: ComposeInfo, query: Record<string, string | undefined>
     title: "Compose", desc: armNames.length > 3 ? "The families of the classes you teach, and nobody else’s." : `${armNames.join(" and ")}’s families, and nobody else’s.`,
     rows: [row("1fr", [{
       type: "embed", component: "message-composer",
-      props: { arms: armNames, families: info.families, wallet: info.wallet.sms, threshold: info.threshold, sender: info.sender, smsNaira: info.smsNaira, drafts: info.drafts, prefill, base: API, sentHref: "/communication-center/sent" },
+      props: { arms: armNames, families: info.families, wallet: info.wallet.sms, whatsappWallet: info.wallet.whatsapp, whatsappOffered: info.whatsappOffered, threshold: info.threshold, sender: info.sender, smsNaira: info.smsNaira, drafts: info.drafts, prefill, base: API, sentHref: "/communication-center/sent" },
     }])],
   };
 }

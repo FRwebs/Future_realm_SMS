@@ -7,10 +7,13 @@ import { z } from "zod";
 
 import { categoryOfMessage } from "../../../../src/lib/messaging/family-choices";
 import { QUIET_HOURS, preferencesSchema, type Preferences } from "../../../../src/lib/preferences";
+import { ANSWERS, FORMS, answerCode, reaches, type Answer, type FormData } from "../guardian-management/forms.shared";
+import { ConfigStore } from "../staff-access/staff-access.shared";
 import { loadConsentTypes } from "../student-records/consent.shared";
 import { openSubmission, submissionTypes } from "../guardian-management/submission-intake";
 import { deviceName, hide, icsFor } from "../student-portal/student-workspace.service";
 import { randomBytes } from "node:crypto";
+import { plansFeatures } from "../plans-features/plans-features.service";
 import { loadGuardianPolicy } from "./guardian-policy";
 
 /**
@@ -211,6 +214,16 @@ export class ParentWorkspaceService {
         sub: `The school needs a yes or no. ${consent.blocks ? `Without one: ${consent.blocks.charAt(0).toLowerCase()}${consent.blocks.slice(1)}.` : ""}`.trim(),
         pill: "Not recorded", tone: "attention",
         action: "Decide", href: "/portals/parent/consents", due: "9999-12-31",
+      });
+    }
+
+    for (const form of await this.formsFor(session, guardian, children)) {
+      if (form.answer || form.data.status !== "OPEN") continue;
+      items.push({
+        kind: "form", childId: null, child: form.children.length ? form.children.map((child) => child.first).join(" and ") : "",
+        label: form.data.title, sub: `${form.data.kind} form from the school${form.data.due ? ` · reply by ${longDay(form.data.due)}` : ""}.`,
+        pill: form.data.due ? `Reply by ${shortDay(form.data.due)}` : "Waiting", tone: form.data.due && form.data.due < today ? "negative" : "attention",
+        action: "Review", href: "/portals/parent/consents?tab=Forms+to+sign", due: form.data.due ?? "9999-12-30",
       });
     }
 
@@ -742,6 +755,57 @@ export class ParentWorkspaceService {
     return { school: school?.name ?? "Your school", you: `${guardian.firstName} ${guardian.lastName}`, unread: mine.filter((item) => !item.read).length, items: mine };
   }
 
+  /* ───────────────────────── forms the school has sent ───────────────────────── */
+
+  /**
+   * The forms that reach this family, with what they have answered.
+   *
+   * A form the school has closed is shown only if the family answered it — a closed form nobody replied to is no longer a thing to do.
+   * The family answers once for all its children; the children a form concerns are named so it never reads as being about someone else's.
+   */
+  private async formsFor(session: SessionPayload, guardian: { id: string }, children: Array<{ id: string; firstName: string; currentClassId: string | null }>) {
+    const [forms, answers] = await Promise.all([
+      new ConfigStore(session.schoolId, FORMS).list<FormData>(),
+      new ConfigStore(session.schoolId, ANSWERS).list<Answer & { formId: string; guardianId: string }>(),
+    ]);
+    const mine = new Map(answers.filter((answer) => answer.data.guardianId === guardian.id).map((answer) => [answer.data.formId, answer.data]));
+    return forms
+      .filter((form) => reaches(form.data, children.map((child) => child.currentClassId)))
+      .map((form) => {
+        const id = form.code ?? form.id;
+        const concerned = children.filter((child) => form.data.classIds.length === 0 || (child.currentClassId && form.data.classIds.includes(child.currentClassId)));
+        return { id, data: form.data, answer: mine.get(id) ?? null, children: concerned.map((child) => ({ id: child.id, first: child.firstName })) };
+      })
+      .filter((form) => form.data.status === "OPEN" || form.answer)
+      .sort((a, b) => b.data.createdAt.localeCompare(a.data.createdAt));
+  }
+
+  async forms(session: SessionPayload) {
+    const { guardian, children } = await this.context(session);
+    const forms = await this.formsFor(session, guardian, children);
+    return {
+      today: isoDay(new Date()),
+      forms: forms.map((form) => ({
+        id: form.id, title: form.data.title, kind: form.data.kind, audience: form.data.audience, due: form.data.due, open: form.data.status === "OPEN",
+        facts: form.data.facts, ask: form.data.ask, yes: form.data.yes, no: form.data.no, sentOn: form.data.createdAt.slice(0, 10), by: form.data.createdBy,
+        children: form.children, answer: form.answer,
+      })),
+    };
+  }
+
+  /** The family answers a form. They can change their answer until the school closes it. */
+  async answerForm(session: SessionPayload, id: string, body: unknown) {
+    const input = z.object({ decision: z.enum(["YES", "NO"]), text: z.string().trim().max(400).optional() }).parse(body);
+    const { guardian, children } = await this.context(session);
+    const form = (await this.formsFor(session, guardian, children)).find((item) => item.id === id);
+    if (!form) throw new NotFoundException("That form is not one that was sent to you.");
+    if (form.data.status !== "OPEN") throw new BadRequestException("The school has closed that form.");
+    if (form.data.ask && input.decision === "YES" && (input.text ?? "").length < 2) throw new BadRequestException(`${form.data.ask} — please answer it.`);
+    const answer = { decision: input.decision, text: input.text ?? "", at: new Date().toISOString(), by: `${guardian.firstName} ${guardian.lastName}`, formId: id, guardianId: guardian.id };
+    await new ConfigStore(session.schoolId, ANSWERS).put(answerCode(id, guardian.id), `${form.data.title} · ${guardian.firstName} ${guardian.lastName}`, answer);
+    return { id, decision: input.decision };
+  }
+
   /* ───────────────────────── what this family has agreed to ───────────────────────── */
 
   /**
@@ -1161,10 +1225,13 @@ export class ParentWorkspaceService {
     return {
       matrix: prefs.familyNotify ?? {},
       quiet: prefs.quietHours ?? "None",
+      digest: prefs.digest ?? "combine",
       quietOptions: [...QUIET_HOURS],
       reach: {
         sms: Boolean(guardian.canReceiveSms && guardian.phone?.trim()),
         email: Boolean(guardian.canReceiveEmail && guardian.email?.trim()),
+        // WhatsApp is only offered where the school's plan includes it, and only ever by the family's own choice.
+        whatsapp: (await plansFeatures.entitled(session.schoolId, "communications.whatsapp")).allowed,
         phone: guardian.phone, address: guardian.email ?? null,
       },
     };
@@ -1172,13 +1239,14 @@ export class ParentWorkspaceService {
 
   async saveNotifications(session: SessionPayload, body: unknown) {
     this.assert(session);
-    const input = z.object({ matrix: preferencesSchema.shape.familyNotify, quiet: preferencesSchema.shape.quietHours }).partial().parse(body);
+    const input = z.object({ matrix: preferencesSchema.shape.familyNotify, quiet: preferencesSchema.shape.quietHours, digest: preferencesSchema.shape.digest }).partial().parse(body);
     const current = await prisma.user.findUnique({ where: { id: session.userId }, select: { preferences: true } });
     const prefs = ((current?.preferences ?? {}) as Preferences);
     const next: Preferences = {
       ...prefs,
       ...(input.matrix ? { familyNotify: { ...(prefs.familyNotify ?? {}), ...input.matrix } } : {}),
       ...(input.quiet ? { quietHours: input.quiet } : {}),
+      ...(input.digest ? { digest: input.digest } : {}),
     };
     await prisma.user.update({ where: { id: session.userId }, data: { preferences: next as Prisma.InputJsonValue } });
     return { saved: true };

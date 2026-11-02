@@ -62,7 +62,7 @@ export const getParentRail = cache(async (role: string): Promise<ParentRailData 
       const counts: Record<string, number> = {
         p_fees: fees.length,
         p_attendance: of("absence").length,
-        p_consents: of("consent").length,
+        p_consents: of("consent", "form").length,
         p_meetings: of("meeting").length,
         p_messages: me.unread ?? 0,
       };

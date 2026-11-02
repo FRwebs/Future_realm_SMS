@@ -3,8 +3,9 @@ import { MessageCampaignStatus, MessageDeliveryStatus, NotificationChannel, Pris
 import { randomUUID } from "node:crypto";
 
 import { prisma } from "../../../../src/lib/db/prisma";
-import { familyAllows, type FamilyChoices } from "../../../../src/lib/messaging/family-choices";
-import { joinNames, mergeBody, reachOf, smsSegments, unknownFields, type Channel } from "../../../../src/lib/messaging/merge";
+import { familyAllows, whatsappChosen, type FamilyChoices } from "../../../../src/lib/messaging/family-choices";
+import { joinNames, mergeBody, reachOf, smsSegments, unknownFields, whatsappText, type Channel } from "../../../../src/lib/messaging/merge";
+import { plansFeatures } from "../plans-features/plans-features.service";
 
 import { armName, fullName } from "../fee-management/fees.shared";
 
@@ -12,8 +13,10 @@ export const SMS_NAIRA = 3.8;
 const bad = (body: string) => { const names = unknownFields(body); return names.length ? `${names.map((name) => `{${name}}`).join(", ")} ${names.length === 1 ? "is not a merge field" : "are not merge fields"} — use {Guardian}, {Child} or {Class}.` : null; };
 
 export type Family = {
-  id: string; name: string; phone: string | null; email: string | null; canSms: boolean; canEmail: boolean; userId: string | null; language: string;
+  id: string; name: string; phone: string | null; email: string | null; canSms: boolean; canEmail: boolean; canWhatsApp?: boolean; userId: string | null; language: string;
   children: string[]; arms: string[];
+  /** Each child with the class they sit in, so a family that asked for one message per child can be written to child by child. */
+  kids?: Array<{ first: string; arm: string }>;
   /** What this family chose to hear by SMS and email; null when they never chose. */
   choices?: FamilyChoices;
 };
@@ -44,7 +47,8 @@ export class FamilyDispatchService {
     return rows.map((guardian) => {
       const kids = guardian.students.filter((link) => link.student.status === "ACTIVE");
       return {
-        id: guardian.id, name: fullName(guardian), phone: guardian.phone, email: guardian.email, canSms: guardian.canReceiveSms, canEmail: guardian.canReceiveEmail, userId: guardian.userId, language: guardian.language, choices: guardian.userId ? chosen.get(guardian.userId) ?? null : null,
+        id: guardian.id, name: fullName(guardian), phone: guardian.phone, email: guardian.email, canSms: guardian.canReceiveSms, canEmail: guardian.canReceiveEmail, canWhatsApp: guardian.userId ? whatsappChosen(chosen.get(guardian.userId)) : false, userId: guardian.userId, language: guardian.language, choices: guardian.userId ? chosen.get(guardian.userId) ?? null : null,
+        kids: kids.map((link) => ({ first: link.student.firstName, arm: link.student.currentClass ? armName(link.student.currentClass) : "" })),
         children: kids.map((link) => link.student.firstName), arms: [...new Set(kids.map((link) => (link.student.currentClass ? armName(link.student.currentClass) : "")).filter(Boolean))],
       };
     });
@@ -54,12 +58,18 @@ export class FamilyDispatchService {
   plan(channel: Channel, body: string, families: Family[], name = ""): { rows: PlannedRow[]; credits: number; reach: number } {
     const bad = unknownFields(body);
     if (bad.length) throw new BadRequestException(`${bad.map((name) => `{${name}}`).join(", ")} ${bad.length === 1 ? "is not a merge field" : "are not merge fields"} — use {Guardian}, {Child} or {Class}.`);
-    const rows = families.map((family) => {
+    // A family that asked for one message per child is written to child by child: the same words, each with that child's own name and class.
+    const addressed = families.flatMap((family) =>
+      family.choices?.digest === "separate" && (family.kids?.length ?? 0) > 1
+        ? family.kids!.map((kid) => ({ ...family, children: [kid.first], arms: kid.arm ? [kid.arm] : [] }))
+        : [family],
+    );
+    const rows = addressed.map((family) => {
       const text = mergeBody(body, { Guardian: family.name, Child: joinNames(family.children) || "your child", Class: joinNames(family.arms) || "your child’s class" });
-      const contact = reachOf(channel, { phone: family.phone, email: family.email, canSms: family.canSms, canEmail: family.canEmail });
+      const contact = reachOf(channel, { phone: family.phone, email: family.email, canSms: family.canSms, canEmail: family.canEmail, canWhatsApp: family.canWhatsApp });
       // A family's own choice about what to hear by SMS or email comes after whether they can be reached at all.
       const reach = contact.ok ? familyAllows(family.choices, channel, `${name} ${body}`) : contact;
-      return { ...family, text, segments: channel === "SMS" ? smsSegments(text) : 0, reachable: reach.ok, reason: reach.ok ? null : reach.reason };
+      return { ...family, text, segments: channel === "SMS" ? smsSegments(text) : channel === "WHATSAPP" && reach.ok ? 1 : 0, reachable: reach.ok, reason: reach.ok ? null : reach.reason };
     });
     const reached = rows.filter((row) => row.reachable);
     return { rows, credits: reached.reduce((sum, row) => sum + row.segments, 0), reach: reached.length };
@@ -86,24 +96,32 @@ export class FamilyDispatchService {
     const stamp = new Date();
     const sms = channel === "SMS";
     const email = channel === "EMAIL";
+    const whatsapp = channel === "WHATSAPP";
+    // A plan without WhatsApp cannot send it; saying so now is kinder than queueing messages the delivery worker would refuse.
+    if (whatsapp) {
+      const allowed = await plansFeatures.entitled(campaign.schoolId, "communications.whatsapp");
+      if (!allowed.allowed) throw new BadRequestException(`WhatsApp is not part of this school's plan. ${allowed.why}`);
+    }
+    const field = whatsapp ? "whatsappBalance" : "smsBalance";
+    const template = { name: process.env.WHATSAPP_TEMPLATE_NAME?.trim() || "school_message", language: process.env.WHATSAPP_LANGUAGE?.trim() || "en" };
 
     await prisma.$transaction(async (tx) => {
       if (planned.credits > 0) {
-        const taken = await tx.notificationWallet.updateMany({ where: { schoolId: campaign.schoolId, smsBalance: { gte: planned.credits } }, data: { smsBalance: { decrement: planned.credits } } });
+        const taken = await tx.notificationWallet.updateMany({ where: { schoolId: campaign.schoolId, [field]: { gte: planned.credits } }, data: { [field]: { decrement: planned.credits } } });
         if (!taken.count) {
           const wallet = await tx.notificationWallet.findUnique({ where: { schoolId: campaign.schoolId } });
-          throw new BadRequestException(`This would cost ${planned.credits} credits and the school has ${wallet?.smsBalance ?? 0}. Send it in-app, or ask the office to top up.`);
+          throw new BadRequestException(`This would cost ${planned.credits} credits and the school has ${(whatsapp ? wallet?.whatsappBalance : wallet?.smsBalance) ?? 0}. Send it in-app, or ask the office to top up.`);
         }
-        await tx.creditLedger.create({ data: { schoolId: campaign.schoolId, channel: "SMS", kind: "USED", credits: -planned.credits, note: `${campaign.name}`.slice(0, 120) } });
+        await tx.creditLedger.create({ data: { schoolId: campaign.schoolId, channel: whatsapp ? "WHATSAPP" : "SMS", kind: "USED", credits: -planned.credits, note: `${campaign.name}`.slice(0, 120) } });
       }
       const deliveries: Prisma.MessageDeliveryCreateManyInput[] = [];
       const logs: Prisma.NotificationLogCreateManyInput[] = [];
       for (const row of planned.rows) {
         const id = randomUUID();
-        const needsCarrier = (sms || email) && row.reachable;
+        const needsCarrier = (sms || email || whatsapp) && row.reachable;
         const logId = needsCarrier || (channel === "IN_APP" && row.userId) ? randomUUID() : null;
         deliveries.push({
-          id, schoolId: campaign.schoolId, campaignId: campaign.id, guardianId: row.id, recipientName: row.name, destination: sms ? row.phone : email ? row.email : "In-app",
+          id, schoolId: campaign.schoolId, campaignId: campaign.id, guardianId: row.id, recipientName: row.name, destination: sms || whatsapp ? row.phone : email ? row.email : "In-app",
           status: !row.reachable ? MessageDeliveryStatus.EXCLUDED : needsCarrier ? MessageDeliveryStatus.PENDING : MessageDeliveryStatus.DELIVERED,
           failureReason: row.reason, deliveredAt: row.reachable && !needsCarrier ? stamp : null, body: row.text, channel: campaign.channel, credits: row.reachable ? row.segments : 0,
           acknowledgeAsked: Boolean(audience.acknowledge), logId,
@@ -112,7 +130,12 @@ export class FamilyDispatchService {
           logs.push({
             id: logId, schoolId: campaign.schoolId, userId: row.userId ?? undefined, channel: campaign.channel, title: school?.name ?? "Your school", body: row.text,
             status: needsCarrier ? "QUEUED" : "SENT", sentAt: stamp,
-            metadata: { campaignId: campaign.id, deliveryId: id, ...(sms ? { phone: row.phone, credits: row.segments, prepaid: true } : {}), ...(email ? { email: row.email } : {}) } as Prisma.InputJsonValue,
+            metadata: {
+              campaignId: campaign.id, deliveryId: id,
+              ...(sms ? { phone: row.phone, credits: row.segments, prepaid: true } : {}),
+              ...(whatsapp ? { phone: row.phone, credits: row.segments, prepaid: true, template: { ...template, params: [whatsappText(row.text)] } } : {}),
+              ...(email ? { email: row.email } : {}),
+            } as Prisma.InputJsonValue,
           });
         }
       }
@@ -196,4 +219,4 @@ export class FamilyDispatchService {
   }
 }
 
-export const channelOf = (value: NotificationChannel | string): Channel => (value === "SMS" ? "SMS" : value === "EMAIL" ? "EMAIL" : "IN_APP");
+export const channelOf = (value: NotificationChannel | string): Channel => (value === "SMS" ? "SMS" : value === "EMAIL" ? "EMAIL" : value === "WHATSAPP" ? "WHATSAPP" : "IN_APP");

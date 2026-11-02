@@ -380,9 +380,17 @@ export class CommunicationCenterService {
     if (audienceKey === "One person" || audienceKey === "Selected people") {
       throw new BadRequestException("Pick the families this goes to first — a message to named people is sent from a guardian's row or a form master's Compose, where the people are chosen.");
     }
-    const threshold = await this.threshold(session.schoolId);
-    const needsApproval = snapshot.reach > threshold;
     const toStaff = audienceKey === "Staff";
+    // WhatsApp is opt-in, so who it reaches is not who has a phone: it is the families that chose it, for this kind of message. That number —
+    // not the size of the audience — is what the approval threshold and the Sent tab have to be told.
+    let reach = snapshot.reach;
+    if (parsed.channel === NotificationChannel.WHATSAPP) {
+      if (toStaff) throw new BadRequestException("Staff are not written to on WhatsApp. Choose SMS, email or in-app.");
+      reach = this.dispatcher.plan("WHATSAPP", parsed.body, await this.dispatcher.families(session.schoolId), parsed.name).reach;
+      if (reach === 0) throw new BadRequestException("No family has chosen WhatsApp for this kind of message, so there is nothing to send. Families switch it on under Notifications in their portal.");
+    }
+    const threshold = await this.threshold(session.schoolId);
+    const needsApproval = reach > threshold;
 
     // Written as a draft first: it is only "sent" once the dispatcher has taken the credits and written a row for each family.
     const campaign = await prisma.messageCampaign.create({
@@ -400,7 +408,7 @@ export class CommunicationCenterService {
             : MessageCampaignStatus.DRAFT,
         thresholdAt: Number.isFinite(threshold) ? threshold : null,
         scheduledAt: parsed.scheduledAt ? new Date(parsed.scheduledAt) : null,
-        recipientCount: snapshot.reach,
+        recipientCount: reach,
         createdById: session.userId,
       },
     });
@@ -425,7 +433,7 @@ export class CommunicationCenterService {
     return {
       id: campaign.id,
       status,
-      reach: snapshot.reach,
+      reach,
       unreachable: snapshot.unreachable,
       credits,
       threshold: Number.isFinite(threshold) ? threshold : null,
