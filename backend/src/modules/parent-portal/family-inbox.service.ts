@@ -10,7 +10,7 @@ import { currentTerm, fullName } from "../student-records/records.shared";
 import { formatDay } from "../../common/date-format";
 
 /** The types of submission a family may open themselves. The others are the school's to start. */
-const FAMILY_TYPES = ["Absence explanation", "Collection change", "Contact update", "Record correction", "Result query", "Fee query", "Meeting request"];
+const FAMILY_TYPES = ["Absence explanation", "Collection change", "Contact update", "Record correction", "Result query", "Fee query", "Meeting request", "Data copy request"];
 
 const stateLabel = (state: string) => (state === "RESOLVED" ? "Resolved" : state === "DECLINED" ? "Declined" : state === "IN_PROGRESS" ? "In progress" : state === "ASSIGNED" ? "With the school" : "Received");
 

@@ -1,6 +1,7 @@
 import { cache } from "react";
 
-import { apiGet } from "@/lib/api/server";
+import { apiGet, observe } from "@/lib/api/server";
+import { localContracts } from "@/lib/api/local-contracts.zod";
 import { getServerSession } from "@/lib/auth/session";
 import { ttlCached } from "@/lib/cache/ttl";
 
@@ -53,8 +54,8 @@ export const getParentRail = cache(async (role: string): Promise<ParentRailData 
     if (!session) return null;
     return await ttlCached(`prail:${session.schoolId}:${session.userId}`, 30_000, async () => {
       const [me, needs] = await Promise.all([
-        apiGet<{ sees: string[]; children: Array<{ id: string; first: string }> }>(`${PW}/me`),
-        apiGet<{ items: Array<{ kind: string; tone: string }> }>(`${PW}/needs?child=all`).catch(() => ({ items: [] })),
+        apiGet(`${PW}/me`, observe<{ sees: string[]; unread?: number; children: Array<{ id: string; first: string }> }>(localContracts["src/lib/api/parent-workspace.ts#c2a2e9f9"])),
+        apiGet(`${PW}/needs?child=all`, observe<{ items: Array<{ kind: string; tone: string }> }>(localContracts["src/lib/api/parent-workspace.ts#33b7930b"])).catch(() => ({ items: [] })),
       ]);
       const of = (...kinds: string[]) => needs.items.filter((item) => kinds.includes(item.kind));
       const fees = of("fee", "instalment");
@@ -63,12 +64,14 @@ export const getParentRail = cache(async (role: string): Promise<ParentRailData 
         p_attendance: of("absence").length,
         p_consents: of("consent").length,
         p_meetings: of("meeting").length,
+        p_messages: me.unread ?? 0,
       };
       const tones: Record<string, "warning" | "danger" | undefined> = {
         p_fees: fees.some((item) => item.tone === "negative") ? "danger" : fees.length ? "warning" : undefined,
         p_attendance: counts.p_attendance ? "warning" : undefined,
         p_consents: counts.p_consents ? "warning" : undefined,
         p_meetings: counts.p_meetings ? "warning" : undefined,
+        p_messages: counts.p_messages ? "warning" : undefined,
       };
       return { sees: me.sees, counts, tones };
     });
@@ -95,13 +98,13 @@ export const getParentChrome = cache(async (role: string): Promise<ParentChrome 
     if (!session) return null;
     return await ttlCached(`pchrome:${session.schoolId}:${session.userId}`, 30_000, async () => {
       const [me, needs, stats] = await Promise.all([
-        apiGet<{
+        apiGet(`${PW}/me`, observe<{
           name: string; children: Array<{ id: string; first: string; initials: string; arm: string; photoUrl: string | null }>;
           term: { name: string; week: number } | null;
           office: { name: string; phone: string | null; website: string | null; where: string | null };
-        }>(`${PW}/me`),
-        apiGet<{ items: Array<{ childId: string | null; tone: string }> }>(`${PW}/needs?child=all`).catch(() => ({ items: [] })),
-        apiGet<{ family: StatsByPage; children: Record<string, StatsByPage> }>(`${PW}/switcher`).catch(() => null),
+        }>(localContracts["src/lib/api/parent-workspace.ts#465d2ff7"])),
+        apiGet(`${PW}/needs?child=all`, observe<{ items: Array<{ childId: string | null; tone: string }> }>(localContracts["src/lib/api/parent-workspace.ts#e7f8ed66"])).catch(() => ({ items: [] })),
+        apiGet(`${PW}/switcher`, observe<{ family: StatsByPage; children: Record<string, StatsByPage> }>(localContracts["src/lib/api/parent-workspace.ts#fed728d3"])).catch(() => null),
       ]);
       const blank: StatsByPage = { home: ["", ""], attendance: ["", ""], fees: ["", ""], fallback: ["", ""] };
       const count = needs.items.length;

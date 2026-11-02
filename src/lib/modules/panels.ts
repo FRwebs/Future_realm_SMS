@@ -154,6 +154,8 @@ export type DrawerSpec = {
   commitDoneBody?: string;
   /** Omit and the drawer confirms without sending — a dry run, not a decision. */
   submit?: DrawerSubmit;
+  /** What the sheet asks before it writes, when the title does not make a sentence of its own — "Send this to the school?". */
+  confirmTitle?: string;
   /**
    * A form taken in stages.
    *

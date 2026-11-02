@@ -222,7 +222,7 @@ export function dropdownItemsFor(
   // sidebar; students and guardians keep the profile inside their own portal.
   const profilePath =
     session.role === "PARENT"
-      ? "/portals/parent/profile"
+      ? "/portals/parent/account"
       : session.role === "STUDENT"
         ? "/portals/student/profile"
         : accountPath;
@@ -574,7 +574,7 @@ function ParentSwitcher({ chrome }: { chrome: ParentChrome }) {
 const ALL_SWATCH: [string, string, string] = ["#E6F2EC", "#12796A", "#CFE4DB"];
 
 /** The parent pages that are about the parent, where the switcher gives way to their own name. */
-const PARENT_ACCOUNT_PAGES = ["prefs", "account"];
+const PARENT_ACCOUNT_PAGES = ["prefs", "account", "sync"];
 
 /**
  * The lesson running now, and the one after it.

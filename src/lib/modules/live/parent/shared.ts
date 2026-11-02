@@ -1,4 +1,5 @@
-import { apiGet } from "@/lib/api/server";
+import { apiGet, observe } from "@/lib/api/server";
+import { localContracts } from "@/lib/api/local-contracts.zod";
 import type { PanelTone, TabContent } from "@/lib/modules/panels";
 
 export const PW = "/api/v1/parent-portal/ws";
@@ -15,6 +16,8 @@ export type ParentMe = {
   today: string; now: string;
   /** What this school has chosen to show parents, by page name. */
   sees: string[];
+  /** Messages from the school that have not been opened. */
+  unread: number;
   children: ParentChild[];
 };
 
@@ -24,8 +27,8 @@ export type NeedItem = {
   action: string; href: string; due: string;
 };
 
-export const loadMe = () => apiGet<ParentMe>(`${PW}/me`);
-export const loadNeeds = (child: string) => apiGet<{ items: NeedItem[] }>(`${PW}/needs?child=${encodeURIComponent(child)}`);
+export const loadMe = () => apiGet(`${PW}/me`, observe<ParentMe>(localContracts["src/lib/modules/live/parent/shared.ts#6e8a2861"]));
+export const loadNeeds = (child: string) => apiGet(`${PW}/needs?child=${encodeURIComponent(child)}`, observe<{ items: NeedItem[] }>(localContracts["src/lib/modules/live/parent/shared.ts#51171b30"]));
 
 /** What a page hands the shell: the tab content, plus the tabs inside the page and which child it is about. */
 export type ParentContent = TabContent & {

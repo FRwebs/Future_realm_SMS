@@ -1,6 +1,17 @@
+import { accountPage } from "@/lib/modules/live/parent/account";
 import { attendancePage } from "@/lib/modules/live/parent/attendance";
+import { calendarPage } from "@/lib/modules/live/parent/calendar";
+import { consentsPage } from "@/lib/modules/live/parent/consents";
 import { feesPage } from "@/lib/modules/live/parent/fees";
+import { prefsPage } from "@/lib/modules/live/parent/prefs";
+import { profilePage } from "@/lib/modules/live/parent/profile";
+import { learningPage } from "@/lib/modules/live/parent/learning";
+import { meetingsPage } from "@/lib/modules/live/parent/meetings";
+import { messagesPage } from "@/lib/modules/live/parent/messages";
 import { overviewPage } from "@/lib/modules/live/parent/overview";
+import { syncPage } from "@/lib/modules/live/parent/sync";
+import { requestsPage } from "@/lib/modules/live/parent/requests";
+import { resultsPage } from "@/lib/modules/live/parent/results";
 import type { ParentContent } from "@/lib/modules/live/parent/shared";
 import { parentPages } from "@/lib/modules/parent-workspace";
 
@@ -16,6 +27,17 @@ const BUILDERS: Partial<Record<string, (child: string, query: Record<string, str
   overview: (child) => overviewPage(child),
   attendance: (child, query) => attendancePage(child, query),
   fees: (child, query) => feesPage(child, query),
+  learning: (child, query) => learningPage(child, query),
+  results: (child, query) => resultsPage(child, query),
+  consents: (child, query) => consentsPage(child, query),
+  messages: (child, query) => messagesPage(child, query),
+  calendar: (child, query) => calendarPage(child, query),
+  sync: () => syncPage(),
+  meetings: (child) => meetingsPage(child),
+  requests: (child, query) => requestsPage(child, query),
+  profile: (child, query) => profilePage(child, query),
+  account: (_child, query) => accountPage(query),
+  prefs: () => prefsPage(),
 };
 
 export const parentPageSlugs = (): string[] => parentPages.map((page) => page.slug);

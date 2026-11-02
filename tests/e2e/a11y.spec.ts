@@ -109,7 +109,7 @@ const WALK: Array<{ who: string; email: string; paths: string[] }> = [
   {
     who: "parent",
     email: "kemi-adeyemi-0001@parents.greenfieldcollege.ng",
-    paths: ["/portals/parent/children", "/portals/parent/messages", "/portals/parent/profile", "/portals/parent/tell-the-school"],
+    paths: ["/portals/parent/children", "/portals/parent/messages", "/portals/parent/profile", "/portals/parent/account", "/portals/parent/tell-the-school"],
   },
   {
     who: "platform admin",
