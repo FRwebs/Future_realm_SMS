@@ -262,7 +262,104 @@ export function RegisterMarker({ panel, openDrawer }: { panel: MarkerPanel; open
           </button>
         </div>
 
-        <div className="mx-[-18px] overflow-x-auto">
+        {/*
+          A register on a phone.
+
+          Marking one is the thing a form master does standing up, between a
+          doorway and a bell, and the grid a wide screen can hold needs 760px —
+          so on a phone the mark buttons sat off the right edge, past a sideways
+          scroll. The mobile mockup stacks each child instead: who they are,
+          then the four marks across the full width where a thumb lands, then a
+          reason only when the mark asks for one. Same marks, same state, same
+          save.
+        */}
+        <ul className="mx-[-18px] md:hidden">
+          {shown.map((student) => {
+            const entry = marks[student.id];
+            const status = entry?.status ?? null;
+            const needs = status === "ABSENT" && !entry.reasonCode && !entry.reason;
+            const pill = toneOf(status ? CHOICES.find((choice) => choice.value === status)?.tone : "neutral");
+            const away = status === "ABSENT" || status === "EXCUSED" || status === "LATE";
+            return (
+              <li key={student.id} className="border-t px-[18px] py-[12px]" style={{ borderColor: "#F0F5F2" }}>
+                <div className="flex items-start gap-[10px]">
+                  <span className="mt-[2px] font-mono text-[11px]" style={{ color: MUTED }}>{String(student.roll).padStart(2, "0")}</span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-[14px] font-bold leading-[1.3]" style={{ color: INK }}>{student.name}</span>
+                    <span className="mt-[2px] block font-mono text-[11px]" style={{ color: MUTED }}>
+                      {student.adm}
+                      {student.termRate !== null ? <span style={{ color: student.termRate < 75 ? "#B23B3B" : MUTED }}>{` · ${student.termRate}% this term`}</span> : null}
+                    </span>
+                  </span>
+                  <span
+                    className="mt-[2px] inline-flex flex-none items-center gap-[5px] rounded-full border px-[8px] py-[2px] text-[10px] font-semibold"
+                    style={{ background: pill.bg, color: pill.fg, borderColor: pill.bd }}
+                  >
+                    <span className="h-[5px] w-[5px] rounded-full" style={{ background: pill.dot }} />
+                    {status ? LABEL[status] : "Unmarked"}
+                  </span>
+                </div>
+
+                <div className="mt-[9px] grid grid-cols-4 gap-[6px]" role="group" aria-label={`Mark for ${student.name}`}>
+                  {CHOICES.map((choice) => {
+                    const on = status === choice.value;
+                    const swatch = toneOf(choice.tone);
+                    return (
+                      <button
+                        key={choice.value}
+                        type="button"
+                        disabled={locked}
+                        aria-pressed={on}
+                        aria-label={`${choice.label} — ${student.name}`}
+                        onClick={() => set(student.id, choice.value)}
+                        className="flex h-[44px] items-center justify-center rounded-[11px] border text-[13px] font-extrabold disabled:cursor-not-allowed disabled:opacity-50"
+                        style={{ borderColor: on ? swatch.dot : "#DEE8E2", background: on ? swatch.dot : "#fff", color: on ? "#fff" : "#5E6D64" }}
+                      >
+                        {choice.label}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {away ? (
+                  <div className="mt-[8px] grid gap-[6px]">
+                    <select
+                      disabled={locked}
+                      value={entry.reasonCode}
+                      aria-label={`Reason — ${student.name}`}
+                      onChange={(event) => setReason(student.id, { reasonCode: event.target.value })}
+                      className="h-[42px] w-full rounded-[10px] border bg-white px-[10px] text-[13px]"
+                      style={{ borderColor: needs ? "#E8B4B4" : "#DEE8E2", color: entry.reasonCode ? "#435048" : needs ? "#B23B3B" : "#12796A" }}
+                    >
+                      <option value="">{needs ? "Add a reason" : "No reason yet"}</option>
+                      {panel.reasons.map((reason) => (
+                        <option key={reason} value={reason}>{reason}</option>
+                      ))}
+                    </select>
+                    {entry.reasonCode ? (
+                      <input
+                        disabled={locked}
+                        value={entry.reason}
+                        onChange={(event) => setReason(student.id, { reason: event.target.value })}
+                        placeholder="In their own words (optional)"
+                        aria-label={`In their own words — ${student.name}`}
+                        className="h-[42px] w-full rounded-[10px] border bg-white px-[10px] text-[13px]"
+                        style={{ borderColor: "#DEE8E2" }}
+                      />
+                    ) : null}
+                  </div>
+                ) : null}
+              </li>
+            );
+          })}
+          {!shown.length ? (
+            <li className="border-t px-[18px] py-[24px] text-center text-[13px]" style={{ borderColor: "#F0F5F2", color: MUTED }}>
+              {total ? "Nobody matches that." : "Nobody is on this arm’s roll, so there is no register to take."}
+            </li>
+          ) : null}
+        </ul>
+
+        <div className="mx-[-18px] hidden overflow-x-auto md:block">
           <table className="w-full min-w-[760px] border-collapse text-left">
             <thead>
               <tr style={{ background: "#F7FAF8" }}>
