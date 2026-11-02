@@ -1,3 +1,4 @@
+import { feesPage } from "@/lib/modules/live/parent/fees";
 import { overviewPage } from "@/lib/modules/live/parent/overview";
 import type { ParentContent } from "@/lib/modules/live/parent/shared";
 import { parentPages } from "@/lib/modules/parent-workspace";
@@ -12,6 +13,7 @@ import { parentPages } from "@/lib/modules/parent-workspace";
  */
 const BUILDERS: Partial<Record<string, (child: string, query: Record<string, string | undefined>) => Promise<ParentContent>>> = {
   overview: (child) => overviewPage(child),
+  fees: (child, query) => feesPage(child, query),
 };
 
 export const parentPageSlugs = (): string[] => parentPages.map((page) => page.slug);

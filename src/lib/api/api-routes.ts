@@ -416,6 +416,7 @@ export const API_ROUTES = [
   "GET /api/v1/parent-portal/profile",
   "GET /api/v1/parent-portal/submissions",
   "GET /api/v1/parent-portal/submissions/options",
+  "GET /api/v1/parent-portal/ws/fees",
   "GET /api/v1/parent-portal/ws/me",
   "GET /api/v1/parent-portal/ws/needs",
   "GET /api/v1/parents",
