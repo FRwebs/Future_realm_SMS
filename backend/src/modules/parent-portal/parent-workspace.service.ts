@@ -222,6 +222,130 @@ export class ParentWorkspaceService {
     items.sort((a, b) => rank(a) - rank(b) || a.due.localeCompare(b.due));
     return { items };
   }
+/* ───────────────────────── fees ───────────────────────── */
+
+  /**
+   * What the family owes, and everything already paid.
+   *
+   * A parent checking fees is usually answering one of two questions: "how much
+   * is left" and "did my payment land". So the balance leads, and every payment
+   * the bursar has recorded is listed with its receipt number — a parent who
+   * paid last week needs to see it here, or they will ring the office.
+   *
+   * Figures come from the invoice's own balance rather than from a sum of
+   * payments, because the bursar may have applied a discount or a fine that no
+   * payment explains.
+   */
+  async fees(session: SessionPayload, scope: string) {
+    const { children, policy, term } = await this.context(session);
+    if (!policy.sees.has("Fees")) throw new ForbiddenException("Your school has not made fee details visible to parents.");
+    const mine = scope === "all" ? children : children.filter((student) => student.id === scope);
+    const ids = mine.map((student) => student.id);
+    if (!ids.length) return { children: [], invoices: [], payments: [], plans: [] };
+
+    const invoices = await prisma.invoice.findMany({
+      where: { schoolId: session.schoolId, studentId: { in: ids }, status: { not: "DRAFT" } },
+      include: {
+        items: { select: { description: true, amount: true, quantity: true } },
+        payments: { include: { receipts: { select: { receiptNumber: true } } }, orderBy: { paidAt: "desc" } },
+        term: { select: { id: true, name: true, academicSession: { select: { name: true } } } },
+      },
+      orderBy: { issuedOn: "desc" },
+    });
+    const plans = await prisma.installmentPlan.findMany({
+      where: { schoolId: session.schoolId, studentId: { in: ids }, status: { notIn: ["CANCELLED"] } },
+      include: { items: { orderBy: { dueOn: "asc" } } },
+    });
+
+    const firstOf = new Map(mine.map((student) => [student.id, student.firstName]));
+    const nameOf = new Map(mine.map((student) => [student.id, [student.firstName, student.lastName].filter(Boolean).join(" ")]));
+    const armOf = new Map(mine.map((student) => [student.id, armName(student.currentClass?.name, student.currentClass?.arm)]));
+
+    // This term's position per child: what a parent means by "the fees".
+    const summary = mine.map((student) => {
+      const theirs = invoices.filter((invoice) => invoice.studentId === student.id);
+      const thisTerm = term ? theirs.filter((invoice) => invoice.termId === term.id) : theirs;
+      const billed = thisTerm.reduce((sum, invoice) => sum + Number(invoice.total), 0);
+      const balance = thisTerm.reduce((sum, invoice) => sum + Number(invoice.balance), 0);
+      // What is actually owed is every unpaid invoice, not this term's. A bill
+      // from an earlier term that was never settled is still owed, and a page
+      // that says "nothing owed" while the overview says otherwise is a page a
+      // parent stops trusting.
+      const outstanding = theirs.reduce((sum, invoice) => sum + Number(invoice.balance), 0);
+      const unpaid = theirs.filter((invoice) => Number(invoice.balance) > 0);
+      const oldestDue = unpaid.map((invoice) => isoDay(invoice.dueOn)).sort()[0] ?? null;
+      const overdue = unpaid.some((invoice) => invoice.dueOn.getTime() < Date.now());
+      const fromEarlier = outstanding - balance;
+      return {
+        id: student.id,
+        name: nameOf.get(student.id) ?? "",
+        first: firstOf.get(student.id) ?? "",
+        arm: armOf.get(student.id) ?? "",
+        invoiceNo: thisTerm[0]?.invoiceNumber ?? "",
+        term: thisTerm[0]?.term ? `${thisTerm[0]!.term!.name} ${thisTerm[0]!.term!.academicSession.name}` : term ? `${term.name} ${term.academicSession.name}` : "",
+        billed,
+        paid: billed - balance,
+        balance,
+        /** Every unpaid invoice, this term's and any earlier one's. */
+        outstanding,
+        /** How much of it belongs to a term that has already ended. */
+        fromEarlier,
+        oldestDue,
+        status: outstanding <= 0 ? (billed ? "Paid in full" : "Nothing billed") : overdue ? "Overdue" : "Part paid",
+        tone: outstanding <= 0 ? "positive" : overdue ? "negative" : "attention",
+      };
+    });
+
+    return {
+      children: summary,
+      invoices: invoices.map((invoice) => ({
+        id: invoice.id,
+        childId: invoice.studentId,
+        child: firstOf.get(invoice.studentId) ?? "",
+        number: invoice.invoiceNumber,
+        term: invoice.term ? `${invoice.term.name} ${invoice.term.academicSession.name}` : "",
+        termId: invoice.termId,
+        issued: isoDay(invoice.issuedOn),
+        due: isoDay(invoice.dueOn),
+        total: Number(invoice.total),
+        discount: Number(invoice.discount),
+        fine: Number(invoice.fine),
+        balance: Number(invoice.balance),
+        status: invoice.status,
+        lines: invoice.items.map((item) => ({ description: item.description, amount: Number(item.amount), quantity: item.quantity })),
+      })),
+      payments: invoices.flatMap((invoice) =>
+        invoice.payments.map((payment) => ({
+          id: payment.id,
+          childId: invoice.studentId,
+          child: firstOf.get(invoice.studentId) ?? "",
+          invoice: invoice.invoiceNumber,
+          reference: payment.reference,
+          receipt: payment.receipts[0]?.receiptNumber ?? null,
+          amount: Number(payment.amount),
+          method: payment.method,
+          status: payment.status,
+          paidAt: payment.paidAt ? isoDay(payment.paidAt) : null,
+        })),
+      ),
+      plans: plans.map((plan) => ({
+        id: plan.id,
+        childId: plan.studentId,
+        child: firstOf.get(plan.studentId) ?? "",
+        number: plan.planNumber,
+        total: Number(plan.totalAmount),
+        balance: Number(plan.balance),
+        status: plan.status,
+        items: plan.items.map((item) => ({
+          id: item.id,
+          due: isoDay(item.dueOn),
+          amount: Number(item.amount),
+          paid: Number(item.paidAmount),
+          status: item.status,
+        })),
+      })),
+    };
+  }
 }
 
 type NeedItem = {

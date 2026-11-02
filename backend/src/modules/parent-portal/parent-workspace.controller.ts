@@ -27,6 +27,12 @@ export class ParentWorkspaceController {
     return { ok: true, data: await this.workspace.me(session) };
   }
 
+  /** What the family owes and has paid. `child` is a child's id, or "all". */
+  @Get("fees")
+  async fees(@CurrentSession() session: SessionPayload, @Query("child") child?: string) {
+    return { ok: true, data: await this.workspace.fees(session, child?.trim() || "all") };
+  }
+
   /** What the family has to act on. `child` is a child's id, or "all". */
   @Get("needs")
   async needs(@CurrentSession() session: SessionPayload, @Query("child") child?: string) {
