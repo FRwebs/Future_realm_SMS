@@ -20,7 +20,7 @@ jobs:
         if: env.CHROMATIC_PROJECT_TOKEN != ''
         with:
           fetch-depth: 0
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         if: env.CHROMATIC_PROJECT_TOKEN != ''
         with:
           node-version: 22
