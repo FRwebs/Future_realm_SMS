@@ -6,15 +6,22 @@ import { ttlCached } from "@/lib/cache/ttl";
 
 export const PW = "/api/v1/parent-portal/ws";
 
+/** A line and the tone it reads in, per page. An empty tone means plain text. */
+export type Stat = [string, string];
+export type StatsByPage = { home: Stat; attendance: Stat; fees: Stat; fallback: Stat };
+
 export type ParentChromeChild = {
   id: string; first: string; initials: string; arm: string; photoUrl: string | null;
-  stat: string; statTone?: "negative" | "attention"; needs: number; urgent: boolean;
+  /** Each child gets their own avatar colour, so a family of three is told apart at a glance. */
+  swatch: [string, string, string];
+  stats: StatsByPage;
+  needs: number; urgent: boolean;
 };
 
 export type ParentChrome = {
   /** The chips in the top bar: the whole family, then each child. */
   children: ParentChromeChild[];
-  family: { stat: string; needs: number; urgent: boolean };
+  family: { stats: StatsByPage; needs: number; urgent: boolean };
   /** Shown instead of the chips on the pages that are about the parent, not a child. */
   account: { title: string; sub: string };
   /** The block at the foot of the rail: how to reach the school. */
@@ -87,29 +94,31 @@ export const getParentChrome = cache(async (role: string): Promise<ParentChrome 
     const session = await getServerSession();
     if (!session) return null;
     return await ttlCached(`pchrome:${session.schoolId}:${session.userId}`, 30_000, async () => {
-      const [me, needs] = await Promise.all([
+      const [me, needs, stats] = await Promise.all([
         apiGet<{
           name: string; children: Array<{ id: string; first: string; initials: string; arm: string; photoUrl: string | null }>;
           term: { name: string; week: number } | null;
           office: { name: string; phone: string | null; website: string | null; where: string | null };
         }>(`${PW}/me`),
         apiGet<{ items: Array<{ childId: string | null; tone: string }> }>(`${PW}/needs?child=all`).catch(() => ({ items: [] })),
+        apiGet<{ family: StatsByPage; children: Record<string, StatsByPage> }>(`${PW}/switcher`).catch(() => null),
       ]);
+      const blank: StatsByPage = { home: ["", ""], attendance: ["", ""], fees: ["", ""], fallback: ["", ""] };
       const count = needs.items.length;
       const kids = me.children.length;
       return {
-        children: me.children.map((child) => {
+        children: me.children.map((child, index) => {
           const mine = needs.items.filter((need) => need.childId === child.id);
           return {
             ...child,
-            stat: mine.length ? `${mine.length} to do` : child.arm,
-            statTone: mine.some((need) => need.tone === "negative") ? ("negative" as const) : mine.length ? ("attention" as const) : undefined,
+            swatch: CHILD_SWATCHES[index % CHILD_SWATCHES.length]!,
+            stats: stats?.children[child.id] ?? { ...blank, fallback: [child.arm, ""] },
             needs: mine.length,
             urgent: mine.some((need) => need.tone === "negative"),
           };
         }),
         family: {
-          stat: count ? `${count} ${count === 1 ? "thing needs" : "things need"} you` : "Nothing to do",
+          stats: stats?.family ?? { ...blank, fallback: [kids === 1 ? "1 child" : `${kids} children`, ""] },
           needs: count,
           urgent: needs.items.some((need) => need.tone === "negative"),
         },
@@ -130,3 +139,12 @@ export const getParentChrome = cache(async (role: string): Promise<ParentChrome 
     return null;
   }
 });
+
+/** One avatar colour per child, in the order the school enrolled them. */
+const CHILD_SWATCHES: Array<[string, string, string]> = [
+  ["#EBF1FA", "#2A5A96", "#C9DAF0"],
+  ["#FDF6E7", "#8A6410", "#F2E4C6"],
+  ["#EAF6F0", "#17714F", "#CFE4DB"],
+  ["#EEEDFA", "#4A44A0", "#E1DFF4"],
+  ["#FBF2EC", "#94553A", "#F0DDD0"],
+];

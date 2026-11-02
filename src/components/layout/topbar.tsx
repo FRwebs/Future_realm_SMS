@@ -447,69 +447,131 @@ function NotificationBell({
  * are and what those settings cover, as the mockup does.
  */
 function ParentSwitcher({ chrome }: { chrome: ParentChrome }) {
+  const router = useRouter();
   const pathname = usePathname();
   const params = useSearchParams();
   const page = pathname.replace(/^\/portals\/parent\/?/, "") || "overview";
   const selected = params.get("child") ?? "all";
 
+  const order = useMemo(() => ["all", ...chrome.children.map((child) => child.id)], [chrome.children]);
+  const href = useMemo(() => {
+    const base = `/portals/parent${page === "overview" ? "" : `/${page}`}`;
+    return (child: string) => (child === "all" ? base || "/portals/parent" : `${base}?child=${child}`);
+  }, [page]);
+
+  // The bar promises "0–3" and "[ ]"; a promise in the interface has to work.
+  // Typing in a field is never a shortcut, so inputs are left alone.
+  useEffect(() => {
+    if (PARENT_ACCOUNT_PAGES.includes(page) || !chrome.children.length) return;
+    const onKey = (event: KeyboardEvent) => {
+      if (event.metaKey || event.ctrlKey || event.altKey) return;
+      const target = event.target as HTMLElement | null;
+      if (target && (/^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName) || target.isContentEditable)) return;
+      const at = order.indexOf(selected);
+      let next: string | undefined;
+      if (/^[0-9]$/.test(event.key)) next = order[Number(event.key)];
+      else if (event.key === "[") next = order[Math.max(0, at - 1)];
+      else if (event.key === "]") next = order[Math.min(order.length - 1, at + 1)];
+      if (!next || next === selected) return;
+      event.preventDefault();
+      router.push(href(next) as Route);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [order, selected, page, href, router, chrome.children.length]);
+
   if (PARENT_ACCOUNT_PAGES.includes(page)) {
     return (
       <div className="min-w-0">
-        <p className="truncate font-[family-name:var(--font-heading)] text-[12.5px] font-bold leading-[1.25] text-[var(--color-text-primary)]">{chrome.account.title}</p>
+        <p className="truncate font-[family-name:var(--font-heading)] text-[12.5px] font-bold leading-[1.25] text-(--color-text-primary)">{chrome.account.title}</p>
         <p className="truncate text-[9.5px] leading-[1.3]" style={{ color: "#67766D" }}>{chrome.account.sub}</p>
       </div>
     );
   }
   if (!chrome.children.length) return null;
 
-  const href = (child: string) => (child === "all" ? `/portals/parent/${page === "overview" ? "" : page}` : `/portals/parent/${page === "overview" ? "" : page}?child=${child}`);
-  const chip = (key: string, initials: string, name: string, stat: string, tone: string | undefined, needs: number, urgent: boolean, photo: string | null) => {
+  /** The line under a child's name is the one for the page being read. */
+  const lineFor = (stats: ParentChrome["family"]["stats"]): [string, string] => {
+    const own = page === "overview" ? stats.home : page === "attendance" ? stats.attendance : page === "fees" ? stats.fees : null;
+    return own && own[0] ? own : stats.fallback;
+  };
+  const ink = (tone: string) =>
+    tone === "negative" ? "#B23B3B" : tone === "attention" ? "#8A6410" : tone === "positive" ? "#17714F" : tone === "progress" ? "#2A5A96" : "#6E7C74";
+
+  const chip = (
+    key: string,
+    initials: string,
+    name: string,
+    stats: ParentChrome["family"]["stats"],
+    swatch: [string, string, string],
+    needs: number,
+    urgent: boolean,
+    photo: string | null,
+  ) => {
     const on = key === selected;
+    const [line, tone] = lineFor(stats);
     return (
       <Link
         key={key}
-        href={href(key).replace(/\/$/, "") as Route}
+        href={href(key) as Route}
         aria-current={on ? "true" : undefined}
-        title={`${name}${needs ? ` · ${needs} ${needs === 1 ? "thing needs" : "things need"} you` : ""}`}
-        className="flex min-w-0 max-w-[200px] flex-none items-center gap-[8px] rounded-full border px-[9px] py-[3.5px] transition-[background,border-color] duration-150"
-        style={on ? { background: "#0D2315", borderColor: "#0D2315" } : { background: "#fff", borderColor: "#DEE8E2" }}
+        title={`${name}${needs ? ` · ${needs} ${needs === 1 ? "thing needs" : "things need"} you` : ""} · press ${order.indexOf(key)}`}
+        className="flex min-w-0 max-w-[236px] flex-[0_1_auto] items-center gap-[8px] rounded-[9px] py-[4px] pl-[4px] pr-[13px] transition-[background,box-shadow] duration-150"
+        style={on ? { background: "#0D2315", boxShadow: "0 6px 14px -8px rgba(13,35,21,0.6)" } : { background: "transparent" }}
       >
         <span className="relative flex-none">
           <span
-            className="flex h-[26px] w-[26px] items-center justify-center overflow-hidden rounded-full border font-[family-name:var(--font-heading)] text-[9.5px] font-extrabold"
-            style={on ? { background: "rgba(255,255,255,0.14)", color: "#fff", borderColor: "rgba(255,255,255,0.24)" } : { background: "#EBF1FA", color: "#2A5A96", borderColor: "#C9DAF0" }}
+            className="flex h-[28px] w-[28px] items-center justify-center overflow-hidden rounded-full border font-[family-name:var(--font-heading)] text-[10px] font-extrabold"
+            style={{ background: swatch[0], color: swatch[1], borderColor: swatch[2] }}
           >
             {photo ? <img src={photo} alt="" className="h-full w-full object-cover" /> : initials}
           </span>
           {needs ? (
             <span
-              className="absolute -right-[4px] -top-[4px] flex h-[14px] min-w-[14px] items-center justify-center rounded-full px-[3.5px] text-[8.5px] font-extrabold leading-none"
-              style={{ background: urgent ? "#C93F3F" : "#E0A526", color: urgent ? "#fff" : "#0D2315", border: `1.5px solid ${on ? "#0D2315" : "#fff"}` }}
+              className="absolute -right-[5px] -top-[4px] flex h-[15px] min-w-[15px] items-center justify-center rounded-full px-[4px] text-[9px] font-extrabold leading-none"
+              style={{ background: urgent ? "#C93F3F" : "#E0A526", color: urgent ? "#fff" : "#0D2315", border: `1.5px solid ${on ? "#0D2315" : "#F2F7F4"}` }}
             >
               {needs}
             </span>
           ) : null}
         </span>
-        <span className="hidden min-w-0 text-left sm:block">
-          <span className="block truncate text-[11px] font-bold leading-[1.25]" style={{ color: on ? "#fff" : "#0D2315" }}>{name}</span>
-          <span
-            className="block truncate text-[9.5px] font-semibold leading-[1.3]"
-            style={{ color: on ? "rgba(255,255,255,0.7)" : tone === "negative" ? "#B23B3B" : tone === "attention" ? "#8A6410" : "#67766D" }}
-          >
-            {stat}
-          </span>
+        <span className="hidden min-w-0 sm:block">
+          <span className="block truncate text-[11.5px] font-bold leading-[1.25]" style={{ color: on ? "#fff" : "#0D2315" }}>{name}</span>
+          {line ? (
+            <span
+              className="block truncate text-[9.5px] leading-[1.3]"
+              style={{ color: on ? "rgba(255,255,255,0.76)" : ink(tone), fontWeight: on ? 500 : 600 }}
+            >
+              {line}
+            </span>
+          ) : null}
         </span>
       </Link>
     );
   };
 
   return (
-    <div className="flex min-w-0 flex-1 items-center gap-[6px] overflow-x-auto" style={{ scrollbarWidth: "none" }}>
-      {chip("all", "All", "Whole family", chrome.family.stat, undefined, chrome.family.needs, chrome.family.urgent, null)}
-      {chrome.children.map((child) => chip(child.id, child.initials, child.first, child.stat, child.statTone, child.needs, child.urgent, child.photoUrl))}
-    </div>
+    <>
+      <div
+        className="flex min-w-0 items-center gap-[3px] overflow-x-auto overflow-y-hidden rounded-[12px] border p-[3px]"
+        style={{ background: "#F2F7F4", borderColor: "#E4EDE8", scrollbarWidth: "none" }}
+      >
+        {chip("all", "All", "Whole family", chrome.family.stats, ALL_SWATCH, chrome.family.needs, chrome.family.urgent, null)}
+        {chrome.children.map((child) => chip(child.id, child.initials, child.first, child.stats, child.swatch, child.needs, child.urgent, child.photoUrl))}
+      </div>
+      <span
+        title="Switch child from the keyboard: 0 for the whole family, 1 onwards for each child, [ and ] to step through. You stay on the same page."
+        className="hidden flex-none cursor-help rounded-[6px] border border-b-2 bg-white px-[6px] py-[2px] text-[9.5px] font-bold whitespace-nowrap lg:inline-block"
+        style={{ borderColor: "#DEE8E2", color: "#6B7A71" }}
+      >
+        0–{chrome.children.length}
+      </span>
+    </>
   );
 }
+
+/** The whole-family chip's own colour, distinct from any one child's. */
+const ALL_SWATCH: [string, string, string] = ["#E6F2EC", "#12796A", "#CFE4DB"];
 
 /** The parent pages that are about the parent, where the switcher gives way to their own name. */
 const PARENT_ACCOUNT_PAGES = ["prefs", "account"];

@@ -27,6 +27,12 @@ export class ParentWorkspaceController {
     return { ok: true, data: await this.workspace.me(session) };
   }
 
+  /** What to say under each child's name in the top bar, page by page. */
+  @Get("switcher")
+  async switcher(@CurrentSession() session: SessionPayload) {
+    return { ok: true, data: await this.workspace.switcher(session) };
+  }
+
   /** What the family owes and has paid. `child` is a child's id, or "all". */
   @Get("fees")
   async fees(@CurrentSession() session: SessionPayload, @Query("child") child?: string) {

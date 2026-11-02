@@ -353,7 +353,112 @@ export class ParentWorkspaceService {
       })),
     };
   }
+/* ───────────────────────── the switcher's own line ───────────────────────── */
+
+  /**
+   * What to say under each child's name in the top bar, for each page.
+   *
+   * The mockup changes this line with the page, and that is the whole point of
+   * it: on Attendance a parent wants each child's attendance, on Fees each
+   * child's balance. A single fixed line — their class, say — would waste the
+   * one place in the portal that can answer "and the other one?" without a
+   * second click.
+   *
+   * Pages whose module is not built yet get the child's class, which is true
+   * and says nothing it cannot back up.
+   */
+  async switcher(session: SessionPayload) {
+    const { children, term, policy } = await this.context(session);
+    const ids = children.map((student) => student.id);
+    const today = isoDay(new Date());
+
+    const [needs, marks, termMarks, invoices] = await Promise.all([
+      this.needs(session, "all"),
+      ids.length
+        ? prisma.studentAttendance.findMany({
+            where: { schoolId: session.schoolId, studentId: { in: ids }, date: dayOf(today) },
+            select: { studentId: true, status: true },
+          })
+        : Promise.resolve([]),
+      ids.length && term
+        ? prisma.studentAttendance.findMany({
+            where: { schoolId: session.schoolId, studentId: { in: ids }, termId: term.id },
+            select: { studentId: true, status: true, reason: true },
+          })
+        : Promise.resolve([]),
+      ids.length && policy.sees.has("Fees")
+        ? prisma.invoice.findMany({
+            where: { schoolId: session.schoolId, studentId: { in: ids }, balance: { gt: 0 }, status: { in: ["ISSUED", "PARTIALLY_PAID", "OVERDUE"] } },
+            select: { studentId: true, balance: true, dueOn: true },
+          })
+        : Promise.resolve([]),
+    ]);
+
+    const statFor = (id: string | null) => {
+      const family = id === null;
+      const mine = family ? children : children.filter((student) => student.id === id);
+      const theirIds = new Set(mine.map((student) => student.id));
+      // A child's own line counts what belongs to that child. A consent is the
+      // family's, not one child's, so counting it against each of them would
+      // make the line disagree with the badge beside it.
+      const need = family ? needs.items : needs.items.filter((item) => item.childId === id);
+
+      // Home: what is outstanding.
+      const home: Stat = need.length
+        ? [`${need.length} ${need.length === 1 ? "thing needs" : "things need"} you`, need.some((item) => item.tone === "negative") ? "negative" : "attention"]
+        : ["All caught up", "positive"];
+
+      // Attendance: who is in school, and what is still unexplained.
+      const presentToday = marks.filter((mark) => theirIds.has(mark.studentId) && (mark.status === "PRESENT" || mark.status === "LATE")).length;
+      const markedToday = marks.filter((mark) => theirIds.has(mark.studentId)).length;
+      const theirTerm = termMarks.filter((mark) => theirIds.has(mark.studentId));
+      const unexplained = theirTerm.filter((mark) => mark.status === "ABSENT" && !mark.reason).length;
+      const present = theirTerm.filter((mark) => mark.status === "PRESENT" || mark.status === "LATE").length;
+      const pct = theirTerm.length ? `${Math.round((present / theirTerm.length) * 1000) / 10}%` : null;
+      const attendance: Stat = !policy.sees.has("Attendance")
+        ? ["", ""]
+        : family
+          ? markedToday
+            ? [`${presentToday} of ${mine.length} in school${unexplained ? ` · ${unexplained} to explain` : ""}`, unexplained ? "attention" : "positive"]
+            : [unexplained ? `${unexplained} to explain` : pct ? `${pct} this term` : "No register yet", unexplained ? "attention" : "positive"]
+          : [pct ? `${pct} · ${unexplained ? `${unexplained} to explain` : "all explained"}` : "No register yet", unexplained ? "attention" : pct ? "positive" : ""];
+
+      // Fees: the balance, and whether any of it is late.
+      const theirInvoices = invoices.filter((invoice) => theirIds.has(invoice.studentId));
+      const owed = theirInvoices.reduce((sum, invoice) => sum + Number(invoice.balance), 0);
+      const late = theirInvoices.some((invoice) => invoice.dueOn.getTime() < Date.now());
+      const withBalance = new Set(theirInvoices.map((invoice) => invoice.studentId)).size;
+      const fees: Stat = !policy.sees.has("Fees")
+        ? ["", ""]
+        : family
+          ? owed
+            ? [`${late ? "Overdue · " : ""}${withBalance} with a balance`, late ? "negative" : "attention"]
+            : ["All paid", "positive"]
+          : owed
+            ? [`${money(owed)}${late ? " · overdue" : ""}`, late ? "negative" : "attention"]
+            : ["Paid in full", "positive"];
+
+      const student = family ? null : mine[0];
+      return {
+        home,
+        attendance,
+        fees,
+        /** Everything else, until its own page is built and brings its own line. */
+        fallback: (family
+          ? [`${children.length === 1 ? "1 child" : `${children.length} children`}`, ""]
+          : [armName(student?.currentClass?.name, student?.currentClass?.arm), ""]) as Stat,
+      };
+    };
+
+    return {
+      family: statFor(null),
+      children: Object.fromEntries(children.map((student) => [student.id, statFor(student.id)])),
+    };
+  }
 }
+
+/** A line and the tone it reads in. An empty tone means plain text. */
+type Stat = [string, string];
 
 type NeedItem = {
   kind: string; childId: string | null; child: string;
