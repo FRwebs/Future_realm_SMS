@@ -16,7 +16,7 @@ jobs:
       - name: Skip when no token is configured
         if: env.CHROMATIC_PROJECT_TOKEN == ''
         run: echo "No CHROMATIC_PROJECT_TOKEN secret — skipping visual review."
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         if: env.CHROMATIC_PROJECT_TOKEN != ''
         with:
           fetch-depth: 0
