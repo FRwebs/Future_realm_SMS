@@ -47,6 +47,10 @@ const NEEDS_POLICY: Partial<Record<ParentPageSlug, string>> = {
   learning: "Timetable",
 };
 
+/** The pages a school's visibility policy leaves standing — the rail and the phone's bar share this. */
+export const visibleParentPages = (sees: string[]): string[] =>
+  parentPages.filter((page) => { const needed = NEEDS_POLICY[page.slug]; return !needed || sees.includes(needed); }).map((page) => page.slug);
+
 const section = (title: string, slugs: ParentPageSlug[], sees: string[], child: string | undefined, firstName: string | undefined) => ({
   title,
   items: slugs

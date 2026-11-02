@@ -9,8 +9,8 @@ import { ttlCached } from "@/lib/cache/ttl";
 import { getPlatformSync } from "@/lib/api/platform-sync";
 import { getStudentBadges, getStudentChrome } from "@/lib/api/student-workspace";
 import { getTeacherBadges, getTeacherWorkspace } from "@/lib/api/teacher-workspace";
-import { getParentRail } from "@/lib/api/parent-workspace";
-import { parentNavigation } from "@/lib/modules/parent-workspace";
+import { getParentChrome, getParentRail } from "@/lib/api/parent-workspace";
+import { parentNavigation, visibleParentPages } from "@/lib/modules/parent-workspace";
 import { studentNavigation } from "@/lib/modules/student-workspace";
 import { teacherNavigation } from "@/lib/modules/teacher-workspace";
 import { getServerPermissions } from "@/lib/auth/server-access";
@@ -43,7 +43,7 @@ export default async function AppLayout({
     redirect("/login");
   }
 
-  const [permissions, schoolContext, platformSync, teacher, teacherBadges, studentBadges, studentChrome, parentRail] = await Promise.all([
+  const [permissions, schoolContext, platformSync, teacher, teacherBadges, studentBadges, studentChrome, parentRail, parentChrome] = await Promise.all([
     getServerPermissions(session).catch(() => getDefaultPermissionsForRole(session.role)),
     getCachedSchoolContext(session.schoolId),
     getPlatformSync(session.schoolId),
@@ -52,6 +52,7 @@ export default async function AppLayout({
     getStudentBadges(session.role),
     getStudentChrome(session.role),
     getParentRail(session.role),
+    getParentChrome(session.role),
   ]);
 
   // A teacher's rail: the teacher modules their permissions reach, in the teacher's order, then anything more the school has granted.
@@ -78,6 +79,8 @@ export default async function AppLayout({
       navBadges={teacherRail ? navBadges : undefined}
       navBadgeTones={teacherRail ? navBadgeTones : undefined}
       studentChrome={studentChrome}
+      parentChrome={parentChrome}
+      parentVisible={session.role === "PARENT" && parentRail ? visibleParentPages(parentRail.sees) : undefined}
     >
       {children}
     </DashboardShell>
