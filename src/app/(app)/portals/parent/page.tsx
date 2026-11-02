@@ -1,19 +1,12 @@
-import { AccessDenied } from "@/components/feedback/access-denied";
-import { ParentPortalDashboard } from "@/components/portals/parent-portal-dashboard";
-import { apiGet, observe } from "@/lib/api/server";
-import { ParentPortalViewSchema } from "@/lib/domain/types.zod";
-import { canAccessPath, getDefaultPathForRole } from "@/lib/auth/roles";
-import { getServerSession } from "@/lib/auth/session";
-import { ParentPortalView } from "@/lib/domain/types";
+import type { Metadata } from "next";
 
-export default async function ParentPortalPage() {
-  const session = await getServerSession();
-  if (!session) return null;
-  if (!canAccessPath(session.role, "/portals/parent")) {
-    return <AccessDenied backHref={getDefaultPathForRole(session.role)} />;
-  }
+import { ParentView } from "@/components/portals/parent/parent-view";
 
-  const portal = await apiGet("/api/v1/parent-portal/dashboard", observe<ParentPortalView>(ParentPortalViewSchema));
+export const metadata: Metadata = { title: "Overview", description: "Your family, and anything that needs you." };
 
-  return <ParentPortalDashboard portal={portal} />;
+type PageProps = { searchParams?: Promise<Record<string, string | string[] | undefined>> };
+
+export default async function ParentOverviewPage({ searchParams }: PageProps) {
+  const query = Object.fromEntries(Object.entries((await searchParams) ?? {}).map(([key, value]) => [key, Array.isArray(value) ? value[0] : value]));
+  return <ParentView page="overview" query={query} />;
 }

@@ -43,7 +43,7 @@ function Notice({ tone, icon: Icon, title, children, onClose }: { tone: Tone; ic
  *
  * Most of this is addressed to whoever runs the school: a plan that has not
  * been chosen, a tier changing next term, "review pending approvals before
- * publishing reports". None of it is a student's to act on, and a child should
+ * publishing reports". None of it is a student's to act on, and a child or their parent should
  * not be handed an operator's notice above their homework. So a student is
  * shown only what actually reaches them — when the system will be down, and
  * that it is down now.

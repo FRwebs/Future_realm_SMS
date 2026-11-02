@@ -150,7 +150,7 @@ export function DashboardShell({
             studentChrome={studentChrome}
           />
           <ImpersonationBanner session={session} />
-          {portalType === "school" && platformSync ? <PlatformNotices sync={platformSync} operational={session.role !== "STUDENT"} /> : null}
+          {portalType === "school" && platformSync ? <PlatformNotices sync={platformSync} operational={session.role !== "STUDENT" && session.role !== "PARENT"} /> : null}
           <OutboxSync />
           <PageLoadBeacon />
           <main

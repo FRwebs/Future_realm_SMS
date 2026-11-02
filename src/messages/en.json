@@ -319,7 +319,13 @@
     "run_this_now": "Run this now?",
     "update_password": "Update password",
     "change_password": "Change password",
-    "sign_out": "Sign out"
+    "sign_out": "Sign out",
+    "timetable_and_lessons": "Timetable and lessons",
+    "results_and_reports": "Results and reports",
+    "meetings": "Meetings",
+    "fees_and_payments": "Fees and payments",
+    "forms_and_consents": "Forms and consents",
+    "requests": "Requests"
   },
   "shell": {
     "expandSidebar": "Expand sidebar",

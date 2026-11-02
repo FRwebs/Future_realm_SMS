@@ -323,7 +323,13 @@
     "run_this_now": "Ṣe èyí báyìí?",
     "update_password": "Ṣe ìmúdójúìwọ̀n ọ̀rọ̀ìgbaniwọlé",
     "change_password": "Yí ọ̀rọ̀ìgbaniwọlé padà",
-    "sign_out": "Jáde"
+    "sign_out": "Jáde",
+    "timetable_and_lessons": "Àkókò Ẹ̀kọ́ àti Àwọn Ẹ̀kọ́",
+    "results_and_reports": "Àbájáde àti Àwọn Ìròyìn",
+    "meetings": "Àwọn Ìpàdé",
+    "fees_and_payments": "Owó-ilé-ìwé àti Ìsanwó",
+    "forms_and_consents": "Fọ́ọ̀mù àti Ìgbàláàyè",
+    "requests": "Àwọn Ìbéèrè"
   },
   "shell": {
     "expandSidebar": "Ṣí àtẹ̀gùn ẹ̀gbẹ́ sílẹ̀",
