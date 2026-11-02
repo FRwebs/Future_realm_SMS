@@ -404,6 +404,112 @@ function FactList({ facts, per }: { facts: PanelFact[]; per?: number }) {
   );
 }
 
+/**
+ * A table's rows, on a phone.
+ *
+ * A table is a grid because a wide screen can hold one; a phone cannot, and
+ * sideways-scrolling a register to find one child's mark is nobody's idea of
+ * reading. Both mobile mockups answer this the same way — the same rows, as a
+ * generous list: who it is on the left, the figures underneath as labelled
+ * pairs, and the row's own action at the right where a thumb is.
+ *
+ * It is built from the very same cells the table draws, so a row cannot say one
+ * thing on a laptop and another on a phone. The column headings become the
+ * labels, which is why a table with good headings reads well here for free.
+ */
+function PhoneRows({
+  rows,
+  head,
+  noun,
+  openDrawer,
+  onOpen,
+}: {
+  rows: TableRow[];
+  head: string[];
+  noun: string;
+  openDrawer: (spec: DrawerSpec) => void;
+  onOpen: (row: TableRow) => void;
+}) {
+  const ui = useUiText();
+  if (!rows.length) return null;
+  return (
+    <ul className="mx-[-18px] md:hidden">
+      {rows.map((row, index) => {
+        // What leads the row: a person if the table names one, else its first cell.
+        const lead = row.cells.find((cell): cell is Extract<TableCellKind, { kind: "name" }> => cell.kind === "name") ?? null;
+        const leadAt = lead ? row.cells.indexOf(lead) : -1;
+        const action = row.cells.find((cell): cell is Extract<TableCellKind, { kind: "action" }> => cell.kind === "action" && Boolean(cell.href || cell.drawer)) ?? null;
+        const actionAt = action ? row.cells.indexOf(action) : -1;
+        // Everything else becomes a labelled pair under the title.
+        const facts = row.cells
+          .map((cell, at) => ({ cell, at }))
+          .filter(({ cell, at }) => at !== leadAt && at !== actionAt && cell.kind !== "action")
+          .filter(({ cell }) => !(cell.kind === "text" && !cell.text.trim()));
+        const title = lead ? lead.name : facts[0] && facts[0].cell.kind === "text" ? facts[0].cell.text : (head[0] ?? "");
+        const rest = lead ? facts : facts.slice(1);
+        const initials = lead?.name.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]).join("").toUpperCase();
+        const opens = Boolean(row.href || row.drawer || action);
+
+        return (
+          <li key={index} className={cn("px-[16px]", index ? "border-t" : "")} style={index ? { borderColor: "#F2F7F4" } : undefined}>
+            <div
+              className={cn("flex min-h-[66px] items-start gap-[12px] py-[12px]", opens && "cursor-pointer")}
+              {...(opens
+                ? {
+                    role: "button" as const,
+                    tabIndex: 0,
+                    onClick: (event: React.MouseEvent) => {
+                      if ((event.target as HTMLElement).closest("a,button,input,select,textarea,label")) return;
+                      onOpen(row);
+                    },
+                    // A row a thumb can tap is a row a keyboard can open.
+                    onKeyDown: (event: React.KeyboardEvent) => {
+                      if (event.key !== "Enter" && event.key !== " ") return;
+                      if ((event.target as HTMLElement).closest("a,button,input,select,textarea,label")) return;
+                      event.preventDefault();
+                      onOpen(row);
+                    },
+                  }
+                : {})}
+            >
+              {lead && lead.avatar !== false ? (
+                <span
+                  className="flex h-[44px] w-[44px] flex-none items-center justify-center rounded-full font-(family-name:--font-heading) text-[13.5px] font-extrabold"
+                  style={{ background: "#EEF4F0", color: INK }}
+                >
+                  {initials}
+                </span>
+              ) : null}
+              <span className="min-w-0 flex-1">
+                <span className="block text-[14px] font-bold leading-[1.3]" style={{ color: INK }}>{title}</span>
+                {lead?.sub ? <span className="mt-[2px] block text-[12.5px] leading-[1.45]" style={{ color: "#6E7C74" }}>{lead.sub}</span> : null}
+                {rest.length ? (
+                  <span className="mt-[7px] flex flex-wrap items-center gap-x-[14px] gap-y-[5px]">
+                    {rest.map(({ cell, at }) => (
+                      <span key={at} className="flex min-w-0 items-baseline gap-[5px] text-[12px]">
+                        {head[at] ? <span style={{ color: "#8C9A92" }}>{ui(head[at]!)}</span> : null}
+                        <span className="min-w-0">
+                          <Cell cell={cell} openDrawer={openDrawer} />
+                        </span>
+                      </span>
+                    ))}
+                  </span>
+                ) : null}
+              </span>
+              {action ? (
+                <span className="flex-none">
+                  <Cell cell={action} openDrawer={openDrawer} />
+                </span>
+              ) : null}
+            </div>
+          </li>
+        );
+      })}
+      <li className="sr-only">{`${rows.length} ${noun}`}</li>
+    </ul>
+  );
+}
+
 function Cell({
   cell,
   openDrawer,
@@ -876,9 +982,23 @@ function TableView({ panel, openDrawer, engine }: { panel: Extract<Panel, { type
           </p>
         </div>
       ) : (
-        // Wide tables scroll sideways; a keyboard has to be able to reach the scrolling region to move it (axe: scrollable-region-focusable).
-        // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex
-        <div className="mx-[-18px] min-w-0 overflow-x-auto" tabIndex={0} role="region" aria-label={panel.title ? `${panel.title} — scrolls sideways` : "Table — scrolls sideways"}>
+        <>
+        <PhoneRows
+          rows={visible}
+          head={panel.head}
+          noun={noun}
+          openDrawer={openDrawer}
+          onOpen={(row) => {
+            const own = row.cells.find((cell): cell is Extract<TableCellKind, { kind: "action" }> => cell.kind === "action" && Boolean(cell.href || cell.drawer));
+            const href = row.href ?? (row.drawer ? undefined : own?.href);
+            const spec = row.href ? undefined : (row.drawer ?? own?.drawer ?? (panel.noRowOpen ? undefined : rowDetailDrawer(panel, row) ?? undefined));
+            if (href) router.push(href as Route);
+            else if (spec) openDrawer(spec);
+          }}
+        />
+        {/* Wide tables scroll sideways; a keyboard has to be able to reach the scrolling region to move it (axe: scrollable-region-focusable). */}
+        {/* eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex */}
+        <div className="mx-[-18px] hidden min-w-0 overflow-x-auto md:block" tabIndex={0} role="region" aria-label={panel.title ? `${panel.title} — scrolls sideways` : "Table — scrolls sideways"}>
           <table className={cn("w-full border-collapse", dense ? "min-w-0" : "min-w-[640px]")}>
             <thead>
               <tr
@@ -996,6 +1116,7 @@ function TableView({ panel, openDrawer, engine }: { panel: Extract<Panel, { type
             ) : null}
           </table>
         </div>
+        </>
       )}
 
       {pageCount > 1 ? (
