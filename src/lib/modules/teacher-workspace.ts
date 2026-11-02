@@ -83,6 +83,27 @@ export const teacherModules: TeacherModule[] = [
   { code: "m16", label: "Sync & Support", description: "Is my work saved, and how do I get help.", icon: "M20 11.5a8 8 0 0 0-13.7-5L4 8.8M4 12.5a8 8 0 0 0 13.7 5l2.3-2.3M4 4.5v4.3h4.3M19.7 19.5v-4.3h-4.3", tabOrder: ["sync", "help-support"] },
 ];
 
+/**
+ * Which four modules get a tab at the bottom of a phone, in order of claim.
+ *
+ * Taken from the mobile mockup's own `tabMods()`. It is a priority order rather
+ * than a fixed four because a subject teacher, a form master and a head of
+ * department do not open the same things: the bar takes the first four of these
+ * the teacher can actually see, and the rest go behind More.
+ */
+export const teacherPhoneTabOrder = ["m1", "m4", "m5", "m17", "m3", "m19", "m12", "m18"] as const;
+
+/** The name a module goes by in the bottom bar, where a label has a fifth of a phone to fit in. */
+export const teacherPhoneTabLabel: Record<string, string> = {
+  m1: "Today", m4: "Attendance", m5: "Scores", m17: "Notes", m3: "Timetable", m6: "Reports",
+  m8: "Students", m9: "Guardians", m12: "Messages", m13: "Approvals", m18: "Employment",
+  m19: "Training", m2: "Calendar", m16: "Sync",
+};
+
+/** Early years marks observations, not scores — the bar says so too. */
+export const teacherPhoneTabLabelFor = (code: string, persona: TeachingPersona) =>
+  code === "m5" && persona === "early-years" ? "Observe" : (teacherPhoneTabLabel[code] ?? "");
+
 export const teacherModuleByCode = Object.fromEntries(teacherModules.map((module) => [module.code, module])) as Record<string, TeacherModule>;
 
 const adminModuleByCode = (code: string) => schoolModules.find((module) => module.code === code);

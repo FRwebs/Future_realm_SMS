@@ -6,6 +6,7 @@ import { useState } from "react";
 
 import { ModuleDrawer } from "@/components/modules/lazy-drawer";
 import { PanelRowsWithDrawer } from "@/components/modules/panel-renderer";
+import { useHasPhoneBar } from "@/components/layout/phone-shell";
 import { useUiText } from "@/hooks/use-ui-text";
 import type { DrawerSpec, PanelAction, PanelRow } from "@/lib/modules/panels";
 import { cn } from "@/lib/utils/cn";
@@ -13,6 +14,40 @@ import { cn } from "@/lib/utils/cn";
 /** The mockup's default glyph for a header's primary action: a plus. */
 const PLUS_ICON = "M12 5.5v13M5.5 12h13";
 const ARROW_ICON = "M5 12h13M13 6.5l5.5 5.5L13 17.5";
+
+/**
+ * The page's primary action, on a phone.
+ *
+ * The mobile mockups take the one thing a page is for — explain an absence,
+ * write this week's note — out of the header and float it above the bottom bar,
+ * where a thumb reaches without stretching. It is the same action the header
+ * carries on a wider screen, not a second one, so there is never a page with
+ * two different "main" things to do.
+ */
+function MobileFab({ act, openDrawer }: { act: PanelAction; openDrawer: (spec: DrawerSpec) => void }) {
+  const className =
+    "pointer-events-auto flex h-[56px] max-w-full items-center gap-[10px] rounded-[18px] pl-[8px] pr-[20px] text-[14.5px] font-extrabold text-white active:scale-[0.97] transition-transform";
+  const style = { background: "#0D2315", boxShadow: "0 18px 32px -14px rgba(13,35,21,0.75), 0 2px 6px rgba(13,35,21,0.18)" };
+  const body = (
+    <>
+      <span className="flex h-[40px] w-[40px] flex-none items-center justify-center rounded-[13px]" style={{ background: "rgba(95,214,180,0.16)" }}>
+        <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#5FD6B4" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <path d={act.icon ?? PLUS_ICON} />
+        </svg>
+      </span>
+      <span className="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap">{act.label}</span>
+    </>
+  );
+  return (
+    <div className="pointer-events-none sticky z-[34] flex justify-end px-[16px] pb-[12px] md:hidden" style={{ bottom: "calc(82px + env(safe-area-inset-bottom))" }}>
+      {act.href ? (
+        <Link href={act.href as Route} className={className} style={style}>{body}</Link>
+      ) : act.drawer ? (
+        <button type="button" onClick={() => openDrawer(act.drawer!)} className={className} style={style}>{body}</button>
+      ) : null}
+    </div>
+  );
+}
 
 function HeaderAction({
   act,
@@ -102,6 +137,7 @@ function ModuleHead({
   openDrawer: (spec: DrawerSpec) => void;
 }) {
   const shortcuts = (launchers ?? []).slice(0, 2);
+  const hasPhoneBar = useHasPhoneBar();
   const ui = useUiText();
 
   return (
@@ -130,8 +166,12 @@ function ModuleHead({
             {shortcuts.map((act) => (
               <HeaderAction key={act.label} act={act} openDrawer={openDrawer} />
             ))}
+            {/* On a phone with a bottom bar this action is the floating
+                button instead, so it is not offered twice. */}
             {primary ? (
-              <HeaderAction act={primary} primary openDrawer={openDrawer} />
+              <span className={hasPhoneBar ? "hidden md:inline-flex" : "inline-flex"}>
+                <HeaderAction act={primary} primary openDrawer={openDrawer} />
+              </span>
             ) : null}
           </div>
         ) : null}
@@ -169,6 +209,7 @@ export function ModuleWorkspace({
   children?: React.ReactNode;
 }) {
   const [drawer, setDrawer] = useState<DrawerSpec | null>(null);
+  const hasPhoneBar = useHasPhoneBar();
 
   return (
     <div className="grid min-w-0 gap-[14px]">
@@ -198,6 +239,8 @@ export function ModuleWorkspace({
       {children}
 
       <PanelRowsWithDrawer rows={rows} openDrawer={setDrawer} />
+
+      {hasPhoneBar && primary ? <MobileFab act={primary} openDrawer={setDrawer} /> : null}
     </div>
   );
 }

@@ -70,6 +70,7 @@ import type {
   StudentPortalNotificationView,
 } from "@/lib/domain/types";
 import type { PortalType } from "@/lib/navigation/registry";
+import { useHasPhoneBar } from "@/components/layout/phone-shell";
 import type { ParentChrome } from "@/lib/api/parent-workspace";
 import type { StudentChrome } from "@/lib/api/student-workspace";
 import { useUiText } from "@/hooks/use-ui-text";
@@ -947,6 +948,7 @@ export function Topbar({
   parentChrome,
 }: TopbarProps) {
   const t = useTranslations("shell");
+  const hasPhoneBar = useHasPhoneBar();
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -1001,12 +1003,12 @@ export function Topbar({
     <header className="sticky top-0 z-30 w-full shrink-0 border-b border-(--color-border-default) bg-(--color-bg-surface)">
       <div className="relative flex h-(--layout-topbar-height) items-center justify-between gap-4 overflow-visible px-4 md:px-6">
         <div className="flex min-w-0 flex-1 items-center gap-[10px]">
-          {/* A parent on a phone navigates from the bar at the bottom, so the
-              burger would open a rail they never need. */}
+          {/* A portal with a bar at the bottom of a phone navigates from
+              there, so the burger would open a rail nobody needs. */}
           <button
             type="button"
             onClick={onOpenMobileSidebar}
-            className={cn(chromeButton(), parentChrome ? "hidden" : "md:hidden")}
+            className={cn(chromeButton(), hasPhoneBar ? "hidden" : "md:hidden")}
             aria-label={t("toggleMenu")}
           >
             <Menu className="h-4 w-4" />

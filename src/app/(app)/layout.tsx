@@ -10,9 +10,9 @@ import { getPlatformSync } from "@/lib/api/platform-sync";
 import { getStudentBadges, getStudentChrome } from "@/lib/api/student-workspace";
 import { getTeacherBadges, getTeacherWorkspace } from "@/lib/api/teacher-workspace";
 import { getParentChrome, getParentRail } from "@/lib/api/parent-workspace";
-import { parentNavigation, visibleParentPages } from "@/lib/modules/parent-workspace";
+import { PARENT_PHONE_TABS, parentHref, parentNavigation, parentPages, parentPhoneTabLabel, visibleParentPages } from "@/lib/modules/parent-workspace";
 import { studentNavigation } from "@/lib/modules/student-workspace";
-import { teacherNavigation } from "@/lib/modules/teacher-workspace";
+import { teacherNavigation, teacherPhoneTabLabelFor, teacherPhoneTabOrder } from "@/lib/modules/teacher-workspace";
 import { getServerPermissions } from "@/lib/auth/server-access";
 import { getServerSession } from "@/lib/auth/session";
 import { getDefaultPermissionsForRole } from "@/lib/navigation/registry";
@@ -63,6 +63,30 @@ export default async function AppLayout({
       : session.role === "PARENT" && parentRail
         ? parentNavigation(parentRail.sees)
         : null;
+  // The bottom bar on a phone. Only the two portals whose mockups draw one get
+  // it; which four tabs is each portal's own rule.
+  const phoneTabs = (() => {
+    if (session.role === "PARENT" && parentRail) {
+      const visible = visibleParentPages(parentRail.sees);
+      const items = parentPages
+        .filter((page) => visible.includes(page.slug))
+        .map((page) => ({ id: `p_${page.slug}`, label: page.label, short: parentPhoneTabLabel[page.slug] ?? page.label, icon: page.icon, href: parentHref(page.slug) }));
+      return { items, primaryIds: PARENT_PHONE_TABS.map((slug) => `p_${slug}`).filter((id) => items.some((item) => item.id === id)), label: "Parent portal" };
+    }
+    if (teacher && teacherRail && "items" in teacherRail) {
+      const items = teacherRail.items.map((item) => ({
+        id: item.id,
+        label: item.label,
+        short: teacherPhoneTabLabelFor(item.id.replace(/^t_/, ""), teacher.persona) || item.label,
+        icon: item.iconPath ?? "",
+        href: item.href,
+      }));
+      const primaryIds = teacherPhoneTabOrder.map((code) => `t_${code}`).filter((id) => items.some((item) => item.id === id)).slice(0, 4);
+      return { items, primaryIds, label: "Teaching workspace" };
+    }
+    return null;
+  })();
+
   const navBadges = session.role === "STUDENT" ? studentBadges.counts : session.role === "PARENT" ? (parentRail?.counts ?? {}) : teacherBadges;
   const navBadgeTones = session.role === "STUDENT" ? studentBadges.tones : session.role === "PARENT" ? parentRail?.tones : undefined;
 
@@ -80,7 +104,7 @@ export default async function AppLayout({
       navBadgeTones={teacherRail ? navBadgeTones : undefined}
       studentChrome={studentChrome}
       parentChrome={parentChrome}
-      parentVisible={session.role === "PARENT" && parentRail ? visibleParentPages(parentRail.sees) : undefined}
+      phoneTabs={phoneTabs}
     >
       {children}
     </DashboardShell>

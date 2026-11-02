@@ -9,7 +9,9 @@ import { usePathname, useRouter } from "next/navigation";
 
 import { PermissionProvider } from "@/components/auth/permission-provider";
 import { ImpersonationBanner } from "@/components/layout/impersonation-banner";
-import { ParentTabBar } from "@/components/portals/parent/parent-tab-bar";
+import { PhoneShellProvider } from "@/components/layout/phone-shell";
+import { PortalTabBar } from "@/components/layout/portal-tab-bar";
+import type { TabBarItem } from "@/components/layout/portal-tab-bar";
 import { PlatformNotices } from "@/components/layout/platform-notices";
 import type { ParentChrome } from "@/lib/api/parent-workspace";
 import type { StudentChrome } from "@/lib/api/student-workspace";
@@ -37,7 +39,7 @@ export function DashboardShell({
   navBadgeTones,
   studentChrome,
   parentChrome,
-  parentVisible,
+  phoneTabs,
   hiddenNavIds,
   platformSync,
   teacherRail,
@@ -61,7 +63,8 @@ export function DashboardShell({
   /** The parent portal's own chrome: the child switcher in the bar, the school office at the foot of the rail. */
   parentChrome?: ParentChrome | null;
   /** Which parent pages this school shows, for the phone's bottom bar. */
-  parentVisible?: string[];
+  /** The bottom bar on a phone: which items, and which four get their own tab. */
+  phoneTabs?: { items: TabBarItem[]; primaryIds: string[]; label: string } | null;
   hiddenNavIds?: string[];
   /** What the Back Office has decided for this school: read-only state, modules switched off, announcements, maintenance. */
   platformSync?: PlatformSyncView | null;
@@ -112,6 +115,7 @@ export function DashboardShell({
   return (
     <PortalProvider value={portalType}>
     <PermissionProvider permissions={permissions}>
+    <PhoneShellProvider value={Boolean(phoneTabs?.items.length)}>
       <div
         data-shell-theme={theme}
         className="finance-shell flex h-screen overflow-hidden"
@@ -169,7 +173,7 @@ export function DashboardShell({
               "finance-scroll min-w-0 flex-1 overflow-y-auto px-4 pb-5 pt-4",
               // Room for the phone's bottom bar, so the last row of a page is
               // not sitting underneath it.
-              parentVisible?.length && "pb-[86px] md:pb-5",
+              phoneTabs?.items.length && "pb-[86px] md:pb-5",
               // The Back Office page frame: 24px above, 28px at the sides, 64px below.
               portalType === "super_admin" ? "md:px-7 md:pb-16 md:pt-6" : "md:px-6 md:pb-8 md:pt-5"
             )}
@@ -188,11 +192,18 @@ export function DashboardShell({
             </div>
           </main>
 
-          {parentVisible?.length ? (
-            <ParentTabBar visible={parentVisible} counts={Object.fromEntries(Object.entries(navBadges ?? {}).map(([key, value]) => [key, value ?? 0]))} urgent={Object.fromEntries(Object.entries(navBadgeTones ?? {}).map(([key, tone]) => [key, tone === "danger"]))} />
+          {phoneTabs?.items.length ? (
+            <PortalTabBar
+              items={phoneTabs.items}
+              primaryIds={phoneTabs.primaryIds}
+              label={phoneTabs.label}
+              counts={Object.fromEntries(Object.entries(navBadges ?? {}).map(([key, value]) => [key, value ?? 0]))}
+              urgent={Object.fromEntries(Object.entries(navBadgeTones ?? {}).map(([key, tone]) => [key, tone === "danger"]))}
+            />
           ) : null}
         </div>
       </div>
+    </PhoneShellProvider>
     </PermissionProvider>
     </PortalProvider>
   );
