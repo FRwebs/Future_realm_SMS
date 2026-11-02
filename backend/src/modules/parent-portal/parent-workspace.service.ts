@@ -40,7 +40,7 @@ export class ParentWorkspaceService {
     if (!guardian) throw new NotFoundException("No guardian profile is linked to this account.");
     const [term, school, policy] = await Promise.all([
       prisma.term.findFirst({ where: { schoolId: session.schoolId, isCurrent: true }, include: { academicSession: true } }),
-      prisma.school.findUnique({ where: { id: session.schoolId }, select: { name: true } }),
+      prisma.school.findUnique({ where: { id: session.schoolId }, select: { name: true, mainPhone: true, website: true, city: true, state: true } }),
       loadGuardianPolicy(session.schoolId),
     ]);
     return { guardian, term, school, policy, children: guardian.students.map((link) => link.student) };
@@ -76,6 +76,13 @@ export class ParentWorkspaceService {
       email: guardian.email ?? guardian.user?.email ?? null,
       language: guardian.language,
       school: school?.name ?? "",
+      /** How to reach the school office — a parent's first recourse, so it sits at the foot of the rail. */
+      office: {
+        name: school?.name ?? "",
+        phone: school?.mainPhone ?? null,
+        website: school?.website ?? null,
+        where: [school?.city, school?.state].filter(Boolean).join(", ") || null,
+      },
       term: term ? { id: term.id, name: term.name, session: term.academicSession.name, start, end, week, weeks } : null,
       today,
       now: clock(),

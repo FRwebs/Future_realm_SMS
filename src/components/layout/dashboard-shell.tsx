@@ -9,7 +9,9 @@ import { usePathname, useRouter } from "next/navigation";
 
 import { PermissionProvider } from "@/components/auth/permission-provider";
 import { ImpersonationBanner } from "@/components/layout/impersonation-banner";
+import { ParentTabBar } from "@/components/portals/parent/parent-tab-bar";
 import { PlatformNotices } from "@/components/layout/platform-notices";
+import type { ParentChrome } from "@/lib/api/parent-workspace";
 import type { StudentChrome } from "@/lib/api/student-workspace";
 import { NavigationNoticeListener } from "@/components/layout/navigation-notice-listener";
 import { useTheme } from "@/components/theme/theme-provider";
@@ -34,6 +36,8 @@ export function DashboardShell({
   navBadges,
   navBadgeTones,
   studentChrome,
+  parentChrome,
+  parentVisible,
   hiddenNavIds,
   platformSync,
   teacherRail,
@@ -54,6 +58,10 @@ export function DashboardShell({
   navBadgeTones?: Record<string, "warning" | "danger" | undefined>;
   /** The student portal's own chrome: the lesson running now, and the school block at the foot of the rail. */
   studentChrome?: StudentChrome | null;
+  /** The parent portal's own chrome: the child switcher in the bar, the school office at the foot of the rail. */
+  parentChrome?: ParentChrome | null;
+  /** Which parent pages this school shows, for the phone's bottom bar. */
+  parentVisible?: string[];
   hiddenNavIds?: string[];
   /** What the Back Office has decided for this school: read-only state, modules switched off, announcements, maintenance. */
   platformSync?: PlatformSyncView | null;
@@ -129,6 +137,7 @@ export function DashboardShell({
           navBadges={navBadges}
           navBadgeTones={navBadgeTones}
           studentChrome={studentChrome}
+          parentChrome={parentChrome}
           hiddenNavIds={hiddenNavIds}
           teacherRail={teacherRail}
         />
@@ -148,6 +157,7 @@ export function DashboardShell({
             onToggleTheme={toggleTheme}
             currentThemeMode={activeTheme}
             studentChrome={studentChrome}
+            parentChrome={parentChrome}
           />
           <ImpersonationBanner session={session} />
           {portalType === "school" && platformSync ? <PlatformNotices sync={platformSync} operational={session.role !== "STUDENT" && session.role !== "PARENT"} /> : null}
@@ -157,6 +167,9 @@ export function DashboardShell({
             data-portal={portalType}
             className={cn(
               "finance-scroll min-w-0 flex-1 overflow-y-auto px-4 pb-5 pt-4",
+              // Room for the phone's bottom bar, so the last row of a page is
+              // not sitting underneath it.
+              parentVisible?.length && "pb-[86px] md:pb-5",
               // The Back Office page frame: 24px above, 28px at the sides, 64px below.
               portalType === "super_admin" ? "md:px-7 md:pb-16 md:pt-6" : "md:px-6 md:pb-8 md:pt-5"
             )}
@@ -174,6 +187,10 @@ export function DashboardShell({
               {children}
             </div>
           </main>
+
+          {parentVisible?.length ? (
+            <ParentTabBar visible={parentVisible} counts={Object.fromEntries(Object.entries(navBadges ?? {}).map(([key, value]) => [key, value ?? 0]))} urgent={Object.fromEntries(Object.entries(navBadgeTones ?? {}).map(([key, tone]) => [key, tone === "danger"]))} />
+          ) : null}
         </div>
       </div>
     </PermissionProvider>

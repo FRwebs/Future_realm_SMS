@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import type { Route } from "next";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -69,6 +70,7 @@ import type {
   StudentPortalNotificationView,
 } from "@/lib/domain/types";
 import type { PortalType } from "@/lib/navigation/registry";
+import type { ParentChrome } from "@/lib/api/parent-workspace";
 import type { StudentChrome } from "@/lib/api/student-workspace";
 import { useUiText } from "@/hooks/use-ui-text";
 import { cn } from "@/lib/utils/cn";
@@ -90,6 +92,7 @@ type TopbarProps = {
   onToggleTheme?: () => void;
   currentThemeMode?: "dark" | "light";
   studentChrome?: StudentChrome | null;
+  parentChrome?: ParentChrome | null;
 };
 
 type DropdownItem = {
@@ -430,6 +433,86 @@ function NotificationBell({
     </div>
   );
 }
+
+/**
+ * Which child the portal is about, in the bar.
+ *
+ * It is here rather than above the page because the choice belongs to the
+ * session: a parent who picks a child keeps that child as they move between
+ * attendance, results and fees. Each chip carries what is outstanding for that
+ * child, so a parent can see where the problem is without opening each one.
+ *
+ * On the two pages that are about the parent rather than a child — their
+ * notification choices and their own account — the chips give way to who they
+ * are and what those settings cover, as the mockup does.
+ */
+function ParentSwitcher({ chrome }: { chrome: ParentChrome }) {
+  const pathname = usePathname();
+  const params = useSearchParams();
+  const page = pathname.replace(/^\/portals\/parent\/?/, "") || "overview";
+  const selected = params.get("child") ?? "all";
+
+  if (PARENT_ACCOUNT_PAGES.includes(page)) {
+    return (
+      <div className="min-w-0">
+        <p className="truncate font-[family-name:var(--font-heading)] text-[12.5px] font-bold leading-[1.25] text-[var(--color-text-primary)]">{chrome.account.title}</p>
+        <p className="truncate text-[9.5px] leading-[1.3]" style={{ color: "#67766D" }}>{chrome.account.sub}</p>
+      </div>
+    );
+  }
+  if (!chrome.children.length) return null;
+
+  const href = (child: string) => (child === "all" ? `/portals/parent/${page === "overview" ? "" : page}` : `/portals/parent/${page === "overview" ? "" : page}?child=${child}`);
+  const chip = (key: string, initials: string, name: string, stat: string, tone: string | undefined, needs: number, urgent: boolean, photo: string | null) => {
+    const on = key === selected;
+    return (
+      <Link
+        key={key}
+        href={href(key).replace(/\/$/, "") as Route}
+        aria-current={on ? "true" : undefined}
+        title={`${name}${needs ? ` · ${needs} ${needs === 1 ? "thing needs" : "things need"} you` : ""}`}
+        className="flex min-w-0 max-w-[200px] flex-none items-center gap-[8px] rounded-full border px-[9px] py-[3.5px] transition-[background,border-color] duration-150"
+        style={on ? { background: "#0D2315", borderColor: "#0D2315" } : { background: "#fff", borderColor: "#DEE8E2" }}
+      >
+        <span className="relative flex-none">
+          <span
+            className="flex h-[26px] w-[26px] items-center justify-center overflow-hidden rounded-full border font-[family-name:var(--font-heading)] text-[9.5px] font-extrabold"
+            style={on ? { background: "rgba(255,255,255,0.14)", color: "#fff", borderColor: "rgba(255,255,255,0.24)" } : { background: "#EBF1FA", color: "#2A5A96", borderColor: "#C9DAF0" }}
+          >
+            {photo ? <img src={photo} alt="" className="h-full w-full object-cover" /> : initials}
+          </span>
+          {needs ? (
+            <span
+              className="absolute -right-[4px] -top-[4px] flex h-[14px] min-w-[14px] items-center justify-center rounded-full px-[3.5px] text-[8.5px] font-extrabold leading-none"
+              style={{ background: urgent ? "#C93F3F" : "#E0A526", color: urgent ? "#fff" : "#0D2315", border: `1.5px solid ${on ? "#0D2315" : "#fff"}` }}
+            >
+              {needs}
+            </span>
+          ) : null}
+        </span>
+        <span className="hidden min-w-0 text-left sm:block">
+          <span className="block truncate text-[11px] font-bold leading-[1.25]" style={{ color: on ? "#fff" : "#0D2315" }}>{name}</span>
+          <span
+            className="block truncate text-[9.5px] font-semibold leading-[1.3]"
+            style={{ color: on ? "rgba(255,255,255,0.7)" : tone === "negative" ? "#B23B3B" : tone === "attention" ? "#8A6410" : "#67766D" }}
+          >
+            {stat}
+          </span>
+        </span>
+      </Link>
+    );
+  };
+
+  return (
+    <div className="flex min-w-0 flex-1 items-center gap-[6px] overflow-x-auto" style={{ scrollbarWidth: "none" }}>
+      {chip("all", "All", "Whole family", chrome.family.stat, undefined, chrome.family.needs, chrome.family.urgent, null)}
+      {chrome.children.map((child) => chip(child.id, child.initials, child.first, child.stat, child.statTone, child.needs, child.urgent, child.photoUrl))}
+    </div>
+  );
+}
+
+/** The parent pages that are about the parent, where the switcher gives way to their own name. */
+const PARENT_ACCOUNT_PAGES = ["prefs", "account"];
 
 /**
  * The lesson running now, and the one after it.
@@ -799,6 +882,7 @@ export function Topbar({
   onToggleTheme,
   currentThemeMode,
   studentChrome,
+  parentChrome,
 }: TopbarProps) {
   const t = useTranslations("shell");
   const [dropdownOpen, setDropdownOpen] = useState(false);
@@ -855,10 +939,12 @@ export function Topbar({
     <header className="sticky top-0 z-30 w-full shrink-0 border-b border-(--color-border-default) bg-(--color-bg-surface)">
       <div className="relative flex h-(--layout-topbar-height) items-center justify-between gap-4 overflow-visible px-4 md:px-6">
         <div className="flex min-w-0 flex-1 items-center gap-[10px]">
+          {/* A parent on a phone navigates from the bar at the bottom, so the
+              burger would open a rail they never need. */}
           <button
             type="button"
             onClick={onOpenMobileSidebar}
-            className={cn(chromeButton(), "md:hidden")}
+            className={cn(chromeButton(), parentChrome ? "hidden" : "md:hidden")}
             aria-label={t("toggleMenu")}
           >
             <Menu className="h-4 w-4" />
@@ -870,13 +956,18 @@ export function Topbar({
               the top bar over to that. */}
           {studentChrome ? <NowPill chrome={studentChrome} /> : null}
 
+          {/* "Which child" belongs to the session, not to one screen: a parent
+              who picks a child keeps that choice as they move around, so the
+              switcher lives in the bar. */}
+          {parentChrome ? <ParentSwitcher chrome={parentChrome} /> : null}
+
           {portalType === "super_admin" ? (
             <span className="hidden h-8 w-8 shrink-0 items-center justify-center rounded-[10px] bg-[#0d2315] text-[0.68rem] font-black text-white sm:flex">
               FR
             </span>
           ) : null}
 
-          {studentChrome ? null : (
+          {studentChrome || parentChrome ? null : (
           <div className="min-w-[96px] max-w-[340px] flex-[0_1_auto]">
             <p
               className={cn(
@@ -912,7 +1003,7 @@ export function Topbar({
 
           {/* The term is the one piece of context every screen is read against,
               so the mockup gives it its own chip rather than a meta clause. */}
-          {portalType !== "super_admin" && termChipLabel && !studentChrome ? (
+          {portalType !== "super_admin" && termChipLabel && !studentChrome && !parentChrome ? (
             <>
               <span className="hidden h-[22px] w-px flex-none bg-[#E6EEE9] sm:block" />
               <span
@@ -1042,7 +1133,7 @@ export function Topbar({
               >
                 <span
                   className="flex h-[27px] w-[27px] flex-none items-center justify-center rounded-full font-(family-name:--font-heading) text-[10px] font-extrabold"
-                  style={studentChrome ? { background: "#EBF1FA", color: "#2A5A96", border: "1px solid #C9DAF0" } : { background: "#0D2315", color: "#fff" }}
+                  style={studentChrome || parentChrome ? { background: "#EBF1FA", color: "#2A5A96", border: "1px solid #C9DAF0" } : { background: "#0D2315", color: "#fff" }}
                 >
                   {initials(session.name)}
                 </span>
