@@ -643,12 +643,12 @@ function DrawerPanel({
   }
 
   const primaryLabel = spec.commitLabel ?? (isEdit ? "Save changes" : "Confirm");
-  const askBeforeWriting =
-    staged && /^(add|create|new)\s/i.test(spec.title) && !isEdit
+  const askBeforeWriting = spec.confirmTitle ??
+    (staged && /^(add|create|new)\s/i.test(spec.title) && !isEdit
       ? `Create this ${noun}?`
       : staged
         ? "Save these changes?"
-        : "Run this now?";
+        : "Run this now?");
 
   const confirmView: Record<ConfirmKind, Parameters<typeof ConfirmSheet>[0]> = {
     save: {

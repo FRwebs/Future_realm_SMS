@@ -3,6 +3,7 @@ import { MessageCampaignStatus, MessageDeliveryStatus, NotificationChannel, Pris
 import { randomUUID } from "node:crypto";
 
 import { prisma } from "../../../../src/lib/db/prisma";
+import { familyAllows, type FamilyChoices } from "../../../../src/lib/messaging/family-choices";
 import { joinNames, mergeBody, reachOf, smsSegments, unknownFields, type Channel } from "../../../../src/lib/messaging/merge";
 
 import { armName, fullName } from "../fee-management/fees.shared";
@@ -13,6 +14,8 @@ const bad = (body: string) => { const names = unknownFields(body); return names.
 export type Family = {
   id: string; name: string; phone: string | null; email: string | null; canSms: boolean; canEmail: boolean; userId: string | null; language: string;
   children: string[]; arms: string[];
+  /** What this family chose to hear by SMS and email; null when they never chose. */
+  choices?: FamilyChoices;
 };
 export type PlannedRow = Family & { text: string; segments: number; reachable: boolean; reason: string | null };
 
@@ -36,22 +39,26 @@ export class FamilyDispatchService {
       orderBy: [{ lastName: "asc" }, { firstName: "asc" }],
       include: { students: { include: { student: { select: { firstName: true, lastName: true, status: true, currentClass: { select: { name: true, arm: true } } } } } } },
     });
+    const accounts = await prisma.user.findMany({ where: { id: { in: rows.map((guardian) => guardian.userId).filter((id): id is string => Boolean(id)) } }, select: { id: true, preferences: true } });
+    const chosen = new Map(accounts.map((account) => [account.id, account.preferences as FamilyChoices]));
     return rows.map((guardian) => {
       const kids = guardian.students.filter((link) => link.student.status === "ACTIVE");
       return {
-        id: guardian.id, name: fullName(guardian), phone: guardian.phone, email: guardian.email, canSms: guardian.canReceiveSms, canEmail: guardian.canReceiveEmail, userId: guardian.userId, language: guardian.language,
+        id: guardian.id, name: fullName(guardian), phone: guardian.phone, email: guardian.email, canSms: guardian.canReceiveSms, canEmail: guardian.canReceiveEmail, userId: guardian.userId, language: guardian.language, choices: guardian.userId ? chosen.get(guardian.userId) ?? null : null,
         children: kids.map((link) => link.student.firstName), arms: [...new Set(kids.map((link) => (link.student.currentClass ? armName(link.student.currentClass) : "")).filter(Boolean))],
       };
     });
   }
 
   /** What each family would read and what it would cost, before anything is sent. */
-  plan(channel: Channel, body: string, families: Family[]): { rows: PlannedRow[]; credits: number; reach: number } {
+  plan(channel: Channel, body: string, families: Family[], name = ""): { rows: PlannedRow[]; credits: number; reach: number } {
     const bad = unknownFields(body);
     if (bad.length) throw new BadRequestException(`${bad.map((name) => `{${name}}`).join(", ")} ${bad.length === 1 ? "is not a merge field" : "are not merge fields"} — use {Guardian}, {Child} or {Class}.`);
     const rows = families.map((family) => {
       const text = mergeBody(body, { Guardian: family.name, Child: joinNames(family.children) || "your child", Class: joinNames(family.arms) || "your child’s class" });
-      const reach = reachOf(channel, { phone: family.phone, email: family.email, canSms: family.canSms, canEmail: family.canEmail });
+      const contact = reachOf(channel, { phone: family.phone, email: family.email, canSms: family.canSms, canEmail: family.canEmail });
+      // A family's own choice about what to hear by SMS or email comes after whether they can be reached at all.
+      const reach = contact.ok ? familyAllows(family.choices, channel, `${name} ${body}`) : contact;
       return { ...family, text, segments: channel === "SMS" ? smsSegments(text) : 0, reachable: reach.ok, reason: reach.ok ? null : reach.reason };
     });
     const reached = rows.filter((row) => row.reachable);
@@ -73,7 +80,7 @@ export class FamilyDispatchService {
     const channel = campaign.channel as Channel;
     const families = await this.families(campaign.schoolId, audience.guardianIds);
     if (!families.length) throw new BadRequestException("Nobody is on record for that audience, so there is nothing to send.");
-    const planned = this.plan(channel, campaign.body, families);
+    const planned = this.plan(channel, campaign.body, families, campaign.name);
     if (!planned.reach) throw new BadRequestException("Nobody in that audience can be reached on this channel, so there is nothing to send. Fix the contact details first.");
     const school = await prisma.school.findUnique({ where: { id: campaign.schoolId }, select: { name: true } });
     const stamp = new Date();

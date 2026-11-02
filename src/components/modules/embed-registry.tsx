@@ -29,6 +29,7 @@ const registry: Record<string, React.ComponentType<never>> = {
   "student-prefs": dynamic(() => import("@/components/portals/student/student-prefs").then((loaded) => loaded.StudentPrefs as React.ComponentType<never>)) as React.ComponentType<never>,
   "student-attendance": dynamic(() => import("@/components/portals/student/student-attendance").then((loaded) => loaded.StudentAttendance as React.ComponentType<never>)) as React.ComponentType<never>,
   "student-two-step": dynamic(() => import("@/components/portals/student/student-two-step").then((loaded) => loaded.StudentTwoStep as React.ComponentType<never>)) as React.ComponentType<never>,
+  "parent-inbox": dynamic(() => import("@/components/portals/parent/parent-inbox").then((loaded) => loaded.ParentInbox as React.ComponentType<never>)) as React.ComponentType<never>,
   "message-composer": dynamic(() => import("@/components/modules/message-composer").then((loaded) => loaded.MessageComposer as React.ComponentType<never>)) as React.ComponentType<never>,
 };
 

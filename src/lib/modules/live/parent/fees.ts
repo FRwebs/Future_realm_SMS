@@ -1,4 +1,5 @@
-import { apiGet } from "@/lib/api/server";
+import { apiGet, observe } from "@/lib/api/server";
+import { localContracts } from "@/lib/api/local-contracts.zod";
 import { name as nameCell, pill, row, text } from "@/lib/modules/panels";
 import type { DrawerSpec, PanelFact, PanelTone, TableRow } from "@/lib/modules/panels";
 import { PW, dLong, dShort, loadMe, money } from "@/lib/modules/live/parent/shared";
@@ -35,7 +36,7 @@ const TABS = ["This term", "Payments and receipts", "Earlier terms"];
  * which is what a parent reaches for when a payment seems to have gone missing.
  */
 export async function feesPage(child: string, query: Record<string, string | undefined>): Promise<ParentContent> {
-  const [me, data] = await Promise.all([loadMe(), apiGet<Fees>(`${PW}/fees?child=${encodeURIComponent(child)}`)]);
+  const [me, data] = await Promise.all([loadMe(), apiGet(`${PW}/fees?child=${encodeURIComponent(child)}`, observe<Fees>(localContracts["src/lib/modules/live/parent/fees.ts#a95ca495"]))]);
   const one = child === "all" ? null : data.children.find((entry) => entry.id === child) ?? null;
   return one ? childFees(one, data, query, me.school) : familyFees(data, me.school, Boolean(me.term));
 }

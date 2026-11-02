@@ -1,4 +1,5 @@
-import { apiGet } from "@/lib/api/server";
+import { apiGet, observe } from "@/lib/api/server";
+import { localContracts } from "@/lib/api/local-contracts.zod";
 import { name as nameCell, pill, row, text } from "@/lib/modules/panels";
 import type { DrawerSpec, ListItem, LinePoint, PanelFact, PanelTone, TableRow } from "@/lib/modules/panels";
 import { PW, dDow, dLong, dShort, loadMe } from "@/lib/modules/live/parent/shared";
@@ -30,7 +31,7 @@ const pctText = (value: number | null) => (value === null ? "—" : `${Math.roun
 const attTone = (value: number | null): PanelTone => (value === null ? "neutral" : value >= 95 ? "positive" : value >= 90 ? "attention" : "negative");
 
 export async function attendancePage(child: string, query: Record<string, string | undefined>): Promise<ParentContent> {
-  const [me, data] = await Promise.all([loadMe(), apiGet<Attendance>(`${PW}/attendance?child=${encodeURIComponent(child)}`)]);
+  const [me, data] = await Promise.all([loadMe(), apiGet(`${PW}/attendance?child=${encodeURIComponent(child)}`, observe<Attendance>(localContracts["src/lib/modules/live/parent/attendance.ts#00fa9ac8"]))]);
   const one = child === "all" ? null : data.children.find((entry) => entry.id === child) ?? null;
   return one ? childAttendance(one, data, query, me.school) : familyAttendance(data, me.school);
 }
@@ -47,8 +48,8 @@ const explainDrawer = (childId: string, childName: string, date?: string): Drawe
   commitDoneBody: "You can follow it under Requests. The mark changes when the school accepts it.",
   submit: {
     endpoint: "/api/v1/parent-portal/submissions", method: "POST",
-    map: { "What happened?": "detail", "Which day?": "date" },
-    body: { type: "Absence explanation", studentId: childId },
+    map: { "What happened?": "detail", "Which day?": "dates" },
+    body: { type: "Absence explanation", child: childId },
   },
 });
 

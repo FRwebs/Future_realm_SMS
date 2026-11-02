@@ -97,7 +97,7 @@ export class TeacherMessagesService {
     }
 
     // The same arithmetic the composer showed: who can be reached on this channel, and what each family's own message costs.
-    const plan = this.dispatcher.plan(channelOf(input.channel), input.body, chosen);
+    const plan = this.dispatcher.plan(channelOf(input.channel), input.body, chosen, name);
     if (!plan.reach) throw new BadRequestException("Nobody in that audience can be reached on this channel, so there is nothing to send. Fix the contact details first.");
     const [wallet, threshold] = await Promise.all([prisma.notificationWallet.findUnique({ where: { schoolId: session.schoolId } }), ConfigStoreThreshold(session.schoolId)]);
     if (plan.credits > (wallet?.smsBalance ?? 0)) throw new BadRequestException(`This would cost ${plan.credits} credits and the school has ${wallet?.smsBalance ?? 0}. Send it in-app, or ask the office to top up.`);

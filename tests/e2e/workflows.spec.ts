@@ -50,7 +50,7 @@ test("choosing a date format rewrites the dates on other pages, and choosing the
 test("a parent chooses a language and the whole page changes to it", async ({ page }) => {
   await signIn(page, "kemi-adeyemi-0001@parents.greenfieldcollege.ng");
   try {
-    await page.goto("/portals/parent/profile");
+    await page.goto("/portals/parent/account");
     await expect(page.getByLabel("Language").first()).toBeVisible(SLOW);
     await page.getByLabel("Language").first().selectOption({ label: "Yorùbá" });
     await page.getByRole("button", { name: /Save language|Fi èdè pamọ́/i }).click();

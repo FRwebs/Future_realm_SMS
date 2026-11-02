@@ -39,6 +39,7 @@ const SHORT: Partial<Record<ParentPageSlug, string>> = {
   profile: "Profiles",
   prefs: "Notifications",
   account: "Account",
+  sync: "Sync",
 };
 
 const MORE_ICON = "M5 4.5h5v5H5zM14 4.5h5v5h-5zM5 14.5h5v5H5zM14 14.5h5v5h-5z";

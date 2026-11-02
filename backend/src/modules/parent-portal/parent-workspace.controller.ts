@@ -1,4 +1,5 @@
-import { Controller, Get, Query, UseGuards } from "@nestjs/common";
+import { Body, Controller, Get, Param, Post, Put, Query, Req, UseGuards } from "@nestjs/common";
+import type { Request } from "express";
 import { ApiTags } from "@nestjs/swagger";
 
 import type { SessionPayload } from "../../../../src/lib/auth/session-core";
@@ -49,5 +50,120 @@ export class ParentWorkspaceController {
   @Get("needs")
   async needs(@CurrentSession() session: SessionPayload, @Query("child") child?: string) {
     return { ok: true, data: await this.workspace.needs(session, child?.trim() || "all") };
+  }
+
+  /** What is coming for this family, from every source. `child` is a child's id, or "all". */
+  @Get("calendar")
+  async calendar(@CurrentSession() session: SessionPayload, @Query("child") child?: string) {
+    return { ok: true, data: await this.workspace.calendar(session, child?.trim() || "all") };
+  }
+
+  /** Meetings with the school, and what was agreed. */
+  @Get("meetings")
+  async meetings(@CurrentSession() session: SessionPayload, @Query("child") child?: string) {
+    return { ok: true, data: await this.workspace.meetings(session, child?.trim() || "all") };
+  }
+
+  @Post("meetings/:id/respond")
+  async respondMeeting(@CurrentSession() session: SessionPayload, @Param("id") id: string, @Body() body: unknown) {
+    return { ok: true, data: await this.workspace.respondMeeting(session, id, body) };
+  }
+
+  /** Every message the school has sent this family, tagged with the children it concerns. */
+  @Get("messages")
+  async messages(@CurrentSession() session: SessionPayload, @Query("child") child?: string) {
+    return { ok: true, data: await this.workspace.messages(session, child?.trim() || "all") };
+  }
+
+  /** Every consent the school holds from this family. */
+  @Get("consents")
+  async consents(@CurrentSession() session: SessionPayload) {
+    return { ok: true, data: await this.workspace.consents(session) };
+  }
+
+  /** Give, decline or withdraw one consent. */
+  @Post("consents")
+  async setConsent(@CurrentSession() session: SessionPayload, @Body() body: unknown) {
+    return { ok: true, data: await this.workspace.setConsent(session, body) };
+  }
+
+  /** Everything this family has sent the school. `child` is a child's id, or "all". */
+  @Get("requests")
+  async requests(@CurrentSession() session: SessionPayload, @Query("child") child?: string) {
+    return { ok: true, data: await this.workspace.requests(session, child?.trim() || "all") };
+  }
+
+  @Post("requests/:id/withdraw")
+  async withdrawRequest(@CurrentSession() session: SessionPayload, @Param("id") id: string) {
+    return { ok: true, data: await this.workspace.withdrawRequest(session, id) };
+  }
+
+  /** Each child's published report cards and what has been released since. `child` is a child's id, or "all". */
+  @Get("results")
+  async results(@CurrentSession() session: SessionPayload, @Query("child") child?: string) {
+    return { ok: true, data: await this.workspace.results(session, child?.trim() || "all") };
+  }
+
+  /** Each child's timetable, this week's topics and the tests ahead. `child` is a child's id, or "all". */
+  @Get("learning")
+  async learning(@CurrentSession() session: SessionPayload, @Query("child") child?: string) {
+    return { ok: true, data: await this.workspace.learning(session, child?.trim() || "all") };
+  }
+
+  /** What each school holds about each child. `child` is a child's id, or "all". */
+  @Get("profile")
+  async profile(@CurrentSession() session: SessionPayload, @Query("child") child?: string) {
+    return { ok: true, data: await this.workspace.profile(session, child?.trim() || "all") };
+  }
+
+  /** A request to correct what the school holds, or to add a person to those who may collect. */
+  @Post("profile/requests")
+  async requestChange(@CurrentSession() session: SessionPayload, @Body() body: unknown) {
+    return { ok: true, data: await this.workspace.requestChange(session, body) };
+  }
+
+  /** A document the family adds to a child's record; it shows as being checked until the school has seen it. */
+  @Post("profile/documents")
+  async addDocument(@CurrentSession() session: SessionPayload, @Body() body: unknown) {
+    return { ok: true, data: await this.workspace.addDocument(session, body) };
+  }
+
+  /** Who this parent is on the school's books. */
+  @Get("account")
+  async account(@CurrentSession() session: SessionPayload) {
+    return { ok: true, data: await this.workspace.account(session) };
+  }
+
+  @Get("security")
+  async security(@CurrentSession() session: SessionPayload) {
+    return { ok: true, data: await this.workspace.security(session) };
+  }
+
+  /** The devices this account is signed in on. */
+  @Get("sessions")
+  async sessions(@CurrentSession() session: SessionPayload, @Req() request: Request & { sessionTokenHash?: string }) {
+    return { ok: true, data: await this.workspace.sessions(session, request.sessionTokenHash) };
+  }
+
+  @Post("sessions/:id/revoke")
+  async revokeSession(@CurrentSession() session: SessionPayload, @Param("id") id: string, @Req() request: Request & { sessionTokenHash?: string }) {
+    return { ok: true, data: await this.workspace.revokeSession(session, id, request.sessionTokenHash) };
+  }
+
+  /** A request to change contact details, or for a copy of what the school holds. */
+  @Post("account/requests")
+  async requestAccount(@CurrentSession() session: SessionPayload, @Body() body: unknown) {
+    return { ok: true, data: await this.workspace.requestAccount(session, body) };
+  }
+
+  /** Which kinds of school message reach this parent, and when they would rather not be disturbed. */
+  @Get("prefs")
+  async prefs(@CurrentSession() session: SessionPayload) {
+    return { ok: true, data: await this.workspace.notifications(session) };
+  }
+
+  @Put("prefs")
+  async savePrefs(@CurrentSession() session: SessionPayload, @Body() body: unknown) {
+    return { ok: true, data: await this.workspace.saveNotifications(session, body) };
   }
 }
