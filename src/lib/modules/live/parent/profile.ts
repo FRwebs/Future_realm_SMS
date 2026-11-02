@@ -1,19 +1,19 @@
 import { apiGet, observe } from "@/lib/api/server";
 import { localContracts } from "@/lib/api/local-contracts.zod";
 import { name as nameCell, row, text } from "@/lib/modules/panels";
-import type { DrawerSpec, FormField, ListItem, PanelFact, TableRow } from "@/lib/modules/panels";
+import type { DrawerSpec, FormField, ListItem, PanelFact, PanelTone, TableRow } from "@/lib/modules/panels";
 import { PW, dLong, loadMe } from "@/lib/modules/live/parent/shared";
 import type { ParentContent } from "@/lib/modules/live/parent/shared";
 
 type Pending = { id: string; type: string; detail: string; state: string; owner: string | null; role: string | null; opened: string };
 type Kid = {
-  id: string; name: string; first: string; initials: string; admissionNumber: string;
+  id: string; name: string; title: string; first: string; initials: string; admissionNumber: string;
   dob: string; gender: string; arm: string; level: string; tutor: string | null; house: string | null;
   boarding: { boarder: boolean; where: string }; enrolled: string; status: string;
   health: { bloodGroup: string | null; genotype: string | null; allergies: string | null; conditions: string | null; notes: string | null } | null;
   collectors: Array<{ id: string; name: string; relation: string; phone: string; hasPhoto: boolean; until: string | null }>;
   guardians: Array<{ id: string; name: string; relation: string; primary: boolean; me: boolean; phone: string | null; email: string | null }>;
-  documents: Array<{ id: string; label: string; fileName: string; source: string; on: string; checked: boolean; note: string | null }>;
+  documents: Array<{ id: string; label: string; fileName: string; source: string; on: string; checked: boolean; note: string | null; hasFile: boolean; size: number }>;
   pending: Pending[];
 };
 type Profile = { school: { name: string; short: string; place: string; curriculum: string }; children: Kid[] };
@@ -79,19 +79,19 @@ function personDrawer(kid: Kid): DrawerSpec {
 function uploadDrawer(kids: Kid[], chosen?: Kid): DrawerSpec {
   return {
     kicker: "Documents", title: chosen ? `A document for ${chosen.first}’s record` : "A document for the record", mode: "form",
-    sub: "The registrar checks it before it counts. The portal keeps the entry, not the file — the registrar will ask for the original if they need to see it.",
+    sub: "The registrar checks it before it counts. Attach a scan or a clear photo of the paper (a PDF or an image, up to 1.5 MB), or leave it off and bring the paper to the office.",
     fields: [
       ...(chosen ? [] : [{ kind: "select", label: "Which child?", required: true, value: kids[0]?.name ?? "", options: kids.map((kid) => kid.name) } as FormField]),
       { kind: "select", label: "What is it?", required: true, value: DOCUMENTS[0]!, options: DOCUMENTS },
-      { kind: "text", label: "What is it called?", optional: true, value: "", placeholder: "For example: birth-certificate.pdf" },
+      { kind: "file", label: "The paper", optional: true, hint: "A scan or a photo. It is kept on the child’s record and only you and the school can open it." } as FormField,
       { kind: "text", label: "A note for the registrar", optional: true, value: "" },
     ],
     confirmTitle: "Put this on the record?",
     commitLabel: "Add to the record", commitDone: "Added, being checked",
-    commitDoneBody: "It shows as Being checked until the registrar has seen the paper.",
+    commitDoneBody: "It shows as Being checked until the registrar has seen it.",
     submit: {
       endpoint: "/api/v1/parent-portal/ws/profile/documents", method: "POST",
-      map: { "What is it?": "type", "What is it called?": "fileName", "A note for the registrar": "note", ...(chosen ? {} : { "Which child?": "child" }) },
+      map: { "What is it?": "type", "The paper": "file", "A note for the registrar": "note", ...(chosen ? {} : { "Which child?": "child" }) },
       body: chosen ? { child: chosen.id } : {},
       ...(chosen ? {} : { encode: { "Which child?": Object.fromEntries(kids.map((kid) => [kid.name, kid.id])) } }),
     },
@@ -110,7 +110,7 @@ function familyProfile(data: Profile): ParentContent {
   const changing: ListItem[] = kids.flatMap((kid) => [
     ...kid.pending.map((item) => requestItem(item, kid, true)),
     ...kid.documents.filter((doc) => !doc.checked).map((doc): ListItem => ({
-      label: `${kid.first} · ${doc.label}`, sub: `${doc.source || "Added"} · ${dLong(doc.on)}`, pill: "Being checked", tone: "submitted",
+      label: `${kid.first} · ${doc.label}`, sub: `${doc.source === "Uploaded by the family" ? "Uploaded by you" : doc.source || "Added"} · ${dLong(doc.on)}`, pill: "Being checked", tone: "submitted",
       href: `/portals/parent/profile?child=${kid.id}&tab=Documents`,
     })),
   ]);
@@ -157,7 +157,7 @@ function familyProfile(data: Profile): ParentContent {
 function childProfile(kid: Kid, school: Profile["school"], query: Record<string, string | undefined>): ParentContent {
   const tab = TABS.includes(query.tab ?? "") ? query.tab! : TABS[0]!;
   const head = {
-    eyebrow: `${kid.admissionNumber} · ${school.short}`, title: kid.name,
+    eyebrow: `${kid.admissionNumber} · ${school.short}`, title: kid.title,
     tabs: TABS.map((label) => ({ label })), tab,
     desc: `What ${school.short} holds about ${kid.first}. To change it, send a request.`,
     primary: { label: "Request a correction", drawer: correctionDrawer([kid], kid) },
@@ -225,30 +225,26 @@ function childProfile(kid: Kid, school: Profile["school"], query: Record<string,
         type: "list", title: `On ${kid.first}’s record`, sub: "Anything you add shows as Being checked until the registrar has seen it.",
         items: kid.documents.map((doc): ListItem => ({
           label: doc.label,
-          sub: [doc.source || "Held by the school", dLong(doc.on), doc.note].filter(Boolean).join(" · "),
+          sub: [doc.source === "Uploaded by the family" ? "Uploaded by you" : doc.source || "Held by the school", dLong(doc.on), doc.hasFile ? `${doc.fileName} · ${Math.max(1, Math.round(doc.size / 1024))} KB` : doc.source === "Uploaded by the family" ? "No file attached" : "", doc.note].filter(Boolean).join(" · "),
           pill: doc.checked ? "Accepted" : "Being checked", tone: doc.checked ? "positive" : "submitted",
+          ...(doc.hasFile ? { viewLabel: "Open", href: `/api/v1/parent-portal/ws/profile/documents/${doc.id}/file` } : {}),
         })),
         empty: `No document is on ${kid.first}’s record yet.`,
       }])],
     };
   }
 
-  const dobAsked = kid.pending.find((item) => /date of birth/i.test(item.detail));
+  // A request the family has sent about a detail is said beside that detail, not in a list of its own.
+  const asked = (what: string) => kid.pending.find((item) => item.detail.startsWith(`${what} for `));
+  const hint = (what: string) => { const found = asked(what); return found ? `A correction is with ${found.owner ?? "the school"}` : ""; };
+  const mark = (what: string): PanelTone | "" => (asked(what) ? "submitted" : "");
   const facts: PanelFact[] = [
-    ["Full name", kid.name], ["Admission number", kid.admissionNumber],
-    ["Date of birth", dLong(kid.dob), dobAsked ? `A correction is with ${dobAsked.owner ?? "the school"}` : "", dobAsked ? "submitted" : ""],
-    ["Gender", kid.gender], ["Class", kid.arm, kid.level], ["Form master", kid.tutor ?? "Not assigned yet"],
-    ["House", kid.house ?? "Not assigned"], ["Boarding", kid.boarding.boarder ? "Boarder" : "Day student", kid.boarding.where],
+    ["Full name", kid.name, hint("Name"), mark("Name")], ["Admission number", kid.admissionNumber],
+    ["Date of birth", dLong(kid.dob), hint("Date of birth"), mark("Date of birth")],
+    ["Gender", kid.gender, hint("Gender"), mark("Gender")], ["Class", kid.arm, kid.level || hint("Class or house"), mark("Class or house")],
+    ["Form master", kid.tutor ?? "Not assigned yet"], ["House", kid.house ?? "Not assigned"], ["Boarding", kid.boarding.boarder ? "Boarder" : "Day student", kid.boarding.where],
     ["Enrolled", dLong(kid.enrolled)], ["School", school.name, school.place], ["Curriculum", school.curriculum || "Not recorded"],
     ["Status", kid.status === "ACTIVE" ? "Enrolled" : kid.status.charAt(0) + kid.status.slice(1).toLowerCase(), "", kid.status === "ACTIVE" ? "positive" : "attention"],
   ];
-  return {
-    ...head,
-    rows: [
-      row("1fr", [{ type: "facts", title: "Identity", per: 4, facts }]),
-      ...(kid.pending.length
-        ? [row("1fr", [{ type: "list", title: "Being checked or changed", sub: "Requests you have sent about this record.", items: kid.pending.map((item) => requestItem(item, kid, false)) } as const])]
-        : []),
-    ],
-  };
+  return { ...head, rows: [row("1fr", [{ type: "facts", title: "Identity", per: 4, facts }])] };
 }

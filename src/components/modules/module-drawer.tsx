@@ -253,6 +253,8 @@ export const asText = (value: unknown) =>
         : "No"
       : value && typeof value === "object" && "choice" in value
         ? assetSummary(value)
+        : value && typeof value === "object" && "data" in value && "name" in value
+          ? String((value as { name: string }).name)
         : prettyDate(String(value ?? ""));
 
 /** What a field's answer reads as when it is read back before saving. */

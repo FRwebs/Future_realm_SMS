@@ -29,7 +29,9 @@ type Results = {
 };
 
 const TABS = ["Report card", "Progress over time"];
+const attendanceText = (a: { days: number; present: number; pct: number | null }) => (a.days ? `${a.present} of ${a.days} days` : a.pct !== null ? `${num(a.pct)}% present` : "—");
 const num = (value: number | null | undefined, places = 1) => (value === null || value === undefined ? "—" : String(Math.round(value * 10 ** places) / 10 ** places));
+const place = (position: number | null, outOf: number) => (position ? (outOf ? `${ord(position)} of ${outOf}` : ord(position)) : "Not ranked");
 const ord = (n: number) => `${n}${["th", "st", "nd", "rd"][(n % 100 >= 11 && n % 100 <= 13) ? 0 : Math.min(n % 10, 4) % 4] ?? "th"}`;
 const gradeTone = (total: number | null): PanelTone => (total === null ? "neutral" : total >= 70 ? "positive" : total >= 50 ? "progress" : "attention");
 const latestOf = (kid: Kid) => kid.cards.find((card) => card.card) ?? null;
@@ -66,7 +68,7 @@ function explainDrawer(kid: Kid, card: Card, subject: Subject, scheme: string): 
     facts: [
       ...parts,
       ["Total", subject.total === null ? "—" : String(subject.total), subject.grade ? `Grade ${subject.grade}` : "", gradeTone(subject.total)],
-      ["Position in class", subject.pos ? `${ord(subject.pos)} of ${subject.outOf}` : "Not ranked", subject.classAvg !== null ? `Class average ${num(subject.classAvg)}` : ""],
+      ["Position in class", place(subject.pos, subject.outOf), subject.classAvg !== null ? `Class average ${num(subject.classAvg)}` : ""],
       ...(subject.remark ? [["Teacher’s remark", subject.remark] as PanelFact] : []),
       ["How the score is built", scheme || "As the school’s framework sets out", "Published exactly as the school issued it"],
     ],
@@ -83,8 +85,8 @@ function cardDrawer(kid: Kid, card: Card): DrawerSpec {
       : data
         ? [
             ["Class", data.arm], ["Average", num(data.average), data.grade ? `Grade ${data.grade}` : ""],
-            ["Position", data.position ? `${ord(data.position)} of ${data.outOf}` : "Not ranked"],
-            ["Attendance", `${data.attendance.present} of ${data.attendance.days} days`, data.attendance.pct !== null ? `${num(data.attendance.pct)}%` : ""],
+            ["Position", place(data.position, data.outOf)],
+            ["Attendance", attendanceText(data.attendance), ""],
           ]
         : [["Report card", "Not available to read here", "Ask the school for the printed copy"]],
   };
@@ -120,7 +122,7 @@ function familyResults(data: Results): ParentContent {
               nameCell(kid.first, kid.arm, { avatar: false }),
               held ? nameCell(`${kid.cards[0]!.term} ${kid.cards[0]!.session}`, "Held by the school", { avatar: false }) : latest ? nameCell(`${latest.term} ${latest.session}`, `Published ${dLong(latest.published)}`, { avatar: false }) : text("No report card yet"),
               text(card ? num(card.average) : "—", { strong: true, mono: true }),
-              text(card?.position ? `${ord(card.position)} of ${card.outOf}` : "Not ranked"),
+              text(card ? place(card.position, card.outOf) : "Not ranked"),
               best ? nameCell(best.name, `${best.total}${best.grade ? ` · ${best.grade}` : ""}`, { avatar: false }) : text("—"),
               low && low !== best ? nameCell(low.name, `${low.total}${low.grade ? ` · ${low.grade}` : ""}`, { avatar: false }) : text("—"),
               { kind: "action", label: "Open", href: `/portals/parent/results?child=${kid.id}` },
@@ -169,9 +171,9 @@ function childResults(kid: Kid, data: Results, school: string, query: Record<str
             cells: [
               nameCell(`${card.term} ${card.session}`, card.held ? "Held by the school" : card.reference ?? "", { avatar: false }),
               text(card.card?.arm ?? "—"), text(card.card ? num(card.card.average) : "—", { strong: true, mono: true }),
-              text(card.card?.position ? `${ord(card.card.position)} of ${card.card.outOf}` : "Not ranked"),
+              text(card.card ? place(card.card.position, card.card.outOf) : "Not ranked"),
               card.card?.grade ? pill(card.card.grade, gradeTone(card.card.average)) : text("—"),
-              text(card.card ? `${card.card.attendance.present} of ${card.card.attendance.days}` : "—", { mono: true }),
+              text(card.card ? attendanceText(card.card.attendance) : "—", { mono: true }),
               text(dShort(card.published)),
             ],
           })),
@@ -228,15 +230,15 @@ function childResults(kid: Kid, data: Results, school: string, query: Record<str
       type: "kpi", bare: true, per: 4,
       cards: [
         { label: "Average", value: num(card.average), sub: `${latest.term} ${latest.session}`, tone: "progress" as PanelTone, icon: "listCheck" },
-        { label: "Position", value: card.position ? `${ord(card.position)} of ${card.outOf}` : "Not ranked", sub: card.position ? `In ${card.arm}` : "The school does not rank this class", tone: "neutral" as PanelTone, icon: "person" },
+        { label: "Position", value: place(card.position, card.outOf), sub: card.position ? `In ${card.arm}` : "The school does not rank this class", tone: "neutral" as PanelTone, icon: "person" },
         { label: "Strongest", value: best?.name ?? "—", sub: best ? `${best.total}${best.grade ? ` · ${best.grade}` : ""}` : "", tone: "positive" as PanelTone, icon: "trendUp" },
-        { label: "Attendance that term", value: `${card.attendance.present} of ${card.attendance.days}`, sub: card.attendance.pct !== null ? `${num(card.attendance.pct)}% of school days present` : "School days present", tone: "neutral" as PanelTone, icon: "calendar", href: `/portals/parent/attendance?child=${kid.id}` },
+        { label: "Attendance that term", value: card.attendance.days ? `${card.attendance.present} of ${card.attendance.days}` : card.attendance.pct !== null ? `${num(card.attendance.pct)}%` : "—", sub: card.attendance.days && card.attendance.pct !== null ? `${num(card.attendance.pct)}% of school days present` : "of school days present", tone: "neutral" as PanelTone, icon: "calendar", href: `/portals/parent/attendance?child=${kid.id}` },
       ],
     }]),
     row("1fr", [{
       type: "table", title: `${latest.term} ${latest.session} report card`, sub: `Published ${dLong(latest.published)}. Tap any subject to see how its score was reached.`,
       noun: "subject", nounPlural: "subjects", dense: true, per: 0,
-      head: ["Subject", ...names.map((part) => `${part.short} · ${part.max}`), "Total", "Grade", "Position"],
+      head: ["Subject", ...names.map((part) => (part.max ? `${part.short} · ${part.max}` : part.short)), "Total", "Grade", ...(card.subjects.some((subject) => subject.pos) ? ["Position"] : [])],
       rows: card.subjects.map((subject): TableRow => ({
         keywords: subject.name, drawer: explainDrawer(kid, latest, subject, card.frameworkNote),
         cells: [
@@ -244,7 +246,7 @@ function childResults(kid: Kid, data: Results, school: string, query: Record<str
           ...names.map((part) => { const own = subject.components.find((item) => item.short === part.short); return text(own?.score === null || own?.score === undefined ? "—" : String(own.score), { mono: true }); }),
           text(subject.total === null ? "—" : String(subject.total), { strong: true, mono: true }),
           subject.grade ? pill(subject.grade, gradeTone(subject.total)) : text("—"),
-          text(subject.pos ? ord(subject.pos) : "—"),
+          ...(card.subjects.some((entry) => entry.pos) ? [text(subject.pos ? ord(subject.pos) : "—")] : []),
         ],
       })),
       foot: card.frameworkNote || undefined,

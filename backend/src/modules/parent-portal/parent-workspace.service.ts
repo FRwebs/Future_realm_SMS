@@ -9,7 +9,8 @@ import { categoryOfMessage } from "../../../../src/lib/messaging/family-choices"
 import { QUIET_HOURS, preferencesSchema, type Preferences } from "../../../../src/lib/preferences";
 import { loadConsentTypes } from "../student-records/consent.shared";
 import { openSubmission, submissionTypes } from "../guardian-management/submission-intake";
-import { deviceName, hide } from "../student-portal/student-workspace.service";
+import { deviceName, hide, icsFor } from "../student-portal/student-workspace.service";
+import { randomBytes } from "node:crypto";
 import { loadGuardianPolicy } from "./guardian-policy";
 
 /**
@@ -626,6 +627,32 @@ export class ParentWorkspaceService {
   }
 
   /**
+   * The family's private calendar feed, made the first time it is asked for. `reset` replaces it, so a link that got out stops working.
+   * The address is the secret — a phone's calendar reads it with no sign-in — so it is never shown to anyone but this parent.
+   */
+  async calendarLink(session: SessionPayload, reset = false) {
+    this.assert(session);
+    const existing = await prisma.configurationItem.findFirst({ where: { schoolId: session.schoolId, resource: CALENDAR_FEED, name: session.userId } });
+    const current = (existing?.data as { token?: string } | null)?.token;
+    const token = !current || reset ? randomBytes(24).toString("hex") : current;
+    if (token !== current) {
+      if (existing) await prisma.configurationItem.update({ where: { id: existing.id }, data: { data: { token }, deletedAt: null } });
+      else await prisma.configurationItem.create({ data: { schoolId: session.schoolId, resource: CALENDAR_FEED, name: session.userId, data: { token } } });
+    }
+    return { path: `/api/v1/parent-calendar/${token}.ics` };
+  }
+
+  /** The feed itself, read by a phone's calendar: everything this family has coming, from the same read the Calendar page uses. */
+  async calendarFeed(token: string): Promise<string> {
+    if (!/^[a-f0-9]{48}$/.test(token)) throw new NotFoundException("That calendar link is not one we issued.");
+    const row = await prisma.configurationItem.findFirst({ where: { resource: CALENDAR_FEED, deletedAt: null, data: { path: ["token"], equals: token } } });
+    if (!row) throw new NotFoundException("That calendar link is not one we issued.");
+    const session = { userId: row.name, schoolId: row.schoolId, role: "PARENT" } as unknown as SessionPayload;
+    const [{ events }, me] = await Promise.all([this.calendar(session, "all"), this.me(session)]);
+    return icsFor(`${me.name} · ${me.school}`, events.map((event) => ({ id: event.id, date: event.date, end: event.end, title: event.title, time: event.time, where: event.where, note: event.note })), "Family calendar");
+  }
+
+  /**
    * Meetings the school has set with this family, meetings they asked for, and what was agreed in the ones already held.
    *
    * A meeting the school proposes shows as waiting for an answer until the family says whether they can come; their answer is
@@ -905,7 +932,7 @@ export class ParentWorkspaceService {
           id: student.id, first: student.firstName, arm,
           cards: cards.filter((card) => card.studentId === student.id).map((card) => {
             const held = card.withheldAt ? { since: isoDay(card.withheldAt), reason: card.withheldReason ?? "" } : null;
-            const data = !held && (card.data as { version?: number } | null)?.version === 2 ? (card.data as unknown as PublishedCard) : null;
+            const data = held ? null : readCard(card.data);
             return {
               id: card.id, term: card.term.name, session: card.term.academicSession.name, published: isoDay(card.publishedAt!), reference: card.reference ?? null, held,
               card: data
@@ -1205,13 +1232,14 @@ export class ParentWorkspaceService {
         return {
           id: student.id,
           name: [student.firstName, student.middleName, student.lastName].filter(Boolean).join(" "),
+          title: `${student.firstName} ${student.lastName}`,
           first: student.firstName,
           initials: `${student.firstName[0] ?? ""}${student.lastName[0] ?? ""}`.toUpperCase(),
           admissionNumber: student.admissionNumber,
           dob: isoDay(student.dateOfBirth),
-          gender: student.gender === "FEMALE" ? "Girl" : student.gender === "MALE" ? "Boy" : "Not recorded",
+          gender: student.gender === "FEMALE" ? "Female" : student.gender === "MALE" ? "Male" : "Not recorded",
           arm: armName(student.currentClass?.name, student.currentClass?.arm),
-          level: student.currentClass?.classLevel?.name ?? "",
+          level: [student.currentClass?.classLevel?.name, student.currentClass?.stream].filter(Boolean).join(" · "),
           tutor: tutor ? `${tutor.firstName} ${tutor.lastName}` : null,
           house: student.houseName ?? null,
           boarding: room ? { boarder: true, where: [room.room.building?.name, room.room.name].filter(Boolean).join(" · ") } : { boarder: false, where: "" },
@@ -1239,7 +1267,7 @@ export class ParentWorkspaceService {
             }),
           documents: documents
             .filter((item) => item.studentId === student.id)
-            .map((item) => ({ id: item.id, label: item.label, fileName: item.fileName, source: item.source ?? "", on: isoDay(item.documentOn ?? item.createdAt), checked: Boolean(item.verifiedAt), note: item.note })),
+            .map((item) => ({ id: item.id, label: item.label, fileName: item.fileName, source: item.source ?? "", on: isoDay(item.documentOn ?? item.createdAt), checked: Boolean(item.verifiedAt), note: item.note, hasFile: item.fileUrl.startsWith("data:"), size: item.sizeBytes })),
           pending: open
             .filter((item) => item.studentId === student.id)
             .map((item) => ({ id: item.id, type: item.type, detail: item.detail, state: stateWord(item.state), owner: item.ownerName, role: item.ownerRole, opened: isoDay(item.createdAt) })),
@@ -1280,13 +1308,29 @@ export class ParentWorkspaceService {
   async addDocument(session: SessionPayload, body: unknown) {
     const input = documentSchema.parse(body);
     const student = await this.child(session, input.child);
+    let stored: { url: string; mime: string; bytes: number; name: string } | null = null;
+    if (input.file) {
+      const match = /^data:([a-z]+\/[a-z0-9.+-]+);base64,([A-Za-z0-9+/=]+)$/.exec(input.file.data);
+      if (!match || !DOCUMENT_TYPES.includes(match[1]!)) throw new BadRequestException("Attach a PDF, or a PNG, JPEG or WebP photo.");
+      stored = { url: input.file.data, mime: match[1]!, bytes: Math.floor((match[2]!.length * 3) / 4), name: input.file.name || input.fileName || input.type };
+    }
     const made = await prisma.studentDocument.create({
       data: {
-        studentId: student.id, label: input.type, fileName: input.fileName || input.type, fileUrl: "",
-        mimeType: "application/octet-stream", sizeBytes: 0, source: "Uploaded by you", documentOn: new Date(), note: input.note || null,
+        studentId: student.id, label: input.type, fileName: stored?.name ?? (input.fileName || input.type), fileUrl: stored?.url ?? "",
+        mimeType: stored?.mime ?? "application/octet-stream", sizeBytes: stored?.bytes ?? 0, source: "Uploaded by the family", documentOn: new Date(), note: input.note || null,
       },
     });
-    return { id: made.id };
+    return { id: made.id, kept: Boolean(stored) };
+  }
+
+  /** The file a family attached, handed back to them only. */
+  async documentFile(session: SessionPayload, id: string) {
+    const { children } = await this.context(session);
+    const row = await prisma.studentDocument.findFirst({ where: { id, studentId: { in: children.map((student) => student.id) } } });
+    if (!row || !row.fileUrl.startsWith("data:")) throw new NotFoundException("There is no file on that document.");
+    const match = /^data:([^;]+);base64,(.+)$/s.exec(row.fileUrl);
+    if (!match) throw new NotFoundException("There is no file on that document.");
+    return { mime: match[1]!, bytes: Buffer.from(match[2]!, "base64"), name: row.fileName };
   }
 }
 
@@ -1312,6 +1356,35 @@ type PublishedCard = {
   subjects: Array<{ subject: string; teacher: string | null; components: Array<{ name: string; short: string; max: number; score: number | "ABS" | null }>; total: number | null; grade: string | null; remark: string; pos: number | null; outOf: number; classAvg: number | null }>;
 };
 
+/**
+ * A published card as the report-cards module now writes it (version 2), or as the first release did: a flat record with each subject's
+ * continuous-assessment and examination totals. Both are read into one shape; a class size or a count of school days the older one never
+ * kept is left at zero rather than invented.
+ */
+function readCard(raw: unknown): PublishedCard | null {
+  const data = raw as Record<string, unknown> | null;
+  if (!data || typeof data !== "object") return null;
+  if (data.version === 2) return data as unknown as PublishedCard;
+  const subjects = Array.isArray(data.subjects) ? (data.subjects as Array<Record<string, unknown>>) : [];
+  if (!subjects.length || typeof data.average !== "number") return null;
+  const pct = typeof data.attendance === "string" ? Number.parseFloat(data.attendance) : Number.NaN;
+  const text = (value: unknown) => (typeof value === "string" ? value : "");
+  return {
+    className: text(data.className), arm: "", formMaster: null, average: data.average, grade: text(data.grade) || null, gradeRemark: text(data.promotionStatus) || null,
+    position: typeof data.position === "number" ? data.position : null, outOf: 0,
+    attendance: { days: 0, present: 0, absent: 0, pct: Number.isFinite(pct) ? pct : null }, scheme: "", frameworkNote: "",
+    classTeacherRemark: text(data.classTeacherRemark), classTeacherBy: null, principalRemark: text(data.principalRemark), principalBy: null, resumption: null, traits: [],
+    subjects: subjects.map((subject) => ({
+      subject: text(subject.subject), teacher: null,
+      components: [
+        { name: "Continuous assessment", short: "CA", max: 0, score: typeof subject.caTotal === "number" ? subject.caTotal : null },
+        { name: "Examination", short: "EXAM", max: 0, score: typeof subject.examTotal === "number" ? subject.examTotal : null },
+      ],
+      total: typeof subject.total === "number" ? subject.total : null, grade: text(subject.grade) || null, remark: text(subject.remark), pos: null, outOf: 0, classAvg: null,
+    })),
+  };
+}
+
 const accountRequestSchema = z.object({
   kind: z.enum(["contact", "copy"]),
   phone: z.string().trim().max(40).optional(),
@@ -1332,15 +1405,24 @@ const changeSchema = z.object({
   }).optional(),
 });
 
+/** What a family may attach: a scan or a photo of the paper, kept as a data URL so nothing depends on a file store. */
+const DOCUMENT_TYPES = ["application/pdf", "image/png", "image/jpeg", "image/webp"];
+const MAX_DOCUMENT_CHARS = 2_200_000;
+
 const documentSchema = z.object({
   child: z.string().min(1, "Choose which child this is for."),
   type: z.string().trim().min(2, "Say what the document is.").max(80),
   fileName: z.string().trim().max(120).optional(),
   note: z.string().trim().max(300).optional(),
+  file: z.object({
+    name: z.string().trim().max(160),
+    data: z.string().max(MAX_DOCUMENT_CHARS, "That file is too large. Keep it under 1.5 MB."),
+  }).optional(),
 });
 
 const stateWord = (state: string) => (state === "RESOLVED" ? "Resolved" : state === "DECLINED" ? "Declined" : state === "IN_PROGRESS" ? "In progress" : state === "ASSIGNED" ? "With the school" : "Received");
 
+const CALENDAR_FEED = "parent-calendar-feed";
 const DAY = 86_400_000;
 /** The day a reply is promised by: `days` school days after it was sent, skipping weekends. */
 const addSchoolDays = (iso: string, days: number) => {

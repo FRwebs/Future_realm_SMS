@@ -2,7 +2,7 @@ import { apiGet, observe } from "@/lib/api/server";
 import { localContracts } from "@/lib/api/local-contracts.zod";
 import { row } from "@/lib/modules/panels";
 import type { DrawerSpec, ListItem, PanelFact, PanelTone } from "@/lib/modules/panels";
-import { PW, dDow, dShort, dayOf } from "@/lib/modules/live/parent/shared";
+import { PW, absolute, dDow, dShort, dayOf } from "@/lib/modules/live/parent/shared";
 import type { ParentContent } from "@/lib/modules/live/parent/shared";
 
 type Ev = { id: string; date: string; end: string; title: string; cat: string; time: string; where: string; note: string; kids: Array<{ id: string; first: string }> };
@@ -37,7 +37,24 @@ function eventDrawer(event: Ev): DrawerSpec {
 }
 
 export async function calendarPage(child: string, query: Record<string, string | undefined>): Promise<ParentContent> {
-  const data = await apiGet(`${PW}/calendar?child=${encodeURIComponent(child)}`, observe<Calendar>(localContracts["src/lib/modules/live/parent/calendar.ts#2c4d6a3a"]));
+  const [data, link] = await Promise.all([
+    apiGet(`${PW}/calendar?child=${encodeURIComponent(child)}`, observe<Calendar>(localContracts["src/lib/modules/live/parent/calendar.ts#2c4d6a3a"])),
+    apiGet(`${PW}/calendar-link`, observe<{ path: string }>(localContracts["src/lib/modules/live/parent/calendar.ts#7f3a91c2"])).catch(() => null),
+  ]);
+  const feed = link ? await absolute(link.path) : null;
+  const phone: DrawerSpec | null = feed ? {
+    kicker: "Calendar", title: "Add to my phone’s calendar", mode: "info", sub: "A private link that keeps your phone’s calendar up to date by itself.",
+    facts: [
+      ["Your link", feed, "Anyone who has it can read your family’s calendar, so keep it to yourself."],
+      ["How to add it", "Subscribe to a calendar from a link", "In Google Calendar: Other calendars → From URL. On an iPhone: Settings → Calendar → Accounts → Add Subscribed Calendar."],
+      ["What it shows", "School events, tests and examinations, results days, meetings and when fees fall due — for every child", "New ones appear on their own; your phone refreshes it every few hours."],
+    ],
+  } : null;
+  const replace: DrawerSpec = {
+    kicker: "Calendar", title: "Get a new calendar link", mode: "commit", sub: "The old link stops working at once. Use this if you shared it, or lost the phone it was on.",
+    commitLabel: "Replace the link", commitDone: "New link ready", commitDoneBody: "Open “Add to my phone’s calendar” for the new link, and add it to your phone again.",
+    submit: { endpoint: `${PW}/calendar-link/reset`, method: "POST" },
+  };
   const events = data.events;
   const tab = TABS.includes(query.tab ?? "") ? query.tab! : TABS[0]!;
   const one = child === "all" ? null : events.flatMap((event) => event.kids).find((kid) => kid.id === child) ?? null;
@@ -45,6 +62,7 @@ export async function calendarPage(child: string, query: Record<string, string |
     eyebrow: one ? one.first : "Whole family", title: "Calendar",
     tabs: TABS.map((label) => ({ label })), tab,
     desc: "Term dates, tests, trips and meetings.",
+    ...(phone ? { primary: { label: "Add to my phone’s calendar", drawer: phone }, launchers: [{ label: "Get a new link", drawer: replace }] } : {}),
   };
   const base = `/portals/parent/calendar?${child === "all" ? "" : `child=${child}&`}`;
 

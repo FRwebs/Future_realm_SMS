@@ -1,6 +1,6 @@
 import { INestApplication, ValidationPipe } from "@nestjs/common";
 import { NestFactory } from "@nestjs/core";
-import { ExpressAdapter } from "@nestjs/platform-express";
+import { ExpressAdapter, type NestExpressApplication } from "@nestjs/platform-express";
 import { DocumentBuilder, SwaggerModule } from "@nestjs/swagger";
 import compression from "compression";
 import cookieParser from "cookie-parser";
@@ -49,6 +49,8 @@ async function configureNestApp(app: INestApplication) {
       }),
     );
   }
+  // A family attaches a document (a scan or a photo, up to about 1.5 MB) in the same JSON request as its description, so the default 100 KB is too small.
+  (app as NestExpressApplication).useBodyParser("json", { limit: "3mb" });
   app.use(cookieParser());
   app.use(dateFormatContext);
   app.setGlobalPrefix("api");
