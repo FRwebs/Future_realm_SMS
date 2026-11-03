@@ -4,6 +4,7 @@ import Link from "next/link";
 import type { Route } from "next";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 
 import { ModuleDrawer } from "@/components/modules/lazy-drawer";
 import { PanelRowsWithDrawer } from "@/components/modules/panel-renderer";
@@ -26,6 +27,10 @@ const ARROW_ICON = "M5 12h13M13 6.5l5.5 5.5L13 17.5";
  * two different "main" things to do.
  */
 function MobileFab({ act, openDrawer }: { act: PanelAction; openDrawer: (spec: DrawerSpec) => void }) {
+  // The button has a lane of its own between the page and the bottom bar, so it never sits over a row's own button; until that lane has
+  // been found it floats over the page as before.
+  const [lane, setLane] = useState<HTMLElement | null>(null);
+  useEffect(() => { setLane(document.getElementById("phone-fab-lane")); }, []);
   const className =
     "pointer-events-auto flex h-[56px] max-w-full items-center gap-[10px] rounded-[18px] pl-[8px] pr-[20px] text-[14.5px] font-extrabold text-white active:scale-[0.97] transition-transform";
   const style = { background: "#0D2315", boxShadow: "0 18px 32px -14px rgba(13,35,21,0.75), 0 2px 6px rgba(13,35,21,0.18)" };
@@ -39,18 +44,18 @@ function MobileFab({ act, openDrawer }: { act: PanelAction; openDrawer: (spec: D
       <span className="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap">{act.phoneLabel ?? act.label}</span>
     </>
   );
+  const button = act.href ? (
+    <Link href={act.href as Route} className={className} style={style}>{body}</Link>
+  ) : act.drawer ? (
+    <button type="button" onClick={() => openDrawer(act.drawer!)} className={className} style={style}>{body}</button>
+  ) : null;
+  if (lane) return createPortal(<div className="flex justify-end px-[16px] pb-[10px] pt-[6px]">{button}</div>, lane);
   return (
     // The mockup offsets this by the bar's height, because there its bar is a
     // second sticky layer inside the same scroller. Ours is a sibling below the
     // scroller, so the scrollport already stops at the bar: sticking to 0 puts
     // the button the same 12px above it.
-    <div className="pointer-events-none sticky bottom-0 z-[34] mt-auto flex justify-end px-[16px] pb-[12px] md:hidden">
-      {act.href ? (
-        <Link href={act.href as Route} className={className} style={style}>{body}</Link>
-      ) : act.drawer ? (
-        <button type="button" onClick={() => openDrawer(act.drawer!)} className={className} style={style}>{body}</button>
-      ) : null}
-    </div>
+    <div className="pointer-events-none sticky bottom-0 z-[34] mt-auto flex justify-end px-[16px] pb-[12px] md:hidden">{button}</div>
   );
 }
 

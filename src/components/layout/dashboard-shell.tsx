@@ -180,9 +180,12 @@ export function DashboardShell({
           <OutboxSync />
           <PageLoadBeacon />
           <main
+            // A phone's page can be taller than its window with nothing in it to tab to; the page itself takes focus so a keyboard can scroll it.
+            // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex
+            tabIndex={phoneTabs?.items.length ? 0 : undefined}
             data-portal={portalType}
             className={cn(
-              "finance-scroll min-w-0 flex-1 overflow-y-auto px-4 pb-5 pt-4",
+              "finance-scroll min-w-0 flex-1 overflow-y-auto px-4 pb-5 pt-4 focus:outline-none",
               // The bottom bar is a sibling below this, not an overlay, so it
               // takes its own space and needs none reserved here. The floating
               // button is the last row of the grid, so it makes its own room.
@@ -207,6 +210,8 @@ export function DashboardShell({
               {children}
             </div>
           </main>
+
+          {phoneTabs?.items.length ? <div id="phone-fab-lane" className="flex-none empty:hidden md:hidden" /> : null}
 
           {phoneTabs?.items.length ? (
             <PortalTabBar
