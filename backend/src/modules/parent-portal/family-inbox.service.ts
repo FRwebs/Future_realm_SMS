@@ -30,29 +30,46 @@ const submitSchema = z.object({
  */
 @Injectable()
 export class FamilyInboxService {
+  /**
+   * Every guardian record this login owns, across every school.
+   *
+   * One parent, one inbox: a family with a child at two schools reads both
+   * schools' messages here and sends to whichever school the message or the
+   * child belongs to. `rows` is the lot; `guardian` is the one at the school
+   * they signed in to, which for most families is the only one there is.
+   */
   private async guardian(session: SessionPayload) {
     if (session.role !== "PARENT") throw new ForbiddenException("The family inbox is for parent and guardian accounts.");
-    const guardian = await prisma.guardian.findFirst({
-      where: { schoolId: session.schoolId, userId: session.userId },
-      include: { students: { include: { student: { select: { id: true, firstName: true, lastName: true, currentClass: { select: { name: true, arm: true } } } } } } },
+    const rows = await prisma.guardian.findMany({
+      where: { userId: session.userId, mergedIntoId: null },
+      include: { students: { include: { student: { select: { id: true, firstName: true, lastName: true, schoolId: true, currentClass: { select: { name: true, arm: true } } } } } } },
+      orderBy: { createdAt: "asc" },
     });
-    if (!guardian) throw new NotFoundException("No guardian profile is linked to this account.");
-    return guardian;
+    if (!rows.length) throw new NotFoundException("No guardian profile is linked to this account.");
+    const guardian = rows.find((row) => row.schoolId === session.schoolId) ?? rows[0]!;
+    return Object.assign(guardian, {
+      rows,
+      ids: rows.map((row) => row.id),
+      schoolIds: [...new Set(rows.map((row) => row.schoolId))],
+      /** Every child across every school, each with the guardian record and school it belongs to. */
+      links: rows.flatMap((row) => row.students.map((link) => ({ ...link, guardianId: row.id, schoolId: row.schoolId }))),
+    });
   }
 
   async messages(session: SessionPayload) {
     const guardian = await this.guardian(session);
-    const school = await prisma.school.findUnique({ where: { id: session.schoolId }, select: { name: true } });
+    const schools = await prisma.school.findMany({ where: { id: { in: guardian.schoolIds } }, select: { id: true, name: true } });
     const rows = await prisma.messageDelivery.findMany({
-      where: { guardianId: guardian.id, schoolId: session.schoolId, status: { in: [MessageDeliveryStatus.DELIVERED, MessageDeliveryStatus.PENDING] }, campaign: { status: "SENT" } },
+      where: { guardianId: { in: guardian.ids }, status: { in: [MessageDeliveryStatus.DELIVERED, MessageDeliveryStatus.PENDING] }, campaign: { status: "SENT" } },
       orderBy: { createdAt: "desc" }, take: 80, include: { campaign: { select: { sentAt: true, createdAt: true } } },
     });
-    const replies = rows.length ? await prisma.guardianSubmission.findMany({ where: { guardianId: guardian.id, deliveryId: { in: rows.map((row) => row.id) } }, orderBy: { createdAt: "asc" } }) : [];
+    const replies = rows.length ? await prisma.guardianSubmission.findMany({ where: { guardianId: { in: guardian.ids }, deliveryId: { in: rows.map((row) => row.id) } }, orderBy: { createdAt: "asc" } }) : [];
     return {
-      school: school?.name ?? "Your school",
+      school: schools.length > 1 ? "your schools" : schools[0]?.name ?? "Your school",
       unread: rows.filter((row) => !row.readAt).length,
       messages: rows.map((row) => ({
         id: row.id, text: row.body ?? "", channel: row.channel ?? "IN_APP", at: (row.campaign.sentAt ?? row.campaign.createdAt).toISOString(), read: Boolean(row.readAt),
+        school: schools.length > 1 ? schools.find((school) => school.id === row.schoolId)?.name ?? "" : "",
         acknowledgeAsked: row.acknowledgeAsked, acknowledgedAt: row.acknowledgedAt?.toISOString() ?? null,
         replies: replies.filter((reply) => reply.deliveryId === row.id).map((reply) => ({ id: reply.id, text: reply.detail, at: reply.createdAt.toISOString(), state: stateLabel(reply.state), outcome: reply.outcome })),
       })),
@@ -61,7 +78,7 @@ export class FamilyInboxService {
 
   private async mine(session: SessionPayload, id: string) {
     const guardian = await this.guardian(session);
-    const row = await prisma.messageDelivery.findFirst({ where: { id, guardianId: guardian.id, schoolId: session.schoolId } });
+    const row = await prisma.messageDelivery.findFirst({ where: { id, guardianId: { in: guardian.ids } } });
     if (!row) throw new NotFoundException("That message is not one of yours.");
     return { guardian, row };
   }
@@ -84,7 +101,8 @@ export class FamilyInboxService {
     const input = z.object({ text: z.string().trim().min(2, "Write your reply.").max(1500) }).parse(body);
     const { guardian, row } = await this.mine(session, id);
     const campaign = await prisma.messageCampaign.findUnique({ where: { id: row.campaignId }, select: { name: true } });
-    const made = await openSubmission(session.schoolId, { guardianId: guardian.id, type: "Reply to a school message", detail: input.text, channel: "Portal", deliveryId: id, office: true });
+    // The reply goes back to the school that wrote, under that school's own guardian record.
+    const made = await openSubmission(row.schoolId, { guardianId: row.guardianId ?? guardian.rows.find((entry) => entry.schoolId === row.schoolId)?.id ?? guardian.id, type: "Reply to a school message", detail: input.text, channel: "Portal", deliveryId: id, office: true });
     if (!row.readAt) await prisma.messageDelivery.update({ where: { id }, data: { readAt: new Date() } });
     void campaign;
     return { id: made.id };
@@ -92,7 +110,7 @@ export class FamilyInboxService {
 
   async submissions(session: SessionPayload) {
     const guardian = await this.guardian(session);
-    const rows = await prisma.guardianSubmission.findMany({ where: { guardianId: guardian.id, schoolId: session.schoolId, deliveryId: null }, orderBy: { createdAt: "desc" }, take: 60, include: { student: { select: { firstName: true, lastName: true } } } });
+    const rows = await prisma.guardianSubmission.findMany({ where: { guardianId: { in: guardian.ids }, deliveryId: null }, orderBy: { createdAt: "desc" }, take: 60, include: { student: { select: { firstName: true, lastName: true } } } });
     return rows.map((row) => ({
       id: row.id, type: row.type, child: row.student ? fullName(row.student) : null, detail: row.detail, state: stateLabel(row.state), open: row.state !== "RESOLVED" && row.state !== "DECLINED",
       outcome: row.outcome, at: row.createdAt.toISOString(), resolvedAt: row.resolvedAt?.toISOString() ?? null, with: row.ownerRole ?? null,
@@ -102,12 +120,19 @@ export class FamilyInboxService {
   /** What a family may send in, and — for an absence — the days their child is down as absent, so they explain the days the school actually recorded. */
   async options(session: SessionPayload) {
     const guardian = await this.guardian(session);
-    const [types, term] = await Promise.all([submissionTypes(session.schoolId), currentTerm(session.schoolId)]);
+    // Each school has its own list of what it accepts and its own current term; where two schools
+    // promise different answer times for the same kind of request, the slower one is the honest one.
+    const perSchool = await Promise.all(guardian.schoolIds.map(async (id) => ({ id, types: await submissionTypes(id), term: await currentTerm(id) })));
+    const types = [...new Map(perSchool.flatMap((school) => school.types).map((type) => [type.name, type])).values()].map((type) => ({
+      ...type,
+      target: Math.max(...perSchool.flatMap((school) => school.types).filter((other) => other.name === type.name).map((other) => other.target)),
+    }));
+    const inTerm = perSchool.filter((school) => school.term).map((school) => ({ schoolId: school.id, termId: school.term!.id }));
     // Every child's absent days in one query, not one per child.
-    const absent = term && guardian.students.length
-      ? await prisma.studentAttendance.findMany({ where: { schoolId: session.schoolId, studentId: { in: guardian.students.map((link) => link.studentId) }, termId: term.id, subjectId: null, status: "ABSENT" }, orderBy: { date: "desc" }, select: { studentId: true, date: true } })
+    const absent = inTerm.length && guardian.links.length
+      ? await prisma.studentAttendance.findMany({ where: { OR: inTerm, studentId: { in: guardian.links.map((link) => link.studentId) }, subjectId: null, status: "ABSENT" }, orderBy: { date: "desc" }, select: { studentId: true, date: true } })
       : [];
-    const children = guardian.students.map((link) => ({
+    const children = guardian.links.map((link) => ({
       id: link.studentId, name: fullName(link.student), arm: link.student.currentClass ? armName(link.student.currentClass) : "",
       absences: absent.filter((entry) => entry.studentId === link.studentId).slice(0, 20).map((entry) => ({ date: entry.date.toISOString().slice(0, 10), label: formatDay(entry.date, { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" }) })),
     }));
@@ -119,13 +144,14 @@ export class FamilyInboxService {
     const guardian = await this.guardian(session);
     if (!FAMILY_TYPES.includes(input.type)) throw new BadRequestException("That is not something you can send from here.");
     const aboutChild = ["Absence explanation", "Collection change", "Record correction", "Result query"].includes(input.type);
-    const child = input.child ? guardian.students.find((link) => link.studentId === input.child) : undefined;
+    const child = input.child ? guardian.links.find((link) => link.studentId === input.child) : undefined;
     if (input.child && !child) throw new ForbiddenException("That child is not linked to your account.");
     if (aboutChild && !child) throw new BadRequestException("Choose which child this is about.");
     if (input.type === "Absence explanation" && !input.dates.length) throw new BadRequestException("Choose the days you are explaining.");
     if (input.type === "Collection change" && !input.collector) throw new BadRequestException("Say who will collect your child, and on which day.");
-    const made = await openSubmission(session.schoolId, {
-      guardianId: guardian.id, childId: child?.studentId, type: input.type, detail: input.detail, channel: "Portal", evidence: input.evidence, dates: input.type === "Absence explanation" ? input.dates : [],
+    // It goes to the school the child is at; a request about no child goes to the school they signed in to.
+    const made = await openSubmission(child?.schoolId ?? guardian.schoolId, {
+      guardianId: child?.guardianId ?? guardian.id, childId: child?.studentId, type: input.type, detail: input.detail, channel: "Portal", evidence: input.evidence, dates: input.type === "Absence explanation" ? input.dates : [],
       payload: input.type === "Collection change" ? input.collector : undefined,
     });
     return made;

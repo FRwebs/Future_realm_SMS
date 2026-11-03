@@ -24,6 +24,8 @@ const dayNames = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Frida
 
 type LinkedChild = {
   id: string;
+  /** The school this child is at — not necessarily the one their parent signed in to. */
+  schoolId: string;
   admissionNumber: string;
   firstName: string;
   lastName: string;
@@ -103,8 +105,9 @@ export class ParentPortalService {
 
   private async getGuardianContext(session: SessionPayload) {
     this.assertParentSession(session);
-    const guardian = await prisma.guardian.findFirst({
-      where: { schoolId: session.schoolId, userId: session.userId },
+    // A login can be a guardian at several schools; this family is all of them at once.
+    const rows = await prisma.guardian.findMany({
+      where: { userId: session.userId, mergedIntoId: null },
       include: {
         user: true,
         students: {
@@ -113,14 +116,25 @@ export class ParentPortalService {
           },
           orderBy: { student: { admissionNumber: "asc" } }
         }
-      }
+      },
+      orderBy: { createdAt: "asc" }
     });
 
-    if (!guardian) {
+    if (!rows.length) {
       throw new NotFoundException("No guardian profile is linked to this parent account.");
     }
 
-    return guardian;
+    const guardian = rows.find((row) => row.schoolId === session.schoolId) ?? rows[0]!;
+    return Object.assign(guardian, {
+      schoolIds: [...new Set(rows.map((row) => row.schoolId))],
+      students: rows.flatMap((row) => row.students)
+    });
+  }
+
+  /** Every school this login is a guardian at — what each of this service's reads is scoped to. */
+  private async schoolsOf(session: SessionPayload) {
+    const rows = await prisma.guardian.findMany({ where: { userId: session.userId, mergedIntoId: null }, select: { schoolId: true } });
+    return [...new Set(rows.map((row) => row.schoolId))];
   }
 
   private async getAuthorizedChild(session: SessionPayload, studentId: string): Promise<LinkedChild> {
@@ -136,21 +150,21 @@ export class ParentPortalService {
   async listLinkedChildren(session: SessionPayload) {
     this.assertParentSession(session);
     const guardian = await this.getGuardianContext(session);
-    return Promise.all(guardian.students.map((item) => this.buildChildOverview(session, item.student)));
+    return Promise.all(guardian.students.map((item) => this.buildChildOverview(item.student)));
   }
 
-  private async getAttendance(session: SessionPayload, studentId: string) {
+  private async getAttendance(schoolId: string, studentId: string) {
     const records = await prisma.studentAttendance.findMany({
-      where: { schoolId: session.schoolId, studentId },
+      where: { schoolId, studentId },
       orderBy: { date: "desc" },
       take: 120
     });
     return buildAttendanceView(records);
   }
 
-  private async getResults(session: SessionPayload, student: LinkedChild): Promise<PortalResultHistory[]> {
+  private async getResults(student: LinkedChild): Promise<PortalResultHistory[]> {
     const sheets = await prisma.resultSheet.findMany({
-      where: { schoolId: session.schoolId, studentId: student.id, status: "PUBLISHED", publishedAt: { not: null } },
+      where: { schoolId: student.schoolId, studentId: student.id, status: "PUBLISHED", publishedAt: { not: null } },
       include: {
         term: { include: { academicSession: true } },
         scoreEntries: {
@@ -180,9 +194,9 @@ export class ParentPortalService {
     });
   }
 
-  private async getFees(session: SessionPayload, studentId: string): Promise<PortalFinanceItem[]> {
+  private async getFees(schoolId: string, studentId: string): Promise<PortalFinanceItem[]> {
     const invoices = await prisma.invoice.findMany({
-      where: { schoolId: session.schoolId, studentId },
+      where: { schoolId, studentId },
       include: { payments: { include: { receipts: true } }, items: true },
       orderBy: { issuedOn: "desc" }
     });
@@ -216,13 +230,13 @@ export class ParentPortalService {
     });
   }
 
-  private async getSubjectOfferings(session: SessionPayload, classId?: string | null): Promise<PortalSubjectOffering[]> {
+  private async getSubjectOfferings(schoolId: string, classId?: string | null): Promise<PortalSubjectOffering[]> {
     if (!classId) return [];
     const [term, assignments] = await Promise.all([
-      this.currentTerm(session.schoolId),
+      this.currentTerm(schoolId),
       prisma.classSubject.findMany({
         where: {
-          schoolId: session.schoolId,
+          schoolId: schoolId,
           classId,
           isActive: true,
           subject: {
@@ -239,7 +253,7 @@ export class ParentPortalService {
       ? new Map(
           (
             await prisma.user.findMany({
-              where: { schoolId: session.schoolId, id: { in: teacherIds } },
+              where: { schoolId: schoolId, id: { in: teacherIds } },
               select: { id: true, firstName: true, lastName: true }
             })
           ).map((teacher) => [teacher.id, `${teacher.firstName} ${teacher.lastName}`])
@@ -247,7 +261,7 @@ export class ParentPortalService {
       : new Map<string, string>();
     const schemeRows = term
       ? await prisma.schemeOfWork.findMany({
-          where: { schoolId: session.schoolId, classId, termId: term.id },
+          where: { schoolId: schoolId, classId, termId: term.id },
           include: {
             topics: { select: { weekType: true, isCovered: true } }
           }
@@ -289,10 +303,10 @@ export class ParentPortalService {
     }));
   }
 
-  private async getCurriculumTopics(session: SessionPayload, classId?: string | null): Promise<CurriculumTopicView[]> {
+  private async getCurriculumTopics(schoolId: string, classId?: string | null): Promise<CurriculumTopicView[]> {
     if (!classId) return [];
     const topics = await prisma.curriculumTopic.findMany({
-      where: { schoolId: session.schoolId, classId, status: "ACTIVE" },
+      where: { schoolId: schoolId, classId, status: "ACTIVE" },
       include: { academicSession: true, term: true, classRoom: true, subject: true },
       orderBy: [{ term: { order: "asc" } }, { subject: { name: "asc" } }, { weekNumber: "asc" }]
     });
@@ -317,10 +331,10 @@ export class ParentPortalService {
     }));
   }
 
-  private async getSchemeOfWorkForClassSubject(session: SessionPayload, classId: string, subjectId: string) {
+  private async getSchemeOfWorkForClassSubject(schoolId: string, classId: string, subjectId: string) {
     const assignment = await prisma.classSubject.findFirst({
       where: {
-        schoolId: session.schoolId,
+        schoolId: schoolId,
         classId,
         subjectId,
         isActive: true,
@@ -335,11 +349,11 @@ export class ParentPortalService {
       throw new NotFoundException("This subject is not currently assigned to this child's class.");
     }
 
-    const term = await this.currentTerm(session.schoolId);
+    const term = await this.currentTerm(schoolId);
     if (!term) throw new NotFoundException("No active term configured for this school.");
 
     const sow = await prisma.schemeOfWork.findFirst({
-      where: { schoolId: session.schoolId, classId, subjectId, termId: term.id },
+      where: { schoolId: schoolId, classId, subjectId, termId: term.id },
       include: {
         subject: true,
         classRoom: { include: { classLevel: true } },
@@ -429,28 +443,28 @@ export class ParentPortalService {
     };
   }
 
-  private async getTimetable(session: SessionPayload, student: LinkedChild) {
+  private async getTimetable(student: LinkedChild) {
     if (!student.currentClass) return { weeklyTimetable: [], examTimetable: [], calendar: [], subjects: [], curriculumTopics: [], departmentTrack: undefined };
 
     const [term, timetable, exams, events, subjects, curriculumTopics] = await Promise.all([
-      prisma.term.findFirst({ where: { schoolId: session.schoolId, isCurrent: true } }),
+      prisma.term.findFirst({ where: { schoolId: student.schoolId, isCurrent: true } }),
       prisma.timetableEntry.findMany({
-        where: { schoolId: session.schoolId, classId: student.currentClass.id, isPublished: true, subjectId: { not: null } },
+        where: { schoolId: student.schoolId, classId: student.currentClass.id, isPublished: true, subjectId: { not: null } },
         include: { subject: true },
         orderBy: [{ dayOfWeek: "asc" }, { startsAt: "asc" }]
       }),
       prisma.examTimetableEntry.findMany({
-        where: { schoolId: session.schoolId, classId: student.currentClass.id },
+        where: { schoolId: student.schoolId, classId: student.currentClass.id },
         include: { subject: true },
         orderBy: { examDate: "asc" }
       }),
       prisma.calendarEvent.findMany({
-        where: { schoolId: session.schoolId, endsAt: { gte: new Date() } },
+        where: { schoolId: student.schoolId, endsAt: { gte: new Date() } },
         orderBy: { startsAt: "asc" },
         take: 20
       }),
-      this.getSubjectOfferings(session, student.currentClass.id),
-      this.getCurriculumTopics(session, student.currentClass.id)
+      this.getSubjectOfferings(student.schoolId, student.currentClass.id),
+      this.getCurriculumTopics(student.schoolId, student.currentClass.id)
     ]);
     const className = formatClassName(student.currentClass.name, student.currentClass.arm);
     const teacherIds = timetable.map((item) => item.teacherId).filter(Boolean) as string[];
@@ -460,7 +474,7 @@ export class ParentPortalService {
         : new Map(
             (
               await prisma.user.findMany({
-                where: { schoolId: session.schoolId, id: { in: teacherIds } },
+                where: { schoolId: student.schoolId, id: { in: teacherIds } },
                 select: { id: true, firstName: true, lastName: true }
               })
             ).map((item) => [item.id, `${item.firstName} ${item.lastName}`])
@@ -503,20 +517,20 @@ export class ParentPortalService {
     };
   }
 
-  private async getServices(session: SessionPayload, studentId: string) {
+  private async getServices(schoolId: string, studentId: string) {
     const [transport, hostel, library] = await Promise.all([
       prisma.transportAssignment.findMany({
-        where: { schoolId: session.schoolId, studentId },
+        where: { schoolId: schoolId, studentId },
         include: { route: true },
         orderBy: { stopName: "asc" }
       }),
       prisma.hostelAllocation.findMany({
-        where: { schoolId: session.schoolId, studentId },
+        where: { schoolId: schoolId, studentId },
         include: { room: { include: { building: true } } },
         orderBy: { startDate: "desc" }
       }),
       prisma.libraryLoan.findMany({
-        where: { schoolId: session.schoolId, studentId },
+        where: { schoolId: schoolId, studentId },
         include: { book: true },
         orderBy: { dueAt: "asc" }
       })
@@ -549,16 +563,17 @@ export class ParentPortalService {
     };
   }
 
-  private async buildChildOverview(session: SessionPayload, student: LinkedChild): Promise<ParentChildPortalView> {
-    const policy = await loadGuardianPolicy(session.schoolId);
+  private async buildChildOverview(student: LinkedChild): Promise<ParentChildPortalView> {
+    // A child is read under their own school's choice about what parents may see, not the other school's.
+    const policy = await loadGuardianPolicy(student.schoolId);
     const shows = (what: GuardianVisible) => policy.sees.has(what);
     // What the school keeps back is never fetched, so it is never in the payload — hiding it in the page alone would still hand it over.
     const [attendanceFull, resultsFull, financeFull, timetableFull, services] = await Promise.all([
-      shows("Attendance") ? this.getAttendance(session, student.id) : null,
-      shows("Results") ? this.getResults(session, student) : null,
-      shows("Fees") ? this.getFees(session, student.id) : null,
-      this.getTimetable(session, student),
-      this.getServices(session, student.id)
+      shows("Attendance") ? this.getAttendance(student.schoolId, student.id) : null,
+      shows("Results") ? this.getResults(student) : null,
+      shows("Fees") ? this.getFees(student.schoolId, student.id) : null,
+      this.getTimetable(student),
+      this.getServices(student.schoolId, student.id)
     ]);
     const timetable = shows("Timetable") ? timetableFull : { ...timetableFull, weeklyTimetable: [], examTimetable: [] };
     const attendance = attendanceFull ?? undefined;
@@ -602,11 +617,12 @@ export class ParentPortalService {
   async getParentDashboard(session: SessionPayload): Promise<ParentPortalView> {
     this.assertParentSession(session);
     const guardian = await this.getGuardianContext(session);
-    const children = await Promise.all(guardian.students.map((item) => this.buildChildOverview(session, item.student)));
+    const children = await Promise.all(guardian.students.map((item) => this.buildChildOverview(item.student)));
     const outstanding = children.reduce((sum, child) => sum + child.outstandingBalance, 0);
     const announcements = await this.getParentAnnouncements(session);
     const notifications = await this.getParentNotifications(session);
-    const feesShown = (await loadGuardianPolicy(session.schoolId)).sees.has("Fees");
+    // Shown when any of this family's schools shows fees to parents.
+    const feesShown = (await Promise.all(guardian.schoolIds.map((id) => loadGuardianPolicy(id)))).some((policy) => policy.sees.has("Fees"));
 
     return {
       parentId: guardian.id,
@@ -628,43 +644,43 @@ export class ParentPortalService {
   async getChildOverviewForParent(session: SessionPayload, studentId: string) {
     this.assertParentSession(session);
     const child = await this.getAuthorizedChild(session, studentId);
-    return this.buildChildOverview(session, child);
+    return this.buildChildOverview(child);
   }
 
   async getChildAttendanceForParent(session: SessionPayload, studentId: string) {
     this.assertParentSession(session);
-    await assertGuardianMaySee(session.schoolId, "Attendance");
-    await this.getAuthorizedChild(session, studentId);
-    return this.getAttendance(session, studentId);
+    const child = await this.getAuthorizedChild(session, studentId);
+    await assertGuardianMaySee(child.schoolId, "Attendance");
+    return this.getAttendance(child.schoolId, studentId);
   }
 
   async getChildResultsForParent(session: SessionPayload, studentId: string) {
     this.assertParentSession(session);
-    await assertGuardianMaySee(session.schoolId, "Results");
     const child = await this.getAuthorizedChild(session, studentId);
-    const sheets = await this.getResults(session, child);
-    const cards = (await loadGuardianPolicy(session.schoolId)).sees.has("Report cards");
+    await assertGuardianMaySee(child.schoolId, "Results");
+    const sheets = await this.getResults(child);
+    const cards = (await loadGuardianPolicy(child.schoolId)).sees.has("Report cards");
     return cards ? sheets : sheets.map((sheet) => ({ ...sheet, reportCardUrl: undefined }));
   }
 
   async getChildFeesForParent(session: SessionPayload, studentId: string) {
     this.assertParentSession(session);
-    await assertGuardianMaySee(session.schoolId, "Fees");
-    await this.getAuthorizedChild(session, studentId);
-    return this.getFees(session, studentId);
+    const child = await this.getAuthorizedChild(session, studentId);
+    await assertGuardianMaySee(child.schoolId, "Fees");
+    return this.getFees(child.schoolId, studentId);
   }
 
   async getChildSubjectsForParent(session: SessionPayload, studentId: string) {
     this.assertParentSession(session);
     const child = await this.getAuthorizedChild(session, studentId);
-    return this.getSubjectOfferings(session, child.currentClass?.id);
+    return this.getSubjectOfferings(child.schoolId, child.currentClass?.id);
   }
 
   async getChildTimetableForParent(session: SessionPayload, studentId: string) {
     this.assertParentSession(session);
-    await assertGuardianMaySee(session.schoolId, "Timetable");
     const child = await this.getAuthorizedChild(session, studentId);
-    return this.getTimetable(session, child);
+    await assertGuardianMaySee(child.schoolId, "Timetable");
+    return this.getTimetable(child);
   }
 
   async getChildSubjectSchemeOfWorkForParent(session: SessionPayload, studentId: string, subjectId: string) {
@@ -673,17 +689,18 @@ export class ParentPortalService {
     if (!child.currentClass?.id) {
       throw new NotFoundException("This child is not currently assigned to a class.");
     }
-    return this.getSchemeOfWorkForClassSubject(session, child.currentClass.id, subjectId);
+    return this.getSchemeOfWorkForClassSubject(child.schoolId, child.currentClass.id, subjectId);
   }
 
   async getParentAnnouncements(session: SessionPayload) {
     this.assertParentSession(session);
-    if (!(await loadGuardianPolicy(session.schoolId)).sees.has("Announcements")) return [];
     const guardian = await this.getGuardianContext(session);
+    const showing = (await Promise.all(guardian.schoolIds.map(async (id) => ((await loadGuardianPolicy(id)).sees.has("Announcements") ? id : null)))).filter((id): id is string => Boolean(id));
+    if (!showing.length) return [];
     const classNames = guardian.students.map((item) => formatClassName(item.student.currentClass?.name, item.student.currentClass?.arm));
     const announcements = await prisma.announcement.findMany({
       where: {
-        schoolId: session.schoolId,
+        schoolId: { in: showing },
         publishedAt: { lte: new Date() },
         OR: [{ expiresAt: null }, { expiresAt: { gte: new Date() } }]
       },
@@ -703,7 +720,8 @@ export class ParentPortalService {
     this.assertParentSession(session);
     const notifications = await prisma.notificationLog.findMany({
       where: {
-        schoolId: session.schoolId,
+        // Every school this login is a guardian at writes to the same person.
+        schoolId: { in: await this.schoolsOf(session) },
         // Addressed to this parent and nobody else. An unaddressed notification
         // is a school-wide one — in this product those are the admissions
         // pipeline's, about other families' children, and a parent has no

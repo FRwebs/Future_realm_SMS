@@ -14,7 +14,7 @@ import { openSubmission, submissionTypes } from "../guardian-management/submissi
 import { deviceName, hide, icsFor } from "../student-portal/student-workspace.service";
 import { randomBytes } from "node:crypto";
 import { plansFeatures } from "../plans-features/plans-features.service";
-import { loadGuardianPolicy } from "./guardian-policy";
+import { loadGuardianPolicy, type GuardianVisible } from "./guardian-policy";
 
 /**
  * What a parent's own workspace reads.
@@ -36,11 +36,24 @@ export class ParentWorkspaceService {
     if (session.role !== "PARENT") throw new ForbiddenException("This is a parent's own workspace.");
   }
 
-  /** The guardian behind the session, with their children and each child's class. */
+  /**
+   * The family behind the session: every school this login is a guardian at, and
+   * every child across them.
+   *
+   * A parent with children at two schools is one family with one login, not two
+   * accounts — so this reads every guardian record the login owns and the whole
+   * portal is built over the lot. Each school keeps its own everything: its own
+   * current term, its own visibility policy, its own currency. Nothing is
+   * averaged or merged across them, because a school's term and a school's
+   * decision about what parents may see are not the other school's to change.
+   *
+   * The school they signed in to leads, and for the ordinary single-school
+   * family every field below is exactly what it was.
+   */
   private async context(session: SessionPayload) {
     this.assert(session);
-    const guardian = await prisma.guardian.findFirst({
-      where: { schoolId: session.schoolId, userId: session.userId },
+    const rows = await prisma.guardian.findMany({
+      where: { userId: session.userId, mergedIntoId: null },
       include: {
         user: true,
         students: {
@@ -48,22 +61,46 @@ export class ParentWorkspaceService {
           orderBy: { student: { dateOfBirth: "asc" } },
         },
       },
+      orderBy: { createdAt: "asc" },
     });
-    if (!guardian) throw new NotFoundException("No guardian profile is linked to this account.");
-    const [term, school, policy] = await Promise.all([
-      prisma.term.findFirst({ where: { schoolId: session.schoolId, isCurrent: true }, include: { academicSession: true } }),
-      prisma.school.findUnique({ where: { id: session.schoolId }, select: { name: true, mainPhone: true, website: true, city: true, state: true } }),
-      loadGuardianPolicy(session.schoolId),
+    if (!rows.length) throw new NotFoundException("No guardian profile is linked to this account.");
+    const guardian = rows.find((row) => row.schoolId === session.schoolId) ?? rows[0]!;
+    const schoolIds = [...new Set(rows.map((row) => row.schoolId))];
+    const guardianIds = rows.map((row) => row.id);
+    const [terms, sites, policies] = await Promise.all([
+      prisma.term.findMany({ where: { schoolId: { in: schoolIds }, isCurrent: true }, include: { academicSession: true } }),
+      prisma.school.findMany({ where: { id: { in: schoolIds } }, select: { id: true, name: true, shortName: true, currency: true, mainPhone: true, website: true, city: true, state: true } }),
+      Promise.all(schoolIds.map(async (id) => [id, await loadGuardianPolicy(id)] as const)),
     ]);
-    return { guardian, term, school, policy, children: guardian.students.map((link) => link.student) };
+    const termAt = (schoolId: string) => terms.find((term) => term.schoolId === schoolId) ?? null;
+    const siteAt = (schoolId: string) => sites.find((site) => site.id === schoolId) ?? null;
+    const policyAt = (schoolId: string) => policies.find(([id]) => id === schoolId)?.[1] ?? { sees: new Set<GuardianVisible>() };
+    const guardianAt = (schoolId: string) => rows.find((row) => row.schoolId === schoolId) ?? guardian;
+    const children = rows.flatMap((row) => row.students.map((link) => link.student));
+    return {
+      guardian, rows, guardianIds, schoolIds, children,
+      /** True when this family is spread across schools — the one case the portal has to name out loud. */
+      many: schoolIds.length > 1,
+      term: termAt(guardian.schoolId),
+      school: siteAt(guardian.schoolId),
+      policy: policyAt(guardian.schoolId),
+      termAt, siteAt, policyAt, guardianAt,
+      /** Everything about the school a child attends: used wherever a page reads or writes about one child. */
+      at: (studentId: string) => {
+        const schoolId = children.find((student) => student.id === studentId)?.schoolId ?? guardian.schoolId;
+        return { schoolId, guardianId: guardianAt(schoolId).id, term: termAt(schoolId), site: siteAt(schoolId), policy: policyAt(schoolId) };
+      },
+      /** What any of this family's schools shows parents: a page is in the rail if one school shows it. */
+      sees: new Set(policies.flatMap(([, policy]) => [...policy.sees])),
+    };
   }
 
-  /** One of this guardian's children, refused if the child is not theirs. */
+  /** One of this family's children, refused if the child is not theirs. */
   private async child(session: SessionPayload, studentId: string) {
-    const { guardian } = await this.context(session);
-    const link = guardian.students.find((item) => item.studentId === studentId);
-    if (!link) throw new ForbiddenException("That child is not linked to your account.");
-    return link.student;
+    const { children } = await this.context(session);
+    const student = children.find((item) => item.id === studentId);
+    if (!student) throw new ForbiddenException("That child is not linked to your account.");
+    return student;
   }
 
   /* ───────────────────────── who the family is ───────────────────────── */
@@ -73,14 +110,17 @@ export class ParentWorkspaceService {
    * school lets them see. Everything else in the portal is read against this.
    */
   async me(session: SessionPayload) {
-    const { guardian, term, school, policy, children } = await this.context(session);
-    // What the rail counts on Messages: what the school has sent that has not been opened.
-    const unread = await prisma.messageDelivery.count({ where: { guardianId: guardian.id, schoolId: session.schoolId, readAt: null, status: { in: ["DELIVERED", "PENDING"] }, campaign: { status: "SENT" } } });
+    const { guardian, guardianIds, term, school, children, many, schoolIds, termAt, siteAt, policyAt, sees } = await this.context(session);
+    // What the rail counts on Messages: what any of this family's schools has sent that has not been opened.
+    const unread = await prisma.messageDelivery.count({ where: { guardianId: { in: guardianIds }, readAt: null, status: { in: ["DELIVERED", "PENDING"] }, campaign: { status: "SENT" } } });
     const today = isoDay(new Date());
-    const start = term ? isoDay(term.startDate) : null;
-    const end = term ? isoDay(term.endDate) : null;
-    const weeks = term ? Math.max(1, Math.ceil((term.endDate.getTime() - term.startDate.getTime()) / (7 * DAY))) : 0;
-    const week = term && start ? Math.min(weeks, Math.max(0, Math.floor((dayOf(today).getTime() - dayOf(start).getTime()) / (7 * DAY)) + 1)) : 0;
+    const termWeek = (row: { startDate: Date; endDate: Date } | null) => {
+      if (!row) return { start: null, end: null, week: 0, weeks: 0 };
+      const weeks = Math.max(1, Math.ceil((row.endDate.getTime() - row.startDate.getTime()) / (7 * DAY)));
+      const week = Math.min(weeks, Math.max(0, Math.floor((dayOf(today).getTime() - dayOf(isoDay(row.startDate)).getTime()) / (7 * DAY)) + 1));
+      return { start: isoDay(row.startDate), end: isoDay(row.endDate), week, weeks };
+    };
+    const { start, end, week, weeks } = termWeek(term);
     return {
       id: guardian.id,
       name: `${guardian.firstName} ${guardian.lastName}`,
@@ -100,8 +140,27 @@ export class ParentWorkspaceService {
       term: term ? { id: term.id, name: term.name, session: term.academicSession.name, start, end, week, weeks } : null,
       today,
       now: clock(),
-      /** What this school has chosen to show parents. A page it keeps back is not in the rail. */
-      sees: [...policy.sees],
+      /** What this family's schools show parents. A page every one of them keeps back is not in the rail. */
+      sees: [...sees],
+      /** True when this family's children are at more than one school, which the portal has to say out loud rather than quietly total. */
+      manySchools: many,
+      /**
+       * Every school this family belongs to, each with its own term, currency and
+       * visibility choice. A one-school family has one entry and never sees it named.
+       */
+      schools: schoolIds.map((id) => {
+        const site = siteAt(id);
+        const row = termAt(id);
+        const { start: from, end: to, week: at, weeks: of } = termWeek(row);
+        return {
+          id,
+          name: site?.name ?? "",
+          short: site?.shortName?.trim() || site?.name || "",
+          currency: site?.currency ?? "NGN",
+          sees: [...policyAt(id).sees],
+          term: row ? { id: row.id, name: row.name, session: row.academicSession.name, start: from, end: to, week: at, weeks: of } : null,
+        };
+      }),
       unread,
       children: children.map((student) => ({
         id: student.id,
@@ -113,6 +172,9 @@ export class ParentWorkspaceService {
         level: student.currentClass?.classLevel?.name ?? student.currentClass?.name ?? "",
         classId: student.currentClassId,
         photoUrl: student.photoUrl ?? null,
+        /** Which school this child is at: only ever drawn when the family spans more than one. */
+        schoolId: student.schoolId,
+        school: siteAt(student.schoolId)?.shortName?.trim() || siteAt(student.schoolId)?.name || "",
       })),
     };
   }
@@ -131,22 +193,24 @@ export class ParentWorkspaceService {
    * it. `scope` is a child's id, or "all" for the whole family.
    */
   async needs(session: SessionPayload, scope: string) {
-    const { guardian, children, term, policy } = await this.context(session);
+    const { rows, guardianIds, schoolIds, children, at, termAt, siteAt, many } = await this.context(session);
     const mine = scope === "all" ? children : children.filter((student) => student.id === scope);
     if (!mine.length) return { items: [] };
     const ids = mine.map((student) => student.id);
     const today = isoDay(new Date());
+    // Each school runs its own term, so "this term's absences" is one question per school, not one for the family.
+    const thisTerm = schoolIds.map((id) => ({ schoolId: id, ...(termAt(id) ? { termId: termAt(id)!.id } : {}) }));
 
     const [invoices, absences, explanations, consents, meetings, instalments] = await Promise.all([
       // Only what is still owed. A paid invoice is not a thing that needs you.
       prisma.invoice.findMany({
         // A draft has not been issued to the family, and a void one is withdrawn.
-        where: { schoolId: session.schoolId, studentId: { in: ids }, balance: { gt: 0 }, status: { in: ["ISSUED", "PARTIALLY_PAID", "OVERDUE"] } },
+        where: { schoolId: { in: schoolIds }, studentId: { in: ids }, balance: { gt: 0 }, status: { in: ["ISSUED", "PARTIALLY_PAID", "OVERDUE"] } },
         select: { id: true, studentId: true, invoiceNumber: true, balance: true, dueOn: true },
         orderBy: { dueOn: "asc" },
       }),
       prisma.studentAttendance.findMany({
-        where: { schoolId: session.schoolId, studentId: { in: ids }, status: "ABSENT", ...(term ? { termId: term.id } : {}) },
+        where: { studentId: { in: ids }, status: "ABSENT", OR: thisTerm },
         select: { studentId: true, date: true, reason: true },
         orderBy: { date: "desc" },
         take: 40,
@@ -154,20 +218,20 @@ export class ParentWorkspaceService {
       // An absence the family has already written in about is not unexplained,
       // even while the school is still reading the explanation.
       prisma.guardianSubmission.findMany({
-        where: { schoolId: session.schoolId, guardianId: guardian.id, type: { contains: "absence", mode: "insensitive" } },
+        where: { guardianId: { in: guardianIds }, type: { contains: "absence", mode: "insensitive" } },
         select: { studentId: true, dates: true },
       }),
       prisma.familyConsent.findMany({
-        where: { schoolId: session.schoolId, guardianId: guardian.id },
-        select: { typeCode: true, status: true },
+        where: { guardianId: { in: guardianIds } },
+        select: { schoolId: true, typeCode: true, status: true },
       }),
       prisma.parentMeeting.findMany({
-        where: { schoolId: session.schoolId, guardianId: guardian.id, deletedAt: null, status: { in: ["SCHEDULED", "INVITED"] }, scheduledAt: { gte: new Date() } },
+        where: { guardianId: { in: guardianIds }, deletedAt: null, status: { in: ["SCHEDULED", "INVITED"] }, scheduledAt: { gte: new Date() } },
         select: { id: true, studentId: true, title: true, scheduledAt: true, status: true },
         orderBy: { scheduledAt: "asc" },
       }),
       prisma.installmentPlanItem.findMany({
-        where: { plan: { schoolId: session.schoolId, studentId: { in: ids }, status: { notIn: ["PAID", "CANCELLED"] } }, status: { notIn: ["PAID", "CANCELLED"] } },
+        where: { plan: { schoolId: { in: schoolIds }, studentId: { in: ids }, status: { notIn: ["PAID", "CANCELLED"] } }, status: { notIn: ["PAID", "CANCELLED"] } },
         select: { id: true, dueOn: true, amount: true, paidAmount: true, plan: { select: { studentId: true } } },
         orderBy: { dueOn: "asc" },
       }),
@@ -177,8 +241,8 @@ export class ParentWorkspaceService {
     const explained = new Set(explanations.flatMap((row) => (row.dates ?? []).map((date) => `${row.studentId ?? ""}:${date}`)));
     const items: NeedItem[] = [];
 
-    if (policy.sees.has("Fees")) {
-      for (const invoice of invoices) {
+    for (const invoice of invoices) {
+      if (at(invoice.studentId).policy.sees.has("Fees")) {
         const over = Math.floor((dayOf(today).getTime() - dayOf(isoDay(invoice.dueOn)).getTime()) / DAY);
         items.push({
           kind: "fee", childId: invoice.studentId, child: firstOf.get(invoice.studentId) ?? "",
@@ -190,8 +254,8 @@ export class ParentWorkspaceService {
       }
     }
 
-    if (policy.sees.has("Attendance")) {
-      for (const row of absences) {
+    for (const row of absences) {
+      if (at(row.studentId).policy.sees.has("Attendance")) {
         const date = isoDay(row.date);
         if (explained.has(`${row.studentId}:${date}`)) continue;
         items.push({
@@ -204,20 +268,25 @@ export class ParentWorkspaceService {
       }
     }
 
-    const consentTypes = await loadConsentTypes(session.schoolId);
-    const recorded = new Map(consents.map((row) => [row.typeCode, row.status]));
-    for (const consent of consentTypes) {
-      if (recorded.has(consent.code)) continue;
-      items.push({
-        kind: "consent", childId: null, child: "",
-        label: `${consent.name} has never been recorded`,
-        sub: `The school needs a yes or no. ${consent.blocks ? `Without one: ${consent.blocks.charAt(0).toLowerCase()}${consent.blocks.slice(1)}.` : ""}`.trim(),
-        pill: "Not recorded", tone: "attention",
-        action: "Decide", href: "/portals/parent/consents", due: "9999-12-31",
-      });
+    // Consents are a school's own list, asked of a school's own guardian record: a family at two
+    // schools owes each of them an answer, and is told which school is asking.
+    const askedBy = [...new Set(mine.map((student) => student.schoolId))];
+    const recorded = new Set(consents.map((row) => `${row.schoolId}:${row.typeCode}`));
+    for (const schoolId of askedBy) {
+      for (const consent of await loadConsentTypes(schoolId)) {
+        if (recorded.has(`${schoolId}:${consent.code}`)) continue;
+        const asking = many ? `${siteAt(schoolId)?.shortName?.trim() || siteAt(schoolId)?.name || "The school"} needs` : "The school needs";
+        items.push({
+          kind: "consent", childId: null, child: "",
+          label: `${consent.name} has never been recorded`,
+          sub: `${asking} a yes or no. ${consent.blocks ? `Without one: ${consent.blocks.charAt(0).toLowerCase()}${consent.blocks.slice(1)}.` : ""}`.trim(),
+          pill: "Not recorded", tone: "attention",
+          action: "Decide", href: "/portals/parent/consents", due: "9999-12-31",
+        });
+      }
     }
 
-    for (const form of await this.formsFor(session, guardian, children)) {
+    for (const form of await this.formsFor(rows, children)) {
       if (form.answer || form.data.status !== "OPEN") continue;
       items.push({
         kind: "form", childId: null, child: form.children.length ? form.children.map((child) => child.first).join(" and ") : "",
@@ -237,9 +306,9 @@ export class ParentWorkspaceService {
       });
     }
 
-    if (policy.sees.has("Fees")) {
-      for (const item of instalments) {
-        const child = item.plan.studentId;
+    for (const item of instalments) {
+      const child = item.plan.studentId;
+      if (at(child).policy.sees.has("Fees")) {
         items.push({
           kind: "instalment", childId: child, child: firstOf.get(child) ?? "",
           label: `Instalment · ${money(Number(item.amount) - Number(item.paidAmount))}`,
@@ -270,14 +339,16 @@ export class ParentWorkspaceService {
    * payment explains.
    */
   async fees(session: SessionPayload, scope: string) {
-    const { children, policy, term } = await this.context(session);
-    if (!policy.sees.has("Fees")) throw new ForbiddenException("Your school has not made fee details visible to parents.");
-    const mine = scope === "all" ? children : children.filter((student) => student.id === scope);
+    const { children, schoolIds, guardianIds, at, siteAt, many, sees } = await this.context(session);
+    if (!sees.has("Fees")) throw new ForbiddenException("Your school has not made fee details visible to parents.");
+    // A child whose own school keeps fees back is left out rather than shown an empty bill.
+    const shown = children.filter((student) => at(student.id).policy.sees.has("Fees"));
+    const mine = scope === "all" ? shown : shown.filter((student) => student.id === scope);
     const ids = mine.map((student) => student.id);
     if (!ids.length) return { children: [], invoices: [], payments: [], plans: [], reports: [] };
 
     const invoices = await prisma.invoice.findMany({
-      where: { schoolId: session.schoolId, studentId: { in: ids }, status: { not: "DRAFT" } },
+      where: { schoolId: { in: schoolIds }, studentId: { in: ids }, status: { not: "DRAFT" } },
       include: {
         items: { select: { description: true, amount: true, quantity: true, isWaived: true } },
         payments: { include: { receipts: { select: { id: true, receiptNumber: true, issuedAt: true } }, recordedBy: { select: { firstName: true, lastName: true } } }, orderBy: { paidAt: "desc" } },
@@ -286,13 +357,12 @@ export class ParentWorkspaceService {
       orderBy: { issuedOn: "desc" },
     });
     const plans = await prisma.installmentPlan.findMany({
-      where: { schoolId: session.schoolId, studentId: { in: ids }, status: { notIn: ["CANCELLED"] } },
+      where: { schoolId: { in: schoolIds }, studentId: { in: ids }, status: { notIn: ["CANCELLED"] } },
       include: { items: { orderBy: { dueOn: "asc" } } },
     });
     // What the family has told the bursar they paid, and the bursar has not yet matched to the bank: shown as reported, never as a receipt.
-    const { guardian } = await this.context(session);
     const asked = await prisma.guardianSubmission.findMany({
-      where: { schoolId: session.schoolId, guardianId: guardian.id, type: "Fee query", state: { notIn: ["RESOLVED", "DECLINED"] }, studentId: { in: ids } },
+      where: { guardianId: { in: guardianIds }, type: "Fee query", state: { notIn: ["RESOLVED", "DECLINED"] }, studentId: { in: ids } },
       orderBy: { createdAt: "desc" },
     });
     const reports = asked
@@ -309,6 +379,8 @@ export class ParentWorkspaceService {
     // shown as the bill in hand — a page that calls every bill "earlier" has nothing to show for a family whose invoices carry no term.
     const currentOf = (studentId: string) => {
       const theirs = invoices.filter((invoice) => invoice.studentId === studentId);
+      // "This term" is the term of the school that billed this child, which for a family at two schools is two different terms.
+      const term = at(studentId).term;
       const matched = term ? theirs.filter((invoice) => invoice.termId === term.id) : [];
       if (matched.length) return matched;
       const loose = theirs.filter((invoice) => !invoice.termId).sort((a, b) => b.issuedOn.getTime() - a.issuedOn.getTime())[0];
@@ -339,7 +411,11 @@ export class ParentWorkspaceService {
         // The bill a payment goes against: the oldest one still unpaid, which is the one the school will want cleared first.
         payInvoiceId: [...unpaid].sort((a, b) => a.dueOn.getTime() - b.dueOn.getTime())[0]?.id ?? null,
         payAmount: Number([...unpaid].sort((a, b) => a.dueOn.getTime() - b.dueOn.getTime())[0]?.balance ?? 0),
-        term: thisTerm[0]?.term ? `${thisTerm[0]!.term!.name} ${thisTerm[0]!.term!.academicSession.name}` : thisTerm[0] ? `Issued ${longDate(isoDay(thisTerm[0].issuedOn))}` : term ? `${term.name} ${term.academicSession.name}` : "",
+        term: thisTerm[0]?.term ? `${thisTerm[0]!.term!.name} ${thisTerm[0]!.term!.academicSession.name}` : thisTerm[0] ? `Issued ${longDate(isoDay(thisTerm[0].issuedOn))}` : at(student.id).term ? `${at(student.id).term!.name} ${at(student.id).term!.academicSession.name}` : "",
+        /** Which school billed this child, and in what money — never summed across schools. */
+        schoolId: student.schoolId,
+        school: many ? siteAt(student.schoolId)?.shortName?.trim() || siteAt(student.schoolId)?.name || "" : "",
+        currency: siteAt(student.schoolId)?.currency ?? "NGN",
         billed,
         paid: billed - balance,
         balance,
@@ -421,10 +497,12 @@ export class ParentWorkspaceService {
   async reportPayment(session: SessionPayload, body: unknown) {
     const input = reportSchema.parse(body);
     const student = await this.child(session, input.child);
-    const { guardian } = await this.context(session);
+    const { at } = await this.context(session);
+    // It goes to the bursary of the school that billed the child, under that school's own guardian record.
+    const { schoolId, guardianId } = at(student.id);
     const detail = `I paid ₦${input.amount.toLocaleString("en-NG")} for ${student.firstName} by ${input.method.toLowerCase()} on ${input.date}${input.reference ? `, bank reference ${input.reference}` : ""}.${input.note ? ` ${input.note}` : ""}`;
-    return openSubmission(session.schoolId, {
-      guardianId: guardian.id, childId: student.id, type: "Fee query", detail, channel: "Portal", evidence: input.reference || null,
+    return openSubmission(schoolId, {
+      guardianId, childId: student.id, type: "Fee query", detail, channel: "Portal", evidence: input.reference || null,
       payload: { kind: "payment-report", amount: input.amount, method: input.method, date: input.date, reference: input.reference ?? "" } as Prisma.InputJsonValue,
     });
   }
@@ -444,32 +522,33 @@ export class ParentWorkspaceService {
    * and says nothing it cannot back up.
    */
   async switcher(session: SessionPayload) {
-    const { children, term, policy, guardian } = await this.context(session);
+    const { children, schoolIds, guardianIds, at, termAt, siteAt, many, sees } = await this.context(session);
     const ids = children.map((student) => student.id);
     const today = isoDay(new Date());
+    const thisTerm = schoolIds.map((id) => ({ schoolId: id, ...(termAt(id) ? { termId: termAt(id)!.id } : {}) }));
 
     const [needs, marks, termMarks, invoices, explanations] = await Promise.all([
       this.needs(session, "all"),
       ids.length
         ? prisma.studentAttendance.findMany({
-            where: { schoolId: session.schoolId, studentId: { in: ids }, date: dayOf(today) },
+            where: { schoolId: { in: schoolIds }, studentId: { in: ids }, date: dayOf(today) },
             select: { studentId: true, status: true },
           })
         : Promise.resolve([]),
-      ids.length && term
+      ids.length
         ? prisma.studentAttendance.findMany({
-            where: { schoolId: session.schoolId, studentId: { in: ids }, termId: term.id },
+            where: { studentId: { in: ids }, OR: thisTerm },
             select: { studentId: true, status: true, date: true },
           })
         : Promise.resolve([]),
-      ids.length && policy.sees.has("Fees")
+      ids.length && sees.has("Fees")
         ? prisma.invoice.findMany({
-            where: { schoolId: session.schoolId, studentId: { in: ids }, balance: { gt: 0 }, status: { in: ["ISSUED", "PARTIALLY_PAID", "OVERDUE"] } },
+            where: { schoolId: { in: schoolIds }, studentId: { in: ids }, balance: { gt: 0 }, status: { in: ["ISSUED", "PARTIALLY_PAID", "OVERDUE"] } },
             select: { studentId: true, balance: true, dueOn: true },
           })
         : Promise.resolve([]),
       prisma.guardianSubmission.findMany({
-        where: { schoolId: session.schoolId, guardianId: guardian.id, type: { contains: "absence", mode: "insensitive" } },
+        where: { guardianId: { in: guardianIds }, type: { contains: "absence", mode: "insensitive" } },
         select: { studentId: true, dates: true },
       }),
     ]);
@@ -496,7 +575,10 @@ export class ParentWorkspaceService {
       const unexplained = theirTerm.filter((mark) => mark.status === "ABSENT" && !explainedDates.has(`${mark.studentId}:${isoDay(mark.date)}`)).length;
       const present = theirTerm.filter((mark) => mark.status === "PRESENT" || mark.status === "LATE").length;
       const pct = theirTerm.length ? `${Math.round((present / theirTerm.length) * 1000) / 10}%` : null;
-      const attendance: Stat = !policy.sees.has("Attendance")
+      // Each child is read under their own school's choice; the family line needs one school to show it.
+      const showsAttendance = mine.some((student) => at(student.id).policy.sees.has("Attendance"));
+      const showsFees = mine.some((student) => at(student.id).policy.sees.has("Fees"));
+      const attendance: Stat = !showsAttendance
         ? ["", ""]
         : family
           ? markedToday
@@ -509,14 +591,14 @@ export class ParentWorkspaceService {
       const owed = theirInvoices.reduce((sum, invoice) => sum + Number(invoice.balance), 0);
       const late = theirInvoices.some((invoice) => invoice.dueOn.getTime() < Date.now());
       const withBalance = new Set(theirInvoices.map((invoice) => invoice.studentId)).size;
-      const fees: Stat = !policy.sees.has("Fees")
+      const fees: Stat = !showsFees
         ? ["", ""]
         : family
           ? owed
             ? [`${late ? "Overdue · " : ""}${withBalance} with a balance`, late ? "negative" : "attention"]
             : ["All paid", "positive"]
           : owed
-            ? [`${money(owed)}${late ? " · overdue" : ""}`, late ? "negative" : "attention"]
+            ? [`${moneyIn(siteAt(mine[0]?.schoolId ?? "")?.currency ?? "NGN", owed)}${late ? " · overdue" : ""}`, late ? "negative" : "attention"]
             : ["Paid in full", "positive"];
 
       const student = family ? null : mine[0];
@@ -526,8 +608,9 @@ export class ParentWorkspaceService {
         fees,
         /** Everything else, until its own page is built and brings its own line. */
         fallback: (family
-          ? [`${children.length === 1 ? "1 child" : `${children.length} children`}`, ""]
-          : [armName(student?.currentClass?.name, student?.currentClass?.arm), ""]) as Stat,
+          // The one line that has to name the split: a parent reading "2 children" would not know the portal holds both schools.
+          ? [`${children.length === 1 ? "1 child" : `${children.length} children`}${many ? ` · ${schoolIds.length} schools` : ""}`, ""]
+          : [[armName(student?.currentClass?.name, student?.currentClass?.arm), many ? siteAt(student?.schoolId ?? "")?.shortName?.trim() || siteAt(student?.schoolId ?? "")?.name : ""].filter(Boolean).join(" · "), ""]) as Stat,
       };
     };
 
@@ -551,27 +634,28 @@ export class ParentWorkspaceService {
    * who arrived late was in school.
    */
   async attendance(session: SessionPayload, scope: string) {
-    const { children, policy, guardian } = await this.context(session);
-    if (!policy.sees.has("Attendance")) throw new ForbiddenException("Your school has not made attendance visible to parents.");
-    const mine = scope === "all" ? children : children.filter((student) => student.id === scope);
+    const { children, schoolIds, guardianIds, at, siteAt, many, sees } = await this.context(session);
+    if (!sees.has("Attendance")) throw new ForbiddenException("Your school has not made attendance visible to parents.");
+    const shown = children.filter((student) => at(student.id).policy.sees.has("Attendance"));
+    const mine = scope === "all" ? shown : shown.filter((student) => student.id === scope);
     const ids = mine.map((student) => student.id);
     if (!ids.length) return { children: [], terms: [], days: [], explained: [] };
 
     const [terms, marks, explanations] = await Promise.all([
       prisma.term.findMany({
-        where: { schoolId: session.schoolId },
+        where: { schoolId: { in: schoolIds } },
         include: { academicSession: { select: { name: true } } },
         orderBy: { startDate: "asc" },
       }),
       prisma.studentAttendance.findMany({
-        where: { schoolId: session.schoolId, studentId: { in: ids }, subjectId: null },
+        where: { schoolId: { in: schoolIds }, studentId: { in: ids }, subjectId: null },
         select: { studentId: true, termId: true, date: true, status: true, reason: true, reasonCode: true, markedAt: true, markedBy: { select: { firstName: true, lastName: true } } },
         orderBy: { date: "desc" },
       }),
       // What the family has already written in about, so a mark the school has
       // not yet acted on is not counted against them twice.
       prisma.guardianSubmission.findMany({
-        where: { schoolId: session.schoolId, guardianId: guardian.id, type: { contains: "absence", mode: "insensitive" } },
+        where: { guardianId: { in: guardianIds }, type: { contains: "absence", mode: "insensitive" } },
         select: { studentId: true, dates: true, state: true },
       }),
     ]);
@@ -586,7 +670,8 @@ export class ParentWorkspaceService {
     const perChild = mine.map((student) => {
       const theirs = marks.filter((mark) => mark.studentId === student.id);
       const todayMark = theirs.find((mark) => isoDay(mark.date) === today) ?? null;
-      const byTerm = termsWithMarks.map((term) => {
+      // A child's terms are their own school's: two schools do not share a calendar, so one child's list never shows the other's terms.
+      const byTerm = termsWithMarks.filter((term) => term.schoolId === student.schoolId).map((term) => {
         const days = theirs.filter((mark) => mark.termId === term.id);
         const marked = days.length;
         const here = days.filter((mark) => present(mark.status)).length;
@@ -614,6 +699,7 @@ export class ParentWorkspaceService {
         name: [student.firstName, student.middleName, student.lastName].filter(Boolean).join(" "),
         first: student.firstName,
         arm: armName(student.currentClass?.name, student.currentClass?.arm),
+        school: many ? siteAt(student.schoolId)?.shortName?.trim() || siteAt(student.schoolId)?.name || "" : "",
         today: todayMark ? { status: todayMark.status, reason: todayMark.reason, at: todayMark.markedAt ? todayMark.markedAt.toISOString() : null } : null,
         terms: byTerm,
       };
@@ -648,43 +734,52 @@ export class ParentWorkspaceService {
    * (or, where it never marked anything, wrote an audience that includes them). Each carries the children it concerns.
    */
   async calendar(session: SessionPayload, scope: string) {
-    const { guardian, children, term, policy } = await this.context(session);
+    const { guardianIds, children, term, at, termAt, siteAt, many, sees } = await this.context(session);
     const mine = scope === "all" ? children : children.filter((student) => student.id === scope);
     const ids = mine.map((student) => student.id);
+    // Only the schools this view is actually about: opening one child must not bring the other school's term dates with it.
+    const theirSchools = [...new Set(mine.map((student) => student.schoolId))];
     const classIds = [...new Set(mine.map((student) => student.currentClassId).filter((id): id is string => Boolean(id)))];
     const from = new Date(Date.now() - 45 * DAY);
     const tag = (list: typeof mine) => (list.length ? list : mine).map((student) => ({ id: student.id, first: student.firstName }));
+    // Where the family is at two schools, every dated thing says which school it came from; where they are at one, it says nothing.
+    const whose = (schoolId: string) => (many ? siteAt(schoolId)?.shortName?.trim() || siteAt(schoolId)?.name || "" : "");
+    const resultWindows = theirSchools.filter((id) => termAt(id) && sees.has("Results"));
     const [events, exams, windows, meetings, invoices] = await Promise.all([
-      prisma.calendarEvent.findMany({ where: { schoolId: session.schoolId, endsAt: { gte: from } }, orderBy: { startsAt: "asc" }, take: 300 }),
-      classIds.length ? prisma.examTimetableEntry.findMany({ where: { schoolId: session.schoolId, classId: { in: classIds }, examDate: { gte: from } }, include: { subject: true }, orderBy: { examDate: "asc" } }) : Promise.resolve([]),
-      term && policy.sees.has("Results") ? prisma.assessmentWindow.findMany({ where: { schoolId: session.schoolId, termId: term.id }, include: { component: true } }) : Promise.resolve([]),
-      prisma.parentMeeting.findMany({ where: { schoolId: session.schoolId, guardianId: guardian.id, deletedAt: null, scheduledAt: { gte: from } }, orderBy: { scheduledAt: "asc" } }),
-      policy.sees.has("Fees") && ids.length ? prisma.invoice.findMany({ where: { schoolId: session.schoolId, studentId: { in: ids }, balance: { gt: 0 }, status: { in: ["ISSUED", "PARTIALLY_PAID", "OVERDUE"] }, dueOn: { gte: from } }, select: { id: true, studentId: true, invoiceNumber: true, dueOn: true } }) : Promise.resolve([]),
+      prisma.calendarEvent.findMany({ where: { schoolId: { in: theirSchools }, endsAt: { gte: from } }, orderBy: { startsAt: "asc" }, take: 300 }),
+      classIds.length ? prisma.examTimetableEntry.findMany({ where: { schoolId: { in: theirSchools }, classId: { in: classIds }, examDate: { gte: from } }, include: { subject: true }, orderBy: { examDate: "asc" } }) : Promise.resolve([]),
+      resultWindows.length ? prisma.assessmentWindow.findMany({ where: { OR: resultWindows.map((id) => ({ schoolId: id, termId: termAt(id)!.id })) }, include: { component: true } }) : Promise.resolve([]),
+      prisma.parentMeeting.findMany({ where: { schoolId: { in: theirSchools }, guardianId: { in: guardianIds }, deletedAt: null, scheduledAt: { gte: from } }, orderBy: { scheduledAt: "asc" } }),
+      ids.length ? prisma.invoice.findMany({ where: { schoolId: { in: theirSchools }, studentId: { in: ids.filter((id) => at(id).policy.sees.has("Fees")) }, balance: { gt: 0 }, status: { in: ["ISSUED", "PARTIALLY_PAID", "OVERDUE"] }, dueOn: { gte: from } }, select: { id: true, schoolId: true, studentId: true, invoiceNumber: true, dueOn: true } }) : Promise.resolve([]),
     ]);
     const kindOf = (type: string, closed: boolean) => (closed || /holiday|closure/i.test(type) ? "Holiday" : /exam|test|assess/i.test(type) ? "Assessment" : /meeting|conference|pta/i.test(type) ? "Meeting" : /trip|excursion/i.test(type) ? "Trip" : /deadline/i.test(type) ? "Notice" : "Event");
     const forGuardians = (event: (typeof events)[number]) => (event.visibleTo.length ? event.visibleTo.includes("Guardians") : /all|guardian|parent/i.test(event.audience));
-    const out: Array<{ id: string; date: string; end: string; title: string; cat: string; time: string; where: string; note: string; kids: Array<{ id: string; first: string }> }> = [];
+    const out: Array<{ id: string; date: string; end: string; title: string; cat: string; time: string; where: string; note: string; school: string; kids: Array<{ id: string; first: string }> }> = [];
     for (const event of events.filter(forGuardians)) {
-      out.push({ id: event.id, date: isoDay(event.startsAt), end: isoDay(event.endsAt), title: event.title, cat: kindOf(event.type, event.schoolClosed), time: event.allDay ? "All day" : [event.startTime, event.endTime].filter(Boolean).join(" – "), where: event.location ?? "", note: event.description ?? "", kids: tag([]) });
+      out.push({ id: event.id, date: isoDay(event.startsAt), end: isoDay(event.endsAt), title: event.title, cat: kindOf(event.type, event.schoolClosed), time: event.allDay ? "All day" : [event.startTime, event.endTime].filter(Boolean).join(" – "), where: event.location ?? "", note: event.description ?? "", school: whose(event.schoolId), kids: tag(mine.filter((student) => student.schoolId === event.schoolId)) });
     }
     for (const exam of exams) {
-      out.push({ id: `x-${exam.id}`, date: isoDay(exam.examDate), end: isoDay(exam.examDate), title: `${exam.subject.name} examination`, cat: "Assessment", time: `${exam.startsAt} – ${exam.endsAt}`, where: exam.venue ?? "", note: "", kids: tag(mine.filter((student) => student.currentClassId === exam.classId)) });
+      out.push({ id: `x-${exam.id}`, date: isoDay(exam.examDate), end: isoDay(exam.examDate), title: `${exam.subject.name} examination`, cat: "Assessment", time: `${exam.startsAt} – ${exam.endsAt}`, where: exam.venue ?? "", note: "", school: whose(exam.schoolId), kids: tag(mine.filter((student) => student.currentClassId === exam.classId)) });
     }
     for (const window of windows) {
-      out.push({ id: `r-${window.id}`, date: isoDay(window.releaseAt), end: isoDay(window.releaseAt), title: `${window.component.name} results released`, cat: "Results", time: "", where: "", note: "", kids: tag([]) });
+      out.push({ id: `r-${window.id}`, date: isoDay(window.releaseAt), end: isoDay(window.releaseAt), title: `${window.component.name} results released`, cat: "Results", time: "", where: "", note: "", school: whose(window.schoolId), kids: tag(mine.filter((student) => student.schoolId === window.schoolId)) });
     }
     for (const meeting of meetings.filter((item) => item.status !== "CANCELLED")) {
       const child = mine.find((student) => student.id === meeting.studentId);
       if (meeting.studentId && !child) continue;
-      out.push({ id: `m-${meeting.id}`, date: isoDay(meeting.scheduledAt), end: isoDay(meeting.scheduledAt), title: meeting.title, cat: "Meeting", time: meeting.scheduledAt.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: "Africa/Lagos" }), where: "", note: meeting.notes ?? "", kids: tag(child ? [child] : []) });
+      out.push({ id: `m-${meeting.id}`, date: isoDay(meeting.scheduledAt), end: isoDay(meeting.scheduledAt), title: meeting.title, cat: "Meeting", time: meeting.scheduledAt.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: "Africa/Lagos" }), where: "", note: meeting.notes ?? "", school: whose(meeting.schoolId), kids: tag(child ? [child] : []) });
     }
     for (const invoice of invoices) {
       const child = mine.find((student) => student.id === invoice.studentId);
-      out.push({ id: `f-${invoice.id}`, date: isoDay(invoice.dueOn), end: isoDay(invoice.dueOn), title: `Fees due · ${invoice.invoiceNumber}`, cat: "Fees", time: "", where: "", note: "", kids: tag(child ? [child] : []) });
+      out.push({ id: `f-${invoice.id}`, date: isoDay(invoice.dueOn), end: isoDay(invoice.dueOn), title: `Fees due · ${invoice.invoiceNumber}`, cat: "Fees", time: "", where: "", note: "", school: whose(invoice.schoolId), kids: tag(child ? [child] : []) });
     }
-    if (term) {
-      out.push({ id: `t-start-${term.id}`, date: isoDay(term.startDate), end: isoDay(term.startDate), title: `${term.name} begins`, cat: "Term", time: "", where: "", note: "", kids: tag([]) });
-      out.push({ id: `t-end-${term.id}`, date: isoDay(term.endDate), end: isoDay(term.endDate), title: `${term.name} ends`, cat: "Term", time: "", where: "", note: "", kids: tag([]) });
+    // One term per school: two schools do not begin and end on the same day, and a family at both has to see both.
+    for (const schoolId of theirSchools) {
+      const row = termAt(schoolId);
+      if (!row) continue;
+      const kids = tag(mine.filter((student) => student.schoolId === schoolId));
+      out.push({ id: `t-start-${row.id}`, date: isoDay(row.startDate), end: isoDay(row.startDate), title: `${row.name} begins`, cat: "Term", time: "", where: "", note: "", school: whose(schoolId), kids });
+      out.push({ id: `t-end-${row.id}`, date: isoDay(row.endDate), end: isoDay(row.endDate), title: `${row.name} ends`, cat: "Term", time: "", where: "", note: "", school: whose(schoolId), kids });
     }
     return { today: isoDay(new Date()), term: term ? { name: term.name, start: isoDay(term.startDate), end: isoDay(term.endDate) } : null, events: out.sort((a, b) => a.date.localeCompare(b.date) || a.title.localeCompare(b.title)) };
   }
@@ -722,25 +817,26 @@ export class ParentWorkspaceService {
    * recorded on the meeting itself, and the person who set it up is told.
    */
   async meetings(session: SessionPayload, scope: string) {
-    const { guardian, children } = await this.context(session);
+    const { guardianIds, children, siteAt, many } = await this.context(session);
     const rows = await prisma.parentMeeting.findMany({
-      where: { schoolId: session.schoolId, guardianId: guardian.id, deletedAt: null },
+      where: { guardianId: { in: guardianIds }, deletedAt: null },
       include: { student: { select: { id: true, firstName: true } }, staff: { include: { user: { select: { firstName: true, lastName: true } } } } },
       orderBy: { scheduledAt: "asc" },
     });
     const now = Date.now();
     const asked = await prisma.guardianSubmission.findMany({
-      where: { schoolId: session.schoolId, guardianId: guardian.id, type: "Meeting request", ...(scope === "all" ? {} : { OR: [{ studentId: scope }, { studentId: null }] }) },
+      where: { guardianId: { in: guardianIds }, type: "Meeting request", ...(scope === "all" ? {} : { OR: [{ studentId: scope }, { studentId: null }] }) },
       orderBy: { createdAt: "desc" }, take: 20, include: { student: { select: { firstName: true } } },
     });
     return {
       today: isoDay(new Date()),
-      children: children.map((student) => ({ id: student.id, first: student.firstName })),
+      children: children.map((student) => ({ id: student.id, first: student.firstName, school: many ? siteAt(student.schoolId)?.shortName?.trim() || siteAt(student.schoolId)?.name || "" : "" })),
       meetings: rows.filter((row) => scope === "all" || !row.studentId || row.studentId === scope).map((row) => ({
         id: row.id, title: row.title, at: row.scheduledAt.toISOString(), date: isoDay(row.scheduledAt),
         time: row.scheduledAt.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: "Africa/Lagos" }),
         status: row.status, notes: row.notes, childId: row.studentId, child: row.student?.firstName ?? null,
         with: row.staff?.user ? `${row.staff.user.firstName} ${row.staff.user.lastName}` : null,
+        school: many ? siteAt(row.schoolId)?.shortName?.trim() || siteAt(row.schoolId)?.name || "" : "",
         past: row.scheduledAt.getTime() < now, answerable: row.scheduledAt.getTime() >= now && ["INVITED", "SCHEDULED"].includes(row.status),
       })),
       asked: asked.map((row) => ({ id: row.id, type: row.type, detail: row.detail, state: stateWord(row.state), owner: row.ownerName, role: row.ownerRole, opened: isoDay(row.createdAt), child: row.student?.firstName ?? null, outcome: row.outcome })),
@@ -750,8 +846,8 @@ export class ParentWorkspaceService {
   /** The family answers a meeting the school proposed: they can come, or they cannot. */
   async respondMeeting(session: SessionPayload, id: string, body: unknown) {
     const input = z.object({ answer: z.enum(["CONFIRMED", "DECLINED"]) }).parse(body);
-    const { guardian } = await this.context(session);
-    const row = await prisma.parentMeeting.findFirst({ where: { id, schoolId: session.schoolId, guardianId: guardian.id, deletedAt: null } });
+    const { guardian, guardianIds } = await this.context(session);
+    const row = await prisma.parentMeeting.findFirst({ where: { id, guardianId: { in: guardianIds }, deletedAt: null } });
     if (!row) throw new NotFoundException("That meeting is not one of yours.");
     if (row.scheduledAt.getTime() < Date.now()) throw new BadRequestException("That meeting has already taken place.");
     if (row.status === input.answer) return { id, status: row.status };
@@ -759,7 +855,8 @@ export class ParentWorkspaceService {
     if (row.scheduledById) {
       await prisma.notificationLog.create({
         data: {
-          schoolId: session.schoolId, userId: row.scheduledById, channel: "IN_APP", status: "SENT", sentAt: new Date(),
+          // The person told is at the school that called the meeting, not at whichever school the parent signed in to.
+          schoolId: row.schoolId, userId: row.scheduledById, channel: "IN_APP", status: "SENT", sentAt: new Date(),
           title: `${guardian.firstName} ${guardian.lastName} ${input.answer === "CONFIRMED" ? "can come to" : "cannot come to"} “${row.title}”`,
           body: `The meeting is on ${isoDay(row.scheduledAt)}. The family answered through the parent portal.`,
         },
@@ -778,17 +875,19 @@ export class ParentWorkspaceService {
    * school writes a message as plain text, and its kind is read from its words — a safety message is marked as one.
    */
   async messages(session: SessionPayload, scope: string) {
-    const { guardian, children, school } = await this.context(session);
+    const { guardian, guardianIds, children, school, siteAt, many } = await this.context(session);
     const rows = await prisma.messageDelivery.findMany({
-      where: { guardianId: guardian.id, schoolId: session.schoolId, status: { in: ["DELIVERED", "PENDING"] }, campaign: { status: "SENT" } },
+      where: { guardianId: { in: guardianIds }, status: { in: ["DELIVERED", "PENDING"] }, campaign: { status: "SENT" } },
       orderBy: { createdAt: "desc" }, take: 120, include: { campaign: { select: { sentAt: true, createdAt: true, audience: true, channel: true } } },
     });
-    const replies = rows.length ? await prisma.guardianSubmission.findMany({ where: { guardianId: guardian.id, deliveryId: { in: rows.map((row) => row.id) } }, orderBy: { createdAt: "asc" } }) : [];
+    const replies = rows.length ? await prisma.guardianSubmission.findMany({ where: { guardianId: { in: guardianIds }, deliveryId: { in: rows.map((row) => row.id) } }, orderBy: { createdAt: "asc" } }) : [];
     const items = rows.map((row) => {
       const audience = (row.campaign.audience ?? {}) as { classIds?: string[]; guardianIds?: string[] };
+      // A message is from one school, so it is never about a child at the other one.
+      const theirs = children.filter((student) => student.schoolId === row.schoolId);
       const about = audience.classIds?.length
-        ? children.filter((student) => student.currentClassId && audience.classIds!.includes(student.currentClassId))
-        : children;
+        ? theirs.filter((student) => student.currentClassId && audience.classIds!.includes(student.currentClassId))
+        : theirs;
       const text = row.body ?? "";
       const first = (text.split(/\n/)[0] ?? text).trim();
       const lines = text.split(/\n+/).map((line) => line.trim()).filter(Boolean);
@@ -797,12 +896,13 @@ export class ParentWorkspaceService {
         preview: (lines[1] ?? lines[0] ?? "").slice(0, 140), body: lines.length > 1 ? lines.slice(1) : lines, category: categoryOfMessage(text),
         at: (row.campaign.sentAt ?? row.campaign.createdAt).toISOString(), channel: row.channel ?? row.campaign.channel ?? "IN_APP",
         read: Boolean(row.readAt), acknowledgeAsked: row.acknowledgeAsked, acknowledgedAt: row.acknowledgedAt?.toISOString() ?? null,
-        children: (about.length ? about : children).map((student) => ({ id: student.id, first: student.firstName })),
+        children: (about.length ? about : theirs).map((student) => ({ id: student.id, first: student.firstName })),
+        school: many ? siteAt(row.schoolId)?.shortName?.trim() || siteAt(row.schoolId)?.name || "" : "",
         replies: replies.filter((reply) => reply.deliveryId === row.id).map((reply) => ({ id: reply.id, text: reply.detail, at: reply.createdAt.toISOString(), state: stateWord(reply.state), outcome: reply.outcome })),
       };
     });
     const mine = scope === "all" ? items : items.filter((item) => item.children.some((child) => child.id === scope));
-    return { school: school?.name ?? "Your school", you: `${guardian.firstName} ${guardian.lastName}`, unread: mine.filter((item) => !item.read).length, items: mine };
+    return { school: many ? "your schools" : school?.name ?? "Your school", you: `${guardian.firstName} ${guardian.lastName}`, unread: mine.filter((item) => !item.read).length, items: mine };
   }
 
   /* ───────────────────────── forms the school has sent ───────────────────────── */
@@ -813,32 +913,44 @@ export class ParentWorkspaceService {
    * A form the school has closed is shown only if the family answered it — a closed form nobody replied to is no longer a thing to do.
    * The family answers once for all its children; the children a form concerns are named so it never reads as being about someone else's.
    */
-  private async formsFor(session: SessionPayload, guardian: { id: string }, children: Array<{ id: string; firstName: string; currentClassId: string | null }>) {
-    const [forms, answers] = await Promise.all([
-      new ConfigStore(session.schoolId, FORMS).list<FormData>(),
-      new ConfigStore(session.schoolId, ANSWERS).list<Answer & { formId: string; guardianId: string }>(),
-    ]);
-    const mine = new Map(answers.filter((answer) => answer.data.guardianId === guardian.id).map((answer) => [answer.data.formId, answer.data]));
-    return forms
-      .filter((form) => reaches(form.data, children.map((child) => child.currentClassId)))
-      .map((form) => {
-        const id = form.code ?? form.id;
-        const concerned = children.filter((child) => form.data.classIds.length === 0 || (child.currentClassId && form.data.classIds.includes(child.currentClassId)));
-        return { id, data: form.data, answer: mine.get(id) ?? null, children: concerned.map((child) => ({ id: child.id, first: child.firstName })) };
-      })
+  private async formsFor(
+    rows: Array<{ id: string; schoolId: string }>,
+    children: Array<{ id: string; firstName: string; schoolId: string; currentClassId: string | null }>,
+  ) {
+    // A form belongs to the school that wrote it and is answered under that school's own guardian record, so each school is read on its own.
+    const perSchool = await Promise.all(
+      rows.map(async (row) => {
+        const theirs = children.filter((child) => child.schoolId === row.schoolId);
+        const [forms, answers] = await Promise.all([
+          new ConfigStore(row.schoolId, FORMS).list<FormData>(),
+          new ConfigStore(row.schoolId, ANSWERS).list<Answer & { formId: string; guardianId: string }>(),
+        ]);
+        const mine = new Map(answers.filter((answer) => answer.data.guardianId === row.id).map((answer) => [answer.data.formId, answer.data]));
+        return forms
+          .filter((form) => reaches(form.data, theirs.map((child) => child.currentClassId)))
+          .map((form) => {
+            const id = form.code ?? form.id;
+            const concerned = theirs.filter((child) => form.data.classIds.length === 0 || (child.currentClassId && form.data.classIds.includes(child.currentClassId)));
+            return { id, schoolId: row.schoolId, guardianId: row.id, data: form.data, answer: mine.get(id) ?? null, children: concerned.map((child) => ({ id: child.id, first: child.firstName })) };
+          });
+      }),
+    );
+    return perSchool
+      .flat()
       .filter((form) => form.data.status === "OPEN" || form.answer)
       .sort((a, b) => b.data.createdAt.localeCompare(a.data.createdAt));
   }
 
   async forms(session: SessionPayload) {
-    const { guardian, children } = await this.context(session);
-    const forms = await this.formsFor(session, guardian, children);
+    const { rows, children, siteAt, many } = await this.context(session);
+    const forms = await this.formsFor(rows, children);
     return {
       today: isoDay(new Date()),
       forms: forms.map((form) => ({
         id: form.id, title: form.data.title, kind: form.data.kind, audience: form.data.audience, due: form.data.due, open: form.data.status === "OPEN",
         facts: form.data.facts, ask: form.data.ask, yes: form.data.yes, no: form.data.no, sentOn: form.data.createdAt.slice(0, 10), by: form.data.createdBy,
         children: form.children, answer: form.answer,
+        school: many ? siteAt(form.schoolId)?.shortName?.trim() || siteAt(form.schoolId)?.name || "" : "",
       })),
     };
   }
@@ -846,13 +958,14 @@ export class ParentWorkspaceService {
   /** The family answers a form. They can change their answer until the school closes it. */
   async answerForm(session: SessionPayload, id: string, body: unknown) {
     const input = z.object({ decision: z.enum(["YES", "NO"]), text: z.string().trim().max(400).optional() }).parse(body);
-    const { guardian, children } = await this.context(session);
-    const form = (await this.formsFor(session, guardian, children)).find((item) => item.id === id);
+    const { guardian, rows, children } = await this.context(session);
+    const form = (await this.formsFor(rows, children)).find((item) => item.id === id);
     if (!form) throw new NotFoundException("That form is not one that was sent to you.");
     if (form.data.status !== "OPEN") throw new BadRequestException("The school has closed that form.");
     if (form.data.ask && input.decision === "YES" && (input.text ?? "").length < 2) throw new BadRequestException(`${form.data.ask} — please answer it.`);
-    const answer = { decision: input.decision, text: input.text ?? "", at: new Date().toISOString(), by: `${guardian.firstName} ${guardian.lastName}`, formId: id, guardianId: guardian.id };
-    await new ConfigStore(session.schoolId, ANSWERS).put(answerCode(id, guardian.id), `${form.data.title} · ${guardian.firstName} ${guardian.lastName}`, answer);
+    // The answer is written back to the school that asked, under its own guardian record.
+    const answer = { decision: input.decision, text: input.text ?? "", at: new Date().toISOString(), by: `${guardian.firstName} ${guardian.lastName}`, formId: id, guardianId: form.guardianId };
+    await new ConfigStore(form.schoolId, ANSWERS).put(answerCode(id, form.guardianId), `${form.data.title} · ${guardian.firstName} ${guardian.lastName}`, answer);
     return { id, decision: input.decision };
   }
 
@@ -867,19 +980,24 @@ export class ParentWorkspaceService {
    * off here and is pointed to a conversation with the school instead.
    */
   async consents(session: SessionPayload) {
-    const { guardian } = await this.context(session);
-    const [types, rows] = await Promise.all([
-      loadConsentTypes(session.schoolId),
-      prisma.familyConsent.findMany({ where: { schoolId: session.schoolId, guardianId: guardian.id } }),
+    const { rows: guardians, guardianIds, siteAt, many } = await this.context(session);
+    // Each school asks for its own consents and keeps its own record of them, so a family at two schools answers both lists.
+    const [lists, rows] = await Promise.all([
+      Promise.all(guardians.map(async (row) => ({ schoolId: row.schoolId, guardianId: row.id, types: await loadConsentTypes(row.schoolId) }))),
+      prisma.familyConsent.findMany({ where: { guardianId: { in: guardianIds } } }),
     ]);
+    const types = lists.flatMap((list) => list.types.map((type) => ({ ...type, schoolId: list.schoolId, guardianId: list.guardianId })));
     const recorders = rows.map((row) => row.recordedById).filter((id): id is string => Boolean(id));
     const people = recorders.length ? new Map((await prisma.user.findMany({ where: { id: { in: recorders } }, select: { id: true, firstName: true, lastName: true } })).map((user) => [user.id, `${user.firstName} ${user.lastName}`])) : new Map<string, string>();
     return {
       types: types.map((type) => {
-        const row = rows.find((item) => item.typeCode === type.code) ?? null;
+        const row = rows.find((item) => item.typeCode === type.code && item.guardianId === type.guardianId) ?? null;
         const means = row?.means === "PORTAL" ? "in the portal" : row?.means === "PAPER" ? "on paper" : row?.means === "IN_PERSON" ? "in person" : "";
         return {
           code: type.code, name: type.name, covers: type.covers, blocks: type.blocks, required: type.required, who: type.who,
+          /** Which school asks for it: a family at one school never sees this, a family at two always does. */
+          schoolId: type.schoolId,
+          school: many ? siteAt(type.schoolId)?.shortName?.trim() || siteAt(type.schoolId)?.name || "" : "",
           state: !row ? "Not recorded" : row.status === "GIVEN" ? "Given" : row.status === "WITHDRAWN" ? "Withdrawn" : "Declined",
           on: row ? isoDay(row.recordedAt) : null,
           how: row ? [row.status === "GIVEN" && means ? `Given ${means}` : "", row.recordedById ? `recorded by ${row.recordedById === session.userId ? "you" : people.get(row.recordedById) ?? "the school"}` : ""].filter(Boolean).join(" · ") : null,
@@ -890,11 +1008,15 @@ export class ParentWorkspaceService {
 
   /** The family gives, declines or withdraws one consent. It is recorded at once, and the change is kept in the school's audit log. */
   async setConsent(session: SessionPayload, body: unknown) {
-    const input = z.object({ code: z.string().min(1), status: z.enum(["GIVEN", "WITHDRAWN", "NOT_GIVEN"]) }).parse(body);
-    const { guardian } = await this.context(session);
-    const types = await loadConsentTypes(session.schoolId);
-    const type = types.find((item) => item.code === input.code);
-    if (!type) throw new NotFoundException("The school does not ask for that consent.");
+    const input = z.object({ code: z.string().min(1), status: z.enum(["GIVEN", "WITHDRAWN", "NOT_GIVEN"]), school: z.string().optional() }).parse(body);
+    const { rows: guardians } = await this.context(session);
+    // The answer belongs to the school that asked. A family at one school need not say which.
+    const asked = input.school ? guardians.filter((row) => row.schoolId === input.school) : guardians;
+    const lists = await Promise.all(asked.map(async (row) => ({ row, types: await loadConsentTypes(row.schoolId) })));
+    const found = lists.map((list) => ({ row: list.row, type: list.types.find((item) => item.code === input.code) })).find((entry) => entry.type);
+    const type = found?.type;
+    const guardian = found?.row;
+    if (!type || !guardian) throw new NotFoundException("The school does not ask for that consent.");
     if (type.required && input.status !== "GIVEN") {
       throw new BadRequestException(`${type.name} is what lets the school hold your child’s record, so it cannot be switched off here. Ask to speak to the school if you want to change it.`);
     }
@@ -904,11 +1026,11 @@ export class ParentWorkspaceService {
     await prisma.familyConsent.upsert({
       where: { guardianId_typeCode: { guardianId: guardian.id, typeCode: type.code } },
       update: { status: input.status, means: input.status === "GIVEN" ? "PORTAL" : existing?.means ?? null, recordedById: session.userId, recordedAt: stamp, note: null },
-      create: { schoolId: session.schoolId, guardianId: guardian.id, typeCode: type.code, status: input.status, means: input.status === "GIVEN" ? "PORTAL" : null, recordedById: session.userId, recordedAt: stamp },
+      create: { schoolId: guardian.schoolId, guardianId: guardian.id, typeCode: type.code, status: input.status, means: input.status === "GIVEN" ? "PORTAL" : null, recordedById: session.userId, recordedAt: stamp },
     });
     await prisma.auditLog.create({
       data: {
-        schoolId: session.schoolId, actorId: session.userId, action: "UPDATE", entityType: "Consent", entityId: guardian.id,
+        schoolId: guardian.schoolId, actorId: session.userId, action: "UPDATE", entityType: "Consent", entityId: guardian.id,
         metadata: { summary: `Consent ${input.status === "GIVEN" ? "given" : input.status === "WITHDRAWN" ? "withdrawn" : "declined"} by the family · ${type.name}`, by: "portal" } as Prisma.InputJsonValue,
       },
     });
@@ -925,12 +1047,17 @@ export class ParentWorkspaceService {
    * ones the school's records actually hold — sent, with whom, and closed — never a story filled in around them.
    */
   async requests(session: SessionPayload, scope: string) {
-    const { guardian, children } = await this.context(session);
-    const types = await submissionTypes(session.schoolId);
+    const { guardianIds, schoolIds, children, siteAt, many } = await this.context(session);
+    // Each school sets its own answer times for its own kinds of request; where they differ, the slower one is the honest promise.
+    const perSchool = await Promise.all(schoolIds.map((id) => submissionTypes(id)));
+    const types = [...new Map(perSchool.flat().map((type) => [type.name, type])).values()].map((type) => ({
+      ...type,
+      target: Math.max(...perSchool.flat().filter((other) => other.name === type.name).map((other) => other.target)),
+    }));
     const mine = scope === "all" ? null : children.find((student) => student.id === scope) ?? null;
     const rows = await prisma.guardianSubmission.findMany({
       where: {
-        schoolId: session.schoolId, guardianId: guardian.id, deliveryId: null,
+        guardianId: { in: guardianIds }, deliveryId: null,
         ...(mine ? { OR: [{ studentId: mine.id }, { studentId: null }] } : {}),
       },
       orderBy: { createdAt: "desc" }, take: 80,
@@ -950,6 +1077,7 @@ export class ParentWorkspaceService {
         owner: row.ownerName, role: row.ownerRole, outcome: row.outcome,
         opened: isoDay(row.createdAt), closed: row.resolvedAt ? isoDay(row.resolvedAt) : null,
         due, late: open && Boolean(due) && due! < today, channel: row.channel,
+        school: many ? siteAt(row.schoolId)?.shortName?.trim() || siteAt(row.schoolId)?.name || "" : "",
       };
     });
     const answered = items.filter((item) => item.closed && item.state !== "Withdrawn");
@@ -959,21 +1087,21 @@ export class ParentWorkspaceService {
     return {
       today, items, typical,
       types: types.map((type) => ({ name: type.name, days: type.target, reviewer: type.reviewer, accepted: type.accepted })),
-      children: children.map((student) => ({ id: student.id, first: student.firstName, name: [student.firstName, student.middleName, student.lastName].filter(Boolean).join(" ") })),
+      children: children.map((student) => ({ id: student.id, first: student.firstName, name: [student.firstName, student.middleName, student.lastName].filter(Boolean).join(" "), school: many ? siteAt(student.schoolId)?.shortName?.trim() || siteAt(student.schoolId)?.name || "" : "" })),
     };
   }
 
   /** A family withdraws a request they no longer need. It closes now, and the owner is told. */
   async withdrawRequest(session: SessionPayload, id: string) {
-    const { guardian } = await this.context(session);
-    const row = await prisma.guardianSubmission.findFirst({ where: { id, guardianId: guardian.id, schoolId: session.schoolId } });
+    const { guardian, guardianIds } = await this.context(session);
+    const row = await prisma.guardianSubmission.findFirst({ where: { id, guardianId: { in: guardianIds } } });
     if (!row) throw new NotFoundException("That request is not one of yours.");
     if (row.state === "RESOLVED" || row.state === "DECLINED") throw new BadRequestException("That request is already closed.");
     const stamp = new Date();
     await prisma.guardianSubmission.update({ where: { id }, data: { state: "DECLINED", outcome: `Withdrawn by the family on ${isoDay(stamp)}.`, resolvedAt: stamp } });
     if (row.ownerUserId) {
       await prisma.notificationLog.create({
-        data: { schoolId: session.schoolId, userId: row.ownerUserId, channel: "IN_APP", title: `A family withdrew their ${row.type.toLowerCase()}`, body: `${guardian.firstName} ${guardian.lastName} no longer needs it answered.`, status: "SENT", sentAt: stamp },
+        data: { schoolId: row.schoolId, userId: row.ownerUserId, channel: "IN_APP", title: `A family withdrew their ${row.type.toLowerCase()}`, body: `${guardian.firstName} ${guardian.lastName} no longer needs it answered.`, status: "SENT", sentAt: stamp },
       });
     }
     return { id, state: "Withdrawn" };
@@ -990,51 +1118,59 @@ export class ParentWorkspaceService {
    * its release date allow, exactly as a student sees it: a draft or an unreleased mark is never shown.
    */
   async results(session: SessionPayload, scope: string) {
-    const { children, policy, term } = await this.context(session);
-    if (!policy.sees.has("Results")) throw new ForbiddenException("Your school has not made results visible to parents.");
-    const mine = scope === "all" ? children : children.filter((student) => student.id === scope);
+    const { children, term, at, termAt, siteAt, many, sees } = await this.context(session);
+    if (!sees.has("Results")) throw new ForbiddenException("Your school has not made results visible to parents.");
+    const shown = children.filter((student) => at(student.id).policy.sees.has("Results"));
+    const mine = scope === "all" ? shown : shown.filter((student) => student.id === scope);
     const ids = mine.map((student) => student.id);
-    const showCards = policy.sees.has("Report cards");
+    const showCards = mine.some((student) => at(student.id).policy.sees.has("Report cards"));
     if (!ids.length) return { children: [], components: [], ahead: [], showCards, term: term ? { name: term.name, session: term.academicSession.name } : null };
 
     const classIds = [...new Set(mine.map((student) => student.currentClassId).filter((id): id is string => Boolean(id)))];
+    // A school's assessment scheme, its release dates and its approved sheets are its own; each school is asked about its own current term.
+    const theirSchools = [...new Set(mine.map((student) => student.schoolId))];
+    const running = theirSchools.filter((id) => termAt(id));
+    const inTerm = running.map((id) => ({ schoolId: id, termId: termAt(id)!.id }));
     const [cards, sheets, components, windows] = await Promise.all([
       showCards
         ? prisma.reportCard.findMany({
-            where: { schoolId: session.schoolId, studentId: { in: ids }, status: { in: ["PUBLISHED", "LOCKED"] }, publishedAt: { not: null } },
+            where: { schoolId: { in: theirSchools }, studentId: { in: ids.filter((id) => at(id).policy.sees.has("Report cards")) }, status: { in: ["PUBLISHED", "LOCKED"] }, publishedAt: { not: null } },
             include: { term: { include: { academicSession: true } } },
             orderBy: { publishedAt: "desc" },
           })
         : Promise.resolve([]),
-      term && classIds.length ? prisma.scoreSheet.findMany({ where: { schoolId: session.schoolId, termId: term.id, classId: { in: classIds }, status: "APPROVED" }, select: { classId: true, subjectId: true } }) : Promise.resolve([]),
-      term ? prisma.assessmentComponent.findMany({ where: { schoolId: session.schoolId, isActive: true, OR: [{ termId: term.id }, { termId: null }] }, orderBy: { order: "asc" } }) : Promise.resolve([]),
-      term ? prisma.assessmentWindow.findMany({ where: { schoolId: session.schoolId, termId: term.id }, select: { componentId: true, releaseAt: true, appliesTo: true } }) : Promise.resolve([]),
+      inTerm.length && classIds.length ? prisma.scoreSheet.findMany({ where: { OR: inTerm, classId: { in: classIds }, status: "APPROVED" }, select: { schoolId: true, classId: true, subjectId: true } }) : Promise.resolve([]),
+      running.length ? prisma.assessmentComponent.findMany({ where: { OR: running.map((id) => ({ schoolId: id, OR: [{ termId: termAt(id)!.id }, { termId: null }] })), isActive: true }, orderBy: { order: "asc" } }) : Promise.resolve([]),
+      inTerm.length ? prisma.assessmentWindow.findMany({ where: { OR: inTerm }, select: { schoolId: true, componentId: true, releaseAt: true, appliesTo: true } }) : Promise.resolve([]),
     ]);
-    const entries = term && sheets.length
+    const entries = sheets.length
       ? await prisma.scoreEntry.findMany({
-          where: { schoolId: session.schoolId, studentId: { in: ids }, isDraft: false, resultSheet: { termId: term.id }, subjectId: { in: [...new Set(sheets.map((sheet) => sheet.subjectId))] } },
+          where: { OR: inTerm.map((pair) => ({ schoolId: pair.schoolId, resultSheet: { termId: pair.termId } })), studentId: { in: ids }, isDraft: false, subjectId: { in: [...new Set(sheets.map((sheet) => sheet.subjectId))] } },
           select: { studentId: true, subjectId: true, assessmentComponentId: true, score: true, maxScore: true, subject: { select: { name: true } } },
         })
       : [];
     const now = Date.now();
+    const whose = (schoolId: string) => (many ? siteAt(schoolId)?.shortName?.trim() || siteAt(schoolId)?.name || "" : "");
 
     return {
       showCards,
       term: term ? { name: term.name, session: term.academicSession.name } : null,
-      components: components.map((component) => ({ id: component.id, code: component.code, name: component.name, weight: component.weight, max: component.maxScore })),
-      /** The days the school will release a set of scores, soonest first. */
+      /** Every school's scheme, each saying whose it is, because a child is only ever marked under their own. */
+      components: components.map((component) => ({ id: component.id, schoolId: component.schoolId, code: component.code, name: component.name, weight: component.weight, max: component.maxScore })),
+      /** The days a school will release a set of scores, soonest first. */
       ahead: windows
         .filter((window) => window.releaseAt.getTime() > now)
         .sort((a, b) => a.releaseAt.getTime() - b.releaseAt.getTime())
-        .map((window) => ({ what: components.find((component) => component.id === window.componentId)?.name ?? "Scores", on: isoDay(window.releaseAt), appliesTo: window.appliesTo })),
+        .map((window) => ({ what: components.find((component) => component.id === window.componentId)?.name ?? "Scores", on: isoDay(window.releaseAt), appliesTo: window.appliesTo, school: whose(window.schoolId) })),
       children: mine.map((student) => {
         const arm = armName(student.currentClass?.name, student.currentClass?.arm);
         const released = new Set(sheets.filter((sheet) => sheet.classId === student.currentClassId).map((sheet) => sheet.subjectId));
-        const releaseOf = new Map(windows.filter((window) => /^every class$/i.test(window.appliesTo) || window.appliesTo.toLowerCase().includes(arm.toLowerCase())).map((window) => [window.componentId, window.releaseAt]));
+        const theirs = windows.filter((window) => window.schoolId === student.schoolId);
+        const releaseOf = new Map(theirs.filter((window) => /^every class$/i.test(window.appliesTo) || window.appliesTo.toLowerCase().includes(arm.toLowerCase())).map((window) => [window.componentId, window.releaseAt]));
         const mineEntries = entries.filter((entry) => entry.studentId === student.id && released.has(entry.subjectId));
         const subjects = new Map<string, { name: string; parts: Array<{ code: string; name: string; max: number; score: number | null; on: string | null }> }>();
         for (const entry of mineEntries) {
-          const component = components.find((item) => item.id === entry.assessmentComponentId);
+          const component = components.find((item) => item.id === entry.assessmentComponentId && item.schoolId === student.schoolId);
           if (!component) continue;
           const at = releaseOf.get(component.id) ?? null;
           const open = !at || at.getTime() <= now;
@@ -1044,6 +1180,9 @@ export class ParentWorkspaceService {
         }
         return {
           id: student.id, first: student.firstName, arm,
+          schoolId: student.schoolId,
+          school: whose(student.schoolId),
+          term: termAt(student.schoolId) ? { name: termAt(student.schoolId)!.name, session: termAt(student.schoolId)!.academicSession.name } : null,
           cards: cards.filter((card) => card.studentId === student.id).map((card) => {
             const held = card.withheldAt ? { since: isoDay(card.withheldAt), reason: card.withheldReason ?? "" } : null;
             const data = held ? null : readCard(card.data);
@@ -1075,34 +1214,45 @@ export class ParentWorkspaceService {
    * scheme of work only once it has been approved — a teacher's draft is not a promise to a family.
    */
   async learning(session: SessionPayload, scope: string) {
-    const { children, policy, term } = await this.context(session);
-    if (!policy.sees.has("Timetable")) throw new ForbiddenException("Your school has not made the timetable visible to parents.");
-    const mine = scope === "all" ? children : children.filter((student) => student.id === scope);
+    const { children, term, at, termAt, siteAt, many, sees } = await this.context(session);
+    if (!sees.has("Timetable")) throw new ForbiddenException("Your school has not made the timetable visible to parents.");
+    const shown = children.filter((student) => at(student.id).policy.sees.has("Timetable"));
+    const mine = scope === "all" ? shown : shown.filter((student) => student.id === scope);
     const classIds = [...new Set(mine.map((student) => student.currentClassId).filter((id): id is string => Boolean(id)))];
-    if (!classIds.length || !term) return { week: 0, weeks: 0, today: isoDay(new Date()), components: [], tests: [], children: mine.map((student) => emptyLearning(student)) };
+    // Each school's own current term: a child whose school is between terms has no week, whatever the other school is doing.
+    const theirSchools = [...new Set(mine.map((student) => student.schoolId))];
+    const running = theirSchools.filter((id) => termAt(id));
+    const inTerm = running.map((id) => ({ schoolId: id, termId: termAt(id)!.id }));
+    if (!classIds.length || !inTerm.length) return { week: 0, weeks: 0, today: isoDay(new Date()), components: [], tests: [], children: mine.map((student) => emptyLearning(student)) };
 
     const today = isoDay(new Date());
-    const weeks = Math.max(1, Math.ceil((term.endDate.getTime() - term.startDate.getTime()) / (7 * DAY)));
-    const week = Math.min(weeks, Math.max(1, Math.floor((dayOf(today).getTime() - dayOf(isoDay(term.startDate)).getTime()) / (7 * DAY)) + 1));
+    const weekIn = (row: { startDate: Date; endDate: Date } | null) => {
+      if (!row) return { week: 0, weeks: 0 };
+      const of = Math.max(1, Math.ceil((row.endDate.getTime() - row.startDate.getTime()) / (7 * DAY)));
+      return { week: Math.min(of, Math.max(1, Math.floor((dayOf(today).getTime() - dayOf(isoDay(row.startDate)).getTime()) / (7 * DAY)) + 1)), weeks: of };
+    };
+    // The page's own heading follows the school they signed in to, falling back to whichever of their schools is in term.
+    const lead = (term && running.includes(term.schoolId) ? term : termAt(running[0]!))!;
+    const { week, weeks } = weekIn(lead);
     const [entries, exams, components, schemes, events] = await Promise.all([
       prisma.timetableEntry.findMany({
-        where: { schoolId: session.schoolId, classId: { in: classIds }, termId: term.id, isPublished: true },
+        where: { OR: inTerm, classId: { in: classIds }, isPublished: true },
         include: { subject: true },
         orderBy: [{ dayOfWeek: "asc" }, { periodNumber: "asc" }],
       }),
       prisma.examTimetableEntry.findMany({
-        where: { schoolId: session.schoolId, classId: { in: classIds }, OR: [{ termId: term.id }, { termId: null }], examDate: { gte: dayOf(today) } },
+        where: { OR: running.map((id) => ({ schoolId: id, OR: [{ termId: termAt(id)!.id }, { termId: null }] })), classId: { in: classIds }, examDate: { gte: dayOf(today) } },
         include: { subject: true },
         orderBy: { examDate: "asc" },
       }),
-      prisma.assessmentComponent.findMany({ where: { schoolId: session.schoolId, isActive: true, OR: [{ termId: term.id }, { termId: null }] }, orderBy: { order: "asc" } }),
+      prisma.assessmentComponent.findMany({ where: { OR: running.map((id) => ({ schoolId: id, OR: [{ termId: termAt(id)!.id }, { termId: null }] })), isActive: true }, orderBy: { order: "asc" } }),
       prisma.schemeOfWork.findMany({
-        where: { schoolId: session.schoolId, classId: { in: classIds }, termId: term.id, status: "APPROVED" },
+        where: { OR: inTerm, classId: { in: classIds }, status: "APPROVED" },
         include: { subject: { select: { name: true } }, topics: { select: { weekNumber: true, topic: true, weekType: true } } },
       }),
       prisma.calendarEvent.findMany({
         where: {
-          schoolId: session.schoolId, endsAt: { gte: dayOf(today) },
+          schoolId: { in: theirSchools }, endsAt: { gte: dayOf(today) },
           OR: ["exam", "test", "assess"].map((word) => ({ type: { contains: word, mode: "insensitive" as const } })),
         },
         orderBy: { startsAt: "asc" }, take: 40,
@@ -1116,12 +1266,12 @@ export class ParentWorkspaceService {
 
     return {
       week, weeks, today,
-      term: { name: term.name, session: term.academicSession.name },
-      components: components.map((component) => ({ code: component.code, name: component.name, weight: component.weight, max: component.maxScore })),
+      term: { name: lead.name, session: lead.academicSession.name },
+      components: components.map((component) => ({ code: component.code, name: component.name, weight: component.weight, max: component.maxScore, school: many ? siteAt(component.schoolId)?.shortName?.trim() || siteAt(component.schoolId)?.name || "" : "" })),
       /** Tests and assessment weeks the school put on its calendar for families — not tied to one child's class. */
       tests: events
         .filter((event) => (event.visibleTo.length ? event.visibleTo.includes("Guardians") : /all|guardian|parent/i.test(event.audience)))
-        .map((event) => ({ id: event.id, title: event.title, date: isoDay(event.startsAt), end: isoDay(event.endsAt), time: event.allDay ? "All day" : [event.startTime, event.endTime].filter(Boolean).join(" – "), where: event.location ?? "" })),
+        .map((event) => ({ id: event.id, title: event.title, date: isoDay(event.startsAt), end: isoDay(event.endsAt), time: event.allDay ? "All day" : [event.startTime, event.endTime].filter(Boolean).join(" – "), where: event.location ?? "", school: many ? siteAt(event.schoolId)?.shortName?.trim() || siteAt(event.schoolId)?.name || "" : "" })),
       children: mine.map((student) => {
         const own = entries.filter((entry) => entry.classId === student.currentClassId);
         const slots = own.map((entry) => ({
@@ -1137,10 +1287,12 @@ export class ParentWorkspaceService {
           .sort((a, b) => a.from.localeCompare(b.from));
         return {
           id: student.id, first: student.firstName, arm: armName(student.currentClass?.name, student.currentClass?.arm),
+          school: many ? siteAt(student.schoolId)?.shortName?.trim() || siteAt(student.schoolId)?.name || "" : "",
           published: own.length > 0, slots, periods,
           topics: schemes
             .filter((scheme) => scheme.classId === student.currentClassId)
-            .map((scheme) => ({ subject: scheme.subject.name, teacher: scheme.teacherId ? teachers.get(scheme.teacherId) ?? "" : "", now: taught(scheme, week), next: taught(scheme, week + 1) }))
+            // Read against this child's own school's week, which is not the other school's.
+            .map((scheme) => { const theirWeek = weekIn(termAt(student.schoolId)).week; return { subject: scheme.subject.name, teacher: scheme.teacherId ? teachers.get(scheme.teacherId) ?? "" : "", now: taught(scheme, theirWeek), next: taught(scheme, theirWeek + 1) }; })
             .sort((a, b) => a.subject.localeCompare(b.subject)),
           exams: exams
             .filter((exam) => exam.classId === student.currentClassId)
@@ -1160,10 +1312,11 @@ export class ParentWorkspaceService {
    * list is what it rings in an emergency).
    */
   async account(session: SessionPayload) {
-    const { guardian, school, children } = await this.context(session);
-    const site = await prisma.school.findUnique({ where: { id: session.schoolId }, select: { name: true, shortName: true, city: true, state: true, timezone: true } });
+    const { guardian, rows, children, schoolIds, siteAt } = await this.context(session);
+    const site = await prisma.school.findUnique({ where: { id: guardian.schoolId }, select: { timezone: true } });
     const user = guardian.user;
-    const mine = guardian.students;
+    // Every school this login is a guardian at, named with the children it holds — one entry for the ordinary family.
+    const mine = rows.flatMap((row) => row.students);
     return {
       name: `${guardian.firstName} ${guardian.lastName}`,
       userId: user?.userCode ?? user?.username ?? null,
@@ -1177,10 +1330,15 @@ export class ParentWorkspaceService {
       since: isoDay(user?.createdAt ?? guardian.createdAt),
       sms: guardian.canReceiveSms,
       emailOn: guardian.canReceiveEmail,
-      schools: [{
-        name: school?.name ?? "", short: site?.shortName?.trim() || school?.name || "", place: [site?.city, site?.state].filter(Boolean).join(", "),
-        children: children.map((student) => student.firstName),
-      }],
+      schools: schoolIds.map((id) => {
+        const place = siteAt(id);
+        return {
+          name: place?.name ?? "",
+          short: place?.shortName?.trim() || place?.name || "",
+          place: [place?.city, place?.state].filter(Boolean).join(", "),
+          children: children.filter((student) => student.schoolId === id).map((student) => student.firstName),
+        };
+      }),
     };
   }
 
@@ -1188,7 +1346,7 @@ export class ParentWorkspaceService {
   async security(session: SessionPayload) {
     this.assert(session);
     const user = await prisma.user.findFirst({
-      where: { id: session.userId, schoolId: session.schoolId, deletedAt: null },
+      where: { id: session.userId, deletedAt: null },
       select: { mfaEnabled: true, mfaEnrolledAt: true, passwordChangedAt: true, passwordResetRequired: true, phone: true },
     });
     if (!user) throw new NotFoundException("No account found.");
@@ -1241,12 +1399,15 @@ export class ParentWorkspaceService {
    */
   async requestAccount(session: SessionPayload, body: unknown) {
     const input = accountRequestSchema.parse(body);
-    const { guardian } = await this.context(session);
+    const { rows } = await this.context(session);
+    // Each school keeps its own contact list and its own copy of the record, and each rings its own
+    // number in an emergency — so this goes to all of them, not only the one they signed in to.
+    const toEach = async (type: string, detail: string) => {
+      const sent = await Promise.all(rows.map((row) => openSubmission(row.schoolId, { guardianId: row.id, type, channel: "Portal", detail })));
+      return sent[0]!;
+    };
     if (input.kind === "copy") {
-      return openSubmission(session.schoolId, {
-        guardianId: guardian.id, type: "Data copy request", channel: "Portal",
-        detail: `I would like a copy of what the school holds about me and my children${input.note ? `. ${input.note}` : "."}`,
-      });
+      return toEach("Data copy request", `I would like a copy of what the school holds about me and my children${input.note ? `. ${input.note}` : "."}`);
     }
     const changes = [
       input.phone && `phone number to ${input.phone}`,
@@ -1254,10 +1415,7 @@ export class ParentWorkspaceService {
       input.address && `home address to ${input.address}`,
     ].filter(Boolean);
     if (!changes.length) throw new BadRequestException("Say what should change — a phone number, an email or an address.");
-    return openSubmission(session.schoolId, {
-      guardianId: guardian.id, type: "Contact update", channel: "Portal",
-      detail: `Please change my ${changes.join(", ")}.${input.note ? ` ${input.note}` : ""}`,
-    });
+    return toEach("Contact update", `Please change my ${changes.join(", ")}.${input.note ? ` ${input.note}` : ""}`);
   }
 
   /* ───────────────────────── what reaches this parent ───────────────────────── */
@@ -1269,7 +1427,7 @@ export class ParentWorkspaceService {
    * school's send path reads them before it counts a family as reached — so a switch here changes what is sent, not just what is shown.
    */
   async notifications(session: SessionPayload) {
-    const { guardian } = await this.context(session);
+    const { guardian, schoolIds } = await this.context(session);
     const user = await prisma.user.findUnique({ where: { id: session.userId }, select: { preferences: true } });
     const prefs = (user?.preferences ?? {}) as Preferences;
     return {
@@ -1281,7 +1439,7 @@ export class ParentWorkspaceService {
         sms: Boolean(guardian.canReceiveSms && guardian.phone?.trim()),
         email: Boolean(guardian.canReceiveEmail && guardian.email?.trim()),
         // WhatsApp is only offered where the school's plan includes it, and only ever by the family's own choice.
-        whatsapp: (await plansFeatures.entitled(session.schoolId, "communications.whatsapp")).allowed,
+        whatsapp: (await Promise.all(schoolIds.map((id) => plansFeatures.entitled(id, "communications.whatsapp")))).some((entitled) => entitled.allowed),
         phone: guardian.phone, address: guardian.email ?? null,
       },
     };
@@ -1314,15 +1472,15 @@ export class ParentWorkspaceService {
    * switch the school has not built.
    */
   async profile(session: SessionPayload, scope: string) {
-    const { children, guardian, school } = await this.context(session);
+    const { children, guardianIds, schoolIds, school, many } = await this.context(session);
     const mine = scope === "all" ? children : children.filter((student) => student.id === scope);
     const ids = mine.map((student) => student.id);
     if (!ids.length) return { school: { name: school?.name ?? "", short: school?.name ?? "", place: "", curriculum: "" }, children: [] };
 
-    const [site, health, collectors, links, documents, open, boarding] = await Promise.all([
-      prisma.school.findUnique({ where: { id: session.schoolId }, select: { name: true, shortName: true, city: true, state: true, curriculumPreference: true } }),
+    const [sites, health, collectors, links, documents, open, boarding] = await Promise.all([
+      prisma.school.findMany({ where: { id: { in: schoolIds } }, select: { id: true, name: true, shortName: true, city: true, state: true, curriculumPreference: true } }),
       prisma.medicalRecord.findMany({ where: { studentId: { in: ids } } }),
-      prisma.authorisedCollector.findMany({ where: { schoolId: session.schoolId, studentId: { in: ids } }, orderBy: { createdAt: "asc" } }),
+      prisma.authorisedCollector.findMany({ where: { schoolId: { in: schoolIds }, studentId: { in: ids } }, orderBy: { createdAt: "asc" } }),
       prisma.studentGuardian.findMany({
         where: { studentId: { in: ids } },
         include: { guardian: { select: { id: true, firstName: true, lastName: true, relationship: true, phone: true, email: true, safeguardingRestrictedAt: true } } },
@@ -1330,16 +1488,19 @@ export class ParentWorkspaceService {
       }),
       prisma.studentDocument.findMany({ where: { studentId: { in: ids } }, orderBy: { createdAt: "desc" } }),
       prisma.guardianSubmission.findMany({
-        where: { schoolId: session.schoolId, guardianId: guardian.id, studentId: { in: ids }, type: { in: ["Record correction", "Collection change"] }, state: { notIn: ["RESOLVED", "DECLINED"] } },
+        where: { guardianId: { in: guardianIds }, studentId: { in: ids }, type: { in: ["Record correction", "Collection change"] }, state: { notIn: ["RESOLVED", "DECLINED"] } },
         orderBy: { createdAt: "desc" },
       }),
-      prisma.hostelAllocation.findMany({ where: { schoolId: session.schoolId, studentId: { in: ids }, endDate: null }, include: { room: { include: { building: { select: { name: true } } } } } }),
+      prisma.hostelAllocation.findMany({ where: { schoolId: { in: schoolIds }, studentId: { in: ids }, endDate: null }, include: { room: { include: { building: { select: { name: true } } } } } }),
     ]);
     const teachers = await prisma.user.findMany({
       where: { id: { in: mine.map((student) => student.currentClass?.classTeacherId).filter((id): id is string => Boolean(id)) } },
       select: { id: true, firstName: true, lastName: true },
     });
+    // The page's own heading is the school they signed in to; each child carries their own below.
+    const site = sites.find((row) => row.id === (mine[0]?.schoolId ?? schoolIds[0])) ?? null;
     const place = [site?.city, site?.state].filter(Boolean).join(", ");
+    const schoolOf = (id: string) => sites.find((row) => row.id === id) ?? null;
 
     return {
       school: { name: site?.name ?? "", short: site?.shortName?.trim() || site?.name || "", place, curriculum: site?.curriculumPreference ?? "" },
@@ -1358,6 +1519,8 @@ export class ParentWorkspaceService {
           gender: student.gender === "FEMALE" ? "Female" : student.gender === "MALE" ? "Male" : "Not recorded",
           arm: armName(student.currentClass?.name, student.currentClass?.arm),
           level: [student.currentClass?.classLevel?.name, student.currentClass?.stream].filter(Boolean).join(" · "),
+          school: many ? schoolOf(student.schoolId)?.shortName?.trim() || schoolOf(student.schoolId)?.name || "" : "",
+          curriculum: schoolOf(student.schoolId)?.curriculumPreference ?? "",
           tutor: tutor ? `${tutor.firstName} ${tutor.lastName}` : null,
           house: student.houseName ?? null,
           boarding: room ? { boarder: true, where: [room.room.building?.name, room.room.name].filter(Boolean).join(" · ") } : { boarder: false, where: "" },
@@ -1372,7 +1535,7 @@ export class ParentWorkspaceService {
           guardians: links
             .filter((link) => link.studentId === student.id && !link.guardian.safeguardingRestrictedAt)
             .map((link) => {
-              const me = link.guardian.id === guardian.id;
+              const me = guardianIds.includes(link.guardian.id);
               return {
                 id: link.guardian.id,
                 name: `${link.guardian.firstName} ${link.guardian.lastName}`,
@@ -1404,15 +1567,16 @@ export class ParentWorkspaceService {
   async requestChange(session: SessionPayload, body: unknown) {
     const input = changeSchema.parse(body);
     const student = await this.child(session, input.child);
-    const { guardian } = await this.context(session);
+    const { at } = await this.context(session);
+    const { schoolId, guardianId } = at(student.id);
     const first = student.firstName;
     const detail = input.what === "Add a collection person"
       ? `Add a person who may collect ${first}: ${input.person?.name ?? ""}, ${input.person?.relation ?? ""}, ${input.person?.phone ?? ""}.${input.change ? ` ${input.change}` : ""}`
       : `${input.what} for ${first}: ${input.change}`;
     if (input.what === "Add a collection person" && !input.person) throw new BadRequestException("Say who should be added, and how the gate can reach them.");
     if (input.what !== "Add a collection person" && input.change.length < 4) throw new BadRequestException("Say what it should read instead.");
-    return openSubmission(session.schoolId, {
-      guardianId: guardian.id, childId: student.id, type: "Record correction", detail, channel: "Portal", evidence: input.evidence || null,
+    return openSubmission(schoolId, {
+      guardianId, childId: student.id, type: "Record correction", detail, channel: "Portal", evidence: input.evidence || null,
     });
   }
 
@@ -1462,6 +1626,14 @@ type NeedItem = {
 };
 
 const money = (value: number) => `₦${value.toLocaleString("en-NG", { maximumFractionDigits: 0 })}`;
+/** The same figure in the school's own money, because a family at two schools is billed in two currencies and the two never add up. */
+const moneyIn = (currency: string, value: number) => {
+  try {
+    return new Intl.NumberFormat("en-NG", { style: "currency", currency, maximumFractionDigits: 0 }).format(value);
+  } catch {
+    return money(value);
+  }
+};
 const shortDay = (iso: string) => new Date(`${iso}T00:00:00Z`).toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone: "UTC" });
 const longDate = (iso: string) => new Date(`${iso}T00:00:00Z`).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" });
 const longDay = (iso: string) => new Date(`${iso}T00:00:00Z`).toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", timeZone: "UTC" });
