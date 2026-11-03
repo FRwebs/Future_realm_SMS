@@ -486,7 +486,7 @@ function PhoneRows({
               ) : null}
               <span className="min-w-0 flex-1">
                 <span className="block text-[14px] font-bold leading-[1.3]" style={{ color: INK }}>{title}</span>
-                {lead?.sub ? <span className="mt-[2px] block text-[12.5px] leading-[1.45]" style={{ color: "#6E7C74" }}>{lead.sub}</span> : null}
+                {lead?.sub ? <span className="mt-[2px] block text-[12.5px] leading-[1.45]" style={{ color: "#5C6B62" }}>{lead.sub}</span> : null}
                 {rest.length ? (
                   <span className="mt-[7px] flex flex-wrap items-center gap-x-[14px] gap-y-[5px]">
                     {rest.map(({ cell, at }) => (

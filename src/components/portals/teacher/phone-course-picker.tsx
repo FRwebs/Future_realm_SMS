@@ -26,7 +26,7 @@ export function PhoneCoursePicker({ title, tag, sub, items, template, openDrawer
         <h2 className="text-[16px] font-extrabold text-[#0D2315]">{title}</h2>
         <span className="rounded-full bg-[#EDF3EF] px-[9px] py-[2px] text-[11.5px] font-bold text-[#435048]">{tag}</span>
       </div>
-      {sub ? <p className="mb-[10px] px-[2px] text-[13px] leading-[1.5] text-[#6E7C74]">{sub}</p> : null}
+      {sub ? <p className="mb-[10px] px-[2px] text-[13px] leading-[1.5] text-[#5C6B62]">{sub}</p> : null}
       {items.length ? (
         <ul className="overflow-hidden rounded-[20px] bg-white" style={{ boxShadow: raised }}>
           {items.map((item, index) => (
@@ -44,11 +44,11 @@ export function PhoneCoursePicker({ title, tag, sub, items, template, openDrawer
                 </span>
                 <span className="min-w-0 flex-1">
                   <span className="block text-pretty text-[14px] font-bold leading-[1.35] text-[#0D2315]">{item.title}</span>
-                  <span className="mt-[3px] block text-pretty text-[12.5px] font-medium leading-[1.45] text-[#6E7C74]">{item.sub}</span>
+                  <span className="mt-[3px] block text-pretty text-[12.5px] font-medium leading-[1.45] text-[#5C6B62]">{item.sub}</span>
                   {item.bar ? (
                     <span className="mt-[8px] flex items-center gap-[10px]">
                       <span className="h-[6px] min-w-0 flex-1 overflow-hidden rounded-full bg-[#EDF3EF]"><span className="block h-full rounded-full bg-[#2A5A96]" style={{ width: `${Math.max(2, Math.min(100, item.bar.pct))}%` }} /></span>
-                      <span className="flex-none text-[12.5px] font-semibold tabular-nums text-[#6E7C74]">{item.bar.label}</span>
+                      <span className="flex-none text-[12.5px] font-semibold tabular-nums text-[#5C6B62]">{item.bar.label}</span>
                     </span>
                   ) : null}
                 </span>
@@ -60,7 +60,7 @@ export function PhoneCoursePicker({ title, tag, sub, items, template, openDrawer
             </li>
           ))}
         </ul>
-      ) : <p className="rounded-[20px] bg-white px-[18px] py-[22px] text-center text-[13px] text-[#6E7C74]" style={{ boxShadow: raised }}>Nothing for your role in this section yet.</p>}
+      ) : <p className="rounded-[20px] bg-white px-[18px] py-[22px] text-center text-[13px] text-[#5C6B62]" style={{ boxShadow: raised }}>Nothing for your role in this section yet.</p>}
       {chosen.length ? (
         <div className="sticky bottom-0 z-[30] -mx-4 -mb-4 mt-[14px] flex items-center gap-[12px] rounded-t-[22px] bg-white px-[14px] pb-[12px] pt-[10px]" style={{ boxShadow: "0 -12px 30px -22px rgba(13,35,21,0.45)" }}>
           <span className="min-w-0 flex-1 text-[13px] font-bold text-[#435048]">{chosen.length} selected{total ? ` · ₦${(total / 100).toLocaleString("en-NG", { maximumFractionDigits: 0 })}` : ""}</span>

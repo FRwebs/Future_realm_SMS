@@ -334,7 +334,7 @@ export function RegisterMarker({ panel, openDrawer }: { panel: MarkerPanel; open
                           aria-label={`${choice.label} — ${student.name}`}
                           onClick={() => set(student.id, choice.value)}
                           className="flex h-[40px] w-[40px] items-center justify-center rounded-[12px] text-[14px] font-extrabold disabled:cursor-not-allowed disabled:opacity-50"
-                          style={{ background: on ? swatch.dot : "#EEF3F0", color: on ? "#fff" : "#7C8A82" }}
+                          style={{ background: on ? swatch.dot : "#EEF3F0", color: on ? "#fff" : "#5C6B62" }}
                         >
                           {choice.short}
                         </button>

@@ -388,7 +388,7 @@ export function NotificationBell({
           {count ? (
             <span
               className="absolute right-[4px] top-[5px] flex h-[18px] min-w-[18px] items-center justify-center rounded-full px-[4px] text-[10px] font-extrabold text-white"
-              style={{ background: "#DB5555", border: `2px solid ${phone === "dark" ? "#0D2315" : "#F4F7F5"}` }}
+              style={{ background: "#C93F3F", border: `2px solid ${phone === "dark" ? "#0D2315" : "#F4F7F5"}` }}
             >
               {count > 99 ? "99+" : count}
             </span>
@@ -544,7 +544,7 @@ function ParentSwitcher({ chrome }: { chrome: ParentChrome }) {
     return own && own[0] ? own : stats.fallback;
   };
   const ink = (tone: string) =>
-    tone === "negative" ? "#B23B3B" : tone === "attention" ? "#8A6410" : tone === "positive" ? "#17714F" : tone === "progress" ? "#2A5A96" : "#6E7C74";
+    tone === "negative" ? "#B23B3B" : tone === "attention" ? "#8A6410" : tone === "positive" ? "#17714F" : tone === "progress" ? "#2A5A96" : "#5C6B62";
 
   const chip = (
     key: string,

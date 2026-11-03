@@ -14,7 +14,7 @@ import { accountPath } from "@/lib/modules/account";
 import type { TabBarItem } from "@/components/layout/portal-tab-bar";
 
 const INK = "#0D2315";
-const MUTED = "#6E7C74";
+const MUTED = "#5C6B62";
 const CARD = { background: "#fff", boxShadow: "0 1px 2px rgba(13,35,21,0.05), 0 8px 22px -16px rgba(13,35,21,0.22)" };
 
 const PLUS = "M12 5.5v13M5.5 12h13";
@@ -87,7 +87,7 @@ function Heading({ children }: { children: React.ReactNode }) {
 function Badge({ count, urgent }: { count: number; urgent: boolean }) {
   if (!count) return null;
   return (
-    <span className="absolute right-[10px] top-[8px] flex h-[19px] min-w-[19px] items-center justify-center rounded-full px-[5px] text-[10.5px] font-black" style={{ background: urgent ? "#DB5555" : "#E0A526", color: urgent ? "#fff" : INK, border: "2px solid #fff" }}>
+    <span className="absolute right-[10px] top-[8px] flex h-[19px] min-w-[19px] items-center justify-center rounded-full px-[5px] text-[10.5px] font-black" style={{ background: urgent ? "#C93F3F" : "#E0A526", color: urgent ? "#fff" : INK, border: "2px solid #fff" }}>
       {count > 9 ? "9+" : count}
     </span>
   );

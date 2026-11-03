@@ -135,7 +135,7 @@ export function ParentInbox({ school, you, messages, showChildren, empty }: Inbo
                       </span>
                       <span className="min-w-0 flex-1">
                         <span className="block text-[14px] leading-[1.35]" style={{ color: "#0D2315", fontWeight: message.read ? 600 : 800 }}>{message.title}</span>
-                        <span className="mt-[3px] block text-[12.5px] font-medium leading-[1.45]" style={{ color: "#6E7C74" }}>{school} · {when(message.at)}{showChildren && message.children.length ? ` · ${message.children.map((child) => child.first).join(" and ")}` : ""}</span>
+                        <span className="mt-[3px] block text-[12.5px] font-medium leading-[1.45]" style={{ color: "#5C6B62" }}>{school} · {when(message.at)}{showChildren && message.children.length ? ` · ${message.children.map((child) => child.first).join(" and ")}` : ""}</span>
                       </span>
                       {!message.read ? <span className="flex-none rounded-full px-[10px] py-[3px] text-[11.5px] font-extrabold" style={{ background: "#E8EFFB", color: "#2A5A96" }}>New</span> : null}
                     </span>
@@ -178,7 +178,7 @@ export function ParentInbox({ school, you, messages, showChildren, empty }: Inbo
                   {open.acknowledgedAt ? <p className="rounded-[18px] px-[16px] py-[12px] text-[13px] font-extrabold" style={{ background: "#EAF6F0", color: "#17714F" }}>You acknowledged it · {when(open.acknowledgedAt)}</p> : null}
                   {open.replies.map((reply) => (
                     <div key={reply.id} className="rounded-[18px] bg-white px-[16px] py-[12px]" style={{ boxShadow: "0 1px 2px rgba(13,35,21,0.05), 0 8px 22px -16px rgba(13,35,21,0.22)" }}>
-                      <p className="text-[12px] font-semibold" style={{ color: "#6E7C74" }}>You wrote · {when(reply.at)} · {reply.state}</p>
+                      <p className="text-[12px] font-semibold" style={{ color: "#5C6B62" }}>You wrote · {when(reply.at)} · {reply.state}</p>
                       <p className="mt-[3px] text-[14px]" style={{ color: "#0D2315" }}>{reply.text}</p>
                       {reply.outcome ? <p className="mt-[4px] text-[13px] font-semibold" style={{ color: "#17714F" }}>The school: {reply.outcome}</p> : null}
                     </div>
@@ -245,7 +245,7 @@ export function ParentInbox({ school, you, messages, showChildren, empty }: Inbo
         <span className="mt-[1px] flex h-[34px] w-[34px] flex-none items-center justify-center rounded-full" style={{ background: "#EEF4F0", color: "#17604F" }} aria-hidden>
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3.2 19 6v6c0 4-3 7.4-7 8.3-4-.9-7-4.3-7-8.3V6z" /></svg>
         </span>
-        <span><span className="block text-[14.5px] font-extrabold" style={{ color: "#0D2315" }}>Safety messages always reach you</span><span className="mt-[2px] block text-[12.5px] font-medium" style={{ color: "#6E7C74" }}>Closures and safeguarding, on every channel.</span></span>
+        <span><span className="block text-[14.5px] font-extrabold" style={{ color: "#0D2315" }}>Safety messages always reach you</span><span className="mt-[2px] block text-[12.5px] font-medium" style={{ color: "#5C6B62" }}>Closures and safeguarding, on every channel.</span></span>
       </p>
     </section>
   );

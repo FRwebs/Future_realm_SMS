@@ -14,7 +14,7 @@ export function TeacherPhoneHead({ eyebrow, name, line }: { eyebrow: string; nam
     <header className="md:hidden">
       <p className="text-[11.5px] font-extrabold uppercase tracking-[0.1em]" style={{ color: "#12796A" }}>{eyebrow}</p>
       <h1 className="mt-[4px] text-pretty text-[26px] font-extrabold leading-[1.15] tracking-[-0.02em]" style={{ color: "#0D2315" }}>{name}</h1>
-      <p className="mt-[6px] break-words text-[14px] font-medium leading-[1.45]" style={{ color: "#6E7C74" }}>{line}</p>
+      <p className="mt-[6px] break-words text-[14px] font-medium leading-[1.45]" style={{ color: "#5C6B62" }}>{line}</p>
     </header>
   );
 }
@@ -34,7 +34,7 @@ export function PhoneSection({ title, sub, children }: { title: string; sub?: st
     <section className="mt-[14px] grid gap-[10px]">
       <div className="px-[2px]">
         <h2 className="text-[17px] font-extrabold" style={{ color: "#0D2315" }}>{title}</h2>
-        {sub ? <p className="mt-[2px] text-[13.5px] leading-[1.5]" style={{ color: "#6E7C74" }}>{sub}</p> : null}
+        {sub ? <p className="mt-[2px] text-[13.5px] leading-[1.5]" style={{ color: "#5C6B62" }}>{sub}</p> : null}
       </div>
       {children}
     </section>

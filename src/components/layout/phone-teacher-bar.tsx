@@ -50,7 +50,7 @@ function useSync(): Sync {
 const TONES = {
   positive: { bg: "#EAF6F0", fg: "#17714F", dot: "#22A06B" },
   offline: { bg: "#F4F6F5", fg: "#5A6862", dot: "#8A9A92" },
-  critical: { bg: "#FDF3F3", fg: "#B23B3B", dot: "#DB5555" },
+  critical: { bg: "#FDF3F3", fg: "#B23B3B", dot: "#C93F3F" },
 } as const;
 
 /** The small pill beside the date on the home screen: what this phone is holding for the school. A tap sends it, or opens the sync page. */
@@ -141,7 +141,7 @@ export function PhoneTeacherBar({
             </span>
             <NotificationBell session={session} portalType={portalType} phone="light" />
             {/* The mockup's avatar opens the account page itself, not a menu over the page. */}
-            <Link href={accountPath as Route} aria-label="Account" className="flex h-[42px] w-[42px] flex-none items-center justify-center rounded-full text-[13.5px] font-extrabold text-[#0D2315]" style={{ background: "#E3F1EA" }}>{who}</Link>
+            <Link href={accountPath as Route} aria-label={`${who}, your account`} className="flex h-[42px] w-[42px] flex-none items-center justify-center rounded-full text-[13.5px] font-extrabold text-[#0D2315]" style={{ background: "#E3F1EA" }}>{who}</Link>
           </div>
         </>
       ) : (

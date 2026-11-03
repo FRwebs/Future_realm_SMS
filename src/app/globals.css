@@ -1430,6 +1430,9 @@ summary:focus-visible,
   [data-phone-skin="on"] [data-cal-cell][data-cal-today] {
     background: #0d2315 !important;
   }
+  [data-phone-skin="on"] [data-cal-cell] > span:first-child {
+    color: #5c6b62 !important;
+  }
   [data-phone-skin="on"] [data-cal-cell][data-cal-today] span {
     color: #fff !important;
   }

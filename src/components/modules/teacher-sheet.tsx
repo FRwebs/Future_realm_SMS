@@ -277,7 +277,7 @@ export function TeacherSheet(props: TeacherSheetProps) {
                 <div className="flex items-start justify-between gap-[10px]">
                   <div className="min-w-0">
                     <p className="text-[15px] font-bold leading-[1.3]" style={{ color: "#0D2315" }}>{row.name}</p>
-                    <p className="mt-[1px] text-[12.5px] font-medium" style={{ color: entry.state === "Absent" ? "#6B4E9E" : entry.state === "Out of range" ? "#B23B3B" : "#6E7C74" }}>Roll {String(row.roll).padStart(2, "0")} · {entry.state}</p>
+                    <p className="mt-[1px] text-[12.5px] font-medium" style={{ color: entry.state === "Absent" ? "#6B4E9E" : entry.state === "Out of range" ? "#B23B3B" : "#5C6B62" }}>Roll {String(row.roll).padStart(2, "0")} · {entry.state}</p>
                   </div>
                   <div className="flex flex-none items-center gap-[8px]">
                     <span className="text-[20px] font-black leading-none tabular-nums" style={{ color: entry.complete ? "#0D2315" : "#B8C4BD" }}>{entry.complete ? entry.total : "—"}</span>
@@ -291,7 +291,7 @@ export function TeacherSheet(props: TeacherSheetProps) {
                     const bad = !absent && value !== "" && (Number.isNaN(Number(value)) || Number(value) > column.max);
                     return (
                       <label key={column.key} className="grid gap-[4px]">
-                        <span className="truncate text-[12px] font-bold" style={{ color: "#6E7C74" }}>{column.short} /{column.max}</span>
+                        <span className="truncate text-[12px] font-bold" style={{ color: "#5C6B62" }}>{column.short} /{column.max}</span>
                         <input
                           value={value}
                           disabled={locked}
@@ -310,12 +310,12 @@ export function TeacherSheet(props: TeacherSheetProps) {
             );
           })}
         </ul>
-        <p className="px-[4px] text-[12.5px] font-medium" style={{ color: "#6E7C74" }}>Type a mark, or A for absent. Blank is not zero.{props.frameworkLabel ? ` ${props.frameworkLabel}.` : ""}</p>
+        <p className="px-[4px] text-[12.5px] font-medium" style={{ color: "#5C6B62" }}>Type a mark, or A for absent. Blank is not zero.{props.frameworkLabel ? ` ${props.frameworkLabel}.` : ""}</p>
         {!locked ? (
           <div className="sticky bottom-0 z-[30] -mx-4 -mb-4 rounded-t-[22px] bg-white px-[14px] pb-[12px] pt-[10px]" style={{ boxShadow: "0 -12px 30px -22px rgba(13,35,21,0.45)" }}>
             <div className="mb-[8px] flex items-center justify-between px-[4px] text-[12.5px] font-bold">
               <span style={{ color: stats.complete === stats.roll ? "#17714F" : "#8A6410" }}>{stats.complete === stats.roll ? "Every child has a mark" : `${stats.roll - stats.complete} still to enter`}</span>
-              <span style={{ color: "#6E7C74" }}>Average {stats.avg ?? "—"}</span>
+              <span style={{ color: "#5C6B62" }}>Average {stats.avg ?? "—"}</span>
             </div>
             <div className="flex gap-[10px]">
               <button type="button" disabled={busy} onClick={() => void save()} className="h-[52px] flex-none rounded-[16px] px-[22px] text-[15px] font-extrabold disabled:opacity-60" style={{ background: "#EEF4F0", color: "#0D2315" }}>{busy ? "Saving…" : "Save draft"}</button>

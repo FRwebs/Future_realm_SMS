@@ -123,9 +123,9 @@ export function PhoneStats({ panel, openDrawer }: { panel: Extract<Panel, { type
                 >
                   {value}
                 </span>
-                {card.unit ? <span className="whitespace-nowrap text-[12px] font-bold" style={{ color: dark ? "rgba(255,255,255,0.62)" : "#7C8A82" }}>{card.unit}</span> : null}
+                {card.unit ? <span className="whitespace-nowrap text-[12px] font-bold" style={{ color: dark ? "rgba(255,255,255,0.62)" : "#5C6B62" }}>{card.unit}</span> : null}
               </div>
-              {card.sub ? <span className="relative mt-[6px] text-pretty text-[12px] font-medium leading-[1.4]" style={{ color: dark ? "rgba(255,255,255,0.72)" : "#6E7C74" }}>{card.sub}</span> : null}
+              {card.sub ? <span className="relative mt-[6px] text-pretty text-[12px] font-medium leading-[1.4]" style={{ color: dark ? "rgba(255,255,255,0.72)" : "#5C6B62" }}>{card.sub}</span> : null}
             </div>
           );
         })}
@@ -171,14 +171,14 @@ function RowView({ row, last }: { row: Row; last: boolean }) {
       ) : null}
       <span className="min-w-0 flex-1">
         <span className="block text-pretty text-[14px] font-bold leading-[1.35] text-[#0D2315]">{row.title}</span>
-        {row.sub ? <span className="mt-[3px] block text-pretty text-[12.5px] font-medium leading-[1.45] text-[#6E7C74]">{row.sub}</span> : null}
+        {row.sub ? <span className="mt-[3px] block text-pretty text-[12.5px] font-medium leading-[1.45] text-[#5C6B62]">{row.sub}</span> : null}
         {row.quote ? <span className="mt-[10px] block rounded-[14px] px-[14px] py-[11px] text-pretty text-[13px] font-medium italic leading-[1.5]" style={{ background: "#FDF3F3", color: "#B23B3B" }}>{row.quote}</span> : null}
         {row.bar ? (
           <span className="mt-[8px] flex items-center gap-[10px]">
             <span className="h-[6px] min-w-0 flex-1 overflow-hidden rounded-full" style={{ background: "#EDF3EF" }}>
               <span className="block h-full rounded-full" style={{ width: `${Math.max(2, Math.min(100, row.bar.pct))}%`, background: toneOf(row.bar.tone ?? "attention").dot }} />
             </span>
-            <span className="flex-none text-[12.5px] font-semibold tabular-nums text-[#6E7C74]">{row.bar.label}</span>
+            <span className="flex-none text-[12.5px] font-semibold tabular-nums text-[#5C6B62]">{row.bar.label}</span>
           </span>
         ) : null}
       </span>
@@ -195,7 +195,7 @@ function RowView({ row, last }: { row: Row; last: boolean }) {
         <span className="flex max-w-[44%] flex-none flex-col items-end gap-[5px] text-right">
           {row.figure ? <span className="text-[17px] font-extrabold leading-none tabular-nums text-[#0D2315]">{row.figure}</span> : null}
           {row.pill ? <Pill label={row.pill.label} tone={row.pill.tone} /> : null}
-          {row.side ? <span className="text-[12px] font-bold text-[#6E7C74]">{row.side}</span> : null}
+          {row.side ? <span className="text-[12px] font-bold text-[#5C6B62]">{row.side}</span> : null}
         </span>
       ) : null}
       {row.open && !row.act ? <Chevron /> : null}
@@ -215,14 +215,14 @@ export function RowsCard({ rows, empty, per = 10 }: { rows: Row[]; empty?: strin
   const visible = per ? rows.slice(0, shown) : rows;
   const rest = rows.length - visible.length;
   if (!rows.length) {
-    return empty ? <p className="rounded-[20px] bg-white px-[18px] py-[22px] text-center text-[13px] text-[#6E7C74]" style={{ boxShadow: RAISED }}>{empty}</p> : null;
+    return empty ? <p className="rounded-[20px] bg-white px-[18px] py-[22px] text-center text-[13px] text-[#5C6B62]" style={{ boxShadow: RAISED }}>{empty}</p> : null;
   }
   return (
     <div className="overflow-hidden rounded-[20px] bg-white" style={{ boxShadow: RAISED }}>
       {visible.map((row, index) => <RowView key={row.key} row={row} last={index === visible.length - 1 && !rest} />)}
       {rest > 0 || (per && rows.length > per && shown > per) ? (
         <div className="flex items-center gap-[10px] border-t px-[16px] py-[12px]" style={{ borderColor: "#EDF3EF", background: "#FBFDFC" }}>
-          <span className="flex-1 text-[12.5px] font-semibold text-[#6E7C74]">Showing {visible.length} of {rows.length}</span>
+          <span className="flex-1 text-[12.5px] font-semibold text-[#5C6B62]">Showing {visible.length} of {rows.length}</span>
           {rest > 0 && rest > per ? (
             <button type="button" onClick={() => setShown(rows.length)} className="text-[13px] font-extrabold text-[#0D2315]">Show all</button>
           ) : null}
@@ -270,7 +270,7 @@ export function PhoneTable({ panel, openDrawer }: { panel: Extract<Panel, { type
     <section className="min-w-0">
       <BlockHead title={panel.title} sub={panel.sub} tag={panel.tag} tagTone={panel.tagTone} acts={panel.acts} openDrawer={openDrawer} />
       <RowsCard rows={rows} empty={panel.empty ?? "Nothing here yet."} per={panel.per === 0 ? 0 : Math.min(panel.per ?? 10, 10)} />
-      {panel.foot ? <p className="mt-[10px] px-[4px] text-pretty text-[12.5px] leading-[1.5] text-[#6E7C74]">{panel.foot}</p> : null}
+      {panel.foot ? <p className="mt-[10px] px-[4px] text-pretty text-[12.5px] leading-[1.5] text-[#5C6B62]">{panel.foot}</p> : null}
     </section>
   );
 }
@@ -305,7 +305,7 @@ export function PhoneList({ panel, openDrawer }: { panel: Extract<Panel, { type:
       ) : null}
       <BlockHead title={panel.title} sub={panel.sub} tag={panel.tag} tagTone={panel.tagTone} acts={panel.acts} openDrawer={openDrawer} />
       <RowsCard rows={shown} empty={needle ? "Nothing matches that." : panel.empty ?? "Nothing here yet."} per={shown.length > 8 && !panel.noFind ? 6 : 0} />
-      {panel.foot ? <p className="mt-[10px] px-[4px] text-pretty text-[12.5px] leading-[1.5] text-[#6E7C74]">{panel.foot}</p> : null}
+      {panel.foot ? <p className="mt-[10px] px-[4px] text-pretty text-[12.5px] leading-[1.5] text-[#5C6B62]">{panel.foot}</p> : null}
     </section>
   );
 }
@@ -356,7 +356,7 @@ export function PhoneFacts({ panel, openDrawer }: { panel: Extract<Panel, { type
           <span className="text-[15.5px] font-extrabold leading-[1.3] tracking-[-0.01em] text-[#0D2315]">{panel.title}</span>
           {panel.tag ? <Pill label={panel.tag} tone={panel.tagTone ?? "attention"} /> : null}
         </span>
-        {panel.sub ? <span className="mt-[3px] block text-pretty text-[12.5px] leading-[1.45] text-[#6E7C74]">{panel.sub}</span> : null}
+        {panel.sub ? <span className="mt-[3px] block text-pretty text-[12.5px] leading-[1.45] text-[#5C6B62]">{panel.sub}</span> : null}
       </span>
       {fold ? (
         <span className="flex h-[34px] w-[34px] flex-none items-center justify-center rounded-full" style={{ background: "#F1F5F3" }}>
@@ -376,9 +376,9 @@ export function PhoneFacts({ panel, openDrawer }: { panel: Extract<Panel, { type
         <div className="pb-[4px]">
           {panel.facts.map(([label, value, hint], index) => (
             <div key={`${index}-${label}`} className="mx-[16px] border-t py-[11px]" style={{ borderColor: "#EEF2F0" }}>
-              <p className="text-[12px] font-semibold leading-[1.4] text-[#6E7C74]">{label}</p>
+              <p className="text-[12px] font-semibold leading-[1.4] text-[#5C6B62]">{label}</p>
               <p className="mt-[2px] text-pretty text-[14px] font-bold leading-[1.4] text-[#0D2315]">{value || "—"}</p>
-              {hint ? <p className="mt-[2px] text-pretty text-[12px] leading-[1.45] text-[#6E7C74]">{hint}</p> : null}
+              {hint ? <p className="mt-[2px] text-pretty text-[12px] leading-[1.45] text-[#5C6B62]">{hint}</p> : null}
             </div>
           ))}
           {panel.acts?.length ? (
@@ -413,20 +413,20 @@ export function PhoneSteps({ panel }: { panel: Extract<Panel, { type: "steps" }>
                 {index < panel.steps.length - 1 ? <span aria-hidden className="absolute bottom-[-18px] top-[32px] w-[2px] rounded-full" style={{ background: "#E3ECE6" }} /> : null}
                 <span
                   className="relative flex h-[32px] w-[32px] items-center justify-center rounded-full text-[13px] font-extrabold"
-                  style={now ? { background: "#fff", color: "#0D2315", border: "2px solid #0D2315", boxShadow: "0 0 0 4px #D6EBE3" } : done ? { background: "#EAF6F0", color: "#17714F" } : { background: "#F1F5F3", color: "#7C8A82" }}
+                  style={now ? { background: "#fff", color: "#0D2315", border: "2px solid #0D2315", boxShadow: "0 0 0 4px #D6EBE3" } : done ? { background: "#EAF6F0", color: "#17714F" } : { background: "#F1F5F3", color: "#5C6B62" }}
                 >
                   {step.n ?? index + 1}
                 </span>
               </span>
               <span className="min-w-0 flex-1 pt-[4px]">
-                <span className="block text-pretty text-[14.5px] font-extrabold leading-[1.3]" style={{ color: now || done ? "#0D2315" : "#6E7C74" }}>{step.label}</span>
-                {step.sub ? <span className="mt-[3px] block text-pretty text-[12.5px] font-medium leading-[1.45] text-[#6E7C74]">{step.sub}</span> : null}
+                <span className="block text-pretty text-[14.5px] font-extrabold leading-[1.3]" style={{ color: now || done ? "#0D2315" : "#5C6B62" }}>{step.label}</span>
+                {step.sub ? <span className="mt-[3px] block text-pretty text-[12.5px] font-medium leading-[1.45] text-[#5C6B62]">{step.sub}</span> : null}
               </span>
             </li>
           );
         })}
       </ol>
-      {panel.foot ? <p className="mt-[10px] px-[4px] text-pretty text-[12.5px] leading-[1.5] text-[#6E7C74]">{panel.foot}</p> : null}
+      {panel.foot ? <p className="mt-[10px] px-[4px] text-pretty text-[12.5px] leading-[1.5] text-[#5C6B62]">{panel.foot}</p> : null}
     </section>
   );
 }
