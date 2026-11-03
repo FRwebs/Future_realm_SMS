@@ -139,7 +139,7 @@ export default async function SchoolModuleTabPage({ params, searchParams }: Page
             ]
       }
     >
-      <ModuleTabs module={module} visibleTabSlugs={visibleTabSlugs} labels={tabLabels} name={moduleName} />
+      <ModuleTabs module={module} visibleTabSlugs={visibleTabSlugs} labels={tabLabels} name={moduleName} hideOnPhone={Boolean(teaching) && module.code === "m12"} />
     </ModuleWorkspace>
   );
 }

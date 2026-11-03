@@ -62,7 +62,21 @@ export async function teacherCalendarTab(tabSlug: string): Promise<TabContent | 
     phoneEyebrow: `${ORDINAL[t.order] ?? t.name} Term`, phoneTitle: "This term", phoneDesc: "Your deadlines follow these dates. Set by the school; read-only for staff.",
     primary: { label: "Add to my phone calendar", phoneLabel: "Add to calendar", icon: DOWNLOAD, href: "/api/v1/teacher-workspace/calendar/export" },
     rows: [
-      row("1fr", [{
+      // The phone opens on the week, with the term's dates under it; the term's own card is the desktop's.
+      { ...row("1fr", [{
+        type: "kpi", bare: true,
+        cards: [
+          { label: "Week", value: String(t.week), unit: `of ${t.weeks}`, sub: `${fmt(t.startsOn)} – ${fmt(t.endsOn)}` },
+          c.window
+            ? { label: c.early ? "Observation window" : "Score window", value: c.window.daysLeft ? `${c.window.daysLeft} day${c.window.daysLeft === 1 ? "" : "s"}` : "Closes today", unit: c.window.daysLeft ? "left" : undefined, sub: `Closes ${fmt(c.window.closes, true)}`, tone: "attention" as const }
+            : { label: c.early ? "Observation window" : "Score window", value: "None", sub: "No window is set for this term" },
+          c.release
+            ? { label: "Report cards published", value: fmt(c.release.date), sub: c.release.daysAway > 0 ? `${c.release.daysAway} days away` : "Published", tone: "progress" as const }
+            : { label: "Report cards published", value: "Not set", sub: "The school has not set a publication date" },
+          { label: "Closed days ahead", value: String(c.closedAhead.days), sub: c.closedAhead.label ? `${c.closedAhead.label}${c.closedAhead.from ? ` · ${span(c.closedAhead.from, c.closedAhead.to)}` : ""}` : "None before the term ends" },
+        ],
+      }]), show: "phone" as const },
+      { ...row("1fr", [{
         type: "kpi", sub: `${t.name} ${t.session} · set by the school, read-only to every staff role.`, per: 5,
         cards: [
           { label: "Term", value: ORDINAL[t.order] ?? String(t.order), unit: `of ${t.of}`, sub: `${fmt(t.startsOn)} – ${fmt(t.endsOn)}` },
@@ -75,7 +89,7 @@ export async function teacherCalendarTab(tabSlug: string): Promise<TabContent | 
             : { label: "Report cards published", value: "Not set", sub: "The school has not set a publication date" },
           { label: "Closed days ahead", value: String(c.closedAhead.days), sub: c.closedAhead.label ? `${c.closedAhead.label}${c.closedAhead.from ? ` · ${span(c.closedAhead.from, c.closedAhead.to)}` : ""}` : "None before the term ends" },
         ],
-      }]),
+      }]), show: "desktop" as const },
       phoneDates,
       { ...row("1fr", [{ type: "facts", phoneFold: true, title: "The rules your deadlines run on", sub: "Set once by the school, visible so you can plan.", per: 1, facts }]), show: "phone" as const },
       { ...row("1.3fr 1fr", [
