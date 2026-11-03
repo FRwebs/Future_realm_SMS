@@ -211,8 +211,29 @@ function registerIndexTab(v: RegisterIndex): TabContent {
   }));
   return {
     title: "Register", desc: "Every register you hold. Open one to see each day you marked and what was missed.",
+    phoneTitle: "Your registers", phoneDesc: "Every register you hold. Open one for its days, who was away, and who marked it.",
+    phonePrimary: daily[0] ? { label: "Request correction", icon: PEN, href: `/attendance/register/${daily[0].classId}` } : undefined,
     rows: [
-      row("1fr", [{
+      // The phone: two figures, then one row for each register with where it stands today.
+      { ...row("1fr", [{
+        type: "kpi", bare: true,
+        cards: [
+          { label: "Registers you hold", value: String(v.registers.length), sub: `${daily.length} daily · ${v.registers.length - daily.length} period` },
+          { label: "Registers marked today", value: String(v.markedToday), unit: `of ${v.registers.length}`, sub: v.registers.length - v.markedToday > 0 ? `${v.registers.length - v.markedToday} still to mark` : v.date ? dayWords(v.date) : "No term is running", tone: v.registers.length && v.markedToday === v.registers.length ? "positive" : "attention" },
+        ],
+      }]), show: "phone" as const },
+      { ...row("1fr", [{
+        type: "list", title: "Choose a register", tag: `${v.registers.length} register${v.registers.length === 1 ? "" : "s"}`, tagTone: "neutral",
+        sub: "A daily register and a period register are different records.",
+        empty: "You hold no register. Daily registers belong to form masters; period registers appear on the days you teach.",
+        items: v.registers.map((entry) => ({
+          icon: REG, label: `${entry.arm} · ${entry.what}`, pill: entry.today, tone: entry.today === "Marked" ? ("positive" as const) : entry.today === "Not due" ? ("neutral" as const) : ("attention" as const),
+          sub: `${entry.why}${entry.roll ? ` · ${entry.roll} ${entry.roll === 1 ? "child" : "children"}` : ""}`,
+          href: `/attendance/register?arm=${entry.classId}`,
+        })),
+        foot: "Never overwrites the daily figure. Present at 08:00 but missing your period raises a truancy alert.",
+      }]), show: "phone" as const },
+      { ...row("1fr", [{
         // Named here rather than left to the shared KPI titles, which title this tab
         // after the teacher's own arm — right for one arm's history, wrong above cards
         // that count every register they hold.
@@ -223,15 +244,15 @@ function registerIndexTab(v: RegisterIndex): TabContent {
           { label: "School days so far", value: schoolDays, sub: v.term ? v.term.name : "No term is running" },
           { label: "Corrections pending", value: String(v.correctionsPending), sub: v.correctionsPending ? "Waiting on approval" : "Nothing waiting on approval", tone: v.correctionsPending ? "attention" : "positive" },
         ],
-      }]),
-      row("1fr", [{
+      }]), show: "desktop" as const },
+      { ...row("1fr", [{
         type: "table", title: "Your registers", sub: "Open each for its days, its children and every change made.",
         meta: `${v.registers.length} register${v.registers.length === 1 ? "" : "s"}`, noun: "register", nounPlural: "registers",
         search: v.registers.length > 2 ? "Find an arm or a register" : undefined,
         head: ["Arm", "Register", "Why you have it", "Today", "Term", "Roll", ""], rows, noRowOpen: true,
         empty: "You hold no register. Daily registers belong to form masters; period registers appear on the days you teach.",
         foot: "The daily register is the arm's record. A period register sits under it and never overwrites its figure.",
-      }]),
+      }]), show: "desktop" as const },
     ],
   };
 }

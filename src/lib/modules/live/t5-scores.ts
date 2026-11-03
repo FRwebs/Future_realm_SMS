@@ -400,7 +400,46 @@ function resultsTab(r: ResultsView, permissions: string[]): TabContent {
     sub: entry.ranked ? `${entry.failed} below ${40} · highest ${entry.high}` : "Nothing entered yet", tone: (entry.mean ?? 0) >= 60 ? "positive" as const : (entry.mean ?? 0) >= 50 ? "submitted" as const : "attention" as const,
   }));
   const form = r.formArms[0];
-  const panels: Array<PanelRow | null> = [
+  const initialsOf = (name: string) => name.split(/\s+/).filter(Boolean).slice(0, 2).map((word) => word[0]!.toUpperCase()).join("");
+  const stateOf = (entry: ResultsView["rows"][number]) => (!entry.ranked ? "Not entered" : entry.state === "Approved" ? "Final" : "Provisional");
+  // The phone's blocks, in the mockup's order: each sheet with its average, where each subject's comments are written, the form class, and the children to look at.
+  const phoneRows: Array<PanelRow | null> = [
+    { ...row("1fr", [{
+      type: "list", title: "Your sheets",
+      empty: "No result yet — nothing is assigned to you for score entry.",
+      items: r.rows.map((entry) => ({
+        label: `${entry.subject} · ${entry.arm}`, figure: entry.ranked && entry.mean !== null ? String(entry.mean) : "—",
+        pill: stateOf(entry), tone: !entry.ranked ? ("attention" as const) : entry.state === "Approved" ? ("positive" as const) : ("progress" as const), icon: SCORE,
+        sub: entry.ranked ? `${entry.passed} of ${entry.ranked} at the pass mark${entry.high !== null ? ` · highest ${entry.high}` : ""}` : "Nothing entered yet",
+        href: entry.ranked ? resultHref(entry.classId, entry.subjectId) : gridHref(entry.classId, entry.subjectId),
+      })),
+    }]), show: "phone" as const },
+    r.rows.some((entry) => entry.ranked)
+      ? { ...row("1fr", [{
+          type: "list", title: "Subject comments", sub: "One line per child, printed under your subject on the report card.",
+          items: r.rows.filter((entry) => entry.ranked).map((entry) => ({ label: `${entry.subject} · ${entry.arm}`, sub: `${entry.roll} ${entry.roll === 1 ? "child" : "children"} · open the sheet, then a child`, icon: PEN, href: resultHref(entry.classId, entry.subjectId) })),
+        }]), show: "phone" as const }
+      : null,
+    form && canSee("report-cards", "remarks")
+      ? { ...row("1fr", [{
+          type: "tiles", title: `${form.name} · your form class`, sub: "Every subject your class takes, not only yours.",
+          tiles: [
+            { label: `${form.name} broadsheet`, sub: "Every child against every subject, with positions and the marks still missing", icon: SCORE, href: broadsheetHref(form.id) },
+            { label: "Remarks for the report cards", sub: `${r.remarks.written} of ${r.remarks.roll} written`, icon: PEN, href: "/report-cards/remarks" },
+          ],
+        }]), show: "phone" as const }
+      : null,
+    r.look.length
+      ? { ...row("1fr", [{
+          type: "list", title: "Children to look at", tag: String(r.look.length), tagTone: "neutral", sub: "Below the pass mark, or close to it, in your subjects.",
+          items: r.look.map((entry) => ({
+            avatar: initialsOf(entry.child), label: entry.child, figure: String(entry.total), pill: entry.grade ?? undefined, tone: entry.why === "Below the pass mark" ? ("negative" as const) : ("attention" as const),
+            sub: `${entry.subject} · ${entry.arm} · ${entry.why.toLowerCase()}`, href: studentHref(entry.classId, entry.subjectId, entry.studentId),
+          })),
+        }]), show: "phone" as const }
+      : null,
+  ];
+  const desktopRows: Array<PanelRow | null> = [
     row("1fr", [{
       type: "kpi", per: 4,
       cards: [
@@ -440,8 +479,10 @@ function resultsTab(r: ResultsView, permissions: string[]): TabContent {
         }])
       : null,
   ];
+  const panels: Array<PanelRow | null> = [...phoneRows, ...desktopRows.map((entry) => (entry ? { ...entry, show: "desktop" as const } : null))];
   return {
     title: "Results", desc: "Your subjects, arm by arm, then any child — and how every number was reached.",
+    phoneTitle: "Your subjects", phoneDesc: "Every number explained — tap a sheet for its ranking and spread.",
     primary: lead ? { label: `Open ${lead.subject} ${lead.arm}`, icon: ARROW, href: resultHref(lead.classId, lead.subjectId) } : undefined,
     launchers: form && canSee("student-records", "registry") ? [{ label: `Your form class broadsheet · ${form.name}`, href: broadsheetHref(form.id) }] : [],
     rows: panels.filter((entry): entry is PanelRow => Boolean(entry)),

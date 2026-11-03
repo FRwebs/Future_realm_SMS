@@ -143,6 +143,7 @@ export type Row = {
   lead?: { top?: string; value: string; tone?: PanelTone; icon?: string; round?: boolean };
   pill?: { label: string; tone?: PanelTone };
   side?: string;
+  figure?: string;
   bar?: { pct: number; label: string; tone?: PanelTone };
   quote?: string;
   act?: { label: string; icon?: string; run?: () => void; href?: string };
@@ -190,8 +191,9 @@ function RowView({ row, last }: { row: Row; last: boolean }) {
             {row.act.label}
           </span>
         )
-      ) : row.pill || row.side ? (
+      ) : row.pill || row.side || row.figure ? (
         <span className="flex max-w-[44%] flex-none flex-col items-end gap-[5px] text-right">
+          {row.figure ? <span className="text-[17px] font-extrabold leading-none tabular-nums text-[#0D2315]">{row.figure}</span> : null}
           {row.pill ? <Pill label={row.pill.label} tone={row.pill.tone} /> : null}
           {row.side ? <span className="text-[12px] font-bold text-[#6E7C74]">{row.side}</span> : null}
         </span>
@@ -282,7 +284,7 @@ export function PhoneList({ panel, openDrawer }: { panel: Extract<Panel, { type:
       key: `${index}-${item.label}`, title: item.label, sub: item.sub,
       lead: item.lead ? { top: item.lead.top, value: item.lead.value, tone: item.lead.tone ?? item.tone } : item.avatar ? { value: item.avatar, round: true, tone: item.tone } : item.icon ? { value: "", icon: item.icon, tone: item.tone } : undefined,
       pill: item.pill ? { label: item.pill, tone: item.tone } : undefined,
-      side: item.side, bar: item.bar, quote: item.quote, act,
+      side: item.side, figure: item.figure, bar: item.bar, quote: item.quote, act,
       open: act ? undefined : drawer ? () => openDrawer(drawer) : item.href ? () => router.push(item.href as Route) : item.run,
     };
   });

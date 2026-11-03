@@ -118,8 +118,11 @@ const suggest: DrawerSpec = {
   submit: { endpoint: `${API}/learning/suggestions`, method: "POST", map: { "What you want to learn": "topic", "Why it would help your teaching": "why" } },
 };
 
-function noCourses(title: string, desc: string): TabContent {
-  return { title, desc, launchers: [{ label: "Suggest a course", drawer: suggest }], rows: [row("1fr", [{ type: "note", tone: "neutral", icon: EYE, title: "Your school has not published a course for your work yet", body: "Courses are written by the school and fitted to the work its staff do. When one is published for you, it appears here with what it earns. You can suggest one now." }])] };
+const FOR_YOU_PHONE = { title: "Learn in ten-minute pieces", desc: "Required courses first, then what you started, then what fits the work in front of you." };
+const CATALOGUE_PHONE = { title: "Every course you can take", desc: "Tick several to buy together. Free courses start straight away." };
+
+function noCourses(title: string, desc: string, phone?: { title: string; desc: string }): TabContent {
+  return { title, desc, phoneTitle: phone?.title, phoneDesc: phone?.desc, launchers: [{ label: "Suggest a course", drawer: suggest }], rows: [row("1fr", [{ type: "note", tone: "neutral", icon: EYE, title: "Your school has not published a course for your work yet", body: "Courses are written by the school and fitted to the work its staff do. When one is published for you, it appears here with what it earns. You can suggest one now." }])] };
 }
 
 /* ───────────────────────── For you ───────────────────────── */
@@ -137,13 +140,14 @@ const cardOf = (course: Course, why?: string): CourseCard => {
 };
 
 function forYouTab(v: Home): TabContent {
-  if (!v.total) return noCourses("Training", "Courses that fit the work you already do, and certificates your school recognises.");
+  if (!v.total) return noCourses("Training", "Courses that fit the work you already do, and certificates your school recognises.", FOR_YOU_PHONE);
   const next = v.required[0] ?? v.inProgress[0] ?? v.recommended[0]?.course ?? null;
   const due = v.required[0] ?? null;
   const L = v.cpd.target;
   const going = [...v.required, ...v.inProgress.filter((course) => !v.required.some((entry) => entry.id === course.id))];
   return {
     title: "Training", desc: "Courses that fit the work you already do, and certificates your school recognises.",
+    phoneTitle: FOR_YOU_PHONE.title, phoneDesc: FOR_YOU_PHONE.desc,
     primary: next ? { label: `${next.done ? "Continue" : "Start"} ${next.title}`.slice(0, 48), icon: ARROW, href: courseHref(next.id) } : undefined,
     launchers: [{ label: "Browse every course", href: "/training/catalogue" }, { label: "Your certificates", href: "/training/certificates" }],
     rows: ([
@@ -182,7 +186,7 @@ function forYouTab(v: Home): TabContent {
 const bandOf = (hours: number) => (hours < 2 ? "Under 2 hours" : hours <= 3 ? "2 – 3 hours" : "4 hours or more");
 
 function catalogueTab(v: Catalogue, b: Basket, query: Record<string, string | undefined>): TabContent {
-  if (!v.courses.length) return noCourses("Catalogue", "Pick a section, then a course.");
+  if (!v.courses.length) return noCourses("Catalogue", "Pick a section, then a course.", CATALOGUE_PHONE);
   const sec = v.sections.includes(query.sec ?? "") ? (query.sec as string) : "All";
   const list = v.courses.filter((course) => sec === "All" || course.section === sec);
   const isFree = (course: Course) => course.free !== false;
@@ -246,6 +250,7 @@ function catalogueTab(v: Catalogue, b: Basket, query: Record<string, string | un
   const settled = query.settled === "SCHOOL" ? { tone: "positive" as PanelTone, title: "Sent to the school", body: "Whoever manages staff development will decide it, and you will be told either way. The courses open if it is approved." } : query.settled === "SELF" ? { tone: "positive" as PanelTone, title: "Payment recorded", body: "The courses are open, and the reference is on your record for the office to check." } : null;
   return {
     title: "Catalogue", desc: "Pick a section, then a course. Your school’s own courses are free; the rest are paid by you or by the school.",
+    phoneTitle: CATALOGUE_PHONE.title, phoneDesc: CATALOGUE_PHONE.desc,
     primary: b.basket.length ? { label: `Checkout · ${b.basket.length} ${b.basket.length === 1 ? "course" : "courses"}`, icon: CART, href: checkoutHref } : undefined,
     launchers: [{ label: "Suggest a course", drawer: suggest }],
     rows: [
@@ -346,9 +351,18 @@ function certificatesTab(v: Certificates): TabContent {
   const firstRenew = first ? renew(first) : null;
   return {
     title: "Certificates", desc: "Everything you have earned, with a code anyone can verify. Each one is on your staff record and stays yours.",
-    primary: { label: "Add a certificate from elsewhere", icon: PLUS, drawer: addExt },
+    phoneTitle: "Everything you have earned", phoneDesc: "Each one carries a code anyone can verify. They are on your staff record and stay yours.",
+    primary: { label: "Add a certificate from elsewhere", phoneLabel: "Add certificate", icon: PLUS, drawer: addExt },
     rows: ([
-      row("1fr", [{
+      // The phone leads with two figures; the desktop's four follow below it.
+      { ...row("1fr", [{
+        type: "kpi", bare: true,
+        cards: [
+          { label: "Certificates", value: String(v.certificates.length), sub: `${v.certificates.filter((cert) => !cert.external).length} from your school · ${v.certificates.filter((cert) => cert.external).length} from elsewhere` },
+          { label: "CPD this year", value: String(v.cpd.hours), unit: "hours", sub: v.cpd.target !== null ? `Of the school’s ${v.cpd.target}` : "The school has not set an expectation" },
+        ],
+      }]), show: "phone" as const },
+      { ...row("1fr", [{
         type: "kpi", per: 4,
         cards: [
           { label: "Certificates", value: String(v.certificates.length), sub: `${v.certificates.filter((cert) => !cert.external).length} from your school · ${v.certificates.filter((cert) => cert.external).length} from elsewhere` },
@@ -356,7 +370,7 @@ function certificatesTab(v: Certificates): TabContent {
           { label: "CPD this year", value: String(v.cpd.hours), unit: "hours", sub: v.cpd.target !== null ? `Of the school’s ${v.cpd.target}` : "The school has not set an expectation" },
           { label: "On your staff record", value: "All", sub: "Valid certificates are seen by the school office", tone: "positive" },
         ],
-      }]),
+      }]), show: "desktop" as const },
       first ? row("1fr", [{
         type: "note", tone: "attention", icon: WARN, title: `${first.name} ${first.state === "Expired" ? "has expired" : `expires on ${first.expires}`}`,
         body: firstRenew ? "Renew it before it lapses and the new certificate replaces this one on your record." : "Renew it with the awarding body, then add the new certificate here — it replaces this one once the office has verified it.",

@@ -133,6 +133,8 @@ function HeaderAction({
 const PHONE_NO_FAB = [
   // The teacher's Today already carries its first job as the deck's own button; a second one floating over it would say it twice.
   "/command-center/today",
+  // Results is read, not filled in: the mockup floats nothing over it.
+  "/score-entry-results/results",
   "/portals/parent",
   "/portals/parent/learning",
   "/portals/parent/calendar",
@@ -278,11 +280,14 @@ export function ModuleWorkspace({
   phoneEyebrow,
   phoneTitle,
   phoneDesc,
+  phonePrimary,
   children,
 }: {
   eyebrow: string;
   phoneTitle?: string;
   phoneDesc?: string;
+  /** What the phone's floating button does, when that is not the header's primary. */
+  phonePrimary?: PanelAction;
   /** The green line over the title on a teacher's phone, when it says more than the module's name. */
   phoneEyebrow?: string;
   title: string;
@@ -304,7 +309,7 @@ export function ModuleWorkspace({
   const floats = floatPrimary ?? !PHONE_NO_FAB.includes(pathname.replace(/\/$/, ""));
 
   return (
-    <div className={cn("grid min-w-0 gap-[14px]", hasPhoneBar && floats && primary && "max-md:flex max-md:min-h-full max-md:flex-col")}>
+    <div className={cn("grid min-w-0 gap-[14px]", hasPhoneBar && floats && (phonePrimary ?? primary) && "max-md:flex max-md:min-h-full max-md:flex-col")}>
       <ModuleDrawer spec={drawer} onClose={() => setDrawer(null)} />
 
       {back ? (
@@ -349,7 +354,7 @@ export function ModuleWorkspace({
 
       <PanelRowsWithDrawer rows={rows} openDrawer={setDrawer} />
 
-      {hasPhoneBar && floats && primary ? <MobileFab act={primary} openDrawer={setDrawer} /> : null}
+      {hasPhoneBar && floats && (phonePrimary ?? primary) ? <MobileFab act={(phonePrimary ?? primary)!} openDrawer={setDrawer} /> : null}
     </div>
   );
 }
