@@ -59,10 +59,13 @@ export function PortalTabBar({
   }, [moreOpen]);
 
   // Which item is being read: the one whose address matches most of the path.
+  // A module is its first path segment ("/lesson-notes"); a portal's own pages sit three deep ("/portals/parent/fees"). Matching the whole address
+  // would call the Notes tab "More" the moment a teacher opened the module's other tab.
   const pathOf = (href: string) => href.split("?")[0]!.replace(/\/$/, "");
+  const baseOf = (href: string) => { const parts = pathOf(href).split("/").filter(Boolean); return `/${parts.slice(0, parts[0] === "portals" ? 3 : 1).join("/")}`; };
   const active = items
-    .filter((item) => { const base = pathOf(item.href); return pathname === base || pathname.startsWith(`${base}/`); })
-    .sort((a, b) => pathOf(b.href).length - pathOf(a.href).length)[0] ?? null;
+    .filter((item) => { const base = baseOf(item.href); return pathname === base || pathname.startsWith(`${base}/`); })
+    .sort((a, b) => baseOf(b.href).length - baseOf(a.href).length)[0] ?? null;
 
   const primary = primaryIds.map((id) => items.find((item) => item.id === id)).filter((item): item is TabBarItem => Boolean(item));
   const rest = items.filter((item) => !primaryIds.includes(item.id));

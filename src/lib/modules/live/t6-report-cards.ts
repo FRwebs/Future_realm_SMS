@@ -80,6 +80,18 @@ function remarksTab(o: RemarksOverview, me: TeacherWorkspaceView, to: string | n
         { label: "Days to publication", value: publish ? String(Math.max(0, publish.days)) : "—", sub: publish ? `Cards go out ${shortDate(publish.iso)}` : "Set by the school", tone: publish && publish.days < 7 ? "attention" : "positive" },
       ],
     }]),
+    // The phone shows where the remarks are as three stages, the way the teacher mobile mockup does, between the figures and the children.
+    {
+      ...row("1fr", [{
+        type: "steps", title: "Where your remarks are",
+        steps: [
+          { label: "Write each child’s remark", sub: `${written + drafts} of ${n} written · saved as you go`, state: written + drafts === n ? "done" : "current" },
+          { label: "Submit to the Principal", sub: "Together, once every remark is written", state: written === n ? "done" : written + drafts === n ? "current" : "todo" },
+          { label: "Published to families", sub: publish ? shortDate(publish.iso) : "No publication date is set", state: "todo" },
+        ],
+      }]),
+      show: "phone" as const,
+    },
     row("1fr", [{
       type: "table", title: `${own.name} · every child`, tag: `${written} of ${n} written`, tagTone: written === n ? "positive" : "attention", sub: "Open a child to write. The record you need is on the same page.", meta: `${n} children · your class`, noun: "remark", nounPlural: "children",
       search: "Find a child by name or admission number", head: ["Student", "Admission no", "Attend", "Remark", ""], rows: tableRows, per: 10, noRowOpen: true, empty: "Nobody is on this class’s roll.",
@@ -89,7 +101,8 @@ function remarksTab(o: RemarksOverview, me: TeacherWorkspaceView, to: string | n
   ];
   return {
     title: "Remarks", desc: `${own.name}. A teacher writes a remark; a Principal publishes a document.`,
-    primary: first ? { label: written === n ? "Open the first remark" : written + drafts ? "Continue writing" : "Start with the first child", icon: PEN, href: remarkHref(first.classId, first.id) } : undefined,
+    phoneTitle: `${own.name} remarks`, phoneDesc: `A teacher writes a remark; a Principal publishes a document.${publish ? ` Cards are published ${shortDate(publish.iso)}.` : ""}`,
+    primary: first ? { label: written === n ? "Open the first remark" : written + drafts ? "Continue writing" : "Start with the first child", phoneLabel: "Write remarks", icon: PEN, href: remarkHref(first.classId, first.id) } : undefined,
     launchers: drafts ? [{ label: `Submit ${drafts} remark${drafts === 1 ? "" : "s"}`, drawer: submit }] : [],
     rows: panels.filter((entry): entry is PanelRow => Boolean(entry)),
   };

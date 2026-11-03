@@ -114,7 +114,8 @@ function sentTab(v: SentView, me: TeacherWorkspaceView, details: Map<string, Sen
   const t = v.totals;
   return {
     title: "Sent", desc: "Your own messages. Nobody else’s.",
-    primary: { label: "Write a message", icon: PLUS, href: "/communication-center/compose" },
+    phoneTitle: "What you have sent", phoneDesc: "Your messages, with cost and outcome. Families see the school, never you.",
+    primary: { label: "Write a message", phoneLabel: "New message", icon: PLUS, href: "/communication-center/compose" },
     rows: [
       row("1fr", [{
         type: "kpi", sub: "This term · every send of yours also appears in the school’s Outbound Review.", per: 4,

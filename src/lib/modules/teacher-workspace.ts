@@ -66,7 +66,7 @@ type TeacherModule = {
 export const teacherModules: TeacherModule[] = [
   { code: "m1", label: "My Day", description: "What you owe, and by when.", icon: "M3 12h4l2.5-6 4 12 2.5-6h5", tabOrder: ["today", "oversight"] },
   { code: "m3", label: "Timetable", description: "Your periods, your rooms, your arms.", icon: "M4 5h16v15H4zM4 9.5h16M9 9.5V20M14.5 9.5V20", tabOrder: ["timetable", "teaching"] },
-  { code: "m17", label: "Lesson Notes", description: "Your scheme of work and your notes. Plan the term once, then teach from it every week.", icon: "M5 4.5h9.5A2.5 2.5 0 0 1 17 7v12.5H7.5A2.5 2.5 0 0 1 5 17zM9 8.5h5M9 12h5", tabOrder: ["curriculum", "notes", "review", "coverage"] },
+  { code: "m17", label: "Lesson Notes", description: "Your scheme of work and your notes. Plan the term once, then teach from it every week.", icon: "M5 4.5h9.5A2.5 2.5 0 0 1 17 7v12.5H7.5A2.5 2.5 0 0 1 5 17zM9 8.5h5M9 12h5", tabOrder: ["notes", "curriculum", "review", "coverage"] },
   { code: "m8", label: "My Students", description: "The children you are answerable for.", icon: "M12 4 3.5 8 12 12l8.5-4zM6 10.5v4.8c0 1.7 2.7 3.2 6 3.2s6-1.5 6-3.2v-4.8", tabOrder: ["registry"] },
   { code: "m4", label: "Attendance", description: "Your registers — marked in under a minute, online or not.", icon: "M4 5.5h16V20H4zM8 3v4M16 3v4M8.5 14l2 2 4-4.5", tabOrder: ["mark", "register", "compliance"] },
   {
@@ -75,7 +75,7 @@ export const teacherModules: TeacherModule[] = [
   },
   { code: "m6", label: "Report Cards", description: "The sentence a family reads most carefully.", icon: "M6.5 3.5h8L18.5 8v12.5h-12zM14.5 3.5V8h4M9 12.5h6M9 16h4", tabOrder: ["remarks", "completion", "archive"] },
   { code: "m9", label: "Guardians", description: "A number to call, and what families send in.", icon: "M12 20.5s-7.5-4.3-7.5-9.3a4.3 4.3 0 0 1 7.5-2.8 4.3 4.3 0 0 1 7.5 2.8c0 5-7.5 9.3-7.5 9.3z", tabOrder: ["guardians", "submissions"] },
-  { code: "m12", label: "Messages", description: "Reach your class’s families, with the cost shown first.", icon: "M4 5.5h16v10.5H9l-5 4zM8 9.5h8M8 12.8h5", tabOrder: ["compose", "sent"] },
+  { code: "m12", label: "Messages", description: "Reach your class’s families, with the cost shown first.", icon: "M4 5.5h16v10.5H9l-5 4zM8 9.5h8M8 12.8h5", tabOrder: ["sent", "compose"] },
   { code: "m13", label: "Approvals", description: "Decisions routed to you, and what you have raised.", icon: "m4.5 12.5 4.5 4.5 9-10M4.5 19.5h15", tabOrder: ["queue"] },
   { code: "m19", label: "Training", description: "Courses that fit your work, and certificates your school recognises.", icon: "M12 4 2.5 8.5 12 13l9.5-4.5zM6 10.8v4.4c0 1.6 2.7 3 6 3s6-1.4 6-3v-4.4M21.5 8.5v5", tabOrder: ["for-you", "catalogue", "certificates"] },
   { code: "m18", label: "My Employment", description: "Leave, your assignments, appraisal and payslips.", icon: "M3.5 8.5h17V19h-17zM9 8.5V6.2a1.7 1.7 0 0 1 1.7-1.7h2.6A1.7 1.7 0 0 1 15 6.2v2.3M3.5 13h17", tabOrder: ["leave", "my-assignments", "appraisal", "payslips"] },

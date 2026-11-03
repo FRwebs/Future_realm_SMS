@@ -36,7 +36,7 @@ function MobileFab({ act, openDrawer }: { act: PanelAction; openDrawer: (spec: D
           <path d={act.icon ?? PLUS_ICON} />
         </svg>
       </span>
-      <span className="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap">{act.label}</span>
+      <span className="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap">{act.phoneLabel ?? act.label}</span>
     </>
   );
   return (
@@ -44,7 +44,7 @@ function MobileFab({ act, openDrawer }: { act: PanelAction; openDrawer: (spec: D
     // second sticky layer inside the same scroller. Ours is a sibling below the
     // scroller, so the scrollport already stops at the bar: sticking to 0 puts
     // the button the same 12px above it.
-    <div className="pointer-events-none sticky bottom-0 z-[34] flex justify-end px-[16px] pb-[12px] md:hidden">
+    <div className="pointer-events-none sticky bottom-0 z-[34] mt-auto flex justify-end px-[16px] pb-[12px] md:hidden">
       {act.href ? (
         <Link href={act.href as Route} className={className} style={style}>{body}</Link>
       ) : act.drawer ? (
@@ -142,36 +142,17 @@ const PHONE_NO_FAB = [
 ];
 
 /**
- * The teacher's page head on a phone: no card, just the type — the module in green capitals, the screen's name, and one line on what it is
- * for — with the shortcuts as quiet pills beneath. The curved bar above it already says where you are, and the primary action floats.
+ * The teacher's page head on a phone: no card, just the type — the module and the screen in green capitals, the screen's name, and one line
+ * on what it is for. The mockup has no shortcut pills here: a shortcut is another segment, or a row on the page. The curved bar above it
+ * already says where you are, and the primary action floats.
  */
-function PhoneHead({ eyebrow, title, description, launchers, openDrawer }: { eyebrow: string; title: string; description: string; launchers?: PanelAction[]; openDrawer: (spec: DrawerSpec) => void }) {
+function PhoneHead({ eyebrow, title, description }: { eyebrow: string; title: string; description: string }) {
   const ui = useUiText();
-  const shortcuts = (launchers ?? []).slice(0, 2);
   return (
     <div className="px-[4px] pt-[6px] md:hidden">
       <p className="mb-[6px] text-[11px] font-extrabold uppercase tracking-[0.08em] text-[#12796A]">{ui(eyebrow)}</p>
       <h1 className="text-pretty text-[23px] font-extrabold leading-[1.15] tracking-[-0.02em] text-[#0D2315]">{ui(title)}</h1>
       {description ? <p className="mt-[6px] text-pretty text-[13.5px] leading-[1.5] text-[#5F6E65]">{description}</p> : null}
-      {shortcuts.length ? (
-        <div className="mt-[12px] flex flex-wrap gap-[8px]">
-          {shortcuts.map((act) => {
-            const className = "inline-flex min-h-[40px] items-center gap-[7px] rounded-[13px] bg-white px-[14px] text-[13px] font-extrabold text-[#0D2315] active:scale-[0.97]";
-            const style = { boxShadow: "0 1px 2px rgba(13,35,21,0.05), 0 8px 22px -14px rgba(13,35,21,0.22)" };
-            const body = (
-              <>
-                <span>{act.label}</span>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#12796A" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d={ARROW_ICON} /></svg>
-              </>
-            );
-            return act.href ? (
-              <Link key={act.label} href={act.href as Route} className={className} style={style}>{body}</Link>
-            ) : act.drawer ? (
-              <button key={act.label} type="button" onClick={() => openDrawer(act.drawer!)} className={className} style={style}>{body}</button>
-            ) : null;
-          })}
-        </div>
-      ) : null}
     </div>
   );
 }
@@ -294,9 +275,16 @@ export function ModuleWorkspace({
   rows,
   back,
   floatPrimary,
+  phoneEyebrow,
+  phoneTitle,
+  phoneDesc,
   children,
 }: {
   eyebrow: string;
+  phoneTitle?: string;
+  phoneDesc?: string;
+  /** The green line over the title on a teacher's phone, when it says more than the module's name. */
+  phoneEyebrow?: string;
   title: string;
   description: string;
   primary?: PanelAction;
@@ -316,7 +304,7 @@ export function ModuleWorkspace({
   const floats = floatPrimary ?? !PHONE_NO_FAB.includes(pathname.replace(/\/$/, ""));
 
   return (
-    <div className="grid min-w-0 gap-[14px]">
+    <div className={cn("grid min-w-0 gap-[14px]", hasPhoneBar && floats && primary && "max-md:flex max-md:min-h-full max-md:flex-col")}>
       <ModuleDrawer spec={drawer} onClose={() => setDrawer(null)} />
 
       {back ? (
@@ -357,7 +345,7 @@ export function ModuleWorkspace({
       {children}
 
       {/* The teacher's phone puts the segments first and the screen's name under them, as its mockup does. */}
-      {kind === "teacher" && pathname.replace(/\/$/, "") !== "/command-center/today" ? <PhoneHead eyebrow={eyebrow} title={title} description={description} launchers={launchers} openDrawer={setDrawer} /> : null}
+      {kind === "teacher" && pathname.replace(/\/$/, "") !== "/command-center/today" ? <PhoneHead eyebrow={phoneEyebrow ?? eyebrow} title={phoneTitle ?? title} description={phoneDesc ?? description} /> : null}
 
       <PanelRowsWithDrawer rows={rows} openDrawer={setDrawer} />
 

@@ -53,7 +53,11 @@ function syncTab(o: SyncOverview, me: TeacherWorkspaceView): TabContent {
       },
     ]),
   ];
-  return { title: "Sync", desc: "Is my work saved — answered without a connection.", rows: panels.filter((entry): entry is PanelRow => Boolean(entry)) };
+  return {
+    title: "Sync", desc: "Is my work saved — answered without a connection.",
+    phoneEyebrow: "Sync & Support · This phone", phoneTitle: o.pending ? `${o.pending} waiting to send` : "Everything is synced",
+    phoneDesc: "What is on this phone, what has reached the school, and what is still waiting.",
+    rows: panels.filter((entry): entry is PanelRow => Boolean(entry)) };
 }
 
 function guides(me: TeacherWorkspaceView): Array<[string, string]> {

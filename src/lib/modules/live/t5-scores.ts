@@ -162,8 +162,43 @@ function enterTab(v: SheetsView, me: TeacherWorkspaceView): TabContent {
   const subjects = unique(rows.map((entry) => (entry.cells[0] as { text: string }).text));
   const arms = unique(rows.map((entry) => (entry.cells[1] as { text: string }).text));
   const total = v.assigned;
+  const sheetNote = (entry: SheetRow) => {
+    const lockedNow = locked(entry.state);
+    return entry.basis === "Cover" && !lockedNow ? `Cover until ${entry.until ? shortDay(entry.until) : "the cover ends"} · attributed to you`
+      : entry.state === "Submitted" ? "Locked to you · with the reviewer" : entry.state === "Approved" ? "Final · feeds the report cards"
+      : entry.flagged ? `${entry.flagged} mark${entry.flagged === 1 ? " is" : "s are"} above the maximum` : entry.entered > 0 && entry.mean !== null ? `Average ${entry.mean} so far` : v.closes ? `Closes ${short(v.closes)}` : "No closing date set";
+  };
+  // The phone's own blocks, in the mockup's order: what came back, four figures, the sheets with how far each has got, and where a sheet can be.
+  const phoneRows: Array<PanelRow | null> = [
+    v.kpis.firstReturned && lead
+      ? { ...row("1fr", [{ type: "note", tone: "negative", title: `Returned · ${lead.subject} ${lead.arm}`, body: `“${lead.returned ?? "Returned for correction"}”`, acts: [{ label: "Correct it now", href: gridHref(lead.classId, lead.subjectId) }] }]), show: "phone" as const }
+      : null,
+    { ...row("1fr", [{
+      type: "kpi", bare: true,
+      cards: [
+        { label: "Sheets outstanding", value: String(k.open), unit: `of ${k.sheets}`, sub: v.daysLeft !== null ? `${v.daysLeft} day${v.daysLeft === 1 ? "" : "s"} left` : "No closing date set", tone: k.open ? "negative" : "positive" },
+        { label: "Marks entered", value: String(k.entered), unit: `of ${k.children}`, sub: "Across your sheets", tone: k.entered < k.children ? "attention" : "positive" },
+        { label: "Returned to you", value: String(k.returned), sub: k.firstReturned ? `${k.firstReturned.subject} ${k.firstReturned.arm}` : "Nothing sent back", tone: k.returned ? "negative" : "positive" },
+        { label: "Blank is not zero", value: String(Math.max(0, k.children - k.entered)), unit: "blanks", sub: "A blank means no total", tone: k.children - k.entered > 0 ? "attention" : "positive" },
+      ],
+    }]), show: "phone" as const },
+    { ...row("1fr", [{
+      type: "list", title: "Your sheets", sub: "One subject-arm is one sheet. Open one and every child in that arm is on it.",
+      empty: "Nothing is assigned to you for score entry. If you teach a subject, ask the office to add it in Timetable → Teaching.",
+      items: [
+        ...v.rows.map((entry) => ({
+          label: `${entry.subject} · ${entry.arm}`, pill: entry.state, tone: tone(entry.state), sub: sheetNote(entry),
+          bar: { pct: entry.roll ? Math.round((entry.entered / entry.roll) * 100) : 0, label: `${entry.entered} of ${entry.roll}`, tone: entry.entered === entry.roll ? ("positive" as const) : ("attention" as const) },
+          href: locked(entry.state) ? previewHref(entry.classId, entry.subjectId) : gridHref(entry.classId, entry.subjectId),
+        })),
+        ...v.restricted.map((entry) => ({ label: `${entry.subject} · ${entry.arm}`, pill: "Register only", tone: "withheld" as const, sub: "Cover · score entry was not granted with this cover", drawer: coverWhy(entry) })),
+      ],
+      foot: "Type a mark in any box. Tap a name to mark an absence.",
+    }]), show: "phone" as const },
+  ];
   const panels: Array<PanelRow | null> = [
-    row("1fr", [{
+    ...phoneRows,
+    { ...row("1fr", [{
       type: "kpi", sub: `${v.windowName ?? "Scores"} · ${v.term}${v.closes ? ` · the window closes ${short(v.closes)}` : ""}.`, per: 5,
       cards: [
         { label: "Sheets outstanding", value: String(k.open), unit: `of ${k.sheets}`, sub: v.daysLeft !== null ? `${v.daysLeft} day${v.daysLeft === 1 ? "" : "s"} left` : "No closing date set", tone: k.open ? "negative" : "positive" },
@@ -172,19 +207,19 @@ function enterTab(v: SheetsView, me: TeacherWorkspaceView): TabContent {
         { label: "Saved on this device", value: String(v.pending), unit: "marks", sub: "Queued, provisional", tone: "offline" },
         { label: "Blank is not zero", value: String(Math.max(0, k.children - k.entered)), unit: "blanks", sub: "A blank leaves a child without a total", tone: k.children - k.entered > 0 ? "attention" : "positive" },
       ],
-    }]),
-    row("1fr", [{
+    }]), show: "desktop" as const },
+    { ...row("1fr", [{
       type: "table", dense: true, title: "Your sheets", sub: "One subject-arm is one sheet. Open one and every child in that arm is on it.", meta: `${total} assignment${total === 1 ? "" : "s"} · ${v.rows.length} with score entry`, noun: "sheet", nounPlural: "sheets",
       search: total > 2 ? "Find a subject or an arm" : undefined,
       filters: total > 1 ? [{ label: "Subject", value: "All", options: ["All", ...subjects], column: 0 }, { label: "Arm", value: "All", options: ["All", ...arms], column: 1 }, { label: "State", value: "All", options: ["All", "Not started", "In progress", "Submitted", "Returned", "Approved", "Not granted"], column: 3 }] : undefined,
       head: ["Subject", "Arm", "Roll", "State", "Entered", "Avg", "Note", ""], rows, noRowOpen: true, per: 12,
       empty: "Nothing is assigned to you for score entry. If you teach a subject, ask the office to add it in Timetable → Teaching.",
       foot: "Type a mark, Tab moves across, A marks a child absent.",
-    }]),
+    }]), show: "desktop" as const },
     row("1.1fr 1fr", [
-      { type: "steps", title: "Where a sheet of yours can be", steps: [{ label: "Draft · yours alone", state: "current" }, { label: "Submitted · locked to you", state: "todo" }, { label: "Returned or approved", state: "todo" }] },
+      { type: "steps", title: "Where a sheet of yours can be", steps: [{ label: "Draft · yours alone", sub: "Editable, saved on this phone, visible to nobody else", state: "current" }, { label: "Submitted · locked to you", sub: "Visible to your reviewer · online only", state: "todo" }, { label: "Returned or approved", sub: "Returned comes back with a comment; approved feeds the report cards", state: "todo" }] },
       {
-        type: "facts", title: "What the states mean", per: 1,
+        type: "facts", show: "desktop", title: "What the states mean", per: 1,
         facts: [
           ["Draft", "Editable, saved as you go, visible to nobody else", "Not counted in any review"],
           ["Submitted", "Locked to you, visible to your reviewer", "Online only"],
@@ -197,7 +232,8 @@ function enterTab(v: SheetsView, me: TeacherWorkspaceView): TabContent {
   ];
   return {
     title: me.persona === "early-years" ? "Enter observations" : "Enter scores", desc: "Your assigned subject-arms. Nothing else is enterable by you.",
-    primary: lead ? { label: `${lead.state === "Returned" ? "Correct " : lead.state === "Not started" ? "Start " : "Continue "}${lead.subject} ${lead.arm}`, icon: PEN, href: locked(lead.state) ? previewHref(lead.classId, lead.subjectId) : gridHref(lead.classId, lead.subjectId) } : undefined,
+    phoneEyebrow: `Scores · ${v.windowName ?? "Examination"}`,
+    primary: lead ? { label: `${lead.state === "Returned" ? "Correct " : lead.state === "Not started" ? "Start " : "Continue "}${lead.subject} ${lead.arm}`, phoneLabel: "Enter scores", icon: PEN, href: locked(lead.state) ? previewHref(lead.classId, lead.subjectId) : gridHref(lead.classId, lead.subjectId) } : undefined,
     launchers: lead && !locked(lead.state) ? [{ label: "Import from the school’s Excel template", href: `${gridHref(lead.classId, lead.subjectId)}/import` }] : [],
     rows: panels.filter((entry): entry is PanelRow => Boolean(entry)),
   };

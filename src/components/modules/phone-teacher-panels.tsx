@@ -85,7 +85,6 @@ export function PhoneStats({ panel, openDrawer }: { panel: Extract<Panel, { type
   const cards = panel.cards;
   return (
     <section className="min-w-0">
-      {panel.bare ? null : <BlockHead title={panel.title ?? "Summary"} sub={panel.sub} openDrawer={openDrawer} />}
       <div className="grid grid-cols-2 gap-[10px]">
         {cards.map((card: KpiCard, index) => {
           const dark = index === 0 && cards.length > 1;
@@ -141,16 +140,25 @@ export type Row = {
   key: string;
   title: string;
   sub?: string;
-  lead?: { top?: string; value: string; tone?: PanelTone };
+  lead?: { top?: string; value: string; tone?: PanelTone; icon?: string; round?: boolean };
   pill?: { label: string; tone?: PanelTone };
   side?: string;
+  bar?: { pct: number; label: string; tone?: PanelTone };
+  quote?: string;
+  act?: { label: string; icon?: string; run?: () => void; href?: string };
   open?: () => void;
 };
 
 function RowView({ row, last }: { row: Row; last: boolean }) {
   const content = (
     <>
-      {row.lead ? (
+      {row.lead?.round ? (
+        <span className="flex h-[44px] w-[44px] flex-none items-center justify-center rounded-full text-[13.5px] font-extrabold tracking-[0.02em]" style={{ background: row.lead.tone && row.lead.tone !== "neutral" ? toneOf(row.lead.tone).bg : "#EEF4F0", color: row.lead.tone && row.lead.tone !== "neutral" ? toneOf(row.lead.tone).fg : "#0D2315" }} aria-hidden>{row.lead.value}</span>
+      ) : row.lead?.icon ? (
+        <span className="flex h-[44px] w-[44px] flex-none items-center justify-center rounded-full" style={{ background: row.lead.tone && row.lead.tone !== "neutral" ? toneOf(row.lead.tone).bg : "#EEF4F0", color: row.lead.tone && row.lead.tone !== "neutral" ? toneOf(row.lead.tone).fg : "#17604F" }} aria-hidden>
+          <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><path d={row.lead.icon} /></svg>
+        </span>
+      ) : row.lead ? (
         <span
           className="flex h-[50px] w-[46px] flex-none flex-col items-center justify-center rounded-[14px] text-[17px] font-black leading-none"
           style={{ background: toneOf(row.lead.tone).bg, color: toneOf(row.lead.tone).fg }}
@@ -161,19 +169,37 @@ function RowView({ row, last }: { row: Row; last: boolean }) {
         </span>
       ) : null}
       <span className="min-w-0 flex-1">
-        <span className="block text-pretty text-[14.5px] font-extrabold leading-[1.3] text-[#0D2315]">{row.title}</span>
+        <span className="block text-pretty text-[14px] font-bold leading-[1.35] text-[#0D2315]">{row.title}</span>
         {row.sub ? <span className="mt-[3px] block text-pretty text-[12.5px] font-medium leading-[1.45] text-[#6E7C74]">{row.sub}</span> : null}
+        {row.quote ? <span className="mt-[10px] block rounded-[14px] px-[14px] py-[11px] text-pretty text-[13px] font-medium italic leading-[1.5]" style={{ background: "#FDF3F3", color: "#B23B3B" }}>{row.quote}</span> : null}
+        {row.bar ? (
+          <span className="mt-[8px] flex items-center gap-[10px]">
+            <span className="h-[6px] min-w-0 flex-1 overflow-hidden rounded-full" style={{ background: "#EDF3EF" }}>
+              <span className="block h-full rounded-full" style={{ width: `${Math.max(2, Math.min(100, row.bar.pct))}%`, background: toneOf(row.bar.tone ?? "attention").dot }} />
+            </span>
+            <span className="flex-none text-[12.5px] font-semibold tabular-nums text-[#6E7C74]">{row.bar.label}</span>
+          </span>
+        ) : null}
       </span>
-      {row.pill || row.side ? (
+      {row.act ? (
+        row.act.href ? (
+          <Link href={row.act.href as Route} className="flex h-[40px] flex-none items-center gap-[6px] rounded-[12px] bg-[#EEF4F0] px-[14px] text-[13px] font-extrabold text-[#0D2315]">{row.act.label}</Link>
+        ) : (
+          <span role="button" tabIndex={0} onClick={(event) => { event.stopPropagation(); row.act!.run?.(); }} onKeyDown={(event) => { if (event.key === "Enter") { event.stopPropagation(); row.act!.run?.(); } }} className="flex h-[40px] flex-none cursor-pointer items-center gap-[6px] rounded-[12px] bg-[#EEF4F0] px-[14px] text-[13px] font-extrabold text-[#0D2315]">
+            {row.act.icon ? <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d={row.act.icon} /></svg> : null}
+            {row.act.label}
+          </span>
+        )
+      ) : row.pill || row.side ? (
         <span className="flex max-w-[44%] flex-none flex-col items-end gap-[5px] text-right">
           {row.pill ? <Pill label={row.pill.label} tone={row.pill.tone} /> : null}
           {row.side ? <span className="text-[12px] font-bold text-[#6E7C74]">{row.side}</span> : null}
         </span>
       ) : null}
-      {row.open ? <Chevron /> : null}
+      {row.open && !row.act ? <Chevron /> : null}
     </>
   );
-  const className = cn("flex w-full items-center gap-[12px] px-[16px] py-[14px] text-left", !last && "border-b", row.open && "active:bg-[#F7FAF8]");
+  const className = cn("flex min-h-[66px] w-full items-center gap-[12px] px-[16px] py-[12px] text-left", !last && "border-b", row.open && "active:bg-[#F7FAF8]");
   const style = { borderColor: "#EDF3EF" };
   return row.open ? (
     <button type="button" onClick={row.open} className={className} style={style}>{content}</button>
@@ -248,19 +274,32 @@ export function PhoneTable({ panel, openDrawer }: { panel: Extract<Panel, { type
 
 export function PhoneList({ panel, openDrawer }: { panel: Extract<Panel, { type: "list" }>; openDrawer: OpenDrawer }) {
   const router = useRouter();
+  const [q, setQ] = useState("");
   const rows: Row[] = panel.items.map((item, index) => {
     const drawer = item.drawer ?? (item.facts?.length ? ({ title: item.label, sub: item.sub, facts: item.facts, readOnly: panel.readOnly } as DrawerSpec) : undefined);
+    const act = item.act ? { label: item.act.label, icon: item.act.icon, href: item.act.href, run: item.act.drawer ? () => openDrawer(item.act!.drawer!) : undefined } : undefined;
     return {
       key: `${index}-${item.label}`, title: item.label, sub: item.sub,
-      lead: item.lead ? { top: item.lead.top, value: item.lead.value, tone: item.lead.tone ?? item.tone } : undefined,
+      lead: item.lead ? { top: item.lead.top, value: item.lead.value, tone: item.lead.tone ?? item.tone } : item.avatar ? { value: item.avatar, round: true, tone: item.tone } : item.icon ? { value: "", icon: item.icon, tone: item.tone } : undefined,
       pill: item.pill ? { label: item.pill, tone: item.tone } : undefined,
-      open: drawer ? () => openDrawer(drawer) : item.href ? () => router.push(item.href as Route) : item.run,
+      side: item.side, bar: item.bar, quote: item.quote, act,
+      open: act ? undefined : drawer ? () => openDrawer(drawer) : item.href ? () => router.push(item.href as Route) : item.run,
     };
   });
+  // A long list of people is found by name, not scrolled; the search is over what the rows say.
+  const searchable = rows.length > 8;
+  const needle = q.trim().toLowerCase();
+  const shown = needle ? rows.filter((row) => `${row.title} ${row.sub ?? ""}`.toLowerCase().includes(needle)) : rows;
   return (
     <section className="min-w-0">
+      {searchable ? (
+        <label className="mb-[14px] flex h-[48px] items-center gap-[10px] rounded-[16px] bg-white px-[14px]" style={{ boxShadow: RAISED }}>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#8C9A92" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden><circle cx="11" cy="11" r="6.5" /><path d="m16 16 4 4" /></svg>
+          <input value={q} onChange={(event) => setQ(event.target.value)} placeholder="Find by name" aria-label="Find in this list" className="min-w-0 flex-1 bg-transparent text-[14px] font-medium text-[#0D2315] outline-none placeholder:text-[#8C9A92]" />
+        </label>
+      ) : null}
       <BlockHead title={panel.title} sub={panel.sub} tag={panel.tag} tagTone={panel.tagTone} acts={panel.acts} openDrawer={openDrawer} />
-      <RowsCard rows={rows} empty={panel.empty ?? "Nothing here yet."} per={rows.length > 12 ? 10 : 0} />
+      <RowsCard rows={shown} empty={needle ? "Nothing matches that." : panel.empty ?? "Nothing here yet."} per={shown.length > 12 ? 10 : 0} />
       {panel.foot ? <p className="mt-[10px] px-[4px] text-pretty text-[12.5px] leading-[1.5] text-[#6E7C74]">{panel.foot}</p> : null}
     </section>
   );
@@ -293,5 +332,96 @@ export function PhoneNote({ panel, openDrawer }: { panel: Extract<Panel, { type:
         ) : null}
       </div>
     </div>
+  );
+}
+
+/* ───────────────────────── a set of facts ───────────────────────── */
+
+/**
+ * Facts as the mockup draws them: one white card, a heading with a small chevron, and — when the block is a rule rather than an answer —
+ * folded shut until it is asked for. Each fact is its label, its value and the line of reasoning under it.
+ */
+export function PhoneFacts({ panel, openDrawer }: { panel: Extract<Panel, { type: "facts" }>; openDrawer: OpenDrawer }) {
+  const fold = Boolean(panel.phoneFold || panel.tuck);
+  const [open, setOpen] = useState(!fold);
+  const head = (
+    <>
+      <span className="min-w-0 flex-1">
+        <span className="flex flex-wrap items-center gap-[8px]">
+          <span className="text-[15.5px] font-extrabold leading-[1.3] tracking-[-0.01em] text-[#0D2315]">{panel.title}</span>
+          {panel.tag ? <Pill label={panel.tag} tone={panel.tagTone ?? "attention"} /> : null}
+        </span>
+        {panel.sub ? <span className="mt-[3px] block text-pretty text-[12.5px] leading-[1.45] text-[#6E7C74]">{panel.sub}</span> : null}
+      </span>
+      {fold ? (
+        <span className="flex h-[34px] w-[34px] flex-none items-center justify-center rounded-full" style={{ background: "#F1F5F3" }}>
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#435048" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden style={{ transition: "transform 180ms ease", transform: `rotate(${open ? 180 : 0}deg)` }}><path d="m6 9 6 6 6-6" /></svg>
+        </span>
+      ) : null}
+    </>
+  );
+  return (
+    <section className="overflow-hidden rounded-[20px] bg-white" style={{ boxShadow: RAISED }}>
+      {fold ? (
+        <button type="button" onClick={() => setOpen((value) => !value)} aria-expanded={open} className="flex min-h-[56px] w-full items-center gap-[10px] py-[15px] pl-[16px] pr-[14px] text-left">{head}</button>
+      ) : (
+        <div className="flex min-h-[56px] items-center gap-[10px] py-[15px] pl-[16px] pr-[14px]">{head}</div>
+      )}
+      {open ? (
+        <div className="pb-[4px]">
+          {panel.facts.map(([label, value, hint], index) => (
+            <div key={`${index}-${label}`} className="mx-[16px] border-t py-[11px]" style={{ borderColor: "#EEF2F0" }}>
+              <p className="text-[12px] font-semibold leading-[1.4] text-[#6E7C74]">{label}</p>
+              <p className="mt-[2px] text-pretty text-[14px] font-bold leading-[1.4] text-[#0D2315]">{value || "—"}</p>
+              {hint ? <p className="mt-[2px] text-pretty text-[12px] leading-[1.45] text-[#6E7C74]">{hint}</p> : null}
+            </div>
+          ))}
+          {panel.acts?.length ? (
+            <div className="mx-[16px] flex flex-wrap gap-[8px] border-t py-[12px]" style={{ borderColor: "#EEF2F0" }}>
+              {panel.acts.map((act) => act.href ? (
+                <Link key={act.label} href={act.href as Route} className="inline-flex min-h-[40px] items-center rounded-[12px] bg-[#EEF4F0] px-[14px] text-[13px] font-extrabold text-[#0D2315]">{act.label}</Link>
+              ) : act.drawer ? (
+                <button key={act.label} type="button" onClick={() => openDrawer(act.drawer!)} className="inline-flex min-h-[40px] items-center rounded-[12px] bg-[#EEF4F0] px-[14px] text-[13px] font-extrabold text-[#0D2315]">{act.label}</button>
+              ) : null)}
+            </div>
+          ) : null}
+        </div>
+      ) : null}
+    </section>
+  );
+}
+
+/* ───────────────────────── steps ───────────────────────── */
+
+/** A run of stages as the mockup draws it: numbered circles down a line, the stage you are at ringed. */
+export function PhoneSteps({ panel }: { panel: Extract<Panel, { type: "steps" }> }) {
+  return (
+    <section className="min-w-0">
+      {panel.title ? <h2 className="mb-[10px] px-[2px] text-[18px] font-extrabold leading-[1.2] tracking-[-0.01em] text-[#0D2315]">{panel.title}</h2> : null}
+      <ol className="rounded-[20px] bg-white px-[16px] py-[16px]" style={{ boxShadow: RAISED }}>
+        {panel.steps.map((step, index) => {
+          const now = step.state === "current";
+          const done = step.state === "done";
+          return (
+            <li key={`${index}-${step.label}`} className="relative flex gap-[12px] pb-[18px] last:pb-0">
+              <span className="relative flex w-[32px] flex-none justify-center">
+                {index < panel.steps.length - 1 ? <span aria-hidden className="absolute bottom-[-18px] top-[32px] w-[2px] rounded-full" style={{ background: "#E3ECE6" }} /> : null}
+                <span
+                  className="relative flex h-[32px] w-[32px] items-center justify-center rounded-full text-[13px] font-extrabold"
+                  style={now ? { background: "#fff", color: "#0D2315", border: "2px solid #0D2315", boxShadow: "0 0 0 4px #D6EBE3" } : done ? { background: "#EAF6F0", color: "#17714F" } : { background: "#F1F5F3", color: "#7C8A82" }}
+                >
+                  {step.n ?? index + 1}
+                </span>
+              </span>
+              <span className="min-w-0 flex-1 pt-[4px]">
+                <span className="block text-pretty text-[14.5px] font-extrabold leading-[1.3]" style={{ color: now || done ? "#0D2315" : "#6E7C74" }}>{step.label}</span>
+                {step.sub ? <span className="mt-[3px] block text-pretty text-[12.5px] font-medium leading-[1.45] text-[#6E7C74]">{step.sub}</span> : null}
+              </span>
+            </li>
+          );
+        })}
+      </ol>
+      {panel.foot ? <p className="mt-[10px] px-[4px] text-pretty text-[12.5px] leading-[1.5] text-[#6E7C74]">{panel.foot}</p> : null}
+    </section>
   );
 }
