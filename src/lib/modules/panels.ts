@@ -976,6 +976,8 @@ export type Panel =
     }
   | {
       type: "list";
+      /** On a phone a long list is searchable; this turns the box off where the list is a to-do, not a directory. */
+      noFind?: boolean;
       /** Lifted off the page: offered as one line at its foot, which opens it. The rule behind a page without making the page half rules. */
       tuck?: string;
       tuckIcon?: string;

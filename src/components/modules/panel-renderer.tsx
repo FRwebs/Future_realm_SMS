@@ -1394,7 +1394,7 @@ function CardTile({ card }: { card: KpiCard }) {
  * blocks; everywhere else, and for every other kind of panel, it is the panel the desktop reads.
  */
 export function PanelView({ panel, openDrawer }: { panel: Panel; openDrawer: OpenDrawer }) {
-  const teacherPhone = usePhoneKind() === "teacher";
+  const teacherPhone = usePhoneKind() !== null;
   const only = "show" in panel ? panel.show : undefined;
   const phone =
     teacherPhone && (panel.type === "kpi" || panel.type === "list" || panel.type === "note" || panel.type === "facts" || (panel.type === "steps" && !panel.prevHref && !panel.nextHref) || (panel.type === "table" && !panel.window && !panel.selectable && !panel.bulkActs));

@@ -19,12 +19,15 @@ export function PhoneNotificationSheet({
   notices,
   unread,
   quietHours,
+  settingsHref = "/account/preferences",
   onClose,
 }: {
   notices: SheetNotice[];
   unread: number;
   /** The person's own setting, as saved ("19:00 – 07:00 WAT"), or "None". Null while it is still being read. */
   quietHours: string | null;
+  /** Where this person changes what reaches them: a parent's notification choices live in their own portal. */
+  settingsHref?: string;
   onClose: () => void;
 }) {
   const heading = unread ? `${unread} ${unread === 1 ? "thing needs" : "things need"} you` : notices.length ? "Nothing new" : "You are all caught up";
@@ -83,7 +86,7 @@ export function PhoneNotificationSheet({
           </div>
         ) : null}
 
-        <Link href={"/account/preferences" as Route} onClick={onClose} className="mt-[18px] flex h-[54px] items-center justify-center rounded-[16px] text-[15px] font-extrabold text-white" style={{ background: INK }}>Notification settings</Link>
+        <Link href={settingsHref as Route} onClick={onClose} className="mt-[18px] flex h-[54px] items-center justify-center rounded-[16px] text-[15px] font-extrabold text-white" style={{ background: INK }}>Notification settings</Link>
       </div>
     </>,
     document.body,

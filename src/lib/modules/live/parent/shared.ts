@@ -38,6 +38,8 @@ export const loadNeeds = (child: string) => apiGet(`${PW}/needs?child=${encodeUR
 export type ParentContent = TabContent & {
   eyebrow?: string;
   tabs?: Array<{ label: string; count?: number }>;
+  /** The page draws its own choices on a phone, so the strip of tabs is not offered there. */
+  tabsOnLaptopOnly?: boolean;
   tab?: string;
 };
 

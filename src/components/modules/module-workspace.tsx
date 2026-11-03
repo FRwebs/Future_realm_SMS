@@ -152,7 +152,7 @@ function PhoneHead({ eyebrow, title, description }: { eyebrow: string; title: st
   const ui = useUiText();
   return (
     <div className="px-[4px] pt-[6px] md:hidden">
-      <p className="mb-[6px] text-[11px] font-extrabold uppercase tracking-[0.08em] text-[#12796A]">{ui(eyebrow)}</p>
+      {eyebrow ? <p className="mb-[6px] text-[11px] font-extrabold uppercase tracking-[0.08em] text-[#12796A]">{ui(eyebrow)}</p> : null}
       <h1 className="text-pretty text-[23px] font-extrabold leading-[1.15] tracking-[-0.02em] text-[#0D2315]">{ui(title)}</h1>
       {description ? <p className="mt-[6px] text-pretty text-[13.5px] leading-[1.5] text-[#5F6E65]">{description}</p> : null}
     </div>
@@ -192,7 +192,7 @@ function ModuleHead({
     <section
       className={cn(
         "relative overflow-hidden rounded-[15px] bg-[#0D2315] px-[19px] py-[15px] shadow-[0_14px_30px_-24px_rgba(13,35,21,0.8)]",
-        kind === "teacher" && "max-md:hidden",
+        kind !== null && "max-md:hidden",
         // The phone mockups give the page head a card that sits *on* something:
         // a pale ledge shows above its shoulders, and the type steps up. The
         // ledge is drawn by the wrapper below, so this card just grows.
@@ -328,8 +328,8 @@ export function ModuleWorkspace({
           as the top of a stack rather than a block dropped on the page. */}
       {/* `min-w-0`: a grid item defaults to min-width:auto, so without it this
           wrapper sizes to its content and pushes the head past the screen. */}
-      <div className={hasPhoneBar && kind !== "teacher" ? "relative min-w-0 max-md:pt-[10px]" : "min-w-0"}>
-        {hasPhoneBar && kind !== "teacher" ? (
+      <div className={hasPhoneBar && kind === null ? "relative min-w-0 max-md:pt-[10px]" : "min-w-0"}>
+        {hasPhoneBar && kind === null ? (
           <span
             aria-hidden
             className="pointer-events-none absolute left-[22px] right-[22px] top-0 hidden h-[44px] rounded-[18px] max-md:block"
@@ -350,7 +350,7 @@ export function ModuleWorkspace({
       {children}
 
       {/* The teacher's phone puts the segments first and the screen's name under them, as its mockup does. */}
-      {kind === "teacher" && pathname.replace(/\/$/, "") !== "/command-center/today" ? <PhoneHead eyebrow={phoneEyebrow ?? eyebrow} title={phoneTitle ?? title} description={phoneDesc ?? description} /> : null}
+      {kind !== null && pathname.replace(/\/$/, "") !== "/command-center/today" ? <PhoneHead eyebrow={phoneEyebrow ?? eyebrow} title={phoneTitle ?? title} description={phoneDesc ?? description} /> : null}
 
       <PanelRowsWithDrawer rows={rows} openDrawer={setDrawer} />
 
