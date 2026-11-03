@@ -9,7 +9,8 @@ import { usePathname, useRouter } from "next/navigation";
 
 import { PermissionProvider } from "@/components/auth/permission-provider";
 import { ImpersonationBanner } from "@/components/layout/impersonation-banner";
-import { PhoneShellProvider } from "@/components/layout/phone-shell";
+import { PhoneKindProvider, PhoneShellProvider } from "@/components/layout/phone-shell";
+import { PhoneTeacherBar } from "@/components/layout/phone-teacher-bar";
 import { PortalTabBar } from "@/components/layout/portal-tab-bar";
 import type { TabBarItem } from "@/components/layout/portal-tab-bar";
 import { PlatformNotices } from "@/components/layout/platform-notices";
@@ -116,6 +117,7 @@ export function DashboardShell({
     <PortalProvider value={portalType}>
     <PermissionProvider permissions={permissions}>
     <PhoneShellProvider value={Boolean(phoneTabs?.items.length)}>
+    <PhoneKindProvider value={phoneTabs?.items.length ? (teacherRail ? "teacher" : parentChrome ? "parent" : null) : null}>
       <div
         data-shell-theme={theme}
         data-phone-skin={phoneTabs?.items.length ? "on" : undefined}
@@ -148,7 +150,9 @@ export function DashboardShell({
         />
 
         <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
+          {teacherRail && phoneTabs?.items.length ? <PhoneTeacherBar session={session} schoolName={schoolName} permissions={permissions} portalType={portalType} rail={teacherRail} /> : null}
           <Topbar
+            hideOnPhone={Boolean(teacherRail && phoneTabs?.items.length)}
             session={session}
             onOpenMobileSidebar={() => setMobileSidebarOpen(true)}
             permissions={permissions}
@@ -204,6 +208,7 @@ export function DashboardShell({
           ) : null}
         </div>
       </div>
+    </PhoneKindProvider>
     </PhoneShellProvider>
     </PermissionProvider>
     </PortalProvider>

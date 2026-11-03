@@ -20,7 +20,9 @@ import {
   X,
 } from "lucide-react";
 
+import { usePhoneKind } from "@/components/layout/phone-shell";
 import { Field, initialValue } from "@/components/modules/field";
+import { PhoneList, PhoneNote, PhoneStats, PhoneTable } from "@/components/modules/phone-teacher-panels";
 import { ModuleDrawer } from "@/components/modules/lazy-drawer";
 import type {
   DrawerSpec,
@@ -1387,7 +1389,31 @@ function CardTile({ card }: { card: KpiCard }) {
   );
 }
 
-export function PanelView({
+/**
+ * A panel, drawn for whoever is looking. On a teacher's phone the stat cards, tables, lists and notes are the teacher mobile mockup's own
+ * blocks; everywhere else, and for every other kind of panel, it is the panel the desktop reads.
+ */
+export function PanelView({ panel, openDrawer }: { panel: Panel; openDrawer: OpenDrawer }) {
+  const teacherPhone = usePhoneKind() === "teacher";
+  const phone =
+    teacherPhone && (panel.type === "kpi" || panel.type === "list" || panel.type === "note" || (panel.type === "table" && !panel.window && !panel.selectable && !panel.bulkActs));
+  if (!phone) return <PanelViewDesktop panel={panel} openDrawer={openDrawer} />;
+  return (
+    <>
+      <div className="md:hidden">
+        {panel.type === "kpi" ? <PhoneStats panel={panel} openDrawer={openDrawer} /> : null}
+        {panel.type === "table" ? <PhoneTable panel={panel} openDrawer={openDrawer} /> : null}
+        {panel.type === "list" ? <PhoneList panel={panel} openDrawer={openDrawer} /> : null}
+        {panel.type === "note" ? <PhoneNote panel={panel} openDrawer={openDrawer} /> : null}
+      </div>
+      <div className="max-md:hidden">
+        <PanelViewDesktop panel={panel} openDrawer={openDrawer} />
+      </div>
+    </>
+  );
+}
+
+function PanelViewDesktop({
   panel,
   openDrawer,
 }: {
@@ -2597,7 +2623,8 @@ export function PanelRowsWithDrawer({
       });
       if (!panels.length) return null;
       const cols = panels.length === panelRow.panels.length ? panelRow.cols : panels.map(() => "1fr").join(" ");
-      return { cols, panels };
+      const kept: PanelRow = { cols, panels, ...(panelRow.show ? { show: panelRow.show } : {}) };
+      return kept;
     })
     .filter((row): row is PanelRow => row !== null);
 
@@ -2608,7 +2635,7 @@ export function PanelRowsWithDrawer({
           key={index}
           // One column on small screens; the mockup's ratios apply from lg up via
           // the --panel-cols custom property (see .panel-row in globals.css).
-          className="panel-row grid gap-4"
+          className={cn("panel-row grid gap-4", panelRow.show === "desktop" && "max-md:hidden", panelRow.show === "phone" && "md:hidden")}
           style={
             { ["--panel-cols" as string]: panelRow.cols } as React.CSSProperties
           }

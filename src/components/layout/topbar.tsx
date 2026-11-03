@@ -94,6 +94,8 @@ type TopbarProps = {
   currentThemeMode?: "dark" | "light";
   studentChrome?: StudentChrome | null;
   parentChrome?: ParentChrome | null;
+  /** The teacher's phone draws its own bar, so this one stays on tablets and desktops only. */
+  hideOnPhone?: boolean;
 };
 
 type DropdownItem = {
@@ -159,7 +161,7 @@ function chromeButton() {
   return "inline-flex h-10 w-10 items-center justify-center rounded-[10px] border border-(--color-border-default) bg-(--color-bg-surface) text-(--color-text-secondary) shadow-(--shadow-sm) transition hover:border-(--color-border-strong) hover:bg-(--color-bg-subtle) hover:text-(--color-text-primary)";
 }
 
-function initials(name: string) {
+export function initials(name: string) {
   return name
     .split(" ")
     .filter(Boolean)
@@ -280,7 +282,7 @@ function Icon({
   return <Component className={cn("h-3.5 w-3.5", className)} />;
 }
 
-function DropdownShell({
+export function DropdownShell({
   open,
   className,
   children,
@@ -304,12 +306,15 @@ function DropdownShell({
   );
 }
 
-function NotificationBell({
+export function NotificationBell({
   session,
   portalType,
+  phone,
 }: {
   session: SessionUser;
   portalType: PortalType;
+  /** The teacher's phone bar draws the bell as a bare icon with a count: dark on the light home bar, white on the curved one. */
+  phone?: "light" | "dark";
 }) {
   const [open, setOpen] = useState(false);
   const bellRef = useRef<HTMLDivElement>(null);
@@ -361,7 +366,26 @@ function NotificationBell({
 
   return (
     <div ref={bellRef} className="relative">
-      <button
+      {phone ? (
+        <button
+          type="button"
+          onClick={() => { if (open) markRead(); setOpen((value) => !value); }}
+          className="relative flex h-[44px] w-[44px] flex-none items-center justify-center rounded-full transition-colors active:bg-black/10"
+          aria-label={t("unreadNotifications", { count })}
+          aria-expanded={open}
+        >
+          <Bell className="h-[22px] w-[22px]" strokeWidth={1.8} style={{ color: phone === "dark" ? "#fff" : "#0D2315" }} />
+          {count ? (
+            <span
+              className="absolute right-[4px] top-[5px] flex h-[18px] min-w-[18px] items-center justify-center rounded-full px-[4px] text-[10px] font-extrabold text-white"
+              style={{ background: "#DB5555", border: `2px solid ${phone === "dark" ? "#0D2315" : "#F4F7F5"}` }}
+            >
+              {count > 99 ? "99+" : count}
+            </span>
+          ) : null}
+        </button>
+      ) : (
+<button
         type="button"
         onClick={() => { if (open) markRead(); setOpen((value) => !value); }}
         className="relative flex flex-none items-center gap-[6px] rounded-[9px] border border-[#DEE8E2] bg-(--color-bg-surface) px-[10px] py-[6.5px] transition hover:border-[#BFDCD1] hover:bg-[#F7FAF8]"
@@ -376,6 +400,8 @@ function NotificationBell({
           {count > 99 ? "99+" : count}
         </span>
       </button>
+
+)}
 
       <DropdownShell open={open} className="w-72">
         <div className="overflow-hidden rounded-2xl border border-(--color-border-default) bg-(--color-bg-surface) shadow-(--shadow-lg)">
@@ -666,7 +692,7 @@ function SyncPill() {
   );
 }
 
-function ProfileDropdown({
+export function ProfileDropdown({
   session,
   schoolName,
   permissions,
@@ -946,6 +972,7 @@ export function Topbar({
   currentThemeMode,
   studentChrome,
   parentChrome,
+  hideOnPhone,
 }: TopbarProps) {
   const t = useTranslations("shell");
   const hasPhoneBar = useHasPhoneBar();
@@ -1000,7 +1027,7 @@ export function Topbar({
   }, []);
 
   return (
-    <header className="sticky top-0 z-30 w-full shrink-0 border-b border-(--color-border-default) bg-(--color-bg-surface)">
+    <header className={cn("sticky top-0 z-30 w-full shrink-0 border-b border-(--color-border-default) bg-(--color-bg-surface)", hideOnPhone && "max-md:hidden")}>
       <div className="relative flex h-(--layout-topbar-height) items-center justify-between gap-4 overflow-visible px-4 md:px-6">
         <div className="flex min-w-0 flex-1 items-center gap-[10px]">
           {/* A portal with a bar at the bottom of a phone navigates from

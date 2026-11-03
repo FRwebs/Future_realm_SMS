@@ -7,7 +7,7 @@ import { useState } from "react";
 
 import { ModuleDrawer } from "@/components/modules/lazy-drawer";
 import { PanelRowsWithDrawer } from "@/components/modules/panel-renderer";
-import { useHasPhoneBar } from "@/components/layout/phone-shell";
+import { useHasPhoneBar, usePhoneKind } from "@/components/layout/phone-shell";
 import { useUiText } from "@/hooks/use-ui-text";
 import type { DrawerSpec, PanelAction, PanelRow } from "@/lib/modules/panels";
 import { cn } from "@/lib/utils/cn";
@@ -131,6 +131,8 @@ function HeaderAction({
  * keep their action in the header, where it covers nothing.
  */
 const PHONE_NO_FAB = [
+  // The teacher's Today already carries its first job as the deck's own button; a second one floating over it would say it twice.
+  "/command-center/today",
   "/portals/parent",
   "/portals/parent/learning",
   "/portals/parent/calendar",
@@ -138,6 +140,41 @@ const PHONE_NO_FAB = [
   "/portals/parent/prefs",
   "/portals/parent/sync",
 ];
+
+/**
+ * The teacher's page head on a phone: no card, just the type — the module in green capitals, the screen's name, and one line on what it is
+ * for — with the shortcuts as quiet pills beneath. The curved bar above it already says where you are, and the primary action floats.
+ */
+function PhoneHead({ eyebrow, title, description, launchers, openDrawer }: { eyebrow: string; title: string; description: string; launchers?: PanelAction[]; openDrawer: (spec: DrawerSpec) => void }) {
+  const ui = useUiText();
+  const shortcuts = (launchers ?? []).slice(0, 2);
+  return (
+    <div className="px-[4px] pt-[6px] md:hidden">
+      <p className="mb-[6px] text-[11px] font-extrabold uppercase tracking-[0.08em] text-[#12796A]">{ui(eyebrow)}</p>
+      <h1 className="text-pretty text-[23px] font-extrabold leading-[1.15] tracking-[-0.02em] text-[#0D2315]">{ui(title)}</h1>
+      {description ? <p className="mt-[6px] text-pretty text-[13.5px] leading-[1.5] text-[#5F6E65]">{description}</p> : null}
+      {shortcuts.length ? (
+        <div className="mt-[12px] flex flex-wrap gap-[8px]">
+          {shortcuts.map((act) => {
+            const className = "inline-flex min-h-[40px] items-center gap-[7px] rounded-[13px] bg-white px-[14px] text-[13px] font-extrabold text-[#0D2315] active:scale-[0.97]";
+            const style = { boxShadow: "0 1px 2px rgba(13,35,21,0.05), 0 8px 22px -14px rgba(13,35,21,0.22)" };
+            const body = (
+              <>
+                <span>{act.label}</span>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#12796A" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d={ARROW_ICON} /></svg>
+              </>
+            );
+            return act.href ? (
+              <Link key={act.label} href={act.href as Route} className={className} style={style}>{body}</Link>
+            ) : act.drawer ? (
+              <button key={act.label} type="button" onClick={() => openDrawer(act.drawer!)} className={className} style={style}>{body}</button>
+            ) : null;
+          })}
+        </div>
+      ) : null}
+    </div>
+  );
+}
 
 /**
  * The ink header at the top of every tab: the module as its eyebrow, the tab
@@ -164,12 +201,15 @@ function ModuleHead({
 }) {
   const shortcuts = (launchers ?? []).slice(0, 2);
   const hasPhoneBar = useHasPhoneBar();
+  const kind = usePhoneKind();
   const ui = useUiText();
 
   return (
+    <>
     <section
       className={cn(
         "relative overflow-hidden rounded-[15px] bg-[#0D2315] px-[19px] py-[15px] shadow-[0_14px_30px_-24px_rgba(13,35,21,0.8)]",
+        kind === "teacher" && "max-md:hidden",
         // The phone mockups give the page head a card that sits *on* something:
         // a pale ledge shows above its shoulders, and the type steps up. The
         // ledge is drawn by the wrapper below, so this card just grows.
@@ -234,6 +274,7 @@ function ModuleHead({
         ) : null}
       </div>
     </section>
+    </>
   );
 }
 
@@ -270,6 +311,7 @@ export function ModuleWorkspace({
 }) {
   const [drawer, setDrawer] = useState<DrawerSpec | null>(null);
   const hasPhoneBar = useHasPhoneBar();
+  const kind = usePhoneKind();
   const pathname = usePathname();
   const floats = floatPrimary ?? !PHONE_NO_FAB.includes(pathname.replace(/\/$/, ""));
 
@@ -293,8 +335,8 @@ export function ModuleWorkspace({
           as the top of a stack rather than a block dropped on the page. */}
       {/* `min-w-0`: a grid item defaults to min-width:auto, so without it this
           wrapper sizes to its content and pushes the head past the screen. */}
-      <div className={hasPhoneBar ? "relative min-w-0 max-md:pt-[10px]" : "min-w-0"}>
-        {hasPhoneBar ? (
+      <div className={hasPhoneBar && kind !== "teacher" ? "relative min-w-0 max-md:pt-[10px]" : "min-w-0"}>
+        {hasPhoneBar && kind !== "teacher" ? (
           <span
             aria-hidden
             className="pointer-events-none absolute left-[22px] right-[22px] top-0 hidden h-[44px] rounded-[18px] max-md:block"
@@ -313,6 +355,9 @@ export function ModuleWorkspace({
       </div>
 
       {children}
+
+      {/* The teacher's phone puts the segments first and the screen's name under them, as its mockup does. */}
+      {kind === "teacher" && pathname.replace(/\/$/, "") !== "/command-center/today" ? <PhoneHead eyebrow={eyebrow} title={title} description={description} launchers={launchers} openDrawer={setDrawer} /> : null}
 
       <PanelRowsWithDrawer rows={rows} openDrawer={setDrawer} />
 
