@@ -10,6 +10,7 @@ import { z } from "zod";
 import { Btn, Card, Chip, CARD_BORDER, Confirm, INK, Label, MUTED, GRID_DAYS, GRID_SLOTS, composeGrid, inputClass, longDate, notesHtml, parseGrid, printSheet, useToast, useWrite } from "@/components/modules/lesson-notes/kit";
 import { GRID_SUFFIX, LN_API, stateLabel, stateTone, type Letterhead, type NoteData, type Section, type ThreadEntry } from "@/lib/modules/lesson-notes-types";
 import { readDevicePreferences } from "@/lib/preferences";
+import { usePhoneKind } from "@/components/layout/phone-shell";
 
 const has = (value: string | undefined) => Boolean((value ?? "").trim());
 
@@ -34,6 +35,8 @@ function Thread({ thread }: { thread: ThreadEntry[] }) {
 /* ───────────────────────── writing ───────────────────────── */
 
 export function NoteDocument({ data }: { data: NoteData }) {
+  // The phone's bar of buttons is drawn only where there is a phone skin, so a laptop has the one set of buttons.
+  const phone = usePhoneKind() !== null;
   const router = useRouter();
   const toast = useToast();
   const { busy, run } = useWrite(toast.show);
@@ -146,7 +149,7 @@ export function NoteDocument({ data }: { data: NoteData }) {
               {dirty ? <span className="text-[11px] font-bold" style={{ color: "#8A6410" }}>Unsaved changes</span> : null}
             </div>
           </div>
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2 max-md:hidden">
             <div className="inline-flex rounded-[10px] border p-[3px]" style={{ borderColor: CARD_BORDER, background: "#F6F9F7" }}>
               {(["write", "read"] as const).map((mode) => <button key={mode} type="button" disabled={mode === "write" && !editable} onClick={() => setView(mode)} className="rounded-[8px] px-[12px] py-[5px] text-[11.5px] font-bold disabled:opacity-40" style={view === mode ? { background: INK, color: "#fff" } : { color: MUTED }}>{mode === "write" ? "Write" : "Read"}</button>)}
             </div>
@@ -165,6 +168,7 @@ export function NoteDocument({ data }: { data: NoteData }) {
           {data.returned.at ? <p className="mt-1 text-[10.5px]" style={{ color: "#B23B3B" }}>{longDate(data.returned.at)}</p> : null}
         </div>
       ) : null}
+      {phone && editable && data.state === "Returned" ? <label className="block md:hidden"><Label>What you changed</Label><textarea className={`${inputClass} min-h-[80px] max-md:rounded-[14px] max-md:text-[16px]`} value={reply} onChange={(event) => setReply(event.target.value)} placeholder="The reviewer reads this beside the note." /></label> : null}
       {data.state === "Submitted" && data.resubmitReply ? <div className="rounded-[14px] border p-4" style={{ borderColor: "#DCE7F5", background: "#EBF1FA" }}><p className="text-[12px] font-extrabold" style={{ color: "#2A5A96" }}>What you changed</p><p className="mt-1 text-[12px]" style={{ color: INK }}>{data.resubmitReply}</p></div> : null}
 
       {stale ? <div className="flex flex-wrap items-center justify-between gap-2 rounded-[14px] border p-4 text-[12px]" style={{ borderColor: "#F3E0E0", background: "#FDF3F3", color: "#B23B3B" }}><span><b>This note was changed after you opened it</b> — in another tab or on another device. Yours was not saved, so theirs was not overwritten. Copy what you want to keep, then reload.</span><Btn small onClick={() => { setStale(false); router.refresh(); }}>Reload the latest</Btn></div> : null}
@@ -188,6 +192,7 @@ export function NoteDocument({ data }: { data: NoteData }) {
               <Card key={section.key} className={flagged ? "border-[#E9B8B8]!" : ""}>
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <p className="text-[12.5px] font-extrabold" style={{ color: INK }}><span className="mr-1.5 text-[11px]" style={{ color: MUTED }}>{index + 1}</span>{section.label}{section.required ? <span className="ml-2 rounded-full px-[7px] py-px text-[9.5px] font-bold uppercase" style={{ background: "#FDF6E7", color: "#8A6410" }}>Required</span> : null}</p>
+                  <span className="text-[12.5px] font-medium md:hidden" style={{ color: MUTED }}>{(text[section.key] ?? "").trim() ? (text[section.key] ?? "").trim().split(/\s+/).length : 0} words</span>
                   {editable && view === "write" && section.assist ? <button type="button" onClick={() => assist(section)} className="rounded-full border px-[10px] py-[3px] text-[10.5px] font-bold" style={{ borderColor: "#CFE4DB", color: "#17714F", background: "#F2FAF6" }}>✦ {section.assist}</button> : null}
                 </div>
                 {section.kind === "week-grid" ? (
@@ -195,7 +200,7 @@ export function NoteDocument({ data }: { data: NoteData }) {
                 ) : view === "write" && editable ? (
                   <>
                     <p className="mt-1 text-[11px]" style={{ color: MUTED }}>{section.hint}</p>
-                    <textarea className={`${inputClass} mt-2 min-h-[110px] leading-[1.65]`} {...form.register(`text.${section.key}`)} placeholder={section.placeholder} aria-label={section.label} />
+                    <textarea className={`${inputClass} mt-2 min-h-[110px] leading-[1.65] max-md:min-h-[130px] max-md:rounded-[14px] max-md:text-[16px]`} {...form.register(`text.${section.key}`)} placeholder={section.placeholder} aria-label={section.label} />
                   </>
                 ) : has(text[section.key]) ? (
                   <p className="mt-2 whitespace-pre-wrap text-[12.5px] leading-[1.75]" style={{ color: INK }}>{text[section.key]}</p>
@@ -207,9 +212,9 @@ export function NoteDocument({ data }: { data: NoteData }) {
           })}
         </div>
 
-        <div className="grid min-w-0 grid-cols-[minmax(0,1fr)] gap-3 lg:sticky lg:top-4">
-          {/* actions */}
-          <Card>
+        <div className="grid min-w-0 grid-cols-[minmax(0,1fr)] gap-3 max-md:order-first lg:sticky lg:top-4">
+          {/* actions — on a phone the editable ones are the bar at the foot of the screen */}
+          <Card className={editable ? "max-md:hidden" : ""}>
             <p className="text-[12.5px] font-extrabold" style={{ color: INK }}>{data.state === "Approved" ? "Signed" : data.state === "Submitted" ? "With the reviewer" : "Before you submit"}</p>
             <ul className="mt-2 grid gap-1.5">
               {sections.filter((s) => s.required).map((section) => <li key={section.key} className="flex items-center gap-2 text-[12px]" style={{ color: has(text[section.key]) ? "#17714F" : "#8A6410" }}><span aria-hidden>{has(text[section.key]) ? "✓" : "○"}</span>{section.label}</li>)}
@@ -249,6 +254,19 @@ export function NoteDocument({ data }: { data: NoteData }) {
           <Thread thread={data.thread} />
         </div>
       </div>
+
+      {phone && editable && view === "write" ? (
+        <div className="sticky bottom-0 z-[30] -mx-4 -mb-4 rounded-t-[22px] bg-white px-[14px] pb-[12px] pt-[10px] md:hidden" style={{ boxShadow: "0 -12px 30px -22px rgba(13,35,21,0.45)" }}>
+          <div className="mb-[8px] flex items-center justify-between px-[4px] text-[12.5px] font-bold">
+            <span style={{ color: missing.length ? "#8A6410" : "#17714F" }}>{missing.length ? `${missing.length} required still empty` : "Ready to submit"}</span>
+            <span style={{ color: MUTED }}>{written.length}/{sections.length}</span>
+          </div>
+          <div className="flex gap-[10px]">
+            <button type="button" disabled={!dirty || busy === "save"} onClick={() => void save()} className="h-[52px] flex-none rounded-[16px] px-[22px] text-[15px] font-extrabold disabled:opacity-50" style={{ background: "#EEF4F0", color: INK }}>{busy === "save" ? "Saving…" : "Save draft"}</button>
+            <button type="button" disabled={Boolean(missing.length) || (data.state === "Returned" && !reply.trim())} onClick={() => setConfirm("submit")} className="h-[52px] min-w-0 flex-1 rounded-[16px] text-[15px] font-extrabold text-white disabled:opacity-50" style={{ background: INK }}>{data.state === "Returned" ? "Resubmit" : data.signer ? `Submit to ${data.signer.name.split(" ")[0]} ${data.signer.name.split(" ")[1] ?? ""}`.trim() : "Submit for signing"}</button>
+          </div>
+        </div>
+      ) : null}
 
       {confirm === "submit" ? <Confirm title={data.state === "Returned" ? "Resubmit this note?" : "Submit this note for signing?"} body={`${data.signer ? `${data.signer.name} is told.` : "It waits for a reviewer."} Once submitted it cannot be edited unless you withdraw it.`} confirm="Submit" busy={busy === "submit" || busy === "save"} onConfirm={submit} onCancel={() => setConfirm(null)} /> : null}
       {confirm === "withdraw" ? <Confirm title="Withdraw this note?" body="It comes back to you as a draft, and the reviewer no longer sees it." confirm="Withdraw" busy={busy === "withdraw"} onConfirm={withdraw} onCancel={() => setConfirm(null)} /> : null}

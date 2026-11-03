@@ -260,6 +260,7 @@ export function teacherGridPage(g: Grid, v: SheetsView): Content {
   const remove = undefined;
   return {
     crumb: { label: "Back to your sheets", href: "/score-entry-results/enter" },
+    noFab: true,
     title: `Enter scores · ${g.subject.name} ${g.arm.name}`, desc: "Absent is not zero, and blank is not zero. Save a draft as you go — nothing leaves you until you submit it.",
     primary: { label: "Preview, then submit", icon: EYE, href: previewHref(g.arm.id, g.subject.id) },
     launchers: [{ label: "Results for this arm", href: resultHref(g.arm.id, g.subject.id) }],
@@ -570,6 +571,29 @@ export function subjectResultPage(s: SubjectResult): Content {
       },
     ]),
   ];
+  // The phone: the four figures that matter, then a line for each child — place, total, grade and whether their comment is written.
+  const initialsOf = (name: string) => name.split(/\s+/).filter(Boolean).slice(0, 2).map((word) => word[0]!.toUpperCase()).join("");
+  const phoneRows: PanelRow[] = [
+    { ...row("1fr", [{
+      type: "kpi", bare: true,
+      cards: [
+        { label: "Class average", value: st.mean === null ? "—" : String(st.mean), unit: `/ ${maxTotal}`, sub: others || `Over ${n} children`, tone: s.others.length && s.others[0]!.mean > (st.mean ?? 0) ? "attention" : "positive" },
+        { label: "Highest", value: s.high ? String(s.high.total) : "—", sub: s.high?.name ?? "", tone: "positive" },
+        { label: "Lowest", value: s.low ? String(s.low.total) : "—", sub: s.low?.name ?? "", tone: s.low && s.low.total < s.passMark ? "negative" : "attention" },
+        { label: "Pass rate", value: st.passRate === null ? "—" : `${st.passRate}%`, sub: `${st.pass} of ${n} at ${s.passMark} or above`, tone: st.pass === n ? "positive" : "attention" },
+      ],
+    }]), show: "phone" as const },
+    { ...row("1fr", [{
+      type: "list", title: `Every child in ${s.arm.name}`, tag: "Ranked by total", tagTone: "neutral",
+      sub: "A child with a blank or an absence is listed last and not ranked.",
+      items: order.map((entry) => ({
+        avatar: initialsOf(entry.name), label: entry.name, href: studentHref(s.arm.id, s.subject.id, entry.id),
+        sub: `${entry.pos ? `Position ${entry.pos}` : "Not ranked"} · ${roll(entry.roll)}${entry.since === null ? "" : ` · ${entry.since > 0 ? "+" : entry.since < 0 ? "−" : ""}${Math.abs(entry.since)} on last term`} · comment ${entry.comment ? "written" : "not written"}`,
+        ...(entry.complete && entry.total !== null ? { figure: String(entry.total) } : {}),
+        ...(entry.complete && entry.grade ? { pill: entry.grade, tone: gradeTone(entry.grade) } : {}),
+      })),
+    }]), show: "phone" as const },
+  ];
   const paper: DrawerSpec = {
     mode: "document", kicker: "Results", title: `Print ${s.subject.name} · ${s.arm.name}`,
     doc: {
@@ -599,7 +623,7 @@ export function subjectResultPage(s: SubjectResult): Content {
       ...(s.own ? [{ label: s.state === "Approved" || s.state === "Submitted" ? "Open the sheet" : "Open the entry grid", href: s.state === "Approved" || s.state === "Submitted" ? previewHref(s.arm.id, s.subject.id) : gridHref(s.arm.id, s.subject.id) }] : []),
       ...(s.own && firstNo ? [{ label: "Write subject comments", href: studentHref(s.arm.id, s.subject.id, firstNo.id) }] : []),
     ],
-    rows: panels.filter((entry): entry is PanelRow => Boolean(entry)),
+    rows: [...phoneRows, ...panels.filter((entry): entry is PanelRow => Boolean(entry)).map((entry) => ({ ...entry, show: "desktop" as const }))],
   };
 }
 

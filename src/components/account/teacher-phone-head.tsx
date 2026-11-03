@@ -18,3 +18,25 @@ export function TeacherPhoneHead({ eyebrow, name, line }: { eyebrow: string; nam
     </header>
   );
 }
+
+/** What a teacher's laptop reads: the account's tabs, one at a time. A phone reads the whole account on one page instead. */
+export function TabsOnLaptop({ children }: { children: React.ReactNode }) {
+  return usePhoneKind() === "teacher" ? <div className="grid gap-5 max-md:hidden">{children}</div> : <>{children}</>;
+}
+
+/** The whole account on one page, as the teacher mobile mockup draws it. Drawn only for a teacher, and only below laptop width. */
+export function OnePageOnPhone({ children }: { children: React.ReactNode }) {
+  return usePhoneKind() === "teacher" ? <div className="grid gap-[6px] md:hidden">{children}</div> : null;
+}
+
+export function PhoneSection({ title, sub, children }: { title: string; sub?: string; children: React.ReactNode }) {
+  return (
+    <section className="mt-[14px] grid gap-[10px]">
+      <div className="px-[2px]">
+        <h2 className="text-[17px] font-extrabold" style={{ color: "#0D2315" }}>{title}</h2>
+        {sub ? <p className="mt-[2px] text-[13.5px] leading-[1.5]" style={{ color: "#6E7C74" }}>{sub}</p> : null}
+      </div>
+      {children}
+    </section>
+  );
+}

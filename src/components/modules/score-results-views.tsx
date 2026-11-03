@@ -28,7 +28,7 @@ async function gate() {
 type Page = TabContent & { crumb: { label: string; href: string } };
 
 function Workspace({ content }: { content: Page }) {
-  return <ModuleWorkspace eyebrow="Score Entry & Results" title={content.title ?? "Score Entry & Results"} description={content.desc ?? ""} primary={content.primary} launchers={content.launchers} rows={content.rows} back={content.crumb} />;
+  return <ModuleWorkspace eyebrow="Score Entry & Results" title={content.title ?? "Score Entry & Results"} description={content.desc ?? ""} primary={content.primary} launchers={content.launchers} rows={content.rows} back={content.crumb} floatPrimary={content.noFab ? false : undefined} />;
 }
 
 export async function ArmReviewView({ classId }: { classId: string }) {
