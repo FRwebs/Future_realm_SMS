@@ -1175,6 +1175,8 @@ export type Panel =
 export type PanelRow = {
   cols: string;
   panels: Panel[];
+  /** A row drawn only on a wide screen (the desktop's reading of a page) or only on a phone (its own screen for the same facts). */
+  show?: "desktop" | "phone";
 };
 
 export type TabContent = {
