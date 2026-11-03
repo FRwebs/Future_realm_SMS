@@ -91,7 +91,7 @@ export function PhoneToday({ greeting, dateline, deck, nextLine, tiles, returned
       <div className="-mt-[4px] px-[2px]">
         <h1 className="text-pretty text-[24px] font-extrabold leading-[1.15] tracking-[-0.02em] text-[#0D2315]">{greeting}</h1>
         <div className="mt-[9px] flex flex-wrap items-center justify-between gap-x-[10px] gap-y-[8px]">
-          <span className="text-[13px] font-semibold text-[#6E7C74]">{dateline}</span>
+          <span className="text-[13px] font-semibold text-[#5C6B62]">{dateline}</span>
           <PhoneSyncChip />
         </div>
       </div>
@@ -157,7 +157,7 @@ export function PhoneToday({ greeting, dateline, deck, nextLine, tiles, returned
                   aria-selected={index === card}
                   aria-label={`Card ${index + 1} of ${deck.length}: ${entry.title}`}
                   onClick={() => go(index)}
-                  className="group flex h-[28px] items-center px-[3px]"
+                  className="group flex h-[28px] items-center px-[4px]"
                 >
                   <span
                     className="block h-[6px] rounded-full transition-[width,background-color,transform] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] group-active:scale-y-150"
@@ -187,7 +187,7 @@ export function PhoneToday({ greeting, dateline, deck, nextLine, tiles, returned
                     <span className="flex h-[38px] w-[38px] flex-none items-center justify-center rounded-full bg-white" style={{ color: swatch ? swatch.fg : "#17604F", boxShadow: swatch ? undefined : "inset 0 0 0 1px #E3ECE6" }}><Icon path={tile.icon} /></span>
                     <span className="min-w-0 pt-[1px]">
                       <span className="block text-pretty text-[14px] font-extrabold leading-[1.25] text-[#0D2315]">{tile.label}</span>
-                      <span className="mt-[3px] block text-pretty text-[12px] font-medium leading-[1.4] text-[#6E7C74]">{tile.sub}</span>
+                      <span className="mt-[3px] block text-pretty text-[12px] font-medium leading-[1.4] text-[#5C6B62]">{tile.sub}</span>
                     </span>
                   </span>
                 </Link>
@@ -207,9 +207,9 @@ export function PhoneToday({ greeting, dateline, deck, nextLine, tiles, returned
                   <span className="text-pretty text-[15px] font-extrabold leading-[1.3] text-[#0D2315]">{item.title}</span>
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#9AA8A0" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden className="mt-[2px] flex-none"><path d="M9 6l6 6-6 6" /></svg>
                 </span>
-                <span className="mt-[3px] block text-[12.5px] font-medium text-[#6E7C74]">{item.by}{item.when ? ` · ${item.when}` : ""}</span>
+                <span className="mt-[3px] block text-[12.5px] font-medium text-[#5C6B62]">{item.by}{item.when ? ` · ${item.when}` : ""}</span>
                 <span className="mt-[10px] block rounded-[14px] px-[14px] py-[11px] text-pretty text-[13.5px] font-medium italic leading-[1.5]" style={{ background: "#FDF3F3", color: "#B23B3B" }}>“{item.note}”</span>
-                <span className="mt-[10px] block text-[12.5px] leading-[1.45] text-[#6E7C74]">{item.fix}</span>
+                <span className="mt-[10px] block text-[12.5px] leading-[1.45] text-[#5C6B62]">{item.fix}</span>
               </Link>
             ))}
           </div>
@@ -219,7 +219,7 @@ export function PhoneToday({ greeting, dateline, deck, nextLine, tiles, returned
       <section>
         <BlockHead title="Your queue" tag={`${queue.length} ${queue.length === 1 ? "item" : "items"}`} tagTone={queue.length ? "attention" : "positive"} sub="In deadline order. One tap opens the screen that clears it." openDrawer={() => undefined} />
         <RowsCard rows={rows} per={4} empty="Nothing is waiting on you. An item appears here the moment something is yours to do." />
-        <p className="mt-[10px] px-[4px] text-pretty text-[12.5px] leading-[1.5] text-[#6E7C74]">An item leaves this list when the work is done — never because you looked at it.</p>
+        <p className="mt-[10px] px-[4px] text-pretty text-[12.5px] leading-[1.5] text-[#5C6B62]">An item leaves this list when the work is done — never because you looked at it.</p>
       </section>
 
       <section>
@@ -241,20 +241,20 @@ export function PhoneToday({ greeting, dateline, deck, nextLine, tiles, returned
                     </span>
                     <span className="min-w-0 flex-1">
                       <span className="flex items-start justify-between gap-[8px]">
-                        <span className="text-pretty text-[14.5px] font-extrabold leading-[1.3]" style={{ color: period.state === "done" ? "#6E7C74" : "#0D2315" }}>{period.title}</span>
+                        <span className="text-pretty text-[14.5px] font-extrabold leading-[1.3]" style={{ color: period.state === "done" ? "#5C6B62" : "#0D2315" }}>{period.title}</span>
                         {period.state === "next" ? <Pill label="Next" tone="progress" /> : period.state === "now" ? <Pill label="Now" tone="submitted" /> : null}
                       </span>
-                      {period.sub ? <span className="mt-[2px] block text-pretty text-[12.5px] font-medium leading-[1.4] text-[#6E7C74]">{period.sub}</span> : null}
+                      {period.sub ? <span className="mt-[2px] block text-pretty text-[12.5px] font-medium leading-[1.4] text-[#5C6B62]">{period.sub}</span> : null}
                     </span>
                   </li>
                 );
               })}
             </ol>
           ) : (
-            <p className="py-[6px] text-[13px] text-[#6E7C74]">No period is timetabled for you today.</p>
+            <p className="py-[6px] text-[13px] text-[#5C6B62]">No period is timetabled for you today.</p>
           )}
         </div>
-        <p className="mt-[10px] px-[4px] text-pretty text-[12.5px] leading-[1.5] text-[#6E7C74]">A cover period is marked as cover, and leaves this page when the cover ends.</p>
+        <p className="mt-[10px] px-[4px] text-pretty text-[12.5px] leading-[1.5] text-[#5C6B62]">A cover period is marked as cover, and leaves this page when the cover ends.</p>
       </section>
 
       <section className="rounded-[20px] bg-white px-[16px] py-[14px]" style={{ boxShadow: RAISED }}>
@@ -265,7 +265,7 @@ export function PhoneToday({ greeting, dateline, deck, nextLine, tiles, returned
         <p className="mt-[6px] text-pretty text-[13px] leading-[1.45] text-[#5F6E65]">Never behind a menu — the pill at the top is always live.</p>
         {lastSync ? (
           <div className="mt-[12px] border-t pt-[12px]" style={{ borderColor: "#EDF3EF" }}>
-            <p className="text-[12.5px] font-semibold text-[#6E7C74]">Last successful sync</p>
+            <p className="text-[12.5px] font-semibold text-[#5C6B62]">Last successful sync</p>
             <p className="mt-[2px] text-[15px] font-extrabold text-[#0D2315]">{lastSync}</p>
           </div>
         ) : null}

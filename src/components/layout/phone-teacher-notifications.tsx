@@ -6,7 +6,7 @@ import { Bell, X } from "lucide-react";
 import { createPortal } from "react-dom";
 
 const INK = "#0D2315";
-const MUTED = "#6E7C74";
+const MUTED = "#5C6B62";
 
 export type SheetNotice = { id: string; title: string; body: string; href: string | null; unread: boolean };
 

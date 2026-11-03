@@ -93,14 +93,14 @@ export function PortalTabBar({
       </span>
       <span
         className="max-w-full overflow-hidden text-ellipsis whitespace-nowrap"
-        style={{ fontSize: "min(11px, 3.3vw)", fontWeight: on ? 800 : 700, color: on ? "#0D2315" : "#7C8A82" }}
+        style={{ fontSize: "min(11px, 3.3vw)", fontWeight: on ? 800 : 700, color: on ? "#0D2315" : "#5C6B62" }}
       >
         {text}
       </span>
       {count ? (
         <span
           className="absolute top-[2px] flex h-[18px] min-w-[18px] items-center justify-center rounded-full px-[4px] text-[10px] font-black"
-          style={{ left: "calc(50% + 6px)", background: isUrgent ? "#DB5555" : "#E0A526", color: isUrgent ? "#fff" : "#0D2315", border: "2px solid #fff" }}
+          style={{ left: "calc(50% + 6px)", background: isUrgent ? "#C93F3F" : "#E0A526", color: isUrgent ? "#fff" : "#0D2315", border: "2px solid #fff" }}
         >
           {cap(count)}
         </span>
@@ -143,7 +143,7 @@ export function PortalTabBar({
                     {count ? (
                       <span
                         className="absolute right-[7px] top-[7px] flex h-[17px] min-w-[17px] items-center justify-center rounded-full px-[4px] text-[9.5px] font-black"
-                        style={{ background: urgent[item.id] ? "#DB5555" : "#E0A526", color: urgent[item.id] ? "#fff" : "#0D2315" }}
+                        style={{ background: urgent[item.id] ? "#C93F3F" : "#E0A526", color: urgent[item.id] ? "#fff" : "#0D2315" }}
                       >
                         {cap(count)}
                       </span>

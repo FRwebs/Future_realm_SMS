@@ -9,7 +9,7 @@ import type { TabBarItem } from "@/components/layout/portal-tab-bar";
 import type { SessionUser } from "@/lib/domain/types";
 
 const INK = "#0D2315";
-const MUTED = "#6E7C74";
+const MUTED = "#5C6B62";
 const CARD = { background: "#fff", boxShadow: "0 1px 2px rgba(13,35,21,0.05), 0 8px 22px -16px rgba(13,35,21,0.22)" };
 
 const CHECK = "M4 5.5h16V20H4zM8 3v4M16 3v4M8.5 14l2 2 4-4.5";
@@ -79,7 +79,7 @@ export function ParentMoreSheet({ items, primaryIds, counts, urgent, session, ki
       <Link key={item.id} href={item.href as Route} className="relative flex min-h-[98px] flex-col items-center justify-center gap-[9px] rounded-[18px] px-[6px] py-[12px] text-center" style={CARD}>
         <span className="flex h-[44px] w-[44px] items-center justify-center rounded-full" style={{ background: "#EEF4F0", color: "#17604F" }}><Glyph path={item.icon} size={21} /></span>
         <span className="text-[12.5px] font-bold leading-[1.25]" style={{ color: INK }}>{item.label}</span>
-        {count ? <span className="absolute right-[10px] top-[8px] flex h-[19px] min-w-[19px] items-center justify-center rounded-full px-[5px] text-[10.5px] font-black" style={{ background: urgent[item.id] ? "#DB5555" : "#E0A526", color: urgent[item.id] ? "#fff" : INK, border: "2px solid #fff" }}>{count > 9 ? "9+" : count}</span> : null}
+        {count ? <span className="absolute right-[10px] top-[8px] flex h-[19px] min-w-[19px] items-center justify-center rounded-full px-[5px] text-[10.5px] font-black" style={{ background: urgent[item.id] ? "#C93F3F" : "#E0A526", color: urgent[item.id] ? "#fff" : INK, border: "2px solid #fff" }}>{count > 9 ? "9+" : count}</span> : null}
       </Link>
     );
   };

@@ -85,7 +85,7 @@ export function PhoneParentBar({
         <div className="sticky top-0 z-40 flex h-[62px] items-center gap-[10px] pl-[20px] pr-[12px]" style={{ background: "rgba(244,247,245,0.92)", backdropFilter: "blur(14px)" }}>
           <Wordmark />
           <NotificationBell session={session} portalType={portalType} phone="light" />
-          <Link href={"/portals/parent/account" as Route} aria-label="Account" className="flex h-[42px] w-[42px] flex-none items-center justify-center rounded-full text-[13.5px] font-extrabold text-[#0D2315]" style={{ background: "#E3F1EA" }}>{initials(session.name)}</Link>
+          <Link href={"/portals/parent/account" as Route} aria-label={`${initials(session.name)}, your account`} className="flex h-[42px] w-[42px] flex-none items-center justify-center rounded-full text-[13.5px] font-extrabold text-[#0D2315]" style={{ background: "#E3F1EA" }}>{initials(session.name)}</Link>
         </div>
       </div>
     );
@@ -172,19 +172,19 @@ export function PhoneParentChips({ chrome }: { chrome: ParentChrome }) {
             {photo ? <img src={photo} alt="" className="h-full w-full object-cover" /> : mark}
           </span>
           {needs ? (
-            <span className="absolute -right-[5px] -top-[5px] flex h-[19px] min-w-[19px] items-center justify-center rounded-full px-[5px] text-[10.5px] font-black" style={{ background: urgent ? "#DB5555" : "#E0A526", color: urgent ? "#fff" : "#0D2315", border: `2px solid ${on ? "#0D2315" : "#fff"}` }}>{needs}</span>
+            <span className="absolute -right-[5px] -top-[5px] flex h-[19px] min-w-[19px] items-center justify-center rounded-full px-[5px] text-[10.5px] font-black" style={{ background: urgent ? "#C93F3F" : "#E0A526", color: urgent ? "#fff" : "#0D2315", border: `2px solid ${on ? "#0D2315" : "#fff"}` }}>{needs}</span>
           ) : null}
         </span>
         <span className="min-w-0 text-left">
           <span className="block whitespace-nowrap text-[15px] font-extrabold leading-[1.2]" style={{ color: on ? "#fff" : "#0D2315" }}>{name}</span>
-          {line ? <span className="block whitespace-nowrap text-[12.5px] font-semibold leading-[1.3]" style={{ color: on ? "rgba(255,255,255,0.78)" : INK[tone] ?? "#6E7C74" }}>{line}</span> : null}
+          {line ? <span className="block whitespace-nowrap text-[12.5px] font-semibold leading-[1.3]" style={{ color: on ? "rgba(255,255,255,0.78)" : INK[tone] ?? "#5C6B62" }}>{line}</span> : null}
         </span>
       </Link>
     );
   };
 
   return (
-    <div className="-mx-4 mb-[16px] flex gap-[10px] overflow-x-auto px-4 pb-[6px] pt-[6px] md:hidden" style={{ scrollbarWidth: "none" }} role="tablist" aria-label="Whose page">
+    <div className="-mx-4 mb-[16px] flex gap-[10px] overflow-x-auto px-4 pb-[6px] pt-[6px] md:hidden" style={{ scrollbarWidth: "none" }} aria-label="Whose page" role="group">
       {chip("all", "All", "Family", chrome.family.stats, ["#BFE8D6", "#0D2315", "#9ED6BC"], chrome.family.needs, chrome.family.urgent, null)}
       {chrome.children.map((child) => chip(child.id, child.initials, child.first, child.stats, child.swatch, child.needs, child.urgent, child.photoUrl))}
     </div>
