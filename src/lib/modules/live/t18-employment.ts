@@ -50,6 +50,17 @@ const long = (iso: string | null) => (iso ? formatDay(new Date(iso), { day: "num
 const short = (iso: string | null) => (iso ? formatDay(new Date(iso), { day: "numeric", month: "short", timeZone: "Africa/Lagos" }) : "—");
 const leaveTone = (status: string): PanelTone => (status === "Approved" || status === "Taken" ? "positive" : status === "Declined" ? "negative" : "submitted");
 
+const phoneOnly = (panel: Panel): PanelRow => ({ ...row("1fr", [panel]), show: "phone" as const });
+const desktopOnly = (rows: Array<PanelRow | null | undefined>): PanelRow[] => rows.filter((entry): entry is PanelRow => Boolean(entry)).map((entry) => ({ ...entry, show: "desktop" as const }));
+const CLOCK = "M12 7v5l3 2M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0z";
+const WALLET = "M3.5 8.5h17V19h-17zM9 8.5V6.2a1.7 1.7 0 0 1 1.7-1.7h2.6A1.7 1.7 0 0 1 15 6.2v2.3M3.5 13h17";
+const DOC = "M6.5 3.5h8L18.5 8v12.5h-12zM14.5 3.5V8h4M9 12.5h6M9 16h4";
+/** A date as the phone's tile draws it: the month over the day. */
+const tile = (iso: string) => {
+  const date = new Date(iso);
+  return Number.isNaN(date.getTime()) ? { top: "", value: "·" } : { top: formatDay(date, { month: "short", timeZone: "Africa/Lagos" }).toUpperCase(), value: formatDay(date, { day: "numeric", timeZone: "Africa/Lagos" }) };
+};
+
 export async function teacherEmploymentTab(tabSlug: string, me: TeacherWorkspaceView, permissions: string[]): Promise<TabContent | null | undefined> {
   if (tabSlug === "leave") return leaveTab(await apiGet(`${API}/employment/leave`, observe<Leave>(localContracts["src/lib/modules/live/t18-employment.ts#7e3520a9"])));
   if (tabSlug === "my-assignments") {
@@ -173,10 +184,33 @@ function assignmentsTab(v: Assignments, gaps: Gaps | null): TabContent {
       ] as TableCellKind[],
     })),
   );
+  // The phone: cover in both directions — what you are doing for colleagues, and what they did for you.
+  const phone: PanelRow[] = [
+    phoneOnly({ type: "kpi", bare: true, cards: [
+      { label: "Cover you hold", value: String(live.length), sub: live.map((entry) => `${entry.what} ${entry.arm}`).join(" · ") || "Nobody at the moment", tone: live.length ? "attention" : "neutral" },
+      { label: "Covered for you", value: String(v.absences.length), unit: v.absences.length === 1 ? "time" : "times", sub: "This term" },
+    ] }),
+    phoneOnly({
+      type: "list", title: "Cover you are doing", sub: "Each one ends on its own date. Nothing you entered is lost when it does.",
+      empty: "You are not covering for anyone. Cover is arranged by a head of department or a school leader, and always carries an end date.",
+      items: v.covering.map((entry) => ({
+        icon: CLOCK, label: `${entry.what} · ${entry.arm}`, sub: `For ${entry.forWhom} · ${entry.grants.toLowerCase()}${entry.reason ? ` · ${entry.reason}` : ""}`,
+        pill: entry.ended ? `Ended ${entry.endsLabel}` : `Until ${entry.endsLabel}`, tone: entry.live ? ("attention" as const) : ("neutral" as const), href: entry.live ? `/attendance/mark/${entry.classId}` : undefined,
+      })),
+    }),
+    phoneOnly({
+      type: "list", title: "Covered for you", sub: "When you were away, and who held your classes.", empty: "Nobody has covered for you this term.",
+      items: v.absences.map((entry) => ({
+        lead: tile(entry.day), label: entry.covers.length ? entry.covers.map((cover) => cover.by).filter((name, index, all) => all.indexOf(name) === index).join(", ") : "Nobody was named",
+        sub: `${entry.reason}${entry.covers.length ? ` · ${entry.covers.map((cover) => `${cover.what} ${cover.arm}`).join("; ")}` : ""}`,
+      })),
+    }),
+  ];
   return {
     title: "My assignments", desc: "What you hold, the cover you hold for others, and who has covered for you.",
-    primary: { label: v.absentToday ? "Absence already reported today" : "Report an absence today", icon: WARN, ...(v.absentToday ? { href: "/my-employment/my-assignments" } : { drawer: absence }) },
-    rows: ([
+    phoneTitle: "Cover, both ways", phoneDesc: "The cover you are doing for colleagues, and who has covered for you.",
+    primary: { label: v.absentToday ? "Absence already reported today" : "Report an absence today", phoneLabel: v.absentToday ? "Absence reported" : "Report an absence", icon: WARN, ...(v.absentToday ? { href: "/my-employment/my-assignments" } : { drawer: absence }) },
+    rows: [...phone, ...desktopOnly([
       row("1fr", [{
         type: "kpi", sub: "Cover is time-boxed by rule — an end date is mandatory, always.", per: 3,
         cards: [
@@ -192,7 +226,7 @@ function assignmentsTab(v: Assignments, gaps: Gaps | null): TabContent {
       live.length ? row("1fr", [{ type: "note", tone: "attention", icon: WARN, title: `Your access to ${live[0]!.arm} ends on ${live[0]!.endsLabel}, without anyone remembering`, body: "The register returns to its owner. Nothing you did on cover is lost: every mark stays on the record under your name." }]) : null,
       row("1fr", [{ type: "table", title: "Covered for you", sub: "Days you were away, and who held your work.", meta: `${v.absences.length} this term`, noun: "day", nounPlural: "days", head: ["Date", "Reason", "Covered by", "What they held"], rows: coveredForRows, per: 10, noRowOpen: true, empty: "Nobody has covered for you this term.", foot: "Their marks are on your registers under their name, with yours alongside." }]),
       gaps ? row("1fr", [{ type: "table", title: "Gaps to fill today", sub: `Staff in ${gaps.scope === "department" ? "your department" : "the school"} who have said they are away, and what nobody holds yet.`, meta: `${gaps.gaps.length} away`, noun: "gap", nounPlural: "gaps", head: ["Who is away", "What", "Arm", "Cover", ""], rows: gapRows, per: 12, noRowOpen: true, empty: "Nobody in your department has reported an absence today.", foot: "Cover you assign always has an end date, and stops by itself on it." }]) : null,
-    ].filter(Boolean) as PanelRow[]),
+    ])],
   };
 }
 
@@ -233,16 +267,33 @@ function appraisalTab(v: Appraisal): TabContent {
     ] as PanelFact[],
   };
   const stageLabels = ["KPIs published", "Self-assessment", "Manager review", "Moderation", "Shared with you"];
+  // What each KPI is, as the phone lists it: the figure the product already holds, or who rates it.
+  const measured = phoneOnly({
+    type: "list", title: "What you are measured on", sub: "Weight, target and where you stand today.", foot: "You are appraised against what happened, not against recollection.",
+    items: v.kpis.map((kpi) => ({
+      label: kpi.name, sub: `${kpi.measure} · weight ${kpi.weight}% · target ${kpi.target}`,
+      figure: kpi.auto !== null ? kpi.auto.toFixed(1) : kpi.self ? String(kpi.self) : "—",
+      pill: kpi.reviewer !== null ? `${kpi.reviewer} of 5` : kpi.automatic ? (kpi.auto !== null ? "Computed" : "No figure yet") : kpi.self ? "Your rating" : "Manager rating",
+      tone: kpi.reviewer !== null ? ("positive" as const) : ("neutral" as const),
+    })),
+  });
+  const yours = phoneOnly({ type: "note", tone: "neutral", icon: EYE, title: "Yours alone until you submit it", body: "Your reviewer cannot read a draft self-assessment. Nothing is a judgement until the review is shared with you." });
 
   if (!v.published) {
     return {
       title: "Appraisal", desc: "This cycle, and what it is measured on.",
+      phoneTitle: `${v.cycle} appraisal`, phoneDesc: "Built from your work in Nooria — nothing typed twice.",
       rows: [
+        phoneOnly({ type: "kpi", bare: true, cards: [
+          { label: "Measured on", value: String(v.kpis.length), unit: "KPIs", sub: `${v.kpis.filter((kpi) => kpi.automatic).length} computed from your own record` },
+          { label: "Cycle", value: "Not open", sub: "The school has not published it yet", tone: "neutral" },
+        ] }),
         // The stages are shown before the cycle opens too, all still to come: what is
         // ahead of you is part of knowing where you stand.
         row("1fr", [{ type: "steps", title: `${v.cycle} · not opened yet`, steps: stageLabels.map((label): StepItem => ({ label, state: "todo" })) }]),
         row("1fr", [{ type: "note", tone: "neutral", icon: EYE, title: `No appraisal has been published to you for ${v.cycle}`, body: "When the school publishes the cycle, your self-assessment opens here with the deadline. Until then this is what a teacher at this school is measured on." }]),
-        row("1.25fr 1fr", [kpiTable(v), howItWorks]),
+        measured,
+        ...desktopOnly([row("1.25fr 1fr", [kpiTable(v), howItWorks])]),
       ],
     };
   }
@@ -275,10 +326,19 @@ function appraisalTab(v: Appraisal): TabContent {
   const writtenSelf = manual.filter((kpi) => kpi.self).length;
   return {
     title: "Appraisal", desc: `${v.cycle}. What you are measured on, and where it stands.`,
-    primary: v.shared ? { label: v.acknowledgedAt ? "Edit your response" : "Add your response", icon: PEN, drawer: respond } : submitted ? undefined : { label: writtenSelf ? "Continue your self-assessment" : "Start your self-assessment", icon: PEN, drawer: selfDrawer(false) },
+    phoneTitle: `${v.cycle} appraisal`, phoneDesc: "Built from your work in Nooria — nothing typed twice.",
+    primary: v.shared ? { label: v.acknowledgedAt ? "Edit your response" : "Add your response", phoneLabel: "Your response", icon: PEN, drawer: respond } : submitted ? undefined : { label: writtenSelf ? "Continue your self-assessment" : "Start your self-assessment", phoneLabel: "Self-assessment", icon: PEN, drawer: selfDrawer(false) },
     launchers: !v.shared && !submitted && writtenSelf ? [{ label: "Submit it", drawer: selfDrawer(true) }] : [],
     rows: [
-      row("1fr", [{ type: "steps", title: `${v.cycle} cycle`, steps }]),
+      phoneOnly({ type: "kpi", bare: true, cards: [
+        { label: "From your own record", value: String(v.kpis.filter((kpi) => kpi.auto !== null).length), unit: `of ${v.kpis.length}`, sub: "Computed, not typed" },
+        v.shared ? { label: "Overall", value: v.overall !== null ? v.overall.toFixed(1) : "—", unit: "of 5", sub: "This cycle", tone: "positive" as const }
+          : { label: "Stage", value: submitted ? "Manager review" : "Self-assessment", sub: submitted ? `With ${v.reviewer?.name ?? "your reviewer"}` : `${v.deadline ? `Due ${long(v.deadline)} · ` : ""}${writtenSelf ? "draft saved" : "not started"}`, tone: submitted ? ("submitted" as const) : ("progress" as const) },
+      ] }),
+      phoneOnly({ type: "steps", title: "Where the cycle is", steps: steps.map((step, index) => (index === 1 && v.deadline && !submitted ? { ...step, sub: `Due ${long(v.deadline)}` } : index === 2 && v.reviewer ? { ...step, sub: v.reviewer.name } : step)) }),
+      measured,
+      ...(v.shared ? [] : [yours]),
+      ...desktopOnly([row("1fr", [{ type: "steps", title: `${v.cycle} cycle`, steps }]),
       row("1fr", [{
         type: "kpi", sub: `${v.publishedBy ? `Published by ${v.publishedBy}. ` : ""}${v.kpis.length} KPIs, weighted to 100.`, per: 4,
         cards: [
@@ -291,7 +351,7 @@ function appraisalTab(v: Appraisal): TabContent {
       row("1.25fr 1fr", [
         kpiTable(v),
         howItWorks,
-      ]),
+      ])]),
       ...(v.shared ? [row("1fr", [{ type: "quotes", title: "What your reviewer wrote", sub: v.sharedAt ? `Shared ${long(v.sharedAt)}` : "", quotes: [{ label: "Review", text: v.reviewerComment ?? "", by: v.reviewer?.name ?? "Your reviewer", emptyText: "No comment was left." }, ...(v.strengths ? [{ label: "Strengths", text: v.strengths, by: v.reviewer?.name ?? "" }] : []), ...(v.improvements ? [{ label: "To improve", text: v.improvements, by: v.reviewer?.name ?? "" }] : [])] }])] : []),
       ...(v.staffComment ? [row("1fr", [{ type: "quotes", title: "Your response", quotes: [{ label: "You wrote", text: v.staffComment, by: "You" }] }])] : []),
     ] as PanelRow[],
@@ -374,30 +434,56 @@ function payslipsTab(v: Payslips): TabContent {
     credential("Safeguarding clearance", /safeguard|police|dbs|clearance/i),
     credential("Right to work", /right[ _-]?to[ _-]?work|work[ _-]?permit|visa/i),
   ];
+  const record: Panel = {
+    type: "facts", title: "Your employment record", per: 1,
+    facts: [["Started", long(v.record.started), ""], ["Employment", v.record.employment, ""], ["Reports to", v.record.reportsTo ? v.record.reportsTo.name : "—", v.record.reportsTo?.title ?? ""], ...credentialRows, ...docRows.filter((fact) => !credentialRows.some((row) => row[0] === fact[0]))] as PanelFact[],
+    acts: [{ label: "File a document", drawer: upload }],
+  };
+  const slipsTable: Panel = { type: "table", title: "Your payslips", sub: "Open one for the breakdown.", meta: `${v.slips.length} most recent`, noun: "payslip", nounPlural: "payslips", head: ["Month", "Gross", "Allowances", "Deductions", "Net", "State", ""], rows, per: 12, noRowOpen: false, selectable: true, bulkActs: [{ label: "Email them to me", drawer: emailThem, selection: { key: "ids", noun: "payslip" } }, { label: "Download selected", primary: true, export: true }], empty: "No payslip yet.", foot: "A payslip appears when the school approves the month’s run." };
+  const month = latest ? latest.label.replace(/\s*\d{4}$/, "") : null;
+  const warning = attention ? row("1fr", [{ type: "note", tone: "attention", icon: WARN, title: `${attention.title} ${attention.expiry === "Expired" ? "has expired" : `expires ${attention.expiresLabel}`}`, body: "Upload the renewal before it lapses; the school office verifies it and it replaces this one on your record.", acts: [{ label: "Upload the renewal", drawer: upload }] }]) : null;
   return {
     title: "Payslips", desc: "What you were paid, what it was made of, and the documents on your record.",
+    phoneTitle: "Pay and contract", phoneDesc: "Your own payslips and documents. Nobody else’s pay is ever visible to you.",
     primary: latest ? { label: `View ${latest.label}`, icon: EYE, drawer: slipDrawer(latest) } : undefined,
+    phonePrimary: { label: "File a document", icon: PLUS, drawer: upload },
     launchers: [{ label: "File a document", drawer: upload }],
-    rows: ([
-      attention ? row("1fr", [{ type: "note", tone: "attention", icon: WARN, title: `${attention.title} ${attention.expiry === "Expired" ? "has expired" : `expires ${attention.expiresLabel}`}`, body: "Upload the renewal before it lapses; the school office verifies it and it replaces this one on your record.", acts: [{ label: "Upload the renewal", drawer: upload }] }]) : null,
-      row("1fr", [{
-        type: "kpi", sub: "Record-keeping only. The school pays you through its own bank.", per: 4,
-        cards: [
-          { label: "Latest payslip", value: latest ? latest.label : "None yet", sub: latest ? (latest.paidAt ? `Paid ${long(latest.paidAt)}` : "Approved, not yet paid") : "A payslip appears once the school approves a payroll run" },
-          { label: "Band", value: v.band ? v.band.code : "—", sub: v.band ? `${v.band.name}${v.band.step ? ` · step ${v.band.step}` : ""}` : "You have not been placed on a pay band" },
-          { label: "Gross this month", value: latest ? ngn(latest.gross) : "—", sub: latest && latest.allowTotal ? `Plus ${ngn(latest.allowTotal)} in allowances` : "" },
-          { label: "Net this month", value: latest ? ngn(latest.net) : "—", sub: latest ? `${ngn(latest.deductTotal)} deducted` : "", tone: "positive" },
-        ],
-      }]),
-      row("1.1fr 1fr", [
-        { type: "table", title: "Your payslips", sub: "Open one for the breakdown.", meta: `${v.slips.length} most recent`, noun: "payslip", nounPlural: "payslips", head: ["Month", "Gross", "Allowances", "Deductions", "Net", "State", ""], rows, per: 12, noRowOpen: false, selectable: true, bulkActs: [{ label: "Email them to me", drawer: emailThem, selection: { key: "ids", noun: "payslip" } }, { label: "Download selected", primary: true, export: true }], empty: "No payslip yet.", foot: "A payslip appears when the school approves the month’s run." },
-        {
-          type: "facts", title: "Your employment record", per: 1,
-          facts: [["Started", long(v.record.started), ""], ["Employment", v.record.employment, ""], ["Reports to", v.record.reportsTo ? v.record.reportsTo.name : "—", v.record.reportsTo?.title ?? ""], ...credentialRows, ...docRows.filter((fact) => !credentialRows.some((row) => row[0] === fact[0]))] as PanelFact[],
-          acts: [{ label: "File a document", drawer: upload }],
-        },
+    rows: [
+      ...(warning ? [warning] : []),
+      phoneOnly({ type: "kpi", bare: true, cards: [
+        { label: latest ? `Net pay · ${month}` : "Latest payslip", value: latest ? ngn(latest.net) : "None yet", sub: latest ? (latest.paidAt ? `Paid ${short(latest.paidAt)}` : "Approved, not yet paid") : "A payslip appears once the school approves a payroll run" },
+        { label: "Gross", value: latest ? ngn(latest.gross) : "—", sub: v.band ? `${v.band.code}${v.band.step ? ` · step ${v.band.step}` : ""}` : "You have not been placed on a pay band" },
+        { label: "Allowances", value: latest ? ngn(latest.allowTotal) : "—", sub: latest?.allowances.length ? latest.allowances.map((line) => line.name).join(" · ") : "None this month" },
+        { label: "Deductions", value: latest ? ngn(latest.deductTotal) : "—", sub: latest?.deductions.length ? latest.deductions.map((line) => line.name).join(" · ") : "None this month" },
+      ] }),
+      phoneOnly({
+        type: "list", title: "Payslips", sub: "Tap one for the full breakdown.", empty: "No payslip yet. One appears when the school approves the month’s run.", foot: "Record-keeping only. The school pays you through its own bank.",
+        items: v.slips.map((slip) => ({ icon: WALLET, label: slip.label, sub: slip.paidAt ? `Paid ${short(slip.paidAt)}` : "Approved, not yet paid", figure: ngn(slip.net), drawer: slipDrawer(slip) })),
+      }),
+      phoneOnly(record),
+      ...(v.documents.length
+        ? [phoneOnly({
+            type: "list", title: "Your documents", sub: "What the school holds, and what is due.",
+            items: v.documents.map((document) => ({
+              icon: DOC, label: document.title, sub: document.verification, pill: document.expiresLabel ? `${document.expiry === "Expired" ? "Expired" : "Expires"} ${document.expiresLabel}` : "No expiry",
+              tone: document.expiry === "Expired" ? ("negative" as const) : document.expiry === "Expiring" ? ("attention" as const) : ("neutral" as const),
+              act: document.expiry === "Expired" || document.expiry === "Expiring" ? { label: "Upload", drawer: upload } : undefined,
+            })),
+          })]
+        : []),
+      ...desktopOnly([
+        row("1fr", [{
+          type: "kpi", sub: "Record-keeping only. The school pays you through its own bank.", per: 4,
+          cards: [
+            { label: "Latest payslip", value: latest ? latest.label : "None yet", sub: latest ? (latest.paidAt ? `Paid ${long(latest.paidAt)}` : "Approved, not yet paid") : "A payslip appears once the school approves a payroll run" },
+            { label: "Band", value: v.band ? v.band.code : "—", sub: v.band ? `${v.band.name}${v.band.step ? ` · step ${v.band.step}` : ""}` : "You have not been placed on a pay band" },
+            { label: "Gross this month", value: latest ? ngn(latest.gross) : "—", sub: latest && latest.allowTotal ? `Plus ${ngn(latest.allowTotal)} in allowances` : "" },
+            { label: "Net this month", value: latest ? ngn(latest.net) : "—", sub: latest ? `${ngn(latest.deductTotal)} deducted` : "", tone: "positive" },
+          ],
+        }]),
+        row("1.1fr 1fr", [slipsTable, record]),
       ]),
-    ].filter(Boolean) as PanelRow[]),
+    ],
   };
 }
 

@@ -367,6 +367,8 @@ export type ListItem = {
   tone?: PanelTone;
   /** A small line under the pill, at the right edge — "34 children". */
   side?: string;
+  /** A figure set bold above the pill, at the right edge — a sheet's average, "53.5". */
+  figure?: string;
   /** SVG path for a round icon at the row's left, in place of a date tile. */
   icon?: string;
   /** A returned comment, quoted in a tinted box under the row's text. */
@@ -1211,6 +1213,8 @@ export type TabContent = {
   /** The title and line under it on a teacher's phone, when the mockup words them differently from the desktop. */
   phoneTitle?: string;
   phoneDesc?: string;
+  /** The phone's floating button, when it is not the desktop header's primary — "This week's note" where the header says "Add a subject". */
+  phonePrimary?: PanelAction;
   rows: PanelRow[];
 };
 

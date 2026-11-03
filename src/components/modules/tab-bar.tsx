@@ -34,7 +34,7 @@ export function TabBar({ items, ariaLabel }: { items: TabBarItem[]; ariaLabel: s
     <>
     {teacherPhone ? (
       // On a teacher's phone the tabs are a segmented control: one white pill, the current segment filled ink.
-      <nav aria-label={ariaLabel} className="md:hidden">
+      <nav aria-label={ariaLabel} className="min-w-0 md:hidden">
         <div className="flex gap-[4px] overflow-x-auto rounded-[15px] bg-white p-[4px]" style={{ boxShadow: "0 1px 2px rgba(13,35,21,0.05), 0 8px 22px -14px rgba(13,35,21,0.22)" }}>
           {items.map((item) => {
             const active = pathname === item.href;
@@ -44,7 +44,7 @@ export function TabBar({ items, ariaLabel }: { items: TabBarItem[]; ariaLabel: s
                 href={item.href as Route}
                 aria-current={active ? "page" : undefined}
                 className={cn(
-                  "flex min-h-[44px] flex-1 basis-0 items-center justify-center gap-[6px] whitespace-nowrap rounded-[11px] px-[14px] text-[13.5px] font-extrabold transition-colors",
+                  "flex min-h-[44px] flex-1 basis-0 items-center justify-center gap-[6px] whitespace-nowrap rounded-[11px] px-[8px] text-[13px] font-extrabold transition-colors",
                   active ? "bg-[#0D2315] text-white" : "text-[#435048]",
                 )}
               >
