@@ -1219,6 +1219,8 @@ export type TabContent = {
   phoneDesc?: string;
   /** The phone's floating button, when it is not the desktop header's primary — "This week's note" where the header says "Add a subject". */
   phonePrimary?: PanelAction;
+  /** The page carries its own bar of buttons on a phone, so the floating one is not drawn over it. */
+  noFab?: boolean;
   rows: PanelRow[];
 };
 

@@ -136,7 +136,7 @@ export function PhoneToday({ greeting, dateline, deck, nextLine, tiles, returned
                   </Link>
                 ) : null}
                 <span className="flex-1" />
-                {deck.length > 1 ? <span data-slide="" className="text-[13px] font-bold" style={{ color: "rgba(255,255,255,0.66)" }}>{card + 1} of {deck.length}</span> : null}
+                {deck.length > 1 ? <span data-slide="" className="flex-none whitespace-nowrap text-[13px] font-bold" style={{ color: "rgba(255,255,255,0.66)" }}>{card + 1} of {deck.length}</span> : null}
               </div>
               </div>
               {nextLine ? (

@@ -8,6 +8,8 @@ import { PanelView } from "@/components/modules/panel-renderer";
 import type { DrawerSpec, KpiCard, PanelAction, PanelTone, TableCellKind, TableRow } from "@/lib/modules/panels";
 import { sendJson } from "@/lib/modules/submit";
 import { readDevicePreferences } from "@/lib/preferences";
+import { toneOf } from "@/lib/modules/tones";
+import { usePhoneKind } from "@/components/layout/phone-shell";
 
 /**
  * A teacher's score sheet, as the teacher mockup draws it: one subject-arm, every child down the page, every component across it.
@@ -53,12 +55,15 @@ const gradeTone = (grade: string | null): PanelTone => (!grade ? "neutral" : /^[
 const initial = (rows: Row[], columns: Column[]): Cells => Object.fromEntries(rows.map((row) => [row.id, Object.fromEntries(columns.map((column) => [column.key, row.cells[column.key] === null || row.cells[column.key] === undefined ? "" : String(row.cells[column.key])]))]));
 
 export function TeacherSheet(props: TeacherSheetProps) {
+  const phone = usePhoneKind() !== null;
   const { columns, rows, bands, columns: cols } = props;
   const router = useRouter();
   const [baseline, setBaseline] = useState<Cells>(() => initial(rows, columns));
   const [cells, setCells] = useState<Cells>(() => initial(rows, columns));
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState<{ tone: "ok" | "error"; text: string } | null>(null);
+  const [find, setFind] = useState("");
+  const [only, setOnly] = useState("All");
   const [offline, setOffline] = useState(false);
   const locked = Boolean(props.whyNot);
   const openDrawer = props.openDrawer ?? (() => undefined);
@@ -230,12 +235,98 @@ export function TeacherSheet(props: TeacherSheetProps) {
         />
       ) : null}
 
-      <PanelView openDrawer={openDrawer} panel={{ type: "kpi", per: 5, title: "This sheet", cards }} />
+      <div className="max-md:hidden"><PanelView openDrawer={openDrawer} panel={{ type: "kpi", per: 5, title: "This sheet", cards }} /></div>
+      {phone ? <div className="md:hidden"><PanelView openDrawer={openDrawer} panel={{ type: "kpi", bare: true, cards: cards.filter((card) => card.label !== "Blank rows") }} /></div> : null}
 
       {props.whyNot ? <PanelView openDrawer={openDrawer} panel={{ type: "note", tone: "attention", icon: WARN, title: "This sheet cannot be typed into", body: props.whyNot }} /> : null}
       {offline ? <PanelView openDrawer={openDrawer} panel={{ type: "note", tone: "offline", icon: OFF, title: "Offline — you can enter, but you cannot submit", body: "Entry is written to this device and the totals shown are provisional. Submission needs a connection." }} /> : null}
       {note ? <PanelView openDrawer={openDrawer} panel={{ type: "note", tone: note.tone === "ok" ? "positive" : "negative", icon: WARN, title: note.tone === "ok" ? "Saved" : "That did not save", body: note.text }} /> : null}
 
+      {/* A phone types into a card for each child, as the mockup draws it: the name and total above, every column's box under its own heading. */}
+      {phone ? (
+      <div className="grid gap-[12px] md:hidden">
+        {props.switchers.length ? (
+          <div className="flex flex-wrap gap-[8px]">
+            {props.switchers.map((switcher) => (
+              <select key={switcher.label} aria-label={switcher.label} value={switcher.value} onChange={(event) => { const next = switcher.options.find((option) => option.label === event.target.value); if (next) router.push(next.href as Route); }} className="h-[42px] min-w-0 flex-1 rounded-[14px] border bg-white px-[12px] text-[14px] font-bold" style={{ borderColor: "#E4EDE8", color: "#0D2315" }}>
+                {switcher.options.map((option) => <option key={option.label} value={option.label}>{option.label}</option>)}
+              </select>
+            ))}
+          </div>
+        ) : null}
+        <label className="flex h-[48px] items-center gap-[10px] rounded-[16px] bg-white px-[14px]" style={{ boxShadow: "0 1px 2px rgba(13,35,21,0.05), 0 8px 22px -16px rgba(13,35,21,0.22)" }}>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#8C9A92" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden><circle cx="11" cy="11" r="6.5" /><path d="m16 16 4 4" /></svg>
+          <input value={find} onChange={(event) => setFind(event.target.value)} placeholder="Find a student" aria-label="Find a student" className="min-w-0 flex-1 bg-transparent text-[14px] font-medium outline-none" style={{ color: "#0D2315" }} />
+        </label>
+        <div className="-mx-4 flex gap-[8px] overflow-x-auto px-4 pb-[2px]" style={{ scrollbarWidth: "none" }} role="tablist" aria-label="Show">
+          {states.map((name) => {
+            const n = name === "All" ? read.length : read.filter((entry) => entry.state === name).length;
+            const on = only === name;
+            return (
+              <button key={name} type="button" role="tab" aria-selected={on} onClick={() => setOnly(name)} className="flex min-h-[40px] flex-none items-center gap-[7px] rounded-full border px-[15px] text-[14px] font-bold" style={on ? { background: "#E3F1EA", borderColor: "#5FBF9F", color: "#0D2315" } : { background: "#fff", borderColor: "#E4EDE8", color: "#435048" }}>
+                {name}<span className="rounded-full px-[7px] text-[11.5px] font-black" style={{ background: on ? "#0D2315" : "#EDF3EF", color: on ? "#fff" : "#435048" }}>{n}</span>
+              </button>
+            );
+          })}
+        </div>
+        <ul className="overflow-hidden rounded-[20px] bg-white" style={{ boxShadow: "0 1px 2px rgba(13,35,21,0.05), 0 8px 22px -14px rgba(13,35,21,0.22)" }}>
+          {read.filter((entry) => (only === "All" || entry.state === only) && (!find.trim() || `${entry.row.name} ${entry.row.roll}`.toLowerCase().includes(find.trim().toLowerCase()))).map((entry, index) => {
+            const { row } = entry;
+            return (
+              <li key={row.id} className="px-[16px] py-[14px]" style={index ? { borderTop: "1px solid #EDF3EF" } : undefined}>
+                <div className="flex items-start justify-between gap-[10px]">
+                  <div className="min-w-0">
+                    <p className="text-[15px] font-bold leading-[1.3]" style={{ color: "#0D2315" }}>{row.name}</p>
+                    <p className="mt-[1px] text-[12.5px] font-medium" style={{ color: entry.state === "Absent" ? "#6B4E9E" : entry.state === "Out of range" ? "#B23B3B" : "#6E7C74" }}>Roll {String(row.roll).padStart(2, "0")} · {entry.state}</p>
+                  </div>
+                  <div className="flex flex-none items-center gap-[8px]">
+                    <span className="text-[20px] font-black leading-none tabular-nums" style={{ color: entry.complete ? "#0D2315" : "#B8C4BD" }}>{entry.complete ? entry.total : "—"}</span>
+                    {entry.complete && entry.grade ? <span className="rounded-full px-[9px] py-[2px] text-[12px] font-extrabold" style={{ background: toneOf(gradeTone(entry.grade)).bg, color: toneOf(gradeTone(entry.grade)).fg }}>{entry.grade}</span> : null}
+                  </div>
+                </div>
+                <div className="mt-[10px] grid gap-[8px]" style={{ gridTemplateColumns: `repeat(${Math.min(columns.length, 4)}, minmax(0, 1fr))` }}>
+                  {columns.map((column) => {
+                    const value = cells[row.id]?.[column.key] ?? "";
+                    const absent = value === "ABS";
+                    const bad = !absent && value !== "" && (Number.isNaN(Number(value)) || Number(value) > column.max);
+                    return (
+                      <label key={column.key} className="grid gap-[4px]">
+                        <span className="truncate text-[12px] font-bold" style={{ color: "#6E7C74" }}>{column.short} /{column.max}</span>
+                        <input
+                          value={value}
+                          disabled={locked}
+                          inputMode="decimal"
+                          placeholder="–"
+                          aria-label={`${column.name} out of ${column.max} — ${row.name}`}
+                          onChange={(event) => type(row.id, column.key, event.target.value)}
+                          className="h-[50px] w-full min-w-0 rounded-[14px] border-0 text-center text-[18px] font-extrabold tabular-nums outline-hidden focus:ring-2 focus:ring-[#12796A] disabled:opacity-60"
+                          style={absent ? { background: "#F1EEFA", color: "#6B4E9E", fontSize: 14 } : bad ? { background: "#FDF3F3", color: "#B23B3B" } : { background: "#F1F5F3", color: "#0D2315" }}
+                        />
+                      </label>
+                    );
+                  })}
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+        <p className="px-[4px] text-[12.5px] font-medium" style={{ color: "#6E7C74" }}>Type a mark, or A for absent. Blank is not zero.{props.frameworkLabel ? ` ${props.frameworkLabel}.` : ""}</p>
+        {!locked ? (
+          <div className="sticky bottom-0 z-[30] -mx-4 -mb-4 rounded-t-[22px] bg-white px-[14px] pb-[12px] pt-[10px]" style={{ boxShadow: "0 -12px 30px -22px rgba(13,35,21,0.45)" }}>
+            <div className="mb-[8px] flex items-center justify-between px-[4px] text-[12.5px] font-bold">
+              <span style={{ color: stats.complete === stats.roll ? "#17714F" : "#8A6410" }}>{stats.complete === stats.roll ? "Every child has a mark" : `${stats.roll - stats.complete} still to enter`}</span>
+              <span style={{ color: "#6E7C74" }}>Average {stats.avg ?? "—"}</span>
+            </div>
+            <div className="flex gap-[10px]">
+              <button type="button" disabled={busy} onClick={() => void save()} className="h-[52px] flex-none rounded-[16px] px-[22px] text-[15px] font-extrabold disabled:opacity-60" style={{ background: "#EEF4F0", color: "#0D2315" }}>{busy ? "Saving…" : "Save draft"}</button>
+              <button type="button" onClick={() => void preview()} className="h-[52px] min-w-0 flex-1 rounded-[16px] text-[15px] font-extrabold text-white" style={{ background: "#0D2315" }}>Preview &amp; submit</button>
+            </div>
+          </div>
+        ) : null}
+      </div>
+      ) : null}
+
+      <div className="max-md:hidden">
       <PanelView
         openDrawer={openDrawer}
         panel={{
@@ -256,6 +347,7 @@ export function TeacherSheet(props: TeacherSheetProps) {
           foot: "A = absent, excluded from the average. Blank is not zero.",
         }}
       />
+      </div>
     </div>
   );
 }
