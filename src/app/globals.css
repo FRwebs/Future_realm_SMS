@@ -1412,4 +1412,28 @@ summary:focus-visible,
     font-size: 12.5px;
     line-height: 1.45;
   }
+
+  /* A month on a phone is a grid of soft tiles: the day centred, a dot where something is on, and today filled ink. */
+  [data-phone-skin="on"] [data-cal-cell] {
+    min-height: 46px;
+    align-items: center;
+    justify-content: center;
+    border: 0 !important;
+    border-radius: 14px;
+    background: #f1f5f3 !important;
+    padding: 4px;
+    box-shadow: none !important;
+  }
+  [data-phone-skin="on"] [data-cal-cell][data-cal-weekend] {
+    background: transparent !important;
+  }
+  [data-phone-skin="on"] [data-cal-cell][data-cal-today] {
+    background: #0d2315 !important;
+  }
+  [data-phone-skin="on"] [data-cal-cell][data-cal-today] span {
+    color: #fff !important;
+  }
+  [data-phone-skin="on"] [data-cal-cell] [data-cal-note] {
+    display: none;
+  }
 }

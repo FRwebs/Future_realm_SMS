@@ -413,6 +413,8 @@ export type CalendarCell = {
   /** Ringed, because it is today. */
   today?: boolean;
   blank?: boolean;
+  /** A Saturday or Sunday: drawn without a tile on a phone, as the mockup's are. */
+  weekend?: boolean;
 } & Partial<Trigger>;
 
 /** One point on a `line` panel. A null value is a gap — the line breaks rather than being drawn across it. */
@@ -1060,7 +1062,7 @@ export type Panel =
       /** The column headings. */
       dow?: string[];
       /** Which month is being shown, as chips above the grid. */
-      acts?: Array<{ label: string; href: string; on?: boolean }>;
+      acts?: Array<{ label: string; href: string; on?: boolean; count?: number }>;
       cells: CalendarCell[];
       /** What the colours mean. Left out, no key is drawn. */
       legend?: Array<{ label: string; tone: PanelTone }>;

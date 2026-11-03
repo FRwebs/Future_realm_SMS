@@ -1,7 +1,7 @@
 import { apiGet, observe } from "@/lib/api/server";
 import { localContracts } from "@/lib/api/local-contracts.zod";
 import { row } from "@/lib/modules/panels";
-import type { DrawerSpec, ListItem, PanelFact, PanelTone } from "@/lib/modules/panels";
+import type { DrawerSpec, ListItem, Panel, PanelFact, PanelRow, PanelTone } from "@/lib/modules/panels";
 import { PW, absolute, dDow, dShort, dayOf } from "@/lib/modules/live/parent/shared";
 import type { ParentContent } from "@/lib/modules/live/parent/shared";
 
@@ -16,7 +16,7 @@ const WHEN = [["up", "Coming up"], ["past", "Earlier"], ["all", "Whole term"]] a
 const sameDay = (event: Ev, day: string) => day >= event.date && day <= event.end;
 const rangeText = (event: Ev) => (event.end !== event.date ? `${dShort(event.date)} – ${dShort(event.end)}` : dDow(event.date));
 
-function item(event: Ev, withChild: boolean): ListItem {
+export function item(event: Ev, withChild: boolean): ListItem {
   const date = dayOf(event.date);
   const tone = TONE[event.cat] ?? "neutral";
   return {
@@ -36,9 +36,11 @@ function eventDrawer(event: Ev): DrawerSpec {
   return { kicker: event.cat, title: event.title, mode: "view", readOnly: true, facts };
 }
 
+export const loadCalendar = (child: string) => apiGet(`${PW}/calendar?child=${encodeURIComponent(child)}`, observe<Calendar>(localContracts["src/lib/modules/live/parent/calendar.ts#2c4d6a3a"]));
+
 export async function calendarPage(child: string, query: Record<string, string | undefined>): Promise<ParentContent> {
   const [data, link] = await Promise.all([
-    apiGet(`${PW}/calendar?child=${encodeURIComponent(child)}`, observe<Calendar>(localContracts["src/lib/modules/live/parent/calendar.ts#2c4d6a3a"])),
+    loadCalendar(child),
     apiGet(`${PW}/calendar-link`, observe<{ path: string }>(localContracts["src/lib/modules/live/parent/calendar.ts#7f3a91c2"])).catch(() => null),
   ]);
   const feed = link ? await absolute(link.path) : null;
@@ -99,18 +101,31 @@ export async function calendarPage(child: string, query: Record<string, string |
         note: on.length ? `${on[0]!.title}${on.length > 1 ? ` +${on.length - 1}` : ""}` : weekend ? "" : "",
         tone: on.length ? TONE[on[0]!.cat] ?? "neutral" : undefined,
         today: day === data.today,
+        weekend,
         ...(on.length ? { drawer: { kicker: "Calendar", title: dDow(day), mode: "view" as const, readOnly: true, sub: `${on.length} on this day`, facts: on.flatMap((event): PanelFact[] => [[event.title, [event.cat, event.time].filter(Boolean).join(" · "), [event.where, event.kids.length < 2 ? "" : event.kids.map((kid) => kid.first).join(" and ")].filter(Boolean).join(" · ")]]) } satisfies DrawerSpec } : {}),
       };
     }),
   ];
+  const inMonth = (month: string) => events.filter((event) => event.date.slice(0, 7) <= month && event.end.slice(0, 7) >= month);
+  const monthEvents = inMonth(wanted);
+  const phoneOnly = (panel: Panel): PanelRow => ({ ...row("1fr", [panel]), show: "phone" as const });
   return {
     ...head,
-    rows: [row("1fr", [{
+    phoneEyebrow: one ? one.first : "Whole family", phoneTitle: `${MONTHS[monthIndex]} ${year}`, phoneDesc: "",
+    rows: [
+      // The phone reads the month as chips with how much is in each, the grid, and then the month's events under their own heading.
+      phoneOnly({ type: "embed", component: "phone-chips", props: { chips: chips.map((month) => ({ label: MONTHS[Number(month.slice(5)) - 1]!, href: `${base}month=${month}`, on: month === wanted, count: inMonth(month).length || undefined })) } }),
+      row("1fr", [{
       type: "calendar", title: `${MONTHS[monthIndex]} ${year}`, sub: "Tap a day to see what is on it.", per: 7,
       dow: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
       acts: chips.map((month) => ({ label: MONTHS[Number(month.slice(5)) - 1]!.slice(0, 3), href: `${base}month=${month}`, on: month === wanted })),
       legend: [{ label: "Tests and exams", tone: "attention" }, { label: "Meetings", tone: "progress" }, { label: "Results", tone: "positive" }, { label: "Fees", tone: "negative" }, { label: "Holidays", tone: "offline" }],
       cells,
-    }])],
+    }]),
+      phoneOnly({
+        type: "list", noFind: true, title: `All of ${MONTHS[monthIndex]}`, empty: "Nothing is on the calendar this month.",
+        items: monthEvents.map((event) => item(event, child === "all")),
+      }),
+    ],
   };
 }

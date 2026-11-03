@@ -46,9 +46,9 @@ export function StudentPrefs({ base, categories, channels, matrix, defaults, qui
 
   return (
     <div className="grid min-w-0 gap-[14px]">
-      <section className="min-w-0 rounded-[14px] border bg-(--color-bg-surface) px-[18px] pb-[14px] pt-[14px]" style={{ borderColor: "#DEE8E2" }}>
-        <h2 className="text-[12.5px] font-semibold" style={{ color: "#0D2315" }}>{copy?.lead ?? "What reaches you, and where"}</h2>
-        <p className="mt-[3.5px] text-[10.5px]" style={{ color: "#5E6D64" }}>{copy?.sub ?? "In-app notifications cannot be turned off — they are your record."}</p>
+      <section className="min-w-0 rounded-[14px] border bg-(--color-bg-surface) px-[18px] pb-[14px] pt-[14px] max-md:border-0 max-md:bg-transparent max-md:px-0 max-md:pt-0" style={{ borderColor: "#DEE8E2" }}>
+        <h2 className="text-[12.5px] font-semibold max-md:text-[17px] max-md:font-extrabold" style={{ color: "#0D2315" }}>{copy?.lead ?? "What reaches you, and where"}</h2>
+        <p className="mt-[3.5px] text-[10.5px] max-md:text-[13.5px] max-md:leading-[1.5]" style={{ color: "#5E6D64" }}>{copy?.sub ?? "In-app notifications cannot be turned off — they are your record."}</p>
         {/* A phone reads this a kind at a time. The matrix below is four
             columns wide at its narrowest, so on a 375px screen it either
             scrolls sideways — hiding whole channels behind an edge — or
@@ -57,18 +57,18 @@ export function StudentPrefs({ base, categories, channels, matrix, defaults, qui
             switch; the matrix is kept for the width that can hold it. */}
         <div className="mt-[12px] grid gap-[10px] md:hidden">
           {categories.map((category) => (
-            <div key={category.key} className="rounded-[12px] border px-[12px] py-[10px]" style={{ borderColor: "#EDF3EF" }}>
-              <p className="text-[12.5px] font-semibold" style={{ color: "#0D2315" }}>{category.label}</p>
-              <p className="mt-[2px] text-[10.5px] leading-[1.45]" style={{ color: "#5E6D64" }}>{category.sub}</p>
+            <div key={category.key} className="rounded-[18px] bg-white px-[16px] py-[14px] shadow-[0_1px_2px_rgba(13,35,21,0.05),0_8px_22px_-16px_rgba(13,35,21,0.22)]">
+              <p className="text-[15px] font-extrabold" style={{ color: "#0D2315" }}>{category.label}</p>
+              <p className="mt-[2px] text-[12.5px] leading-[1.45]" style={{ color: "#5E6D64" }}>{category.sub}</p>
               <div className="mt-[8px] grid gap-[2px]">
                 {channels.map((channel) => {
                   const on = isOn(category.key, channel.key, channel.locked, channel.unavailable);
                   const fixed = Boolean(channel.locked || channel.unavailable);
                   return (
-                    <div key={channel.key} className="flex min-h-[38px] items-center justify-between gap-[10px]">
-                      <span className="min-w-0 text-[12px]" style={{ color: fixed ? "#5E6D64" : "#0D2315" }}>
+                    <div key={channel.key} className="flex min-h-[48px] items-center justify-between gap-[10px]">
+                      <span className="min-w-0 text-[14px]" style={{ color: fixed ? "#5E6D64" : "#0D2315" }}>
                         <span className="font-semibold">{channel.label}</span>
-                        <span className="ml-[5px] text-[11px]" style={{ color: "#5E6D64" }}>· {channel.sub}</span>
+                        <span className="ml-[5px] text-[12.5px]" style={{ color: "#5E6D64" }}>· {channel.sub}</span>
                       </span>
                       <button type="button" role="switch" aria-checked={on} aria-label={`${category.label} by ${channel.label}`} disabled={fixed} onClick={() => toggle(category.key, channel.key, !on)} className={SWITCH} style={{ background: on ? "#12796A" : "#CFDDD5", opacity: fixed ? 0.55 : 1, cursor: fixed ? "not-allowed" : "pointer" }}>
                         <span className="absolute top-[2px] h-[16px] w-[16px] rounded-full bg-white transition-[left] duration-150" style={{ left: on ? 16 : 2, boxShadow: "0 1px 3px rgba(13,35,21,0.3)" }} />

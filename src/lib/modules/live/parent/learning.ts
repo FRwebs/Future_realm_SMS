@@ -6,7 +6,7 @@ import { PW, dDow, dShort, dayOf, loadMe } from "@/lib/modules/live/parent/share
 import type { ParentContent, ParentMe } from "@/lib/modules/live/parent/shared";
 
 type Slot = { day: number; n: number; from: string; to: string; kind: string; subject: string; teacher: string; lab: boolean };
-type Kid = {
+export type Kid = {
   id: string; first: string; arm: string; published: boolean; slots: Slot[];
   periods: Array<{ n: number; from: string; to: string; kind: string }>;
   topics: Array<{ subject: string; teacher: string; now: string | null; next: string | null }>;
@@ -23,14 +23,16 @@ const TABS = ["Timetable", "This week in class", "Tests and exams"];
 const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
 const MONTHS = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"];
 
+export const loadLearning = (child: string) => apiGet(`${PW}/learning?child=${encodeURIComponent(child)}`, observe<Learning>(localContracts["src/lib/modules/live/parent/learning.ts#7a1f6efb"]));
+
 export async function learningPage(child: string, query: Record<string, string | undefined>): Promise<ParentContent> {
-  const [me, data] = await Promise.all([loadMe(), apiGet(`${PW}/learning?child=${encodeURIComponent(child)}`, observe<Learning>(localContracts["src/lib/modules/live/parent/learning.ts#7a1f6efb"]))]);
+  const [me, data] = await Promise.all([loadMe(), loadLearning(child)]);
   const one = child === "all" ? null : data.children.find((entry) => entry.id === child) ?? null;
   return one ? childLearning(one, data, me, query) : familyLearning(data, me);
 }
 
 /** The lesson running now for a child, and the next one today — read against the school's own clock. */
-function liveLesson(kid: Kid, me: ParentMe) {
+export function liveLesson(kid: Kid, me: ParentMe) {
   const day = dayOf(me.today).getUTCDay();
   const today = kid.slots.filter((slot) => slot.day === day && slot.kind === "lesson").sort((a, b) => a.from.localeCompare(b.from));
   const now = today.find((slot) => slot.from <= me.now && me.now < slot.to) ?? null;
