@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { formatDay } from "@/lib/date-format";
 import { sendJsonForData } from "@/lib/modules/submit";
@@ -70,6 +70,12 @@ export function ParentInbox({ school, you, messages, showChildren, empty }: Inbo
       setBusy(false);
     }
   }
+  // The phone's top bar has a tick for this; it asks here because the messages are here.
+  useEffect(() => {
+    const run = () => { if (unread && !busy) void readAll(); };
+    window.addEventListener("fr:bar-read-all", run);
+    return () => window.removeEventListener("fr:bar-read-all", run);
+  });
   const choose = (message: InboxMessage) => {
     setSelected(message.id);
     setReading(true);

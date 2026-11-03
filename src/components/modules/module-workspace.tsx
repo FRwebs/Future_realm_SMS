@@ -2,8 +2,8 @@
 
 import Link from "next/link";
 import type { Route } from "next";
-import { usePathname } from "next/navigation";
-import { useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 
 import { ModuleDrawer } from "@/components/modules/lazy-drawer";
 import { PanelRowsWithDrawer } from "@/components/modules/panel-renderer";
@@ -281,6 +281,7 @@ export function ModuleWorkspace({
   phoneTitle,
   phoneDesc,
   phonePrimary,
+  body,
   children,
 }: {
   eyebrow: string;
@@ -301,12 +302,25 @@ export function ModuleWorkspace({
   floatPrimary?: boolean;
   /** Rendered between the header and the panels — the tab strip. */
   children?: React.ReactNode;
+  /** A page's own content, drawn under the phone's page head — for a page that is not a list of panels. */
+  body?: React.ReactNode;
 }) {
   const [drawer, setDrawer] = useState<DrawerSpec | null>(null);
   const hasPhoneBar = useHasPhoneBar();
   const kind = usePhoneKind();
   const pathname = usePathname();
   const floats = floatPrimary ?? !PHONE_NO_FAB.includes(pathname.replace(/\/$/, ""));
+  // A button in the phone's top bar can ask the page to do what its own main action does: the calendar's "add to my phone".
+  const router = useRouter();
+  const mainAction = phonePrimary ?? primary;
+  useEffect(() => {
+    const run = () => {
+      if (mainAction?.drawer) setDrawer(mainAction.drawer);
+      else if (mainAction?.href) router.push(mainAction.href as Route);
+    };
+    window.addEventListener("fr:bar-main", run);
+    return () => window.removeEventListener("fr:bar-main", run);
+  }, [mainAction, router]);
 
   return (
     <div className={cn("grid min-w-0 gap-[14px]", hasPhoneBar && floats && (phonePrimary ?? primary) && "max-md:flex max-md:min-h-full max-md:flex-col")}>
@@ -351,6 +365,8 @@ export function ModuleWorkspace({
 
       {/* The teacher's phone puts the segments first and the screen's name under them, as its mockup does. */}
       {kind !== null && pathname.replace(/\/$/, "") !== "/command-center/today" ? <PhoneHead eyebrow={phoneEyebrow ?? eyebrow} title={phoneTitle ?? title} description={phoneDesc ?? description} /> : null}
+
+      {body}
 
       <PanelRowsWithDrawer rows={rows} openDrawer={setDrawer} />
 

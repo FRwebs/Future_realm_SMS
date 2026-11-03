@@ -72,21 +72,21 @@ export function ScoreImport({ classId, subjectId, back }: { classId: string; sub
 
   return (
     <div className="grid gap-[14px]">
-      <section className="rounded-[14px] border bg-white p-5" style={{ borderColor: BORDER }}>
+      <section className="rounded-[14px] border bg-white p-5 max-md:rounded-[20px] max-md:border-0 max-md:p-[16px] max-md:shadow-[0_1px_2px_rgba(13,35,21,0.05),0_8px_22px_-16px_rgba(13,35,21,0.22)]" style={{ borderColor: BORDER }}>
         <p className="text-[12px] font-bold" style={{ color: INK }}>1 · Take the template</p>
         <p className="mt-1 text-[11.5px] leading-[1.6]" style={{ color: MUTED }}>It has every child on this sheet and a column for each component, with what is entered already. Fill it in Excel and save it — as .xlsx or as CSV. A blank cell leaves the score as it is; it never clears one. Type A for absent.</p>
-        <a href={`${base}/template`} className="mt-3 inline-flex rounded-[10px] bg-[#0D2315] px-[14px] py-[9px] text-[12px] font-semibold text-white">Download the template</a>
+        <a href={`${base}/template`} className="mt-3 inline-flex rounded-[10px] bg-[#0D2315] px-[14px] py-[9px] text-[12px] font-semibold text-white max-md:h-[52px] max-md:w-full max-md:items-center max-md:justify-center max-md:rounded-[16px] max-md:text-[15px] max-md:font-extrabold">Download the template</a>
       </section>
 
-      <section className="rounded-[14px] border bg-white p-5" style={{ borderColor: BORDER }}>
+      <section className="rounded-[14px] border bg-white p-5 max-md:rounded-[20px] max-md:border-0 max-md:p-[16px] max-md:shadow-[0_1px_2px_rgba(13,35,21,0.05),0_8px_22px_-16px_rgba(13,35,21,0.22)]" style={{ borderColor: BORDER }}>
         <p className="text-[12px] font-bold" style={{ color: INK }}>2 · Choose your filled-in file</p>
-        <input type="file" accept=".xlsx,.csv,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" onChange={choose} disabled={busy} className="mt-3 block text-[12px]" />
+        <input type="file" accept=".xlsx,.csv,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" onChange={choose} disabled={busy} className="mt-3 block w-full rounded-[16px] border-2 border-dashed p-[14px] text-[14px] max-md:bg-[#FBFDFC] file:mr-[12px] file:rounded-[12px] file:border-0 file:bg-[#EEF4F0] file:px-[14px] file:py-[10px] file:text-[14px] file:font-extrabold" />
         {busy && !preview ? <p className="mt-3 text-[11.5px]" style={{ color: MUTED }}>Reading the file…</p> : null}
         {error ? <p className="mt-3 text-[12px] font-semibold" style={{ color: "#B23B3B" }}>{error}</p> : null}
       </section>
 
       {preview ? (
-        <section className="rounded-[14px] border bg-white p-5" style={{ borderColor: BORDER }}>
+        <section className="rounded-[14px] border bg-white p-5 max-md:rounded-[20px] max-md:border-0 max-md:p-[16px] max-md:shadow-[0_1px_2px_rgba(13,35,21,0.05),0_8px_22px_-16px_rgba(13,35,21,0.22)]" style={{ borderColor: BORDER }}>
           <p className="text-[12px] font-bold" style={{ color: INK }}>3 · Check what will change · {preview.sheet.subject} · {preview.sheet.arm}</p>
           <p className="mt-1 text-[11.5px] leading-[1.6]" style={{ color: MUTED }}>
             {preview.matched} of {preview.sheet.roll} children matched by admission number · {preview.changeCount} cell{preview.changeCount === 1 ? "" : "s"} would change · {preview.unchanged} already the same.
@@ -126,7 +126,7 @@ export function ScoreImport({ classId, subjectId, back }: { classId: string; sub
               <Link href={back as never} className="mt-2 inline-flex rounded-[10px] bg-[#0D2315] px-[14px] py-[8px] text-[12px] font-semibold text-white">Open the sheet</Link>
             </div>
           ) : (
-            <button type="button" onClick={apply} disabled={!preview.canApply || busy} className="mt-4 rounded-[10px] px-[16px] py-[9px] text-[12px] font-semibold text-white disabled:opacity-40" style={{ background: INK }}>
+            <button type="button" onClick={apply} disabled={!preview.canApply || busy} className="mt-4 rounded-[10px] px-[16px] py-[9px] text-[12px] font-semibold text-white disabled:opacity-40 max-md:h-[52px] max-md:w-full max-md:rounded-[16px] max-md:text-[15px] max-md:font-extrabold" style={{ background: INK }}>
               {busy ? "Importing…" : `Import ${preview.changeCount} score${preview.changeCount === 1 ? "" : "s"} as a draft`}
             </button>
           )}
