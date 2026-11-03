@@ -70,6 +70,13 @@ export function PhoneParentBar({
   const status = link.online ? `Up to date${link.at ? ` · checked at ${link.at}` : ""}` : "Offline · showing what was last loaded";
   const tone = link.online ? { bg: "#EAF6F0", fg: "#17714F", dot: "#22A06B" } : { bg: "#F4F6F5", fg: "#5A6862", dot: "#8A9A92" };
   const childId = params.get("child");
+  // A page that is itself showing one thing in full — an open message — names it in the bar and takes the way back.
+  const [reading, setReading] = useState<{ title: string; sub: string } | null>(null);
+  useEffect(() => {
+    const on = (event: Event) => setReading((event as CustomEvent<{ title: string; sub: string } | null>).detail ?? null);
+    window.addEventListener("fr:phone-reading", on);
+    return () => window.removeEventListener("fr:phone-reading", on);
+  }, []);
   const who = ABOUT_PARENT.includes(slug) ? session.name : (childId && kids[childId]) || "Whole family";
 
   if (home) {
@@ -92,7 +99,11 @@ export function PhoneParentBar({
           <span aria-hidden className="absolute -bottom-[70px] -left-[40px] h-[120px] w-[120px] rounded-full border-[1.5px]" style={{ borderColor: "rgba(95,214,180,0.08)" }} />
           <div className="relative grid h-[62px] grid-cols-[52px_minmax(0,1fr)_52px] items-center px-[4px]">
             <div className="flex justify-center">
-              {slug === "messages" || slug === "calendar" ? (
+              {reading ? (
+                <button type="button" onClick={() => window.dispatchEvent(new Event("fr:phone-reading-close"))} aria-label="Back to the messages" className="flex h-[44px] w-[44px] items-center justify-center rounded-full active:bg-white/10">
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M19 12H5M11 6l-6 6 6 6" /></svg>
+                </button>
+              ) : slug === "messages" || slug === "calendar" ? (
                 <button type="button" onClick={() => window.dispatchEvent(new Event(slug === "messages" ? "fr:bar-read-all" : "fr:bar-main"))} aria-label={slug === "messages" ? "Mark every message read" : "Add school dates to my phone"} className="flex h-[44px] w-[44px] items-center justify-center rounded-full text-white active:bg-white/10">
                   <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
                     {slug === "messages" ? <path d="m5 12.5 4.5 4.5 9-10" /> : <path d="M12 4v11M7.5 11 12 15.5 16.5 11M5 19.5h14" />}
@@ -105,8 +116,8 @@ export function PhoneParentBar({
               ) : null}
             </div>
             <div className="min-w-0 text-center">
-              <div className="truncate text-[min(16.5px,4.8vw)] font-extrabold leading-[1.25] text-white">{pages[slug] ?? "Your portal"}</div>
-              <div className="truncate text-[12.5px] font-medium leading-[1.2]" style={{ color: "rgba(255,255,255,0.7)" }}>{who}</div>
+              <div className="truncate text-[min(16.5px,4.8vw)] font-extrabold leading-[1.25] text-white">{reading?.title ?? pages[slug] ?? "Your portal"}</div>
+              <div className="truncate text-[12.5px] font-medium leading-[1.2]" style={{ color: "rgba(255,255,255,0.7)" }}>{reading?.sub ?? who}</div>
             </div>
             <div className="flex justify-center">
               <NotificationBell session={session} portalType={portalType} phone="dark" />
@@ -143,7 +154,13 @@ export function PhoneParentChips({ chrome }: { chrome: ParentChrome }) {
     const base = `/portals/parent${slug === "overview" ? "" : `/${slug}`}`;
     return (child: string) => (child === "all" ? base || "/portals/parent" : `${base}?child=${child}`);
   }, [slug]);
-  if (ABOUT_PARENT.includes(slug) || !chrome.children.length) return null;
+  const [reading, setReading] = useState(false);
+  useEffect(() => {
+    const on = (event: Event) => setReading(Boolean((event as CustomEvent).detail));
+    window.addEventListener("fr:phone-reading", on);
+    return () => window.removeEventListener("fr:phone-reading", on);
+  }, []);
+  if (ABOUT_PARENT.includes(slug) || !chrome.children.length || reading) return null;
 
   const chip = (key: string, mark: string, name: string, stats: ParentChrome["family"]["stats"], swatch: [string, string, string], needs: number, urgent: boolean, photo: string | null) => {
     const on = key === selected;
