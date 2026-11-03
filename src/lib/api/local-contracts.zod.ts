@@ -351,7 +351,7 @@ export const localContracts: Record<string, z.ZodType<unknown>> = {
   "src/lib/api/student-workspace.ts#d531ce8e": z.looseObject({ work: z.number(), late: z.number(), unread: z.number(), hidden: z.array(z.string()) }),
   "src/lib/api/student-workspace.ts#d6067f58": z.lazy(() => lib_api_student_workspace_StudentTimetable),
   "src/lib/api/teacher-workspace.ts#63c60b62": z.lazy(() => lib_api_teacher_workspace_TeacherWorkspaceView),
-  "src/lib/api/teacher-workspace.ts#7aba5950": z.looseObject({ families: z.number() }),
+  "src/lib/api/teacher-workspace.ts#7aba5950": z.looseObject({ families: z.number(), registers: z.number(), sheets: z.number() }),
   "src/lib/modules/live/m1-command-center.ts#5313e024": z.array(z.lazy(() => lib_modules_live_m1_command_center_ReportCardRow)),
   "src/lib/modules/live/m1-command-center.ts#7bd6f981": z.lazy(() => lib_modules_live_m1_command_center_ApiToday),
   "src/lib/modules/live/m1-command-center.ts#83dc5473": z.array(z.lazy(() => lib_modules_live_m1_command_center_ApiApproval)),

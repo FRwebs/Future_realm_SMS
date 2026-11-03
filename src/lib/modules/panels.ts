@@ -346,6 +346,8 @@ export type PanelAction = {
   primary?: boolean;
   /** SVG path for the header's primary button. Defaults to a plus. */
   icon?: string;
+  /** What the phone's floating button says, when the header's label is too long for a button — "Mark register", not "Mark JSS 2 Gold · 9 children". */
+  phoneLabel?: string;
   /** On a table: download the rows as they are (or only the ticked ones, from the bulk bar) as a CSV. */
   export?: boolean;
   /**
@@ -363,6 +365,18 @@ export type ListItem = {
   sub?: string;
   pill?: string;
   tone?: PanelTone;
+  /** A small line under the pill, at the right edge — "34 children". */
+  side?: string;
+  /** SVG path for a round icon at the row's left, in place of a date tile. */
+  icon?: string;
+  /** A returned comment, quoted in a tinted box under the row's text. */
+  quote?: string;
+  /** Initials in a round tile at the row's left — a person, not a thing. */
+  avatar?: string;
+  /** One button at the row's right in place of the pill — "Call". */
+  act?: { label: string; icon?: string; drawer?: DrawerSpec; href?: string };
+  /** A thin progress line under the row's text, with its figure at the right — "21 of 34". */
+  bar?: { pct: number; label: string; tone?: PanelTone };
   viewLabel?: string;
   /** Opened in a drawer, so a record reads the same wherever it is reached from. */
   facts?: PanelFact[];
@@ -992,6 +1006,9 @@ export type Panel =
       facts: PanelFact[];
       acts?: PanelAction[];
       foot?: string;
+      /** On a teacher's phone this block is one folded row that opens on a tap, as the mockup draws its rules. */
+      phoneFold?: boolean;
+      show?: "desktop" | "phone";
       /**
        * Facts per row. The mockup lays them out as an auto-fit grid, so `per`
        * only widens the minimum column: 1 gives one wide column of prose.
@@ -1011,6 +1028,8 @@ export type Panel =
       /** SVG path for the note's icon chip. Defaults to the mockup's warning triangle. */
       icon?: string;
       acts?: PanelAction[];
+      /** Drawn on one kind of screen only. A phone has no room for the desktop's explanations; a laptop has no use for the phone's. */
+      show?: "desktop" | "phone";
     }
   | RosterPanel
   | ScoreSheetPanel
@@ -1187,6 +1206,11 @@ export type TabContent = {
   primary?: PanelAction;
   /** Secondary jumps out of this tab, beside the primary action. */
   launchers?: PanelAction[];
+  /** The small green line over the title on a teacher's phone: "Attendance · Thursday 4 September". Defaults to the module and the tab. */
+  phoneEyebrow?: string;
+  /** The title and line under it on a teacher's phone, when the mockup words them differently from the desktop. */
+  phoneTitle?: string;
+  phoneDesc?: string;
   rows: PanelRow[];
 };
 

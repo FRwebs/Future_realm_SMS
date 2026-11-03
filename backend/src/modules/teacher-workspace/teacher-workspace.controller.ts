@@ -211,7 +211,14 @@ export class TeacherWorkspaceController {
   /** The counts the teacher's rail shows beside a module. */
   @Get("badges")
   badges(@CurrentSession() session: SessionPayload) {
-    return ok(this.families.waiting(session));
+    // Registers left to mark and sheets still open are read from the same day the teacher's My Day is, so a bar that says "2" and a page that says "2 of 3" cannot disagree.
+    return ok(
+      Promise.all([this.families.waiting(session), this.day.day(session)]).then(([families, day]) => ({
+        families: families.families,
+        registers: day.schoolDay ? day.registers.filter((entry) => entry.state !== "Marked").length : 0,
+        sheets: day.sheets.filter((sheet) => sheet.state !== "Submitted" && sheet.state !== "Approved").length,
+      })),
+    );
   }
 
   /** What the families of the class have sent in. */

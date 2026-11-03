@@ -97,7 +97,23 @@ function guardiansTab(v: GuardiansView, me: TeacherWorkspaceView, held: Set<stri
         { label: "Prefer another language", value: String(k.otherLanguage), sub: k.otherLanguage ? `Messages go in their language where the school can${languages.filter((entry) => entry !== "English").length ? ` · ${languages.filter((entry) => entry !== "English").join(", ")}` : ""}` : "Everyone prefers English" },
       ],
     }]),
-    row("1fr", [{
+    // The phone reads the same guardians as people to call: initials, who they are to which child, how to reach them, and one tap to call.
+    {
+      ...row("1fr", [{
+        type: "list", title: `${armLabel} guardians`, foot: "A contact restricted by the Safeguarding Lead is simply not shown.", empty: "No guardian is on record for this class yet.",
+        items: v.rows.map((guardian) => {
+          const words = guardian.name.split(/\s+/).filter((word) => !/^(mr|mrs|ms|miss|dr|prof|chief|alhaji|alhaja|pastor|rev|engr)\.?$/i.test(word));
+          return {
+            avatar: ((words[0]?.[0] ?? "") + (words.length > 1 ? words[words.length - 1]![0] ?? "" : "")).toUpperCase() || "?", tone: guardian.portal === "Active" ? ("neutral" as const) : ("attention" as const),
+            label: guardian.name,
+            sub: `${guardian.relation} of ${guardian.children.map((child) => child.name).join(", ")} · ${guardian.portal === "Active" ? "In-app" : "Never activated · SMS only"}${guardian.language !== "English" ? ` · ${guardian.language}` : ""}`,
+            act: { label: "Call", icon: "M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2", drawer: callDrawer(guardian) },
+          };
+        }),
+      }]),
+      show: "phone" as const,
+    },
+    { ...row("1fr", [{
       type: "table", title: `${armLabel} guardians`, sub: "Contacts and preferences. No financial or safeguarding context.", meta: `${k.households} households · contact details only`, noun: "guardian", nounPlural: "guardians",
       search: "Find a guardian, a child or a number",
       filters: [
@@ -111,11 +127,12 @@ function guardiansTab(v: GuardiansView, me: TeacherWorkspaceView, held: Set<stri
       ],
       head: ["Guardian", "Child", "Phone", "Portal", "Prefers", ""], rows, per: 10, noRowOpen: true,
       empty: "No guardian is on record for this class yet.", foot: "Where the Safeguarding Lead has restricted a contact, it is simply not here — and you are not told why.",
-    }]),
+    }]), show: "desktop" as const },
   ];
   return {
     title: "Guardians", desc: "A number to call. Contact details only.",
-    primary: canMessage ? { label: "Message these families", icon: MSG, href: "/communication-center/compose" } : undefined,
+    phoneEyebrow: `Guardians · ${armLabel}`, phoneTitle: "A number to call", phoneDesc: `${roll} children, ${k.households} households. Contact details only.`,
+    primary: canMessage ? { label: "Message these families", phoneLabel: "Message families", icon: MSG, href: "/communication-center/compose" } : undefined,
     rows: panels.filter((entry): entry is PanelRow => Boolean(entry)),
   };
 }

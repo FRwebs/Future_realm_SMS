@@ -105,6 +105,9 @@ export default async function SchoolModuleTabPage({ params, searchParams }: Page
   return (
     <ModuleWorkspace
       eyebrow={moduleName}
+      phoneTitle={content?.phoneTitle}
+      phoneDesc={content?.phoneDesc}
+      phoneEyebrow={content?.phoneEyebrow ?? `${moduleName} · ${tabLabels?.[tab.slug] ?? tab.label}`}
       title={content?.title ?? tabLabels?.[tab.slug] ?? tab.label}
       description={content?.desc ?? (teaching ? teacherModuleDescription(module.code, teaching.persona) : undefined) ?? module.description}
       primary={content?.primary}

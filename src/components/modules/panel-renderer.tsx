@@ -22,7 +22,7 @@ import {
 
 import { usePhoneKind } from "@/components/layout/phone-shell";
 import { Field, initialValue } from "@/components/modules/field";
-import { PhoneList, PhoneNote, PhoneStats, PhoneTable } from "@/components/modules/phone-teacher-panels";
+import { PhoneFacts, PhoneList, PhoneNote, PhoneStats, PhoneSteps, PhoneTable } from "@/components/modules/phone-teacher-panels";
 import { ModuleDrawer } from "@/components/modules/lazy-drawer";
 import type {
   DrawerSpec,
@@ -1395,20 +1395,23 @@ function CardTile({ card }: { card: KpiCard }) {
  */
 export function PanelView({ panel, openDrawer }: { panel: Panel; openDrawer: OpenDrawer }) {
   const teacherPhone = usePhoneKind() === "teacher";
+  const only = "show" in panel ? panel.show : undefined;
   const phone =
-    teacherPhone && (panel.type === "kpi" || panel.type === "list" || panel.type === "note" || (panel.type === "table" && !panel.window && !panel.selectable && !panel.bulkActs));
+    teacherPhone && (panel.type === "kpi" || panel.type === "list" || panel.type === "note" || panel.type === "facts" || (panel.type === "steps" && !panel.prevHref && !panel.nextHref) || (panel.type === "table" && !panel.window && !panel.selectable && !panel.bulkActs));
   if (!phone) return <PanelViewDesktop panel={panel} openDrawer={openDrawer} />;
   return (
     <>
-      <div className="md:hidden">
+      {only === "desktop" ? null : <div className="md:hidden">
         {panel.type === "kpi" ? <PhoneStats panel={panel} openDrawer={openDrawer} /> : null}
         {panel.type === "table" ? <PhoneTable panel={panel} openDrawer={openDrawer} /> : null}
         {panel.type === "list" ? <PhoneList panel={panel} openDrawer={openDrawer} /> : null}
         {panel.type === "note" ? <PhoneNote panel={panel} openDrawer={openDrawer} /> : null}
-      </div>
-      <div className="max-md:hidden">
+        {panel.type === "facts" ? <PhoneFacts panel={panel} openDrawer={openDrawer} /> : null}
+        {panel.type === "steps" ? <PhoneSteps panel={panel} /> : null}
+      </div>}
+      {only === "phone" ? null : <div className="max-md:hidden">
         <PanelViewDesktop panel={panel} openDrawer={openDrawer} />
-      </div>
+      </div>}
     </>
   );
 }

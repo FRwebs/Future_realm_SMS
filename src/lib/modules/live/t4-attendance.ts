@@ -121,7 +121,7 @@ function markTab(v: RegistersView, me: TeacherWorkspaceView, held: Set<string>):
         { label: "Works offline", value: "Yes", sub: "Marking never needs a connection", tone: "positive" },
       ],
     }]),
-    row("1fr", [{
+    { ...row("1fr", [{
       type: "table", title: "Your registers today", sub: "A daily register and a period register are different records.", meta: `${v.registers.length} register${v.registers.length === 1 ? "" : "s"} · ${open.length} outstanding`, noun: "register", nounPlural: "registers",
       search: v.registers.length > 2 ? "Find an arm or a register" : undefined,
       // The mockup filters this list by arm, by register kind and by state. With one
@@ -136,13 +136,28 @@ function markTab(v: RegistersView, me: TeacherWorkspaceView, held: Set<string>):
       head: ["Arm", "Register", "Roll", "Why it is yours", "State", "Note", ""], rows: tableRows, noRowOpen: true,
       empty: v.schoolDay ? "No register is yours today. Daily registers belong to form masters; period registers appear on the days you teach." : "Today is not a school day in this term — there is no register to take.",
       foot: "Where the daily register already exists, a period register opens against it — absences are carried in, so you are never asked the same question twice.",
-    }]),
+    }]), show: "desktop" as const },
+    // The phone reads the same registers as rows: an icon for the kind of register, who it is yours as, and how many children are in it.
+    {
+      ...row("1fr", [{
+        type: "list", title: "Your registers today", tag: open.length ? `${open.length} to mark` : undefined, tagTone: "attention",
+        sub: "A daily register and a period register are different records.",
+        empty: v.schoolDay ? "No register is yours today. Daily registers belong to form masters; period registers appear on the days you teach." : "Today is not a school day in this term — there is no register to take.",
+        items: v.registers.map((entry) => ({
+          icon: REG, label: `${entry.arm} · ${entry.what}`, pill: entry.state, tone: stateTone(entry.state), side: `${entry.roll} ${entry.roll === 1 ? "child" : "children"}`,
+          sub: `${entry.kind === "daily" ? (me.persona === "early-years" ? "Class Teacher" : "Form Master") : "Subject Teacher"} · ${entry.kind === "daily" ? "report cards are built from it" : `never overwrites the daily figure${entry.at ? ` · ${entry.state === "Marked" ? `marked ${entry.markedAt ?? ""}` : `starts ${entry.at}`}` : ""}`}`,
+          href: markHref(entry),
+        })),
+        foot: "Where the daily register already exists, a period register opens against it — absences are carried in, so you are never asked the same question twice.",
+      }]),
+      show: "phone" as const,
+    },
     row("1fr 1fr", [
       me.formArms.length
-        ? { type: "note", tone: "neutral", icon: REG, title: "Your daily register is authoritative", body: `${me.formArms.map((arm) => arm.name).join(" and ")} ${me.formArms.length === 1 ? "is" : "are"} yours to mark. Report cards are built from the daily register, so it is the one that has to be right.` }
-        : { type: "note", tone: "neutral", icon: REG, title: "You hold no daily register", body: "Daily registers belong to form masters. Yours are period registers, and each one opens against the daily register already marked for that arm." },
+        ? { type: "note", show: "desktop", tone: "neutral", icon: REG, title: "Your daily register is authoritative", body: `${me.formArms.map((arm) => arm.name).join(" and ")} ${me.formArms.length === 1 ? "is" : "are"} yours to mark. Report cards are built from the daily register, so it is the one that has to be right.` }
+        : { type: "note", show: "desktop", tone: "neutral", icon: REG, title: "You hold no daily register", body: "Daily registers belong to form masters. Yours are period registers, and each one opens against the daily register already marked for that arm." },
       {
-        type: "facts", title: "How marking behaves", per: 1,
+        type: "facts", title: "How marking behaves", per: 1, phoneFold: true,
         facts: [
           ["Opens", "With every child unmarked", "Set the exceptions, then mark the rest present in one tap"],
           ["Offline", "Full write", "The queue survives a closed tab and a dead battery"],
@@ -156,7 +171,8 @@ function markTab(v: RegistersView, me: TeacherWorkspaceView, held: Set<string>):
 
   return {
     title: "Mark a register", desc: "Only the registers you hold. Choose one and it opens with every child in it.",
-    primary: first ? { label: open.length ? `Mark ${first.arm} · ${first.roll} children` : `Open ${first.arm}`, icon: CHECK, href: markHref(first) } : undefined,
+    phoneEyebrow: `Attendance · ${dayWords(v.date)}`,
+    primary: first ? { label: open.length ? `Mark ${first.arm} · ${first.roll} children` : `Open ${first.arm}`, phoneLabel: open.length ? "Mark register" : "Open register", icon: CHECK, href: markHref(first) } : undefined,
     launchers: held.has("attendance.register.view") ? [{ label: "Register history", href: "/attendance/register" }] : [],
     rows: rows.filter((entry): entry is PanelRow => Boolean(entry)),
   };

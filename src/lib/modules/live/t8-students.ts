@@ -105,8 +105,36 @@ function studentsTab(v: StudentsView, me: TeacherWorkspaceView, held: Set<string
   const incident = incidentDrawer(v.rows);
   const concern = concernDrawer(v.rows);
   const change = changeDrawer(v.rows);
+  // The phone leads with the classes the teacher answers for, then the children — the mockup's order. Each class says how much of its record is theirs.
+  const arms = [...new Map(v.rows.map((student) => [student.arm, student])).values()].map((first) => ({ arm: first.arm, own: v.formArms.some((entry) => entry.name === first.arm), count: v.rows.filter((student) => student.arm === first.arm).length }));
+  const phoneRows: Array<PanelRow | null> = many
+    ? [
+        {
+          ...row("1fr", [{
+            type: "kpi", bare: true,
+            cards: [
+              { label: "Classes", value: String(arms.length), sub: arms.map((entry) => entry.arm).join(" · ") },
+              { label: "Children", value: String(v.kpis.children), sub: "Across every class you see" },
+            ],
+          }]),
+          show: "phone" as const,
+        },
+        {
+          ...row("1fr", [{
+            type: "list", title: "Choose a class", tag: `${arms.length} classes`, tagTone: "neutral", sub: "What you can see depends on why you hold the class.",
+            items: arms.map((entry) => ({
+              icon: "M12 4 3.5 8 12 12l8.5-4zM6 10.5v4.8c0 1.7 2.7 3.2 6 3.2s6-1.5 6-3.2v-4.8", tone: entry.own ? ("positive" as const) : ("progress" as const),
+              label: entry.arm, sub: `${entry.own ? `${early ? "Class teacher" : "Form master"} · ` : "Subject teacher · "}${entry.count} ${entry.count === 1 ? "child" : "children"}`,
+              pill: entry.own ? "Full record" : "Class list",
+            })),
+          }]),
+          show: "phone" as const,
+        },
+      ]
+    : [];
   const panels: Array<PanelRow | null> = [
-    row("1fr", [{
+    ...phoneRows,
+    {...row("1fr", [{
       type: "kpi", sub: own ? `Your ${word}’s view. A subject teacher sees only the children they teach.` : "The children you teach — and only them.", per: 5,
       cards: [
         { label: "Children", value: String(v.kpis.children), sub: own ? (v.formArms.length > 1 ? `${v.formArms.map((arm) => arm.name).join(" · ")}` : `${own.name} · one class, one ${word}`) : `${new Set(v.rows.map((student) => student.arm)).size} arm${new Set(v.rows.map((student) => student.arm)).size === 1 ? "" : "s"}` },
@@ -115,7 +143,7 @@ function studentsTab(v: StudentsView, me: TeacherWorkspaceView, held: Set<string
         { label: "Learning support plans", value: String(v.kpis.support), sub: "You see the strategies, never the diagnosis", tone: "withheld" },
         { label: "Guardians not activated", value: String(v.kpis.notActivated), sub: "They cannot receive anything in-app", tone: v.kpis.notActivated ? "attention" : "positive" },
       ],
-    }]),
+    }]), show: "desktop" as const },
     row("1fr", [{
       type: "table", title: own && !many ? own.name : "The children you answer for", sub: "Open a child for the record a parent conversation needs.", meta: `${v.rows.length} children`, noun: "child", nounPlural: "children",
       search: "Find a child by name or admission number", filters: [{ label: "Flag", value: "All", options: ["All", "Medical alert", "Learning support", "Chronic absence"], column: 3 }],
@@ -123,7 +151,7 @@ function studentsTab(v: StudentsView, me: TeacherWorkspaceView, held: Set<string
     }]),
     row("1fr 1fr", [
       {
-        type: "facts", title: "What this record shows you", sub: "Restricted information is granted to a named person, never inherited from a role.", per: 1,
+        type: "facts", show: "desktop", title: "What this record shows you", sub: "Restricted information is granted to a named person, never inherited from a role.", per: 1,
         facts: [
           ["Overview, academic, attendance, report cards", "Read", own ? "Your class in full" : "The children you teach"],
           ["Wellbeing", "Emergency flag only", "Enough for a child’s safety, not for a staff room"],
@@ -142,7 +170,8 @@ function studentsTab(v: StudentsView, me: TeacherWorkspaceView, held: Set<string
   ];
   return {
     title: "My students", desc: own ? `${own.name}, your class. Nobody else’s.` : "The children you teach. Nobody else’s.",
-    primary: { label: "Report an incident", icon: WARN, drawer: incident },
+    phoneEyebrow: many ? "My Students · Your classes" : undefined, phoneTitle: many ? "Your classes" : undefined, phoneDesc: many ? "Your form class has the full record. Others show the list, attendance and your subject." : undefined,
+    primary: { label: "Report an incident", phoneLabel: "Report incident", icon: WARN, drawer: incident },
     launchers: [{ label: "Request a record change", drawer: change }, ...(held.has("communication-center.compose.view") && own ? [{ label: "Message these families", href: "/communication-center/compose" }] : [])],
     rows: panels.filter((entry): entry is PanelRow => Boolean(entry)),
   };
