@@ -227,7 +227,8 @@ export class ProfileService {
         },
         staffProfile: { include: { department: true, campus: true } },
         student: { include: { currentClass: true, guardians: { include: { guardian: true } } } },
-        guardian: { include: { students: { include: { student: { include: { currentClass: true } } } } } },
+        // A login can be a guardian at more than one school; this page is one school's view of them, so it reads only its own record.
+        guardians: { where: { schoolId: session.schoolId }, include: { students: { include: { student: { include: { currentClass: true } } } } } },
         roleAssignments: { where: { schoolId: session.schoolId, role: { deletedAt: null } }, include: { role: true } },
         profileDocuments: { where: { deletedAt: null }, orderBy: { createdAt: "desc" } },
         profileEditRequests: { orderBy: { createdAt: "desc" }, take: 20, include: { requestedBy: true, reviewedBy: true } },
@@ -355,12 +356,12 @@ export class ProfileService {
             })),
           }
         : null,
-      parent: user.guardian
+      parent: user.guardians[0]
         ? {
-            id: user.guardian.id,
-            relationship: user.guardian.relationship,
-            occupation: user.guardian.occupation,
-            children: user.guardian.students.map((item) => ({
+            id: user.guardians[0]!.id,
+            relationship: user.guardians[0]!.relationship,
+            occupation: user.guardians[0]!.occupation,
+            children: user.guardians[0]!.students.map((item) => ({
               id: item.student.id,
               name: `${item.student.firstName} ${item.student.lastName}`,
               admissionNumber: item.student.admissionNumber,

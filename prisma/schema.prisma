@@ -1283,7 +1283,7 @@ model User {
   createdAt                        DateTime                      @default(now())
   updatedAt                        DateTime                      @updatedAt
   verificationCodes                EmailVerificationCode[]
-  guardian                         Guardian?
+  guardians                         Guardian[]
   student                          Student?
   staffProfile                     StaffProfile?
   admissionsReviewed               AdmissionReview[]
@@ -1572,7 +1572,10 @@ model UserPermissionOverride {
 model Guardian {
   id                       String                @id @default(cuid())
   schoolId                 String
-  userId                   String?               @unique
+  /// One login, several schools: a parent whose children are at two schools has a
+  /// guardian record at each, both pointing at the same user. Unique per school, so
+  /// a school can never hold two records for the same login.
+  userId                   String?
   school                   School                @relation(fields: [schoolId], references: [id], onDelete: Cascade)
   user                     User?                 @relation(fields: [userId], references: [id], onDelete: SetNull)
   firstName                String
@@ -1606,6 +1609,8 @@ model Guardian {
   contacts                 GuardianContact[]
   collectors               AuthorisedCollector[]
 
+  @@unique([schoolId, userId])
+  @@index([userId])
   @@index([schoolId, phone])
 }
 
