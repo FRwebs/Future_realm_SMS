@@ -141,23 +141,54 @@ function ModuleHead({
   const ui = useUiText();
 
   return (
-    <section className="relative overflow-hidden rounded-[15px] bg-[#0D2315] px-[19px] py-[15px] shadow-[0_14px_30px_-24px_rgba(13,35,21,0.8)]">
+    <section
+      className={cn(
+        "relative overflow-hidden rounded-[15px] bg-[#0D2315] px-[19px] py-[15px] shadow-[0_14px_30px_-24px_rgba(13,35,21,0.8)]",
+        // The phone mockups give the page head a card that sits *on* something:
+        // a pale ledge shows above its shoulders, and the type steps up. The
+        // ledge is drawn by the wrapper below, so this card just grows.
+        hasPhoneBar && "max-md:rounded-[22px] max-md:px-[18px] max-md:py-[18px] max-md:shadow-[0_18px_30px_-22px_rgba(13,35,21,0.95)]",
+      )}
+    >
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
         <div className="absolute right-[-80px] top-[-132px] h-[336px] w-[336px] rounded-full border border-[rgba(95,214,180,0.12)]" />
         <div className="absolute right-[-18px] top-[-70px] h-[212px] w-[212px] rounded-full border border-[rgba(95,214,180,0.08)]" />
       </div>
       <div className="relative flex flex-wrap items-center justify-between gap-x-5 gap-y-2.5">
         <div className="min-w-0 max-w-[620px]">
-          <div className="mb-[5px] flex items-center gap-[7px]">
-            <span className="h-[4.5px] w-[4.5px] flex-none rounded-full bg-[#5FD6B4]" />
-            <span className="whitespace-nowrap text-[9px] font-bold uppercase tracking-[0.14em] text-white/50">
+          <div className={cn("mb-[5px] flex items-center gap-[7px]", hasPhoneBar && "max-md:mb-[10px] max-md:gap-[8px]")}>
+            {/* The mockup puts a module glyph in a 40px chip here. ModuleHead is
+                not given one, and an empty circle says less than the dot does,
+                so the dot simply grows a little on a phone. */}
+            <span
+              className={cn(
+                "h-[4.5px] w-[4.5px] flex-none rounded-full bg-[#5FD6B4]",
+                hasPhoneBar && "max-md:h-[6px] max-md:w-[6px]",
+              )}
+            />
+            <span
+              className={cn(
+                "whitespace-nowrap text-[9px] font-bold uppercase tracking-[0.14em] text-white/50",
+                hasPhoneBar && "max-md:overflow-hidden max-md:text-ellipsis max-md:text-[11px] max-md:tracking-[0.08em] max-md:text-white/74",
+              )}
+            >
               {ui(eyebrow)}
             </span>
           </div>
-          <h1 className="text-pretty font-(family-name:--font-heading) text-[19px] font-extrabold leading-[1.15] tracking-[-0.024em] text-white">
+          <h1
+            className={cn(
+              "text-pretty font-(family-name:--font-heading) text-[19px] font-extrabold leading-[1.15] tracking-[-0.024em] text-white",
+              hasPhoneBar && "max-md:text-[20px] max-md:tracking-[-0.015em]",
+            )}
+          >
             {ui(title)}
           </h1>
-          <p className="mt-1 max-w-[560px] text-pretty text-[11px] leading-[1.45] text-white/60">
+          <p
+            className={cn(
+              "mt-1 max-w-[560px] text-pretty text-[11px] leading-[1.45] text-white/60",
+              hasPhoneBar && "max-md:mt-[6px] max-md:text-[13px] max-md:leading-[1.5] max-md:text-white/76",
+            )}
+          >
             {description}
           </p>
         </div>
@@ -227,14 +258,27 @@ export function ModuleWorkspace({
         </Link>
       ) : null}
 
-      <ModuleHead
-        eyebrow={eyebrow}
-        title={title}
-        description={description}
-        primary={primary}
-        launchers={launchers}
-        openDrawer={setDrawer}
-      />
+      {/* On a phone the mockup sets the head card on a pale ledge, so it reads
+          as the top of a stack rather than a block dropped on the page. */}
+      {/* `min-w-0`: a grid item defaults to min-width:auto, so without it this
+          wrapper sizes to its content and pushes the head past the screen. */}
+      <div className={hasPhoneBar ? "relative min-w-0 max-md:pt-[10px]" : "min-w-0"}>
+        {hasPhoneBar ? (
+          <span
+            aria-hidden
+            className="pointer-events-none absolute left-[22px] right-[22px] top-0 hidden h-[44px] rounded-[18px] max-md:block"
+            style={{ background: "#CFE5DA" }}
+          />
+        ) : null}
+        <ModuleHead
+          eyebrow={eyebrow}
+          title={title}
+          description={description}
+          primary={primary}
+          launchers={launchers}
+          openDrawer={setDrawer}
+        />
+      </div>
 
       {children}
 

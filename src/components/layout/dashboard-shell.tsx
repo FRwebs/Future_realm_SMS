@@ -118,6 +118,7 @@ export function DashboardShell({
     <PhoneShellProvider value={Boolean(phoneTabs?.items.length)}>
       <div
         data-shell-theme={theme}
+        data-phone-skin={phoneTabs?.items.length ? "on" : undefined}
         className="finance-shell flex h-screen overflow-hidden"
       >
         {mobileSidebarOpen && (

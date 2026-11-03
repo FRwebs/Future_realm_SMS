@@ -228,7 +228,9 @@ function TriggerControl({
  * foot bleed to the box edge; the body keeps an 18px gutter.
  */
 export const PANEL_SHELL =
-  "min-w-0 overflow-hidden rounded-[14px] border bg-(--color-bg-surface) px-[18px] pb-[12px]";
+  // `panel-card` is the hook the phone skin restyles: on a phone these float on
+  // a tinted page with a soft shadow instead of sitting in a 1px box.
+  "panel-card min-w-0 overflow-hidden rounded-[14px] border bg-(--color-bg-surface) px-[18px] pb-[12px]";
 
 /** The mockup's two panel-action faces: ink for the primary, outlined otherwise. */
 function panelActClass(primary?: boolean) {
@@ -279,7 +281,7 @@ export function PanelHeader({
       <div className="min-w-0 flex-[1_1_260px]">
         <div className="flex flex-wrap items-center gap-2">
           <h2
-            className="text-pretty text-[12.5px] font-semibold leading-[1.3]"
+            className="panel-title text-pretty text-[12.5px] font-semibold leading-[1.3]"
             style={{ color: INK }}
           >
             {title}
@@ -299,7 +301,7 @@ export function PanelHeader({
         </div>
         {sub ? (
           <p
-            className="mt-[3.5px] text-pretty text-[10.5px] leading-normal"
+            className="panel-sub mt-[3.5px] text-pretty text-[10.5px] leading-normal"
             style={{ color: MUTED }}
           >
             {sub}
@@ -1428,11 +1430,17 @@ export function PanelView({
             flush
           />
         )}
+        {/*
+          Two across on a phone, as the mobile mockups lay them out.
+
+          `auto-fit` with a 200-odd pixel minimum collapses to a single column
+          at 375px, which turns four figures into a tall stack a thumb has to
+          scroll past. The mockup pairs them instead: four figures fit on one
+          screen, which is the whole point of putting them at the top.
+        */}
         <div
-          className="grid items-stretch gap-[10px]"
-          style={{
-            gridTemplateColumns: `repeat(auto-fit, minmax(${minCol}px, 1fr))`,
-          }}
+          className="grid grid-cols-2 items-stretch gap-[10px] md:[grid-template-columns:var(--kpi-cols)]"
+          style={{ "--kpi-cols": `repeat(auto-fit, minmax(${minCol}px, 1fr))` } as React.CSSProperties}
         >
           {panel.cards.map((card) => {
             const swatch = card.tone ? toneOf(card.tone) : null;
