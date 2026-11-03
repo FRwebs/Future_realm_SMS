@@ -172,9 +172,9 @@ export function DashboardShell({
             data-portal={portalType}
             className={cn(
               "finance-scroll min-w-0 flex-1 overflow-y-auto px-4 pb-5 pt-4",
-              // Room for the phone's bottom bar, so the last row of a page is
-              // not sitting underneath it.
-              phoneTabs?.items.length && "pb-[86px] md:pb-5",
+              // The bottom bar is a sibling below this, not an overlay, so it
+              // takes its own space and needs none reserved here. The floating
+              // button is the last row of the grid, so it makes its own room.
               // The Back Office page frame: 24px above, 28px at the sides, 64px below.
               portalType === "super_admin" ? "md:px-7 md:pb-16 md:pt-6" : "md:px-6 md:pb-8 md:pt-5"
             )}

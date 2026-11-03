@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import type { Route } from "next";
+import { usePathname } from "next/navigation";
 import { useState } from "react";
 
 import { ModuleDrawer } from "@/components/modules/lazy-drawer";
@@ -39,7 +40,11 @@ function MobileFab({ act, openDrawer }: { act: PanelAction; openDrawer: (spec: D
     </>
   );
   return (
-    <div className="pointer-events-none sticky z-[34] flex justify-end px-[16px] pb-[12px] md:hidden" style={{ bottom: "calc(82px + env(safe-area-inset-bottom))" }}>
+    // The mockup offsets this by the bar's height, because there its bar is a
+    // second sticky layer inside the same scroller. Ours is a sibling below the
+    // scroller, so the scrollport already stops at the bar: sticking to 0 puts
+    // the button the same 12px above it.
+    <div className="pointer-events-none sticky bottom-0 z-[34] flex justify-end px-[16px] pb-[12px] md:hidden">
       {act.href ? (
         <Link href={act.href as Route} className={className} style={style}>{body}</Link>
       ) : act.drawer ? (
@@ -117,6 +122,24 @@ function HeaderAction({
 }
 
 /**
+ * The pages the parent portal's mobile mockup gives no floating button.
+ *
+ * It chooses per screen rather than floating everything, and it is right to: on
+ * a month calendar a floating button sits over the days a parent has to tap, a
+ * timetable's own rows run under it, and a page of settings has nothing worth
+ * floating. Overview already carries the same action in its first panel. These
+ * keep their action in the header, where it covers nothing.
+ */
+const PHONE_NO_FAB = [
+  "/portals/parent",
+  "/portals/parent/learning",
+  "/portals/parent/calendar",
+  "/portals/parent/consents",
+  "/portals/parent/prefs",
+  "/portals/parent/sync",
+];
+
+/**
  * The ink header at the top of every tab: the module as its eyebrow, the tab
  * as its title, and at most three decisions — the primary and two shortcuts.
  * Anything further down the authored list lives on the page itself.
@@ -128,6 +151,7 @@ function ModuleHead({
   primary,
   launchers,
   openDrawer,
+  floatPrimary,
 }: {
   eyebrow: string;
   title: string;
@@ -135,6 +159,8 @@ function ModuleHead({
   primary?: PanelAction;
   launchers?: PanelAction[];
   openDrawer: (spec: DrawerSpec) => void;
+  /** When the primary floats on a phone, the header does not also carry it. */
+  floatPrimary?: boolean;
 }) {
   const shortcuts = (launchers ?? []).slice(0, 2);
   const hasPhoneBar = useHasPhoneBar();
@@ -200,7 +226,7 @@ function ModuleHead({
             {/* On a phone with a bottom bar this action is the floating
                 button instead, so it is not offered twice. */}
             {primary ? (
-              <span className={hasPhoneBar ? "hidden md:inline-flex" : "inline-flex"}>
+              <span className={hasPhoneBar && floatPrimary ? "hidden md:inline-flex" : "inline-flex"}>
                 <HeaderAction act={primary} primary openDrawer={openDrawer} />
               </span>
             ) : null}
@@ -226,6 +252,7 @@ export function ModuleWorkspace({
   launchers,
   rows,
   back,
+  floatPrimary,
   children,
 }: {
   eyebrow: string;
@@ -236,11 +263,15 @@ export function ModuleWorkspace({
   rows: PanelRow[];
   /** A way back to the list this page was opened from. */
   back?: { label: string; href: string };
+  /** Overrides the per-screen rule below, for a page that knows better. */
+  floatPrimary?: boolean;
   /** Rendered between the header and the panels — the tab strip. */
   children?: React.ReactNode;
 }) {
   const [drawer, setDrawer] = useState<DrawerSpec | null>(null);
   const hasPhoneBar = useHasPhoneBar();
+  const pathname = usePathname();
+  const floats = floatPrimary ?? !PHONE_NO_FAB.includes(pathname.replace(/\/$/, ""));
 
   return (
     <div className="grid min-w-0 gap-[14px]">
@@ -277,6 +308,7 @@ export function ModuleWorkspace({
           primary={primary}
           launchers={launchers}
           openDrawer={setDrawer}
+          floatPrimary={floats}
         />
       </div>
 
@@ -284,7 +316,7 @@ export function ModuleWorkspace({
 
       <PanelRowsWithDrawer rows={rows} openDrawer={setDrawer} />
 
-      {hasPhoneBar && primary ? <MobileFab act={primary} openDrawer={setDrawer} /> : null}
+      {hasPhoneBar && floats && primary ? <MobileFab act={primary} openDrawer={setDrawer} /> : null}
     </div>
   );
 }

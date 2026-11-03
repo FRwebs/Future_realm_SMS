@@ -18,6 +18,10 @@ export async function messagesPage(child: string, query: Record<string, string |
     eyebrow: one ? one.first : "Whole family", title: "Messages",
     tabs: TABS.map((label) => ({ label, ...(label === "Unread" && data.unread ? { count: data.unread } : {}) })), tab,
     desc: "Every message from your school, in full.",
+    // The mobile mockup floats this on the inbox: a parent reading a message is
+    // the parent most likely to have a question about it, and the reply box on a
+    // message only answers that one message.
+    primary: { label: "Ask the school", href: `/portals/parent/requests?new=1${one ? `&child=${one.id}` : ""}` },
     rows: [row("1fr", [{
       type: "embed", component: "parent-inbox",
       props: {
