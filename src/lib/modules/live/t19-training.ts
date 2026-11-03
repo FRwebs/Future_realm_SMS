@@ -185,6 +185,14 @@ export function forYouTab(v: Home): TabContent {
       ] }),
       v.required.length ? phoneOnly({ type: "list", noFind: true, title: "Required by your school", tag: `${v.required.length} open`, tagTone: "attention", items: v.required.map((course) => courseItem(course)) }) : null,
       v.inProgress.filter((course) => !v.required.some((entry) => entry.id === course.id)).length ? phoneOnly({ type: "list", noFind: true, title: "In progress", items: v.inProgress.filter((course) => !v.required.some((entry) => entry.id === course.id)).map((course) => courseItem(course)) }) : null,
+      v.pathways.length ? phoneOnly({
+        type: "list", noFind: true, title: "Pathways your school sets out", sub: "Each level is a set of courses; finish them all and you have completed it.",
+        items: v.pathways.map((pathway): ListItem => ({
+          icon: CAP_ICON, label: pathway.name, sub: `${pathway.done} of ${pathway.total} courses · ${pathway.titles.join(", ")}`, href: "/training/catalogue",
+          bar: { pct: pathway.total ? Math.round((pathway.done / pathway.total) * 100) : 0, label: `${pathway.done} of ${pathway.total}`, tone: pathway.done === pathway.total ? "positive" : "progress" },
+          pill: pathway.done === pathway.total ? "Complete" : pathway.done ? "In progress" : "Not started", tone: pathway.done === pathway.total ? "positive" : pathway.done ? "progress" : "neutral",
+        })),
+      }) : null,
       v.recommended.length ? phoneOnly({ type: "list", noFind: true, title: "Recommended for you", sub: "Each one says why — from your own classes, never a guess.", items: v.recommended.map((entry) => courseItem(entry.course, entry.why)) }) : null,
       { ...row("1fr", [{
         type: "kpi", per: 4,
@@ -292,7 +300,17 @@ function catalogueTab(v: Catalogue, b: Basket, query: Record<string, string | un
       ...(settled ? [row("1fr", [{ type: "note" as const, tone: settled.tone, icon: CHECK, title: settled.title, body: settled.body }])] : []),
       // The phone: the sections as chips with how many each holds, then the courses of the one chosen, then a way to ask for one that is missing.
       phoneOnly({ type: "embed", component: "phone-chips", props: { chips: sections.map((card) => ({ label: card.name === "All" ? "All" : card.name, count: card.members.length, on: card.name === sec, href: `/training/catalogue?sec=${encodeURIComponent(card.name)}` })) } }),
-      phoneOnly({ type: "list", title: sec === "All" ? "All courses" : sec, tag: `${list.length} ${list.length === 1 ? "course" : "courses"}`, tagTone: "neutral", sub: "Tap a course to see its lessons and add it to your basket.", empty: "Nothing for your role in this section yet.", items: list.map((course) => courseItem(course)) }),
+      phoneOnly({
+        type: "embed", component: "phone-course-picker",
+        props: {
+          title: sec === "All" ? "All courses" : sec, tag: `${list.length} ${list.length === 1 ? "course" : "courses"}`, sub: "Tap a course to see its lessons; tick several to buy together. Free courses start straight away.",
+          template: addManyToBasket,
+          items: list.map((course) => {
+            const item = courseItem(course);
+            return { id: course.id, title: course.title, sub: item.sub ?? "", icon: item.icon ?? CAP_ICON, href: courseHref(course.id), pill: item.pill ?? course.state, tone: item.tone ?? "neutral", price: item.side, priceKobo: course.price ?? 0, buyable: !owns(course) && !isFree(course) && !inBasket.has(course.id) && !course.purchase, bar: item.bar ? { pct: item.bar.pct, label: item.bar.label } : undefined };
+          }),
+        },
+      }),
       phoneOnly({ type: "note", tone: "neutral", icon: "M9.5 9.5a2.5 2.5 0 1 1 3.4 2.3c-.6.3-.9.8-.9 1.4M12 16.5h.01M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0z", title: "Cannot find what you need?", body: "Suggest a course to the staff development lead.", acts: [{ label: "Suggest a course", drawer: suggest }] }),
       ...[
       row("1fr", [{ type: "kpi", title: "Sections", per: 6, cards }]),

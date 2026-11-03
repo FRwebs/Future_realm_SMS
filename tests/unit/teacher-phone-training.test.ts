@@ -4,7 +4,7 @@ const course = (over: Record<string, unknown>) => ({ id: "c1", title: "Safeguard
 const home = {
   persona: "subject-teacher", cpd: { hours: 6.5, target: 30 }, required: [course({})], inProgress: [course({ id: "c2", title: "Assessment for learning", required: false, requiredBy: null, hours: 6, done: 2, state: "In progress" })],
   recommended: [{ course: course({ id: "c3", title: "Practical science safely", required: false, requiredBy: null, done: 0, state: "Not started", owned: false, priceLabel: "₦45,000" }), why: "You teach Chemistry SSS 2A." }],
-  pathways: [], certificates: 3, expiring: null, total: 3, completed: 0,
+  pathways: [{ name: "Nooria Certified Teacher", total: 3, done: 1, titles: ["Foundation"] }], certificates: 3, expiring: null, total: 3, completed: 0,
 } as unknown as Parameters<typeof forYouTab>[0];
 
 type Loose = { type: string; title?: string; props?: { title: string; cta: { label: string } }; items?: Array<{ label: string; side?: string; bar?: { label: string } }> };
@@ -16,9 +16,9 @@ describe("the teacher phone's Training, For you", () => {
     expect(panels[0]!.type).toBe("embed");
     expect(panels[0]!.props!.title).toBe("Safeguarding and child protection");
     expect(panels[0]!.props!.cta.label).toBe("Continue the course");
-    expect(panels.map((panel) => panel.title).filter(Boolean)).toEqual(["Required by your school", "In progress", "Recommended for you"]);
+    expect(panels.map((panel) => panel.title).filter(Boolean)).toEqual(["Required by your school", "In progress", "Pathways your school sets out", "Recommended for you"]);
     expect(panels[2]!.items![0]!.bar!.label).toBe("1 of 4");
-    expect(panels[4]!.items![0]!.side).toBe("₦45,000");
+    expect(panels[5]!.items![0]!.side).toBe("₦45,000");
     expect(rows.filter((entry) => entry.show !== "phone").every((entry) => entry.show === "desktop")).toBe(true);
   });
 });
