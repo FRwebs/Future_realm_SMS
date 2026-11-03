@@ -1,5 +1,5 @@
 /* Web fonts. A remote @import must come before every other rule, so it lives here and not inside the layered tokens file. */
-@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Manrope:wght@400;500;600;700;800&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Manrope:wght@400;500;600;700;800&family=Nunito:wght@400;500;600;700;800;900&display=swap");
 @import url("https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap");
 
 @import '../styles/tokens.css' layer(base);
@@ -1368,4 +1368,48 @@ summary:focus-visible,
 [tabindex]:not([tabindex='-1']):focus-visible {
   outline: 2px solid #12796a;
   outline-offset: 1px;
+}
+
+/*
+ * The phone skin.
+ *
+ * The parent and teacher mobile mockups are not the desktop design narrowed —
+ * they are their own thing: Nunito instead of Inter, cards that float on a
+ * tinted page with a soft shadow instead of sitting in a 1px box, and a
+ * noticeably larger type scale, because a phone is held at arm's length in a
+ * corridor rather than studied on a desk.
+ *
+ * It applies only to the portals whose mockups draw a bottom bar, and only
+ * below tablet width, so the school admin and the Back Office are untouched.
+ */
+@media (max-width: 767.98px) {
+  [data-phone-skin="on"] {
+    --font-display: "Nunito", system-ui, -apple-system, "Segoe UI", sans-serif;
+    --font-body: "Nunito", system-ui, -apple-system, "Segoe UI", sans-serif;
+    --color-bg-app: #f4f7f5;
+  }
+
+  [data-phone-skin="on"] main {
+    background: #f4f7f5;
+  }
+
+  /* A card lifts off the page instead of being ruled off from it. */
+  [data-phone-skin="on"] .panel-card {
+    border-radius: 20px;
+    border-color: transparent;
+    box-shadow:
+      0 1px 2px rgba(13, 35, 21, 0.05),
+      0 8px 22px -14px rgba(13, 35, 21, 0.22);
+  }
+
+  /* Read at arm's length: the mockup's own sizes for a panel's own words. */
+  [data-phone-skin="on"] .panel-card .panel-title {
+    font-size: 15.5px;
+    letter-spacing: -0.01em;
+  }
+
+  [data-phone-skin="on"] .panel-card .panel-sub {
+    font-size: 12.5px;
+    line-height: 1.45;
+  }
 }
