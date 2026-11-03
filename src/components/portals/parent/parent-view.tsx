@@ -62,13 +62,17 @@ export async function ParentView({ page, query }: { page: string; query: Record<
   return (
     <ModuleWorkspace
       eyebrow={content.eyebrow ?? "Your school"}
+      phoneEyebrow={content.phoneEyebrow}
+      phoneTitle={content.phoneTitle}
+      phoneDesc={content.phoneDesc}
+      phonePrimary={content.phonePrimary}
       title={content.title ?? ""}
       description={content.desc ?? ""}
       primary={content.primary}
       launchers={content.launchers}
       rows={content.rows ?? []}
     >
-      {content.tabs?.length ? <StudentTabs tabs={content.tabs} active={active} ariaLabel={`${content.title} tabs`} /> : null}
+      {content.tabs?.length ? <StudentTabs tabs={content.tabs} active={active} ariaLabel={`${content.title} tabs`} laptopOnly={content.tabsOnLaptopOnly} /> : null}
     </ModuleWorkspace>
   );
 }

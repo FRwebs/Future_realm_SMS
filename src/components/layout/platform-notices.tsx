@@ -23,10 +23,11 @@ const stamp = (value: string) =>
 
 function Notice({ tone, icon: Icon, title, children, onClose }: { tone: Tone; icon: typeof Info; title: string; children?: React.ReactNode; onClose?: () => void }) {
   // On a teacher's phone a notice is one of the page's own soft cards, not a ruled box laid over it.
-  const soft = usePhoneKind() === "teacher";
+  const soft = usePhoneKind() !== null;
   // The teacher mobile mockup keeps every screen but the first clear of announcements. What is only information waits on Today; what
   // changes what the teacher can do — maintenance, read-only, a warning — is never hidden.
-  const home = usePathname().replace(/\/$/, "") === "/command-center/today";
+  const here = usePathname().replace(/\/$/, "");
+  const home = here === "/command-center/today" || here === "/portals/parent/overview" || here === "/portals/parent";
   return (
     <div
       role={tone === "critical" ? "alert" : "status"}

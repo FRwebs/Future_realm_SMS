@@ -1,7 +1,7 @@
 import { apiGet, observe } from "@/lib/api/server";
 import { localContracts } from "@/lib/api/local-contracts.zod";
 import { name as nameCell, pill, row, text } from "@/lib/modules/panels";
-import type { DrawerSpec, ListItem, LinePoint, PanelFact, PanelTone, TableRow } from "@/lib/modules/panels";
+import type { DrawerSpec, ListItem, LinePoint, Panel, PanelFact, PanelRow, PanelTone, TableRow } from "@/lib/modules/panels";
 import { PW, dDow, dLong, dShort, loadMe } from "@/lib/modules/live/parent/shared";
 import type { ParentContent } from "@/lib/modules/live/parent/shared";
 
@@ -79,6 +79,11 @@ function awayItem(day: Day, childName: string, childId: string, withChild: boole
   };
 }
 
+const phoneOnly = (panel: Panel): PanelRow => ({ ...row("1fr", [panel]), show: "phone" as const });
+const desktopOnly = (rows: PanelRow[]): PanelRow[] => rows.map((entry) => ({ ...entry, show: "desktop" as const }));
+const initialsOf = (name: string) => name.split(/\s+/).filter(Boolean).slice(0, 2).map((word) => word[0]!.toUpperCase()).join("");
+const WARN = "M12 8.2v4.6M12 16h.02M12 3.6 21 19.4H3z";
+
 function familyAttendance(data: Attendance, school: string): ParentContent {
   const current = (entry: Child) => entry.terms.find((term) => term.current) ?? entry.terms[entry.terms.length - 1] ?? null;
   const away = data.days
@@ -91,10 +96,51 @@ function familyAttendance(data: Attendance, school: string): ParentContent {
   return {
     eyebrow: "Whole family", title: "Attendance",
     desc: `Today’s marks and every day away this term at ${school}. Late counts as present.`,
+    phoneEyebrow: "Whole family · this term", phoneDesc: "",
+    ...(firstToExplain ? { phonePrimary: { label: "Explain an absence", icon: "M4 20h4L19 9l-4-4L4 16z", drawer: explainDrawer(firstToExplain.childId, nameOf(firstToExplain.childId)?.first ?? "this child", firstToExplain.date) } } : {}),
     ...(firstToExplain
       ? { primary: { label: `Explain ${nameOf(firstToExplain.childId)?.first ? `${nameOf(firstToExplain.childId)!.first}’s` : "an"} absence`, drawer: explainDrawer(firstToExplain.childId, nameOf(firstToExplain.childId)?.first ?? "this child", firstToExplain.date) } }
       : {}),
     rows: [
+      // The phone: what needs explaining first, then today's marks, then each child's term, then the days away.
+      ...(firstToExplain
+        ? [phoneOnly({
+            type: "note", tone: "attention", icon: WARN,
+            title: unexplained.length === 1 ? "1 absence needs your explanation" : `${unexplained.length} absences need your explanation`,
+            body: `${nameOf(firstToExplain.childId)?.first ?? ""} · ${dDow(firstToExplain.date)}`,
+            acts: [{ label: "Explain it", drawer: explainDrawer(firstToExplain.childId, nameOf(firstToExplain.childId)?.first ?? "this child", firstToExplain.date) }],
+          })]
+        : []),
+      phoneOnly({
+        type: "list", noFind: true, title: "Today", empty: "No child on your account has a register yet.",
+        items: data.children.map((entry): ListItem => {
+          const mark = entry.today;
+          return {
+            avatar: initialsOf(entry.name), label: entry.name, href: `/portals/parent/attendance?child=${entry.id}`,
+            sub: mark ? `Marked${mark.at ? ` ${mark.at.slice(11, 16)}` : ""}${mark.reason ? ` · ${mark.reason}` : ""}` : "Not marked yet today",
+            pill: mark ? WORD[mark.status] ?? mark.status : "Not marked", tone: mark ? TONE[mark.status] ?? "neutral" : "neutral",
+          };
+        }),
+      }),
+      phoneOnly({
+        type: "list", noFind: true, title: "This term, child by child", sub: "Late counts as present.",
+        items: data.children.map((entry): ListItem => {
+          const term = current(entry);
+          const index = term ? entry.terms.indexOf(term) : -1;
+          const last = index > 0 ? entry.terms[index - 1]! : null;
+          return {
+            avatar: initialsOf(entry.name), label: entry.name, href: `/portals/parent/attendance?child=${entry.id}`,
+            sub: term ? `${term.present} of ${term.marked} days · ${term.away} away · ${term.late} late${last ? ` · last term ${pctText(last.pct)}` : ""}` : "No register yet",
+            figure: pctText(term?.pct ?? null), side: term?.unexplained ? `${term.unexplained} to explain` : "All explained", tone: term?.unexplained ? "attention" : "positive",
+          };
+        }),
+      }),
+      phoneOnly({
+        type: "list", noFind: true, title: "Days away and late arrivals", sub: "Explanations sit beside the marks they changed.",
+        empty: "Everyone was present every school day this term.",
+        items: away.map((day) => awayItem(day, nameOf(day.childId)?.first ?? "", day.childId, true)),
+      }),
+      ...desktopOnly([
       row("1fr", [{
         type: "kpi", bare: true, per: Math.min(4, data.children.length + 1),
         cards: [
@@ -146,6 +192,7 @@ function familyAttendance(data: Attendance, school: string): ParentContent {
           empty: "Everyone was present every school day this term.",
           items: away.map((day) => awayItem(day, nameOf(day.childId)?.first ?? "", day.childId, true)),
         },
+      ]),
       ]),
     ],
   };

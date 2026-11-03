@@ -1,7 +1,7 @@
 import { apiGet, observe } from "@/lib/api/server";
 import { localContracts } from "@/lib/api/local-contracts.zod";
 import { name as nameCell, pill, row, text } from "@/lib/modules/panels";
-import type { DrawerSpec, LinePoint, ListItem, PanelFact, PanelTone, TableRow } from "@/lib/modules/panels";
+import type { DrawerSpec, LinePoint, ListItem, Panel, PanelFact, PanelRow, PanelTone, TableRow } from "@/lib/modules/panels";
 import { termShort } from "@/lib/modules/panels";
 import { payableFor } from "@/lib/modules/live/parent/fees";
 import { PW, dLong, dShort, loadMe, money } from "@/lib/modules/live/parent/shared";
@@ -98,6 +98,10 @@ function cardDrawer(kid: Kid, card: Card): DrawerSpec {
   };
 }
 
+const phoneOnly = (panel: Panel): PanelRow => ({ ...row("1fr", [panel]), show: "phone" as const });
+const desktopOnly = (rows: PanelRow[]): PanelRow[] => rows.map((entry) => ({ ...entry, show: "desktop" as const }));
+const initialsOf = (name: string) => name.split(/\s+/).filter(Boolean).slice(0, 2).map((word) => word[0]!.toUpperCase()).join("");
+
 function familyResults(data: Results): ParentContent {
   const kids = data.children;
   const ahead = data.ahead.slice(0, 6).map((entry): ListItem => ({
@@ -110,10 +114,33 @@ function familyResults(data: Results): ParentContent {
     pill: kid.released.length ? "Released" : "Not yet", tone: kid.released.length ? "positive" : "neutral",
     ...(kid.released.length ? { viewLabel: "See scores", drawer: releasedDrawer(kid, data.term?.name ?? "This term") } : { href: `/portals/parent/results?child=${kid.id}` }),
   }));
+  const latestRows = kids.map((kid): ListItem => {
+    const latest = latestOf(kid);
+    const held = kid.cards[0]?.held ?? null;
+    const card = latest?.card ?? null;
+    const { best } = card ? bestAndLowest(card) : { best: null };
+    return {
+      avatar: initialsOf(kid.first), label: kid.first, href: `/portals/parent/results?child=${kid.id}`,
+      sub: held ? `${kid.cards[0]!.term} ${kid.cards[0]!.session} · held by the school` : latest ? `${latest.term} ${latest.session} · ${card ? place(card.position, card.outOf) : "Not ranked"}${best ? ` · best ${best.name}` : ""}` : "No report card yet",
+      ...(card ? { figure: num(card.average) } : {}),
+    };
+  });
   return {
     eyebrow: "Whole family", title: "Results and reports",
     desc: "Each child’s own report card, side by side — never blended into one number.",
+    phoneEyebrow: "Whole family", phoneDesc: "Each school uses its own grading scale.",
     rows: [
+      phoneOnly({ type: "list", noFind: true, title: "Latest report cards", empty: "No child on your account has a report card yet.", items: latestRows }),
+      phoneOnly({
+        type: "list", noFind: true, title: "Released this term", empty: "No child is linked to your account yet.",
+        items: kids.map((kid): ListItem => ({
+          avatar: initialsOf(kid.first), label: `${kid.first} · ${data.term ? data.term.name : "This term"} so far`,
+          sub: kid.released.length ? `${kid.released.length} ${kid.released.length === 1 ? "subject has" : "subjects have"} scores released` : "Nothing has been released for this term yet.",
+          ...(kid.released.length ? { act: { label: "Scores", drawer: releasedDrawer(kid, data.term?.name ?? "This term") } } : { pill: "Not yet", tone: "neutral" as PanelTone }),
+        })),
+      }),
+      phoneOnly({ type: "list", noFind: true, title: "Tests and results ahead", empty: "No results day has been set yet.", items: ahead.map((item) => ({ ...item, pill: undefined })) }),
+      ...desktopOnly([
       row("1fr", [{
         type: "table", title: "Latest report cards", sub: "Tap a child for the full card.", noun: "child", nounPlural: "children", dense: true,
         head: ["Child", "Report", "Average", "Position", "Strongest", "Lowest", ""],
@@ -141,6 +168,7 @@ function familyResults(data: Results): ParentContent {
       row("minmax(0,1fr) minmax(0,1fr)", [
         { type: "list", title: "Released this term", sub: "Only scores the school has approved and released.", items: released, empty: "No child is linked to your account yet." },
         { type: "list", title: "Results days ahead", sub: "When the school will release the next set of scores.", items: ahead, empty: "No results day has been set yet." },
+      ]),
       ]),
     ],
   };

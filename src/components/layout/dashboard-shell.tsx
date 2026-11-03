@@ -10,6 +10,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { PermissionProvider } from "@/components/auth/permission-provider";
 import { ImpersonationBanner } from "@/components/layout/impersonation-banner";
 import { PhoneKindProvider, PhoneShellProvider } from "@/components/layout/phone-shell";
+import { PhoneParentBar, PhoneParentChips } from "@/components/layout/phone-parent-bar";
 import { PhoneTeacherBar } from "@/components/layout/phone-teacher-bar";
 import { PortalTabBar } from "@/components/layout/portal-tab-bar";
 import type { TabBarItem } from "@/components/layout/portal-tab-bar";
@@ -117,7 +118,7 @@ export function DashboardShell({
     <PortalProvider value={portalType}>
     <PermissionProvider permissions={permissions}>
     <PhoneShellProvider value={Boolean(phoneTabs?.items.length)}>
-    <PhoneKindProvider value={phoneTabs?.items.length ? (teacherRail ? "teacher" : parentChrome ? "parent" : null) : null}>
+    <PhoneKindProvider value={phoneTabs?.items.length ? (parentChrome ? "parent" : teacherRail ? "teacher" : null) : null}>
       <div
         data-shell-theme={theme}
         data-phone-skin={phoneTabs?.items.length ? "on" : undefined}
@@ -150,9 +151,10 @@ export function DashboardShell({
         />
 
         <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
-          {teacherRail && phoneTabs?.items.length ? <PhoneTeacherBar session={session} schoolName={schoolName} portalType={portalType} rail={teacherRail} /> : null}
+          {parentChrome && phoneTabs?.items.length ? <PhoneParentBar session={session} portalType={portalType} pages={Object.fromEntries(phoneTabs.items.map((item) => [item.id.replace(/^p_/, ""), item.label]))} /> : null}
+          {teacherRail && !parentChrome && phoneTabs?.items.length ? <PhoneTeacherBar session={session} schoolName={schoolName} portalType={portalType} rail={teacherRail} /> : null}
           <Topbar
-            hideOnPhone={Boolean(teacherRail && phoneTabs?.items.length)}
+            hideOnPhone={Boolean((teacherRail || parentChrome) && phoneTabs?.items.length)}
             session={session}
             onOpenMobileSidebar={() => setMobileSidebarOpen(true)}
             permissions={permissions}
@@ -171,7 +173,7 @@ export function DashboardShell({
           <ImpersonationBanner session={session} />
           {portalType === "school" && platformSync ? (
             // On a teacher's phone the notices scroll away with the page they sit on, instead of staying pinned under the bar; the laptop keeps them where they were.
-            <div className={teacherRail && phoneTabs?.items.length ? "max-md:hidden" : undefined}>
+            <div className={(teacherRail || parentChrome) && phoneTabs?.items.length ? "max-md:hidden" : undefined}>
               <PlatformNotices sync={platformSync} operational={session.role !== "STUDENT" && session.role !== "PARENT"} />
             </div>
           ) : null}
@@ -197,9 +199,10 @@ export function DashboardShell({
                 incoming content is still a freshly-inserted child each time, so it still gets
                 its own page-shell-enter entrance below. */}
             <div className="page-shell-enter mx-auto w-full max-w-[1480px]">
-              {portalType === "school" && platformSync && teacherRail && phoneTabs?.items.length ? (
+              {portalType === "school" && platformSync && (teacherRail || parentChrome) && phoneTabs?.items.length ? (
                 <div className="md:hidden"><PlatformNotices sync={platformSync} operational inline /></div>
               ) : null}
+              {parentChrome && phoneTabs?.items.length ? <PhoneParentChips chrome={parentChrome} /> : null}
               <NavigationNoticeListener />
               {children}
             </div>
@@ -210,7 +213,7 @@ export function DashboardShell({
               items={phoneTabs.items}
               primaryIds={phoneTabs.primaryIds}
               label={phoneTabs.label}
-              account={{ session, schoolName }}
+              account={{ session, schoolName, kids: parentChrome?.children.length }}
               counts={Object.fromEntries(Object.entries(navBadges ?? {}).map(([key, value]) => [key, value ?? 0]))}
               urgent={Object.fromEntries(Object.entries(navBadgeTones ?? {}).map(([key, tone]) => [key, tone === "danger"]))}
             />

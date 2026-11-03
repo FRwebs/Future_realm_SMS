@@ -289,7 +289,7 @@ export function PhoneList({ panel, openDrawer }: { panel: Extract<Panel, { type:
     };
   });
   // A long list of people is found by name, not scrolled; the search is over what the rows say.
-  const searchable = rows.length > 8;
+  const searchable = rows.length > 8 && !panel.noFind;
   const needle = q.trim().toLowerCase();
   const shown = needle ? rows.filter((row) => `${row.title} ${row.sub ?? ""}`.toLowerCase().includes(needle)) : rows;
   return (

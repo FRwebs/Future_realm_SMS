@@ -26,7 +26,7 @@ export type TabBarItem = {
 export function TabBar({ items, ariaLabel, hideOnTeacherPhone }: { items: TabBarItem[]; ariaLabel: string; hideOnTeacherPhone?: boolean }) {
   const pathname = usePathname();
   const ui = useUiText();
-  const teacherPhone = usePhoneKind() === "teacher";
+  const teacherPhone = usePhoneKind() !== null;
 
   if (items.length <= 1) return null;
 

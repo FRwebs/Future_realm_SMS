@@ -418,6 +418,7 @@ export function NotificationBell({
           <PhoneNotificationSheet
             notices={notifications.map((item) => ({ id: item.id, title: item.title, body: item.body, href: (item as { href?: string | null }).href ?? null, unread: item.status !== "READ" }))}
             unread={count}
+            settingsHref={session.role === "PARENT" ? "/portals/parent/prefs" : undefined}
             quietHours={quiet.data ? String((quiet.data.preferences as { quietHours?: string } | null | undefined)?.quietHours ?? "None") : null}
             onClose={() => { markRead(); setOpen(false); }}
           />

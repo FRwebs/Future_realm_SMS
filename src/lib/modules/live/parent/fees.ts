@@ -1,7 +1,7 @@
 import { apiGet, observe } from "@/lib/api/server";
 import { localContracts } from "@/lib/api/local-contracts.zod";
 import { name as nameCell, pill, row, text } from "@/lib/modules/panels";
-import type { DocumentSpec, DrawerSpec, FormField, ListItem, PanelTone, TableCellKind, TableRow } from "@/lib/modules/panels";
+import type { DocumentSpec, DrawerSpec, FormField, ListItem, Panel, PanelRow, PanelTone, TableCellKind, TableRow } from "@/lib/modules/panels";
 import { PW, dLong, dShort, loadMe, money } from "@/lib/modules/live/parent/shared";
 import type { ParentContent, ParentMe } from "@/lib/modules/live/parent/shared";
 
@@ -195,6 +195,8 @@ function statementPaper(invoice: FeeInvoice, entry: FeeChild, paid: FeePayment[]
 
 /* ───────────────────────── the whole family ───────────────────────── */
 
+const phoneOnly = (panel: Panel): PanelRow => ({ ...row("1fr", [panel]), show: "phone" as const });
+
 function familyFees(data: Fees, me: ParentMe): ParentContent {
   const kids = data.children.map((entry) => ({ id: entry.id, first: entry.first }));
   const owed = data.children.reduce((sum, entry) => sum + entry.outstanding, 0);
@@ -208,6 +210,7 @@ function familyFees(data: Fees, me: ParentMe): ParentContent {
   return {
     eyebrow: "Whole family", title: "Fees and payments",
     desc: `What ${me.school} has billed, and what is still owed. It updates the moment the bursar records a payment.`,
+    phoneEyebrow: "Whole family · this term", phoneDesc: "",
     ...(onlyPayable && payOnline(onlyPayable) ? { primary: { label: `Pay ${money(onlyPayable.payAmount)}`, drawer: payOnline(onlyPayable)! } } : {}),
     launchers: [
       { label: "I have paid", drawer: reportPaid(payable.length ? payable : data.children, null) },
@@ -223,7 +226,20 @@ function familyFees(data: Fees, me: ParentMe): ParentContent {
           { label: "Receipts on record", value: String(data.payments.length), sub: reported ? `${money(reported)} reported, waiting for the bursar` : data.payments.length ? "Every payment the bursar has recorded" : "None yet", tone: reported ? "submitted" : ("neutral" as PanelTone), icon: "doc" },
         ],
       }]),
-      row("1fr", [{
+      phoneOnly({
+        type: "list", noFind: true, title: "This term, child by child", empty: "No child on your account has been billed yet.",
+        items: data.children.map((entry): ListItem => {
+          const drawer = entry.payAmount > 0 ? payOnline(entry) : null;
+          const initials = entry.name.split(/\s+/).filter(Boolean).slice(0, 2).map((word) => word[0]!.toUpperCase()).join("");
+          return {
+            avatar: initials, label: entry.name, href: `/portals/parent/fees?child=${entry.id}`, tone: entry.tone,
+            sub: entry.outstanding > 0 ? `${money(entry.outstanding)}${entry.tone === "negative" ? " · overdue" : " · owed"}` : entry.invoiceNo || "Nothing billed",
+            ...(drawer ? { act: { label: "Pay", drawer } } : { pill: entry.status }),
+          };
+        }),
+        foot: "A discount the school has applied is its own line on the invoice, not a reduced total.",
+      }),
+      { ...row("1fr", [{
         type: "table", title: "This term, child by child", sub: "Open a child for the invoice, every receipt and earlier terms.",
         noun: "child", nounPlural: "children", head: ["Child", "Invoice", "Billed", "Paid", "Owed in all", "Status", ""], dense: true,
         rows: data.children.map((entry): TableRow => ({
@@ -239,7 +255,7 @@ function familyFees(data: Fees, me: ParentMe): ParentContent {
         })),
         empty: "No child on your account has been billed yet.",
         foot: "A discount the school has applied is its own line on the invoice, not a reduced total.",
-      }]),
+      }]), show: "desktop" as const },
     ],
   };
 }
