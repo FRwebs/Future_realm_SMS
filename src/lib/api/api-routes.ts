@@ -1120,6 +1120,7 @@ export const API_ROUTES = [
   "POST /api/v1/parent-portal/ws/account/requests",
   "POST /api/v1/parent-portal/ws/calendar-link/reset",
   "POST /api/v1/parent-portal/ws/consents",
+  "POST /api/v1/parent-portal/ws/fees/report",
   "POST /api/v1/parent-portal/ws/forms/{id}/answer",
   "POST /api/v1/parent-portal/ws/meetings/{id}/respond",
   "POST /api/v1/parent-portal/ws/profile/documents",

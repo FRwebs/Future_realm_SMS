@@ -121,6 +121,12 @@ export class ParentWorkspaceController {
     return { ok: true, data: await this.workspace.withdrawRequest(session, id) };
   }
 
+  /** A parent tells the bursar they have paid. It stays "reported" until the bursar matches it. */
+  @Post("fees/report")
+  async reportPayment(@CurrentSession() session: SessionPayload, @Body() body: unknown) {
+    return { ok: true, data: await this.workspace.reportPayment(session, body) };
+  }
+
   /** Each child's published report cards and what has been released since. `child` is a child's id, or "all". */
   @Get("results")
   async results(@CurrentSession() session: SessionPayload, @Query("child") child?: string) {

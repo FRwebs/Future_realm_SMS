@@ -16,6 +16,8 @@ export type ParentMe = {
   language: string; school: string;
   term: { id: string; name: string; session: string; start: string | null; end: string | null; week: number; weeks: number } | null;
   today: string; now: string;
+  /** The school office: its name, how to ring it, where it is. */
+  office: { name: string; phone: string | null; website: string | null; where: string | null };
   /** What this school has chosen to show parents, by page name. */
   sees: string[];
   /** Messages from the school that have not been opened. */

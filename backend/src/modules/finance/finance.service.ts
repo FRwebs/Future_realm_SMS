@@ -1235,7 +1235,7 @@ export class FinanceService {
     const parentGuardian = invoice.student.guardians[0]?.guardian;
     const callbackUrl =
       session?.role === "PARENT"
-        ? `${process.env.APP_URL ?? "http://localhost:3000"}/portals/parent/children/${invoice.studentId}/fees`
+        ? `${process.env.APP_URL ?? "http://localhost:3000"}/portals/parent/fees`
         : `${process.env.APP_URL ?? "http://localhost:3000"}/finance/payments`;
     const checkout = await gateway.initializePayment({
       amount: parsed.amount,
