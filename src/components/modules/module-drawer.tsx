@@ -23,10 +23,10 @@ export function FactRows({ facts }: { facts: PanelFact[] }) {
       {facts.map(([label, value, note], index) => (
         <div
           key={`${label}-${index}`}
-          className="flex items-start justify-between gap-[14px] px-[13px] py-[10px] last:border-b-0"
+          className="flex items-start justify-between gap-[14px] px-[13px] py-[10px] last:border-b-0 max-md:flex-col max-md:gap-[4px]"
           style={{ borderBottom: "1px solid #F2F7F4" }}
         >
-          <div className="min-w-0 basis-[40%]">
+          <div className="min-w-0 basis-[40%] max-md:order-2 max-md:basis-auto">
             <p
               className="text-[9.5px] font-bold uppercase leading-[1.35] tracking-[0.06em]"
               style={{ color: MUTED }}
@@ -43,7 +43,7 @@ export function FactRows({ facts }: { facts: PanelFact[] }) {
             ) : null}
           </div>
           <p
-            className="min-w-0 flex-1 text-pretty text-right text-[11.5px] font-semibold leading-[1.45]"
+            className="min-w-0 max-w-full flex-1 break-words text-pretty text-right text-[11.5px] font-semibold leading-[1.45] max-md:order-1 max-md:text-left max-md:text-[14px]"
             style={{ color: INK }}
           >
             {value}

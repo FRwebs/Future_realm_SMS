@@ -92,7 +92,13 @@ export function PhoneParentBar({
           <span aria-hidden className="absolute -bottom-[70px] -left-[40px] h-[120px] w-[120px] rounded-full border-[1.5px]" style={{ borderColor: "rgba(95,214,180,0.08)" }} />
           <div className="relative grid h-[62px] grid-cols-[52px_minmax(0,1fr)_52px] items-center px-[4px]">
             <div className="flex justify-center">
-              {pushed || slug === "account" ? (
+              {slug === "messages" || slug === "calendar" ? (
+                <button type="button" onClick={() => window.dispatchEvent(new Event(slug === "messages" ? "fr:bar-read-all" : "fr:bar-main"))} aria-label={slug === "messages" ? "Mark every message read" : "Add school dates to my phone"} className="flex h-[44px] w-[44px] items-center justify-center rounded-full text-white active:bg-white/10">
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                    {slug === "messages" ? <path d="m5 12.5 4.5 4.5 9-10" /> : <path d="M12 4v11M7.5 11 12 15.5 16.5 11M5 19.5h14" />}
+                  </svg>
+                </button>
+              ) : pushed || slug === "account" ? (
                 <button type="button" onClick={() => router.back()} aria-label="Back" className="flex h-[44px] w-[44px] items-center justify-center rounded-full active:bg-white/10">
                   <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M19 12H5M11 6l-6 6 6 6" /></svg>
                 </button>

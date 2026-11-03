@@ -213,8 +213,10 @@ export class TeacherWorkspaceController {
   badges(@CurrentSession() session: SessionPayload) {
     // Registers left to mark and sheets still open are read from the same day the teacher's My Day is, so a bar that says "2" and a page that says "2 of 3" cannot disagree.
     return ok(
-      Promise.all([this.families.waiting(session), this.day.day(session)]).then(([families, day]) => ({
+      // Notes owed or sent back are read from the Lesson Notes landing; a teacher who holds no subject, or a failed read, simply has none.
+      Promise.all([this.families.waiting(session), this.day.day(session), this.notes.landing(session).then((landing) => landing.kpis.toWrite + landing.kpis.returned).catch(() => 0)]).then(([families, day, notes]) => ({
         families: families.families,
+        notes,
         registers: day.schoolDay ? day.registers.filter((entry) => entry.state !== "Marked").length : 0,
         sheets: day.sheets.filter((sheet) => sheet.state !== "Submitted" && sheet.state !== "Approved").length,
       })),

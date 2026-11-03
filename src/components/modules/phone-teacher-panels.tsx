@@ -223,6 +223,9 @@ export function RowsCard({ rows, empty, per = 10 }: { rows: Row[]; empty?: strin
       {rest > 0 || (per && rows.length > per && shown > per) ? (
         <div className="flex items-center gap-[10px] border-t px-[16px] py-[12px]" style={{ borderColor: "#EDF3EF", background: "#FBFDFC" }}>
           <span className="flex-1 text-[12.5px] font-semibold text-[#6E7C74]">Showing {visible.length} of {rows.length}</span>
+          {rest > 0 && rest > per ? (
+            <button type="button" onClick={() => setShown(rows.length)} className="text-[13px] font-extrabold text-[#0D2315]">Show all</button>
+          ) : null}
           {rest > 0 ? (
             <button type="button" onClick={() => setShown((count) => count + per)} className="rounded-[12px] bg-[#0D2315] px-[16px] py-[10px] text-[13px] font-extrabold text-white">
               Show {Math.min(per, rest)} more
@@ -301,7 +304,7 @@ export function PhoneList({ panel, openDrawer }: { panel: Extract<Panel, { type:
         </label>
       ) : null}
       <BlockHead title={panel.title} sub={panel.sub} tag={panel.tag} tagTone={panel.tagTone} acts={panel.acts} openDrawer={openDrawer} />
-      <RowsCard rows={shown} empty={needle ? "Nothing matches that." : panel.empty ?? "Nothing here yet."} per={shown.length > 12 ? 10 : 0} />
+      <RowsCard rows={shown} empty={needle ? "Nothing matches that." : panel.empty ?? "Nothing here yet."} per={shown.length > 8 && !panel.noFind ? 6 : 0} />
       {panel.foot ? <p className="mt-[10px] px-[4px] text-pretty text-[12.5px] leading-[1.5] text-[#6E7C74]">{panel.foot}</p> : null}
     </section>
   );
