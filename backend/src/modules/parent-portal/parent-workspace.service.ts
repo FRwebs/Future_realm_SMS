@@ -274,13 +274,13 @@ export class ParentWorkspaceService {
     if (!policy.sees.has("Fees")) throw new ForbiddenException("Your school has not made fee details visible to parents.");
     const mine = scope === "all" ? children : children.filter((student) => student.id === scope);
     const ids = mine.map((student) => student.id);
-    if (!ids.length) return { children: [], invoices: [], payments: [], plans: [] };
+    if (!ids.length) return { children: [], invoices: [], payments: [], plans: [], reports: [] };
 
     const invoices = await prisma.invoice.findMany({
       where: { schoolId: session.schoolId, studentId: { in: ids }, status: { not: "DRAFT" } },
       include: {
-        items: { select: { description: true, amount: true, quantity: true } },
-        payments: { include: { receipts: { select: { receiptNumber: true } } }, orderBy: { paidAt: "desc" } },
+        items: { select: { description: true, amount: true, quantity: true, isWaived: true } },
+        payments: { include: { receipts: { select: { id: true, receiptNumber: true, issuedAt: true } }, recordedBy: { select: { firstName: true, lastName: true } } }, orderBy: { paidAt: "desc" } },
         term: { select: { id: true, name: true, academicSession: { select: { name: true } } } },
       },
       orderBy: { issuedOn: "desc" },
@@ -289,15 +289,35 @@ export class ParentWorkspaceService {
       where: { schoolId: session.schoolId, studentId: { in: ids }, status: { notIn: ["CANCELLED"] } },
       include: { items: { orderBy: { dueOn: "asc" } } },
     });
+    // What the family has told the bursar they paid, and the bursar has not yet matched to the bank: shown as reported, never as a receipt.
+    const { guardian } = await this.context(session);
+    const asked = await prisma.guardianSubmission.findMany({
+      where: { schoolId: session.schoolId, guardianId: guardian.id, type: "Fee query", state: { notIn: ["RESOLVED", "DECLINED"] }, studentId: { in: ids } },
+      orderBy: { createdAt: "desc" },
+    });
+    const reports = asked
+      .map((row) => ({ row, payload: row.payload as { kind?: string; amount?: number; method?: string; date?: string; reference?: string } | null }))
+      .filter((entry) => entry.payload?.kind === "payment-report")
+      .map((entry) => ({ id: entry.row.id, childId: entry.row.studentId, amount: Number(entry.payload!.amount ?? 0), method: entry.payload!.method ?? "", date: entry.payload!.date ?? isoDay(entry.row.createdAt), reference: entry.payload!.reference ?? "", owner: entry.row.ownerName, sent: isoDay(entry.row.createdAt) }));
 
     const firstOf = new Map(mine.map((student) => [student.id, student.firstName]));
     const nameOf = new Map(mine.map((student) => [student.id, [student.firstName, student.lastName].filter(Boolean).join(" ")]));
     const armOf = new Map(mine.map((student) => [student.id, armName(student.currentClass?.name, student.currentClass?.arm)]));
 
     // This term's position per child: what a parent means by "the fees".
+    // An invoice the bursar never tied to a term cannot be placed by date alone, so when none belongs to this term the most recent of those is
+    // shown as the bill in hand — a page that calls every bill "earlier" has nothing to show for a family whose invoices carry no term.
+    const currentOf = (studentId: string) => {
+      const theirs = invoices.filter((invoice) => invoice.studentId === studentId);
+      const matched = term ? theirs.filter((invoice) => invoice.termId === term.id) : [];
+      if (matched.length) return matched;
+      const loose = theirs.filter((invoice) => !invoice.termId).sort((a, b) => b.issuedOn.getTime() - a.issuedOn.getTime())[0];
+      return loose ? [loose] : [];
+    };
+    const currentIds = new Set(mine.flatMap((student) => currentOf(student.id).map((invoice) => invoice.id)));
     const summary = mine.map((student) => {
       const theirs = invoices.filter((invoice) => invoice.studentId === student.id);
-      const thisTerm = term ? theirs.filter((invoice) => invoice.termId === term.id) : theirs;
+      const thisTerm = currentOf(student.id);
       const billed = thisTerm.reduce((sum, invoice) => sum + Number(invoice.total), 0);
       const balance = thisTerm.reduce((sum, invoice) => sum + Number(invoice.balance), 0);
       // What is actually owed is every unpaid invoice, not this term's. A bill
@@ -315,7 +335,11 @@ export class ParentWorkspaceService {
         first: firstOf.get(student.id) ?? "",
         arm: armOf.get(student.id) ?? "",
         invoiceNo: thisTerm[0]?.invoiceNumber ?? "",
-        term: thisTerm[0]?.term ? `${thisTerm[0]!.term!.name} ${thisTerm[0]!.term!.academicSession.name}` : term ? `${term.name} ${term.academicSession.name}` : "",
+        invoiceId: thisTerm[0]?.id ?? null,
+        // The bill a payment goes against: the oldest one still unpaid, which is the one the school will want cleared first.
+        payInvoiceId: [...unpaid].sort((a, b) => a.dueOn.getTime() - b.dueOn.getTime())[0]?.id ?? null,
+        payAmount: Number([...unpaid].sort((a, b) => a.dueOn.getTime() - b.dueOn.getTime())[0]?.balance ?? 0),
+        term: thisTerm[0]?.term ? `${thisTerm[0]!.term!.name} ${thisTerm[0]!.term!.academicSession.name}` : thisTerm[0] ? `Issued ${longDate(isoDay(thisTerm[0].issuedOn))}` : term ? `${term.name} ${term.academicSession.name}` : "",
         billed,
         paid: billed - balance,
         balance,
@@ -345,22 +369,31 @@ export class ParentWorkspaceService {
         fine: Number(invoice.fine),
         balance: Number(invoice.balance),
         status: invoice.status,
-        lines: invoice.items.map((item) => ({ description: item.description, amount: Number(item.amount), quantity: item.quantity })),
+        current: currentIds.has(invoice.id),
+        lines: invoice.items.map((item) => ({ description: item.description, amount: Number(item.amount), quantity: item.quantity, waived: item.isWaived })),
       })),
+      // Only what has actually been paid: an online attempt that was started and never completed is not a payment, and is not a receipt.
       payments: invoices.flatMap((invoice) =>
-        invoice.payments.map((payment) => ({
+        invoice.payments.filter((payment) => payment.status === "SUCCESS").map((payment) => ({
           id: payment.id,
           childId: invoice.studentId,
           child: firstOf.get(invoice.studentId) ?? "",
+          invoiceId: invoice.id,
           invoice: invoice.invoiceNumber,
+          term: invoice.term ? `${invoice.term.name} ${invoice.term.academicSession.name}` : "",
+          termId: invoice.termId,
           reference: payment.reference,
+          bankRef: payment.schoolBankReference ?? payment.gatewayReference ?? "",
           receipt: payment.receipts[0]?.receiptNumber ?? null,
           amount: Number(payment.amount),
           method: payment.method,
+          channel: payment.paymentChannel ?? "",
           status: payment.status,
+          by: payment.recordedBy ? `${payment.recordedBy.firstName} ${payment.recordedBy.lastName}` : "",
           paidAt: payment.paidAt ? isoDay(payment.paidAt) : null,
         })),
       ),
+      reports,
       plans: plans.map((plan) => ({
         id: plan.id,
         childId: plan.studentId,
@@ -379,6 +412,23 @@ export class ParentWorkspaceService {
       })),
     };
   }
+  /**
+   * A parent tells the bursar they have paid: by bank transfer, or at the bursary counter.
+   *
+   * It is a request to the bursar, not a receipt — the bursar matches it to the bank statement and issues the receipt, and until then
+   * the family sees it as reported, with the owner it was given to. Nothing here changes a balance.
+   */
+  async reportPayment(session: SessionPayload, body: unknown) {
+    const input = reportSchema.parse(body);
+    const student = await this.child(session, input.child);
+    const { guardian } = await this.context(session);
+    const detail = `I paid ₦${input.amount.toLocaleString("en-NG")} for ${student.firstName} by ${input.method.toLowerCase()} on ${input.date}${input.reference ? `, bank reference ${input.reference}` : ""}.${input.note ? ` ${input.note}` : ""}`;
+    return openSubmission(session.schoolId, {
+      guardianId: guardian.id, childId: student.id, type: "Fee query", detail, channel: "Portal", evidence: input.reference || null,
+      payload: { kind: "payment-report", amount: input.amount, method: input.method, date: input.date, reference: input.reference ?? "" } as Prisma.InputJsonValue,
+    });
+  }
+
 /* ───────────────────────── the switcher's own line ───────────────────────── */
 
   /**
@@ -1413,6 +1463,7 @@ type NeedItem = {
 
 const money = (value: number) => `₦${value.toLocaleString("en-NG", { maximumFractionDigits: 0 })}`;
 const shortDay = (iso: string) => new Date(`${iso}T00:00:00Z`).toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone: "UTC" });
+const longDate = (iso: string) => new Date(`${iso}T00:00:00Z`).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" });
 const longDay = (iso: string) => new Date(`${iso}T00:00:00Z`).toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", timeZone: "UTC" });
 
 /** The shape of a published report card's snapshot, as the report-cards module writes it (version 2). */
@@ -1452,6 +1503,15 @@ function readCard(raw: unknown): PublishedCard | null {
     })),
   };
 }
+
+const reportSchema = z.object({
+  child: z.string().min(1, "Choose which child this is for."),
+  amount: z.coerce.number().min(1, "Say how much you paid."),
+  method: z.enum(["Bank transfer", "At the bursary"]),
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Say which day you paid."),
+  reference: z.string().trim().max(60).optional(),
+  note: z.string().trim().max(300).optional(),
+});
 
 const accountRequestSchema = z.object({
   kind: z.enum(["contact", "copy"]),
