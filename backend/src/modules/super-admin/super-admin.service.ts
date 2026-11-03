@@ -1537,7 +1537,8 @@ export class SuperAdminService {
       where: { id: userId, deletedAt: null },
       include: {
         school: true,
-        guardian: { include: { students: { include: { student: { select: { id: true, firstName: true, lastName: true } } } } } },
+        // A guardian login can belong to several schools; the platform's own view of a user shows all of them.
+        guardians: { include: { school: { select: { name: true } }, students: { include: { student: { select: { id: true, firstName: true, lastName: true } } } } } },
         student: true,
         staffProfile: true
       }
@@ -1565,7 +1566,7 @@ export class SuperAdminService {
       lastLoginAt: user.lastLoginAt?.toISOString(),
       createdAt: user.createdAt.toISOString(),
       school: { id: user.school.id, name: user.school.name, status: user.school.status, plan: user.school.plan },
-      profileType: user.student ? "STUDENT" : user.guardian ? "PARENT" : user.staffProfile ? "STAFF" : "USER",
+      profileType: user.student ? "STUDENT" : user.guardians.length ? "PARENT" : user.staffProfile ? "STAFF" : "USER",
       recentSessions: sessions.map((s) => ({
         id: s.id,
         startedAt: s.createdAt.toISOString(),
@@ -1576,12 +1577,12 @@ export class SuperAdminService {
       })),
       activitySummary: user.staffProfile
         ? { type: "STAFF", scoreEntriesSubmitted: scoreEntryCount, attendanceMarked: attendanceMarkedCount }
-        : user.guardian
+        : user.guardians.length
         ? { type: "PARENT", notificationsReceived }
         : { type: "ADMIN", adminActionsTaken: adminActionCount },
-      linkedAccounts: user.guardian
-        ? user.guardian.students.map((sg) => ({ studentId: sg.student.id, studentName: `${sg.student.firstName} ${sg.student.lastName}`, isPrimary: sg.isPrimary }))
-        : []
+      linkedAccounts: user.guardians.flatMap((guardian) =>
+        guardian.students.map((sg) => ({ studentId: sg.student.id, studentName: `${sg.student.firstName} ${sg.student.lastName}`, isPrimary: sg.isPrimary, school: guardian.school.name }))
+      )
     });
   }
 
