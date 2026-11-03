@@ -51,11 +51,14 @@ export function PhoneParentBar({
   session,
   portalType,
   pages,
+  kids,
 }: {
   session: SessionUser;
   portalType: PortalType;
   /** The portal's own page names, keyed by the slug in the address. */
   pages: Record<string, string>;
+  /** The children's first names, by id: a page about one child says whose it is. */
+  kids: Record<string, string>;
 }) {
   const pathname = usePathname();
   const params = useSearchParams();
@@ -67,8 +70,7 @@ export function PhoneParentBar({
   const status = link.online ? `Up to date${link.at ? ` · checked at ${link.at}` : ""}` : "Offline · showing what was last loaded";
   const tone = link.online ? { bg: "#EAF6F0", fg: "#17714F", dot: "#22A06B" } : { bg: "#F4F6F5", fg: "#5A6862", dot: "#8A9A92" };
   const childId = params.get("child");
-  const who = ABOUT_PARENT.includes(slug) ? session.name : "Whole family";
-  void childId;
+  const who = ABOUT_PARENT.includes(slug) ? session.name : (childId && kids[childId]) || "Whole family";
 
   if (home) {
     return (

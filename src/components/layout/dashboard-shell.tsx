@@ -151,7 +151,7 @@ export function DashboardShell({
         />
 
         <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
-          {parentChrome && phoneTabs?.items.length ? <PhoneParentBar session={session} portalType={portalType} pages={Object.fromEntries(phoneTabs.items.map((item) => [item.id.replace(/^p_/, ""), item.label]))} /> : null}
+          {parentChrome && phoneTabs?.items.length ? <PhoneParentBar session={session} portalType={portalType} kids={Object.fromEntries(parentChrome.children.map((child) => [child.id, child.first]))} pages={Object.fromEntries(phoneTabs.items.map((item) => [item.id.replace(/^p_/, ""), item.label]))} /> : null}
           {teacherRail && !parentChrome && phoneTabs?.items.length ? <PhoneTeacherBar session={session} schoolName={schoolName} portalType={portalType} rail={teacherRail} /> : null}
           <Topbar
             hideOnPhone={Boolean((teacherRail || parentChrome) && phoneTabs?.items.length)}

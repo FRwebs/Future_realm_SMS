@@ -24,8 +24,10 @@ const age = (from: string, to: string) => {
   return days === 0 ? "today" : days === 1 ? "1 day" : `${days} days`;
 };
 
+export const loadRequests = (child: string) => apiGet(`${PW}/requests?child=${encodeURIComponent(child)}`, observe<Requests>(localContracts["src/lib/modules/live/parent/requests.ts#ed1af676"]));
+
 export async function requestsPage(child: string, query: Record<string, string | undefined>): Promise<ParentContent> {
-  const data = await apiGet(`${PW}/requests?child=${encodeURIComponent(child)}`, observe<Requests>(localContracts["src/lib/modules/live/parent/requests.ts#ed1af676"]));
+  const data = await loadRequests(child);
   const one = child === "all" ? null : data.children.find((entry) => entry.id === child) ?? null;
   const tab = TABS.includes(query.tab ?? "") ? query.tab! : TABS[0]!;
   const open = data.items.filter((item) => item.open);
@@ -64,7 +66,7 @@ export async function requestsPage(child: string, query: Record<string, string |
   };
 }
 
-function requestItem(item: Item, withChild: boolean, data: Requests): ListItem {
+export function requestItem(item: Item, withChild: boolean, data: Requests): ListItem {
   const where = item.owner ? `With ${item.owner}${item.role ? `, ${item.role}` : ""}` : "Not yet with anyone";
   return {
     label: `${item.type}${withChild && item.child ? ` · ${item.child}` : ""}`,

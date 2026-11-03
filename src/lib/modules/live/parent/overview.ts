@@ -1,5 +1,8 @@
 import { row } from "@/lib/modules/panels";
 import type { ListItem, Panel, PanelRow } from "@/lib/modules/panels";
+import { loadCalendar, item as eventItem } from "@/lib/modules/live/parent/calendar";
+import { liveLesson, loadLearning } from "@/lib/modules/live/parent/learning";
+import { loadRequests, requestItem } from "@/lib/modules/live/parent/requests";
 import { dDow, greeting, loadMe, loadNeeds } from "@/lib/modules/live/parent/shared";
 import type { NeedItem, ParentContent, ParentMe } from "@/lib/modules/live/parent/shared";
 
@@ -14,9 +17,50 @@ import type { NeedItem, ParentContent, ParentMe } from "@/lib/modules/live/paren
  */
 export async function overviewPage(child: string): Promise<ParentContent> {
   const me = await loadMe();
-  const needs = await loadNeeds(child);
+  // What the phone's Home adds below the needs: where each child is in class right now, what is coming up, and what is still open with the
+  // school. Each is read where the page for it reads it, and a read that fails leaves its block out rather than the page.
+  const [needs, learning, calendar, requests] = await Promise.all([
+    loadNeeds(child),
+    me.sees.includes("Timetable") ? loadLearning(child).catch(() => null) : Promise.resolve(null),
+    loadCalendar(child).catch(() => null),
+    loadRequests(child).catch(() => null),
+  ]);
   const one = child === "all" ? null : me.children.find((entry) => entry.id === child) ?? null;
-  return one ? childOverview(me, one, needs.items) : familyOverview(me, needs.items);
+  const more = homeBlocks(me, child, learning, calendar, requests);
+  return one ? childOverview(me, one, needs.items, more) : familyOverview(me, needs.items, more);
+}
+
+type Learning = Awaited<ReturnType<typeof loadLearning>>;
+type Calendar = Awaited<ReturnType<typeof loadCalendar>>;
+type Requests = Awaited<ReturnType<typeof loadRequests>>;
+
+/** The blocks under the needs on a phone: in class now, coming up, still open with the school, and the three things a parent does most. */
+function homeBlocks(me: ParentMe, child: string, learning: Learning | null, calendar: Calendar | null, requests: Requests | null): PanelRow[] {
+  const blocks: PanelRow[] = [];
+  const inClass = (learning?.children ?? []).map((kid) => ({ kid, live: liveLesson(kid, me) })).filter((entry) => entry.live.now);
+  if (inClass.length) {
+    blocks.push(phoneOnly({
+      type: "list", noFind: true, title: "Right now in class", sub: me.now,
+      items: inClass.map(({ kid, live }): ListItem => ({
+        avatar: me.children.find((entry) => entry.id === kid.id)?.initials ?? kid.first.slice(0, 2).toUpperCase(),
+        label: `${kid.first} · ${live.now!.subject}`, pill: "Now", tone: "progress", href: `/portals/parent/learning?child=${kid.id}`,
+        sub: `${live.now!.from}–${live.now!.to}${live.now!.teacher ? ` · ${live.now!.teacher}` : ""}${live.next ? ` · then ${live.next.subject}` : ""}`,
+      })),
+    }));
+  }
+  const ahead = (calendar?.events ?? []).filter((event) => event.end >= calendar!.today).slice(0, 4);
+  if (ahead.length) blocks.push(phoneOnly({ type: "list", noFind: true, title: "Coming up", sub: "From the school calendar.", items: ahead.map((event) => eventItem(event, child === "all")), foot: "The whole term is under Calendar." }));
+  const open = (requests?.items ?? []).filter((entry) => entry.open).slice(0, 3);
+  if (requests && open.length) {
+    blocks.push(phoneOnly({ type: "list", noFind: true, title: "Your requests", tag: `${requests.items.filter((entry) => entry.open).length} open`, tagTone: "attention", items: open.map((entry) => requestItem(entry, child === "all", requests)) }));
+  }
+  const quick: ListItem[] = [
+    ...(me.sees.includes("Fees") ? [{ icon: "M3.5 6.5h17v11h-17zM3.5 10.5h17", label: "Pay fees", sub: "What is owed, and the ways to pay it", href: "/portals/parent/fees" }] : []),
+    ...(me.sees.includes("Attendance") ? [{ icon: "M4 5.5h16V20H4zM8 3v4M16 3v4M8.5 14l2 2 4-4.5", label: "Explain an absence", sub: "Tell the school why, in a minute", href: "/portals/parent/attendance" }] : []),
+    { icon: "M9.5 9.5a2.5 2.5 0 1 1 3.4 2.3c-.6.3-.9.8-.9 1.4M12 16.5h.01M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0z", label: "Ask the school", sub: "Goes to a named person", href: "/portals/parent/requests?new=1" },
+  ];
+  blocks.push(phoneOnly({ type: "list", noFind: true, title: "Quick actions", items: quick }));
+  return blocks;
 }
 
 
@@ -41,7 +85,7 @@ const needItem = (need: NeedItem, withChild: boolean): ListItem => ({
   href: need.href,
 });
 
-function familyOverview(me: ParentMe, needs: NeedItem[]): ParentContent {
+function familyOverview(me: ParentMe, needs: NeedItem[], more: PanelRow[]): ParentContent {
   const urgent = needs.filter((need) => need.tone === "negative").length;
   const count = needs.length;
   const sub = count
@@ -71,6 +115,7 @@ function familyOverview(me: ParentMe, needs: NeedItem[]): ParentContent {
         empty: "Nothing is waiting on you. The school will tell you here when something is.",
         items: needs.map((need) => needRow(need, me.children)),
       }),
+      ...more,
       ...desktopOnly([
       row("1fr", [{
         type: "kpi", bare: true, per: Math.min(4, Math.max(1, me.children.length + 1)),
@@ -112,7 +157,7 @@ function familyOverview(me: ParentMe, needs: NeedItem[]): ParentContent {
   };
 }
 
-function childOverview(me: ParentMe, child: ParentMe["children"][number], needs: NeedItem[]): ParentContent {
+function childOverview(me: ParentMe, child: ParentMe["children"][number], needs: NeedItem[], more: PanelRow[]): ParentContent {
   const mine = needs.filter((need) => need.childId === child.id || need.childId === null);
   return {
     eyebrow: `${child.level} · ${child.admissionNumber}`,
@@ -135,6 +180,7 @@ function childOverview(me: ParentMe, child: ParentMe["children"][number], needs:
           { label: "Fees and payments", sub: "What is owed, and every receipt", href: "/portals/parent/fees" },
         ],
       }),
+      ...more,
       ...desktopOnly([
       row("1fr", [{
         type: "list", title: `What needs you about ${child.first}`, sub: "Worst first. Each one has the single thing that clears it.",

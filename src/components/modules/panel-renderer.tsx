@@ -1740,9 +1740,9 @@ function PanelViewDesktop({
     const columns = panel.per ?? 5;
     return (
       <section className={PANEL_SHELL} style={{ borderColor: CARD_BORDER }}>
-        <PanelHeader title={panel.title} sub={panel.sub} openDrawer={openDrawer} />
+        <div className="max-md:hidden"><PanelHeader title={panel.title} sub={panel.sub} openDrawer={openDrawer} /></div>
         {panel.acts?.length ? (
-          <div className="mb-[10px] flex flex-wrap gap-[5px]">
+          <div className="mb-[10px] flex flex-wrap gap-[5px] max-md:hidden">
             {panel.acts.map((act) => (
               <Link
                 key={act.label + act.href}
@@ -1775,18 +1775,20 @@ function PanelViewDesktop({
               <>
                 <span className="text-[11.5px] font-bold" style={{ color: swatch ? INK : "#AAB8B0" }}>{cell.label}</span>
                 {cell.note ? (
-                  <span className="truncate text-[9.5px] font-bold" style={{ color: swatch ? swatch.fg : "#AAB8B0" }}>{cell.note}</span>
+                  <span data-cal-note="" className="truncate text-[9.5px] font-bold" style={{ color: swatch ? swatch.fg : "#AAB8B0" }}>{cell.note}</span>
                 ) : null}
+                {swatch ? <span aria-hidden className="hidden h-[5px] w-[5px] rounded-full max-md:block" style={{ background: swatch.dot }} /> : null}
               </>
             );
             const className = "flex min-h-[62px] min-w-0 flex-col justify-between rounded-[10px] p-[7px] text-left";
+            const flags = { "data-cal-cell": "", ...(cell.weekend ? { "data-cal-weekend": "" } : {}), ...(cell.today ? { "data-cal-today": "" } : {}) };
             const trigger = cell as Partial<Trigger>;
-            if (trigger.href) return <Link key={`${cell.label}-${index}`} href={trigger.href as Route} className={className} style={style}>{body}</Link>;
+            if (trigger.href) return <Link key={`${cell.label}-${index}`} href={trigger.href as Route} className={className} style={style} {...flags}>{body}</Link>;
             if (trigger.drawer) {
               const spec = trigger.drawer;
-              return <button key={`${cell.label}-${index}`} type="button" onClick={() => openDrawer(spec)} className={className} style={style}>{body}</button>;
+              return <button key={`${cell.label}-${index}`} type="button" onClick={() => openDrawer(spec)} className={className} style={style} {...flags}>{body}</button>;
             }
-            return <span key={`${cell.label}-${index}`} className={className} style={style}>{body}</span>;
+            return <span key={`${cell.label}-${index}`} className={className} style={style} {...flags}>{body}</span>;
           })}
         </div>
         {panel.legend?.length ? (
