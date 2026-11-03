@@ -208,16 +208,23 @@ function todayTab(d: DayView, me: TeacherWorkspaceView, permissions: string[]): 
     const hint = `${kind} ${work}`.toLowerCase();
     return /regist|attend/.test(hint) ? ICON.reg : /score|sheet|observ/.test(hint) ? ICON.score : /remark|note|plan/.test(hint) ? ICON.pen : /return/.test(hint) ? ICON.shield : ICON.clock;
   };
+  // The deck is what is owed, in deadline order. A teacher with little owed would be left with a single card, so the shortcuts they hold
+  // follow it as "Also today" cards — real places to go, never invented work — until there are a few to page through.
+  const owed = d.queue.slice(0, 5).map((item, index) => ({
+    eyebrow: index === 0 ? "First · today" : `Next · ${item.due}`, icon: deckIcon(item.kind, item.work), title: item.work, sub: item.what,
+    cta: { label: item.action, href: item.href } as { label: string; href: string } | null,
+  }));
+  const also = owed.length >= 4 ? [] : quick.filter((tile) => !d.queue.some((item) => item.href === tile.href)).slice(0, 4 - owed.length).map((tile) => ({
+    eyebrow: owed.length ? "Also today" : "First · today", icon: tile.icon, title: tile.label, sub: tile.sub, cta: { label: "Open", href: tile.href } as { label: string; href: string } | null,
+  }));
+  const deck = [...owed, ...also];
   const phone: PanelRow = {
     ...row("1fr", [{
       type: "embed", component: "phone-today",
       props: {
         greeting: `${greet}, ${given}`,
         dateline: `${dayWords(d.date)} · Week ${d.week} of ${d.weeks}`,
-        deck: d.queue.slice(0, 4).map((item, index) => ({
-          eyebrow: index === 0 ? "First · today" : `Next · ${item.due}`, icon: deckIcon(item.kind, item.work), title: item.work, sub: item.what,
-          cta: { label: item.action, href: item.href },
-        })),
+        deck,
         nextLine: nextPeriod ? `Next period · ${nextPeriod.what.split(" · ")[0]} at ${nextPeriod.from}` : null,
         tiles: quick.slice(0, 4),
         returned: d.returned.map((entry) => ({

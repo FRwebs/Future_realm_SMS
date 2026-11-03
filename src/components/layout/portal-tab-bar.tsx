@@ -5,6 +5,10 @@ import Link from "next/link";
 import type { Route } from "next";
 import { usePathname, useSearchParams } from "next/navigation";
 
+import { TeacherMoreSheet } from "@/components/layout/phone-teacher-more";
+import { usePhoneKind } from "@/components/layout/phone-shell";
+import type { SessionUser } from "@/lib/domain/types";
+
 export type TabBarItem = {
   /** The rail id this came from, which is also how counts and tones are keyed. */
   id: string;
@@ -37,6 +41,7 @@ export function PortalTabBar({
   counts,
   urgent,
   label,
+  account,
 }: {
   items: TabBarItem[];
   /** The ids that get their own tab, in the order they should appear. */
@@ -44,7 +49,10 @@ export function PortalTabBar({
   counts: Record<string, number>;
   urgent: Record<string, boolean>;
   label: string;
+  /** Who is signed in. A teacher's More sheet opens on their own card and ends in sign-out. */
+  account?: { session: SessionUser; schoolName?: string };
 }) {
+  const kind = usePhoneKind();
   const pathname = usePathname();
   const params = useSearchParams();
   const [moreOpen, setMoreOpen] = useState(false);
@@ -102,7 +110,9 @@ export function PortalTabBar({
 
   return (
     <>
-      {moreOpen ? (
+      {moreOpen && kind === "teacher" && account ? (
+        <TeacherMoreSheet items={items} primaryIds={primaryIds} counts={counts} urgent={urgent} pathname={pathname} session={account.session} schoolName={account.schoolName} onClose={() => setMoreOpen(false)} />
+      ) : moreOpen ? (
         <>
           <button type="button" aria-label="Close" onClick={() => setMoreOpen(false)} className="fixed inset-0 z-[37] bg-[rgba(13,35,21,0.5)] md:hidden" />
           <div

@@ -3,9 +3,10 @@
 import Link from "next/link";
 import type { Route } from "next";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
-import { DropdownShell, NotificationBell, ProfileDropdown, initials } from "@/components/layout/topbar";
+import { NotificationBell, initials } from "@/components/layout/topbar";
+import { accountPath } from "@/lib/modules/account";
 import type { SessionUser } from "@/lib/domain/types";
 import type { TeacherRail } from "@/lib/navigation/workflows";
 import { readOutbox } from "@/lib/offline/outbox";
@@ -94,27 +95,17 @@ function crestOf(name: string) {
 export function PhoneTeacherBar({
   session,
   schoolName,
-  permissions,
   portalType,
   rail,
 }: {
   session: SessionUser;
   schoolName?: string;
-  permissions: string[];
   portalType: PortalType;
   rail: TeacherRail;
 }) {
   const pathname = usePathname();
   const router = useRouter();
   const sync = useSync();
-  const [menu, setMenu] = useState(false);
-  const menuRef = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    const away = (event: MouseEvent) => { if (menuRef.current && !menuRef.current.contains(event.target as Node)) setMenu(false); };
-    document.addEventListener("mousedown", away);
-    return () => document.removeEventListener("mousedown", away);
-  }, []);
-
   const clean = pathname.replace(/\/$/, "");
   const home = clean === TEACHER_HOME || clean === "/command-center";
   const segments = clean.split("/").filter(Boolean);
@@ -124,7 +115,8 @@ export function PhoneTeacherBar({
   }, [rail, segments]);
   // `/attendance/mark` is a tab; `/attendance/mark/<class>/<subject>/<period>` is a screen pushed on top of it.
   // Writing a message is the one tab with no place in the strip: it is reached by the button on Sent, and left by the arrow.
-  const pushed = segments.length > 2 || (segments[0] === "communication-center" && segments[1] === "compose");
+  const onAccount = segments[0] === "account";
+  const pushed = onAccount || segments.length > 2 || (segments[0] === "communication-center" && segments[1] === "compose");
   const tone = TONES[sync.tone];
   const crest = crestOf(schoolName ?? "Your school");
   const who = initials(session.name);
@@ -148,21 +140,8 @@ export function PhoneTeacherBar({
               {crest.second ? <span className="block truncate text-[10.5px] font-extrabold uppercase tracking-[0.1em] text-[#12796A]">{crest.second}</span> : null}
             </span>
             <NotificationBell session={session} portalType={portalType} phone="light" />
-            <div ref={menuRef} className="relative flex-none">
-              <button
-                type="button"
-                onClick={() => setMenu((open) => !open)}
-                aria-label="Account"
-                aria-expanded={menu}
-                className="flex h-[42px] w-[42px] items-center justify-center rounded-full text-[13.5px] font-extrabold text-[#0D2315]"
-                style={{ background: "#E3F1EA" }}
-              >
-                {who}
-              </button>
-              <DropdownShell open={menu}>
-                <ProfileDropdown session={session} portalType={portalType} schoolName={schoolName} permissions={permissions} onClose={() => setMenu(false)} />
-              </DropdownShell>
-            </div>
+            {/* The mockup's avatar opens the account page itself, not a menu over the page. */}
+            <Link href={accountPath as Route} aria-label="Account" className="flex h-[42px] w-[42px] flex-none items-center justify-center rounded-full text-[13.5px] font-extrabold text-[#0D2315]" style={{ background: "#E3F1EA" }}>{who}</Link>
           </div>
         </>
       ) : (
@@ -179,10 +158,11 @@ export function PhoneTeacherBar({
                 ) : null}
               </div>
               <div className="min-w-0 text-center">
-                <div className="truncate text-[min(16.5px,4.8vw)] font-extrabold leading-[1.25] tracking-[-0.005em] text-white">{label}</div>
+                <div className="truncate text-[min(16.5px,4.8vw)] font-extrabold leading-[1.25] tracking-[-0.005em] text-white">{onAccount ? "Account" : label}</div>
+                {onAccount ? <div className="truncate text-[12.5px] font-medium leading-[1.2]" style={{ color: "rgba(255,255,255,0.7)" }}>{session.name}</div> : null}
               </div>
               <div className="flex justify-center">
-                <NotificationBell session={session} portalType={portalType} phone="dark" />
+                {onAccount ? null : <NotificationBell session={session} portalType={portalType} phone="dark" />}
               </div>
             </div>
           </div>

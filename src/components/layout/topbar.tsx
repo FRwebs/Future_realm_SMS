@@ -63,7 +63,8 @@ import {
 } from "lucide-react";
 
 import { apiJson, getUrl } from "@/lib/api/client";
-import { membershipsContract, notificationsContract } from "@/lib/api/contracts";
+import { membershipsContract, myProfileContract, notificationsContract } from "@/lib/api/contracts";
+import { PhoneNotificationSheet } from "@/components/layout/phone-teacher-notifications";
 import { roleLabels } from "@/lib/auth/roles";
 import type {
   SessionUser,
@@ -331,6 +332,13 @@ export function NotificationBell({
     staleTime: 15_000,
   });
   const notifications = feed.data ?? [];
+  // A teacher's phone says what the person's own quiet hours are under the list, so it reads the setting only there.
+  const quiet = useQuery({
+    queryKey: ["profile", "me", "quiet-hours"],
+    queryFn: ({ signal }) => apiJson(getUrl("/api/v1/profile/me"), signal, myProfileContract),
+    enabled: Boolean(phone) && open,
+    staleTime: 5 * 60_000,
+  });
   const markAllRead = useMutation({
     mutationFn: async () => {
       const token = document.cookie.split("; ").find((item) => item.startsWith("fr_csrf="))?.split("=")[1];
@@ -343,6 +351,8 @@ export function NotificationBell({
 
   useEffect(() => {
     function handleOutsideClick(event: MouseEvent) {
+      // The phone's sheet is drawn on the page, outside this element, and closes itself.
+      if ((event.target as Element).closest?.('[role="dialog"][aria-label="Notifications"], [aria-label="Close notifications"]')) return;
       if (bellRef.current && !bellRef.current.contains(event.target as Node)) {
         setOpen(false);
       }
@@ -403,7 +413,17 @@ export function NotificationBell({
 
 )}
 
-      <DropdownShell open={open} className="w-72">
+      {phone ? (
+        open ? (
+          <PhoneNotificationSheet
+            notices={notifications.map((item) => ({ id: item.id, title: item.title, body: item.body, href: (item as { href?: string | null }).href ?? null, unread: item.status !== "READ" }))}
+            unread={count}
+            quietHours={quiet.data ? String((quiet.data.preferences as { quietHours?: string } | null | undefined)?.quietHours ?? "None") : null}
+            onClose={() => { markRead(); setOpen(false); }}
+          />
+        ) : null
+      ) : null}
+      <DropdownShell open={open} className={cn("w-72", phone && "hidden")}>
         <div className="overflow-hidden rounded-2xl border border-(--color-border-default) bg-(--color-bg-surface) shadow-(--shadow-lg)">
           <div className="border-b border-(--color-border-default) px-4 py-3.5">
             <p className="text-sm font-semibold text-(--color-text-primary)">
