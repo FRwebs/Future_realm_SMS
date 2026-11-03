@@ -150,7 +150,7 @@ export function DashboardShell({
         />
 
         <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
-          {teacherRail && phoneTabs?.items.length ? <PhoneTeacherBar session={session} schoolName={schoolName} permissions={permissions} portalType={portalType} rail={teacherRail} /> : null}
+          {teacherRail && phoneTabs?.items.length ? <PhoneTeacherBar session={session} schoolName={schoolName} portalType={portalType} rail={teacherRail} /> : null}
           <Topbar
             hideOnPhone={Boolean(teacherRail && phoneTabs?.items.length)}
             session={session}
@@ -169,7 +169,12 @@ export function DashboardShell({
             parentChrome={parentChrome}
           />
           <ImpersonationBanner session={session} />
-          {portalType === "school" && platformSync ? <PlatformNotices sync={platformSync} operational={session.role !== "STUDENT" && session.role !== "PARENT"} /> : null}
+          {portalType === "school" && platformSync ? (
+            // On a teacher's phone the notices scroll away with the page they sit on, instead of staying pinned under the bar; the laptop keeps them where they were.
+            <div className={teacherRail && phoneTabs?.items.length ? "max-md:hidden" : undefined}>
+              <PlatformNotices sync={platformSync} operational={session.role !== "STUDENT" && session.role !== "PARENT"} />
+            </div>
+          ) : null}
           <OutboxSync />
           <PageLoadBeacon />
           <main
@@ -192,6 +197,9 @@ export function DashboardShell({
                 incoming content is still a freshly-inserted child each time, so it still gets
                 its own page-shell-enter entrance below. */}
             <div className="page-shell-enter mx-auto w-full max-w-[1480px]">
+              {portalType === "school" && platformSync && teacherRail && phoneTabs?.items.length ? (
+                <div className="md:hidden"><PlatformNotices sync={platformSync} operational inline /></div>
+              ) : null}
               <NavigationNoticeListener />
               {children}
             </div>
@@ -202,6 +210,7 @@ export function DashboardShell({
               items={phoneTabs.items}
               primaryIds={phoneTabs.primaryIds}
               label={phoneTabs.label}
+              account={{ session, schoolName }}
               counts={Object.fromEntries(Object.entries(navBadges ?? {}).map(([key, value]) => [key, value ?? 0]))}
               urgent={Object.fromEntries(Object.entries(navBadgeTones ?? {}).map(([key, tone]) => [key, tone === "danger"]))}
             />

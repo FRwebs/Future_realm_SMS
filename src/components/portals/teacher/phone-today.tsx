@@ -59,7 +59,28 @@ export function PhoneToday({ greeting, dateline, deck, nextLine, tiles, returned
   }, []);
 
   const current = deck[Math.min(card, Math.max(0, deck.length - 1))];
-  const step = (by: number) => setCard((index) => (deck.length ? (index + by + deck.length) % deck.length : 0));
+  // Which way the deck last moved, so the new card slides in from that side. The first draw does not move.
+  const heading = useRef(1);
+  const settled = useRef(false);
+  const face = useRef<HTMLDivElement>(null);
+  const go = (to: number) => {
+    if (!deck.length) return;
+    const next = ((to % deck.length) + deck.length) % deck.length;
+    heading.current = next === card ? heading.current : next > card ? 1 : -1;
+    setCard(next);
+  };
+  const step = (by: number) => {
+    heading.current = by;
+    setCard((index) => (deck.length ? (index + by + deck.length) % deck.length : 0));
+  };
+  useEffect(() => {
+    if (!settled.current) { settled.current = true; return; }
+    if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return;
+    const from = heading.current * 28;
+    face.current?.querySelectorAll<HTMLElement>("[data-slide]").forEach((part, index) => {
+      part.animate([{ transform: `translateX(${from}px)`, opacity: 0 }, { transform: "translateX(0)", opacity: 1 }], { duration: 320, delay: index * 30, easing: "cubic-bezier(0.22, 1, 0.36, 1)", fill: "backwards" });
+    });
+  }, [card]);
   const rows: Row[] = queue.map((item, index) => ({
     key: `${index}-${item.title}`, title: item.title, sub: item.sub, pill: { label: item.state, tone: item.tone }, side: item.due,
     open: () => router.push(item.href as Route),
@@ -93,9 +114,10 @@ export function PhoneToday({ greeting, dateline, deck, nextLine, tiles, returned
             >
               <span aria-hidden className="pointer-events-none absolute -bottom-[96px] -right-[70px] h-[230px] w-[230px] rounded-full border-[1.5px]" style={{ borderColor: "rgba(95,214,180,0.14)" }} />
               <span aria-hidden className="pointer-events-none absolute -bottom-[54px] -right-[28px] h-[146px] w-[146px] rounded-full border-[1.5px]" style={{ borderColor: "rgba(95,214,180,0.12)" }} />
+              <div ref={face} className="contents">
               <div className="relative flex min-h-[44px] items-center gap-[8px]">
-                <span className="flex h-[40px] w-[40px] flex-none items-center justify-center rounded-full" style={{ background: "rgba(95,214,180,0.16)", color: "#5FD6B4" }}><Icon path={current.icon} /></span>
-                <span className="min-w-0 flex-1 truncate text-[11px] font-extrabold uppercase tracking-[0.08em]" style={{ color: "rgba(255,255,255,0.74)" }}>{current.eyebrow}</span>
+                <span data-slide="" className="flex h-[40px] w-[40px] flex-none items-center justify-center rounded-full" style={{ background: "rgba(95,214,180,0.16)", color: "#5FD6B4" }}><Icon path={current.icon} /></span>
+                <span data-slide="" className="min-w-0 flex-1 truncate text-[11px] font-extrabold uppercase tracking-[0.08em]" style={{ color: "rgba(255,255,255,0.74)" }}>{current.eyebrow}</span>
                 {deck.length > 1 ? (
                   <>
                     <button type="button" onClick={() => step(-1)} aria-label="Previous card" className="flex h-[40px] w-[40px] flex-none items-center justify-center rounded-full text-white" style={{ background: "rgba(255,255,255,0.12)" }}><Icon path={BACK} size={18} stroke={2.1} /></button>
@@ -103,18 +125,19 @@ export function PhoneToday({ greeting, dateline, deck, nextLine, tiles, returned
                   </>
                 ) : null}
               </div>
-              <h2 className="relative mt-[8px] text-pretty text-[22px] font-extrabold leading-[1.2] tracking-[-0.015em] text-white">{current.title}</h2>
-              {current.sub ? <p className="relative mt-[6px] text-pretty text-[13px] font-medium leading-[1.5]" style={{ color: "rgba(255,255,255,0.76)" }}>{current.sub}</p> : null}
+              <h2 data-slide="" className="relative mt-[8px] text-pretty text-[22px] font-extrabold leading-[1.2] tracking-[-0.015em] text-white">{current.title}</h2>
+              {current.sub ? <p data-slide="" className="relative mt-[6px] text-pretty text-[13px] font-medium leading-[1.5]" style={{ color: "rgba(255,255,255,0.76)" }}>{current.sub}</p> : null}
               <span className="min-h-[14px] flex-1" />
               <div className="relative flex items-center gap-[12px]">
                 {current.cta ? (
-                  <Link href={current.cta.href as Route} className="inline-flex h-[46px] min-w-0 items-center gap-[8px] rounded-[14px] bg-white px-[18px] text-[14px] font-extrabold text-[#0D2315] active:scale-[0.97]">
+                  <Link data-slide="" href={current.cta.href as Route} className="inline-flex h-[46px] min-w-0 items-center gap-[8px] rounded-[14px] bg-white px-[18px] text-[14px] font-extrabold text-[#0D2315] active:scale-[0.97]">
                     <span className="truncate">{current.cta.label}</span>
                     <Icon path={ARROW} size={16} stroke={2.4} />
                   </Link>
                 ) : null}
                 <span className="flex-1" />
-                {deck.length > 1 ? <span className="text-[13px] font-bold" style={{ color: "rgba(255,255,255,0.66)" }}>{card + 1} of {deck.length}</span> : null}
+                {deck.length > 1 ? <span data-slide="" className="text-[13px] font-bold" style={{ color: "rgba(255,255,255,0.66)" }}>{card + 1} of {deck.length}</span> : null}
+              </div>
               </div>
               {nextLine ? (
                 <div className="relative mt-[14px] flex items-start gap-[10px] border-t pt-[12px]" style={{ borderColor: "rgba(255,255,255,0.12)", color: "rgba(255,255,255,0.8)" }}>
@@ -125,9 +148,22 @@ export function PhoneToday({ greeting, dateline, deck, nextLine, tiles, returned
             </div>
           </div>
           {deck.length > 1 ? (
-            <div className="mt-[10px] flex justify-center gap-[6px]" aria-hidden>
+            <div className="mt-[4px] flex justify-center" role="tablist" aria-label="Cards">
               {deck.map((entry, index) => (
-                <span key={entry.title + index} className="h-[6px] rounded-full transition-all" style={{ width: index === card ? 26 : 16, background: index === card ? "#0D2315" : "#BFDCCD" }} />
+                <button
+                  key={entry.title + index}
+                  type="button"
+                  role="tab"
+                  aria-selected={index === card}
+                  aria-label={`Card ${index + 1} of ${deck.length}: ${entry.title}`}
+                  onClick={() => go(index)}
+                  className="group flex h-[28px] items-center px-[3px]"
+                >
+                  <span
+                    className="block h-[6px] rounded-full transition-[width,background-color,transform] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] group-active:scale-y-150"
+                    style={{ width: index === card ? 26 : 16, background: index === card ? "#0D2315" : "#BFDCCD" }}
+                  />
+                </button>
               ))}
             </div>
           ) : null}

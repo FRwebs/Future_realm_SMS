@@ -3,12 +3,13 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 
+import { HideOnTeacherPhone, TeacherPhoneHead } from "@/components/account/teacher-phone-head";
 import { ModuleHero } from "@/components/data-display/module-hero";
 import { PanelRows } from "@/components/modules/panel-renderer";
 import { TabBar } from "@/components/modules/tab-bar";
 import { LOCALES } from "@/i18n/locales";
 import { getUiText } from "@/i18n/ui-text";
-import { accountContentFor, accountTabs, type AccountWords, type MyProfile } from "@/lib/modules/account";
+import { accountContentFor, accountTabs, roleLabelOf, type AccountWords, type MyProfile } from "@/lib/modules/account";
 import { getServerSession } from "@/lib/auth/session";
 import { apiGet } from "@/lib/api/server";
 
@@ -58,11 +59,14 @@ export default async function AccountTabPage({ params }: PageProps) {
 
   return (
     <div className="grid gap-5">
-      <ModuleHero
-        eyebrow={t("eyebrow")}
-        title={ui(content?.title ?? tab.label)}
-        description={content?.desc ?? ""}
-      />
+      <HideOnTeacherPhone>
+        <ModuleHero
+          eyebrow={t("eyebrow")}
+          title={ui(content?.title ?? tab.label)}
+          description={content?.desc ?? ""}
+        />
+      </HideOnTeacherPhone>
+      <TeacherPhoneHead eyebrow={roleLabelOf(session.role)} name={session.name} line={`${session.email} · ${schoolName}`} />
 
       <TabBar
         ariaLabel={t("tabs")}

@@ -60,7 +60,7 @@ function Notice({ tone, icon: Icon, title, children, onClose }: { tone: Tone; ic
  * shown only what actually reaches them — when the system will be down, and
  * that it is down now.
  */
-export function PlatformNotices({ sync, operational = true }: { sync: PlatformSyncView; operational?: boolean }) {
+export function PlatformNotices({ sync, operational = true, inline = false }: { sync: PlatformSyncView; operational?: boolean; /** Drawn inside the scrolling page, which already has its own gutters. */ inline?: boolean }) {
   const [gone, setGone] = useState<string[]>([]);
   const dismiss = (id: string) => {
     setGone((current) => [...current, id]);
@@ -76,7 +76,7 @@ export function PlatformNotices({ sync, operational = true }: { sync: PlatformSy
 
   return (
     // When a teacher's phone is hiding every notice here, the strip's own padding goes with them.
-    <div className="grid gap-2 px-4 pt-3 max-md:[&:not(:has([data-notice]:not([data-quiet])))]:hidden md:px-6">
+    <div className={cn("grid gap-2 max-md:[&:not(:has([data-notice]:not([data-quiet])))]:hidden", inline ? "mb-3" : "px-4 pt-3 md:px-6")}>
       {readOnly ? (
         <Notice tone="warning" icon={AlertTriangle} title={readOnly.kind === "maintenance" ? "FutureRealm is in maintenance — read only" : "Read-only until you choose a plan"}>
           {readOnly.reason}
