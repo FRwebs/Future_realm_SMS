@@ -2,7 +2,7 @@ import { apiGet, observe } from "@/lib/api/server";
 import { localContracts } from "@/lib/api/local-contracts.zod";
 import type { TeacherWorkspaceView } from "@/lib/api/teacher-workspace";
 import { area, text } from "@/lib/modules/live/m7-forms";
-import type { CourseCard, DocumentSpec, DrawerSpec, FormField, PanelFact, PanelRow, PanelTone, TabContent, TableCellKind, TableRow, TrayItem } from "@/lib/modules/panels";
+import type { CourseCard, DocumentSpec, DrawerSpec, FormField, ListItem, Panel, PanelFact, PanelRow, PanelTone, TabContent, TableCellKind, TableRow, TrayItem } from "@/lib/modules/panels";
 import { pill, row, text as cell } from "@/lib/modules/panels";
 import { formatDay } from "@/lib/date-format";
 
@@ -139,7 +139,23 @@ const cardOf = (course: Course, why?: string): CourseCard => {
   };
 };
 
-function forYouTab(v: Home): TabContent {
+/** A course as the phone lists it: its own icon, who runs it and how long, a bar for how far through, and what it costs or where it stands. */
+const courseItem = (course: Course, why?: string): ListItem => {
+  const owned = course.owned !== false;
+  const pct = owned && course.lessons ? Math.round((course.done / course.lessons) * 100) : undefined;
+  return {
+    icon: SECTION_ICON[course.section] ?? CAP_ICON, label: course.title, href: courseHref(course.id),
+    sub: why ?? `${course.provider} · ${length(course.hours)} · ${course.lessons} lessons`,
+    ...(pct !== undefined && (course.done || course.completed) ? { bar: { pct, label: `${course.done} of ${course.lessons}`, tone: course.completed ? ("positive" as PanelTone) : ("progress" as PanelTone) } } : {}),
+    ...(!owned && course.priceLabel ? { side: course.priceLabel } : {}),
+    pill: course.required && !course.completed ? (course.requiredBy ? `Due ${day(course.requiredBy).replace(/ \d{4}$/, "")}` : "Required") : course.state,
+    tone: owned ? stateTone(course.state, course.required) : "neutral",
+  };
+};
+const CAP_ICON = "M12 4 2.5 8.5 12 13l9.5-4.5zM6 10.8v4.4c0 1.6 2.7 3 6 3s6-1.4 6-3v-4.4M21.5 8.5v5";
+const phoneOnly = (panel: Panel): PanelRow => ({ ...row("1fr", [panel]), show: "phone" as const });
+
+export function forYouTab(v: Home): TabContent {
   if (!v.total) return noCourses("Training", "Courses that fit the work you already do, and certificates your school recognises.", FOR_YOU_PHONE);
   const next = v.required[0] ?? v.inProgress[0] ?? v.recommended[0]?.course ?? null;
   const due = v.required[0] ?? null;
@@ -151,7 +167,26 @@ function forYouTab(v: Home): TabContent {
     primary: next ? { label: `${next.done ? "Continue" : "Start"} ${next.title}`.slice(0, 48), icon: ARROW, href: courseHref(next.id) } : undefined,
     launchers: [{ label: "Browse every course", href: "/training/catalogue" }, { label: "Your certificates", href: "/training/certificates" }],
     rows: ([
-      row("1fr", [{
+      // The phone: the one course to open, four figures, then the three lists — required, started, recommended.
+      next ? phoneOnly({
+        type: "embed", component: "phone-hero",
+        props: {
+          eyebrow: due ? `Required${due.requiredBy ? ` · due ${day(due.requiredBy).replace(/ \d{4}$/, "")}` : ""}` : next.done ? "Pick up where you stopped" : "Start here", title: next.title,
+          sub: `${next.provider} · ${length(next.hours)}${next.lessons ? ` · ${next.done} of ${next.lessons} lessons done` : ""}`, icon: CAP_ICON,
+          chips: [next.format, ...(next.certificateName ? ["Certificate included"] : [])].filter(Boolean),
+          cta: { label: next.done ? "Continue the course" : "Open the course", href: courseHref(next.id) },
+        },
+      }) : null,
+      phoneOnly({ type: "kpi", bare: true, cards: [
+        { label: "Required, still open", value: String(v.required.length), sub: v.required[0]?.requiredBy ? `Due ${day(v.required[0].requiredBy).replace(/ \d{4}$/, "")}` : "Everything required is done", tone: v.required.length ? "attention" : "positive" },
+        { label: "CPD this year", value: String(v.cpd.hours), unit: L !== null ? `of ${L} h` : "hours", sub: L !== null ? "The school’s expectation" : "No expectation set", tone: L !== null && v.cpd.hours >= L ? "positive" : "progress" },
+        { label: "In progress", value: String(v.inProgress.length + v.required.filter((course) => course.done).length), sub: "Pick up where you stopped" },
+        { label: "Certificates", value: String(v.certificates), sub: v.expiring ? `${v.expiring.name} ${v.expiring.state === "Expired" ? "has expired" : "expires soon"}` : "All current", tone: v.expiring ? "attention" : "positive" },
+      ] }),
+      v.required.length ? phoneOnly({ type: "list", noFind: true, title: "Required by your school", tag: `${v.required.length} open`, tagTone: "attention", items: v.required.map((course) => courseItem(course)) }) : null,
+      v.inProgress.filter((course) => !v.required.some((entry) => entry.id === course.id)).length ? phoneOnly({ type: "list", noFind: true, title: "In progress", items: v.inProgress.filter((course) => !v.required.some((entry) => entry.id === course.id)).map((course) => courseItem(course)) }) : null,
+      v.recommended.length ? phoneOnly({ type: "list", noFind: true, title: "Recommended for you", sub: "Each one says why — from your own classes, never a guess.", items: v.recommended.map((entry) => courseItem(entry.course, entry.why)) }) : null,
+      { ...row("1fr", [{
         type: "kpi", per: 4,
         cards: [
           { label: "CPD this year", value: String(v.cpd.hours), unit: L !== null ? `of ${L} hours` : "hours", sub: L !== null ? "The school’s yearly expectation · counts in your appraisal" : "The school has not set a yearly expectation", tone: L !== null && v.cpd.hours >= L ? "positive" : "progress" },
@@ -159,7 +194,7 @@ function forYouTab(v: Home): TabContent {
           { label: "In progress", value: String(v.inProgress.length + v.required.filter((course) => course.done).length), sub: "Pick up exactly where you stopped" },
           { label: "Certificates", value: String(v.certificates), sub: v.expiring ? `${v.expiring.name} ${v.expiring.state === "Expired" ? "has expired" : `expires ${v.expiring.expires}`}` : "All current", tone: v.expiring ? "attention" : "positive", link: "View them", href: "/training/certificates" },
         ],
-      }]),
+      }]) },
       due ? row("1fr", [{ type: "note", tone: "attention", icon: WARN, title: `${due.title} is required${due.requiredBy ? ` by ${day(due.requiredBy)}` : ""}${due.dueDays !== null ? ` · ${due.dueDays < 0 ? `${-due.dueDays} days overdue` : `${due.dueDays} days`}` : ""}`, body: `${due.requiredNote ? `${due.requiredNote} ` : "Set by your school. "}${length(due.hours)}, ${due.format.toLowerCase()} — stop whenever you like and carry on from the same lesson. The school sees that you finished, not your answers.`, acts: [{ label: due.done ? "Continue it" : "Start it", href: courseHref(due.id) }] }]) : null,
       going.length ? row("1fr", [{ type: "courses", title: "Continue where you left off", sub: "Required first, then what you started.", cards: going.map((course) => cardOf(course)) }]) : null,
       v.recommended.length ? row("1fr", [{ type: "courses", title: "Recommended for you", sub: "Chosen from your own classes, results and deadlines — each one says why.", cards: v.recommended.map((entry) => cardOf(entry.course, entry.why)) }]) : null,
@@ -177,7 +212,7 @@ function forYouTab(v: Home): TabContent {
           ] as PanelFact[],
         },
       ]),
-    ].filter(Boolean) as PanelRow[]),
+    ].filter(Boolean) as PanelRow[]).map((entry) => (entry.show ? entry : { ...entry, show: "desktop" as const })),
   };
 }
 
@@ -255,6 +290,11 @@ function catalogueTab(v: Catalogue, b: Basket, query: Record<string, string | un
     launchers: [{ label: "Suggest a course", drawer: suggest }],
     rows: [
       ...(settled ? [row("1fr", [{ type: "note" as const, tone: settled.tone, icon: CHECK, title: settled.title, body: settled.body }])] : []),
+      // The phone: the sections as chips with how many each holds, then the courses of the one chosen, then a way to ask for one that is missing.
+      phoneOnly({ type: "embed", component: "phone-chips", props: { chips: sections.map((card) => ({ label: card.name === "All" ? "All" : card.name, count: card.members.length, on: card.name === sec, href: `/training/catalogue?sec=${encodeURIComponent(card.name)}` })) } }),
+      phoneOnly({ type: "list", title: sec === "All" ? "All courses" : sec, tag: `${list.length} ${list.length === 1 ? "course" : "courses"}`, tagTone: "neutral", sub: "Tap a course to see its lessons and add it to your basket.", empty: "Nothing for your role in this section yet.", items: list.map((course) => courseItem(course)) }),
+      phoneOnly({ type: "note", tone: "neutral", icon: "M9.5 9.5a2.5 2.5 0 1 1 3.4 2.3c-.6.3-.9.8-.9 1.4M12 16.5h.01M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0z", title: "Cannot find what you need?", body: "Suggest a course to the staff development lead.", acts: [{ label: "Suggest a course", drawer: suggest }] }),
+      ...[
       row("1fr", [{ type: "kpi", title: "Sections", per: 6, cards }]),
       row("1fr", [{ type: "tray", items: tray }]),
       row("1fr", [{
@@ -285,6 +325,7 @@ function catalogueTab(v: Catalogue, b: Basket, query: Record<string, string | un
             per: 0, noRowOpen: true,
           }])]
         : []),
+      ].map((entry) => ({ ...entry, show: "desktop" as const })),
     ],
   };
 }
@@ -376,11 +417,18 @@ function certificatesTab(v: Certificates): TabContent {
         body: firstRenew ? "Renew it before it lapses and the new certificate replaces this one on your record." : "Renew it with the awarding body, then add the new certificate here — it replaces this one once the office has verified it.",
         acts: firstRenew ? [{ label: "Renew it", drawer: firstRenew }] : [{ label: "Add the new certificate", drawer: addExt }],
       }]) : null,
-      row("1fr", [{
+      phoneOnly({
+        type: "list", noFind: true, title: "Your certificates", empty: "You have no certificate yet. Finish a course and its certificate arrives here, with a code anyone can verify.",
+        items: v.certificates.map((cert): ListItem => ({
+          icon: "M12 15a5 5 0 1 0 0-10 5 5 0 0 0 0 10zM8.5 14l-1 6 4.5-2.5 4.5 2.5-1-6", label: cert.name, drawer: paper(cert),
+          sub: `${cert.by} · issued ${cert.issued}${cert.expires ? ` · until ${cert.expires}` : ""}`, pill: cert.state, tone: certTone(cert.state),
+        })),
+      }),
+      { ...row("1fr", [{
         type: "table", title: "Your certificates", sub: "Open one to print it, or to share its code, which anyone can check.", noun: "certificate", nounPlural: "certificates", search: v.certificates.length > 4 ? "Find a certificate" : undefined,
         filters: v.certificates.length > 2 ? [{ label: "State", value: "All", options: ["All", ...new Set(v.certificates.map((cert) => cert.state))], match: Object.fromEntries([...new Set(v.certificates.map((cert) => cert.state))].map((state) => [state, `st:${state}|`])) }, { label: "Issued by", value: "All", options: ["All", ...new Set(v.certificates.map((cert) => cert.by))], match: Object.fromEntries([...new Set(v.certificates.map((cert) => cert.by))].map((by) => [by, `by:${by}|`])) }] : undefined,
         head: ["Certificate", "Issued by", "Issued", "Expires", "Code", "State", ""], rows, per: 10, noRowOpen: true, empty: "You have no certificate yet. Finish a course and it appears here, with a code anyone can verify.", foot: "Certificates are yours. They stay with you if you leave.",
-      }]),
+      }]), show: "desktop" as const },
     ].filter(Boolean) as PanelRow[]),
   };
 }

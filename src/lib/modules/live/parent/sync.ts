@@ -37,6 +37,8 @@ export async function syncPage(): Promise<ParentContent> {
   }));
   return {
     eyebrow: "Your account", title: "Sync and this phone", desc: "What this phone shows, and what it is waiting to send.",
+    // The phone leads with how things stand, then what works without a connection, the way its mockup does.
+    phoneEyebrow: "This phone", phoneTitle: "Up to date", phoneDesc: `Read from ${me.school} at ${me.now}.`,
     rows: [
       row("1fr", [{ type: "facts", title: "Up to date", sub: `Read at ${me.now}.`, per: 2, facts }]),
       row("1fr", [{ type: "note", tone: "neutral", title: "You need a connection to send", body: "The portal does not save a request for later. If you are offline when you press send, the page says it could not send — try again when you are back online. Nothing leaves your phone until then." }]),

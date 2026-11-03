@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 
+import { usePhoneKind } from "@/components/layout/phone-shell";
 import { formatDay } from "@/lib/date-format";
 import { sendJsonForData } from "@/lib/modules/submit";
 
@@ -30,6 +31,7 @@ function Pill({ category }: { category: InboxMessage["category"] }) {
 
 /** The school's messages as a list beside the one being read: opening one marks it read, a request to acknowledge is one tap, a reply goes to the office. */
 export function ParentInbox({ school, you, messages, showChildren, empty }: InboxProps) {
+  const phone = usePhoneKind() !== null;
   const router = useRouter();
   const [selected, setSelected] = useState<string | null>(null);
   const [reading, setReading] = useState(false);
@@ -47,6 +49,20 @@ export function ParentInbox({ school, you, messages, showChildren, empty }: Inbo
   );
   const open = list.find((message) => message.id === selected) ?? (reading ? null : list[0] ?? null);
   const unread = messages.filter((message) => !message.read).length;
+  // A message open on a phone is a page of its own: the search, chips and counts above the list give way to it.
+  const readingOnPhone = phone && reading && Boolean(open);
+  // The phone's top bar names the message being read and offers the way back; it learns of it here, because the message is here.
+  const heading = readingOnPhone && open ? { title: open.category, sub: `${school} · ${when(open.at)}` } : null;
+  const headingKey = heading ? `${heading.title}|${heading.sub}` : "";
+  useEffect(() => {
+    window.dispatchEvent(new CustomEvent("fr:phone-reading", { detail: headingKey ? { title: headingKey.split("|")[0], sub: headingKey.split("|").slice(1).join("|") } : null }));
+    return () => { window.dispatchEvent(new CustomEvent("fr:phone-reading", { detail: null })); };
+  }, [headingKey]);
+  useEffect(() => {
+    const close = () => setReading(false);
+    window.addEventListener("fr:phone-reading-close", close);
+    return () => window.removeEventListener("fr:phone-reading-close", close);
+  }, []);
 
   async function call(id: string, kind: "read" | "acknowledge" | "reply") {
     setBusy(true);
@@ -86,12 +102,12 @@ export function ParentInbox({ school, you, messages, showChildren, empty }: Inbo
 
   return (
     <section className="min-w-0 overflow-hidden rounded-[14px] border bg-(--color-bg-surface) max-md:overflow-visible max-md:rounded-none max-md:border-0 max-md:bg-transparent" style={{ borderColor: "#DEE8E2" }}>
-      <div className="flex flex-wrap items-center gap-[10px] border-b px-[16px] py-[10px] max-md:border-0 max-md:px-0 max-md:pt-0" style={{ borderColor: "#EDF3EF" }}>
+      <div className={`flex flex-wrap items-center gap-[10px] border-b px-[16px] py-[10px] max-md:border-0 max-md:px-0 max-md:pt-0${readingOnPhone ? " max-md:hidden" : ""}`} style={{ borderColor: "#EDF3EF" }}>
         <input type="search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search messages" aria-label="Search messages" className="min-w-[160px] flex-1 rounded-[9px] border px-[11px] py-[7px] text-[12px] max-md:h-[48px] max-md:rounded-[16px] max-md:border-0 max-md:bg-white max-md:px-[16px] max-md:text-[14px] max-md:shadow-[0_1px_2px_rgba(13,35,21,0.05),0_8px_22px_-16px_rgba(13,35,21,0.22)]" style={{ borderColor: "#CFDDD5" }} />
         <span className="text-[11px] max-md:hidden" style={{ color: "#5E6D64" }}>{list.length} {list.length === 1 ? "message" : "messages"}</span>
         <button type="button" disabled={busy || !unread} onClick={() => void readAll()} className="rounded-[9px] border bg-white px-[12px] py-[6px] text-[11.5px] font-semibold disabled:opacity-50 max-md:hidden" style={{ borderColor: "#CFDDD5", color: "#435048" }}>Mark all as read</button>
       </div>
-      <div className="-mx-4 mb-[14px] flex gap-[8px] overflow-x-auto px-4 pb-[2px] md:hidden" style={{ scrollbarWidth: "none" }} role="tablist" aria-label="Kind of message">
+      <div className={`-mx-4 mb-[14px] flex gap-[8px] overflow-x-auto px-4 pb-[2px] md:hidden${readingOnPhone ? " max-md:hidden" : ""}`} style={{ scrollbarWidth: "none" }} role="tablist" aria-label="Kind of message">
         {["All", "Unread", "Academic", "Financial", "Events", "General", "Safety"].map((name) => (
           <button key={name} type="button" role="tab" aria-selected={only === name} onClick={() => setOnly(name)} className="flex min-h-[42px] flex-none items-center gap-[7px] rounded-full border px-[16px] text-[14px] font-bold" style={only === name ? { background: "#E3F1EA", borderColor: "#5FBF9F", color: "#0D2315" } : { background: "#fff", borderColor: "#E4EDE8", color: "#435048" }}>
             {name}
@@ -99,7 +115,7 @@ export function ParentInbox({ school, you, messages, showChildren, empty }: Inbo
           </button>
         ))}
       </div>
-      <div className="mb-[10px] flex items-center justify-between px-[2px] md:hidden">
+      <div className={`mb-[10px] flex items-center justify-between px-[2px] md:hidden${readingOnPhone ? " max-md:hidden" : ""}`}>
         <h2 className="text-[16px] font-extrabold" style={{ color: "#0D2315" }}>{only === "All" ? "Everything" : only} <span className="ml-[6px] rounded-full bg-[#EDF3EF] px-[8px] py-[2px] text-[11px] font-bold" style={{ color: "#435048" }}>{list.length} {list.length === 1 ? "message" : "messages"}</span></h2>
         <button type="button" disabled={busy || !unread} onClick={() => void readAll()} className="text-[13px] font-extrabold disabled:opacity-40" style={{ color: "#12796A" }}>Mark all read</button>
       </div>
@@ -139,7 +155,51 @@ export function ParentInbox({ school, you, messages, showChildren, empty }: Inbo
             })}
           </ul>
           {open ? (
-            <article className={`min-w-0 px-[20px] py-[16px] ${reading ? "" : "hidden md:block"}`}>
+            <article className={`min-w-0 px-[20px] py-[16px] ${reading ? "" : "hidden md:block"}${phone ? " max-md:p-0" : ""}`}>
+              {phone ? (
+                <div className="grid gap-[12px] md:hidden">
+                  <div className="relative overflow-hidden rounded-[22px] px-[18px] py-[16px]" style={{ background: "#0D2315", boxShadow: "0 18px 30px -22px rgba(13,35,21,0.95)" }}>
+                    <span aria-hidden className="pointer-events-none absolute -right-[60px] -top-[70px] h-[180px] w-[180px] rounded-full border-[1.5px]" style={{ borderColor: "rgba(95,214,180,0.14)" }} />
+                    <p className="relative text-[11px] font-extrabold uppercase tracking-[0.08em]" style={{ color: "rgba(255,255,255,0.72)" }}>From {school}</p>
+                    <h2 className="relative mt-[8px] text-pretty text-[22px] font-extrabold leading-[1.2] tracking-[-0.015em] text-white">{open.title}</h2>
+                    <p className="relative mt-[6px] text-[13px] font-medium" style={{ color: "rgba(255,255,255,0.76)" }}>{when(open.at)} · to {you}</p>
+                    <div className="relative mt-[12px] flex flex-wrap gap-[8px]">
+                      {[...open.children.map((child) => child.first), open.category].map((chip) => <span key={chip} className="rounded-full px-[13px] py-[6px] text-[12.5px] font-bold text-white" style={{ background: "rgba(255,255,255,0.12)" }}>{chip}</span>)}
+                    </div>
+                  </div>
+                  <div className="grid gap-[10px] rounded-[20px] bg-white px-[18px] py-[16px] text-[14px] leading-[1.65]" style={{ color: "#1E2D24", boxShadow: "0 1px 2px rgba(13,35,21,0.05), 0 8px 22px -16px rgba(13,35,21,0.22)" }}>
+                    {open.body.map((line, index) => <p key={index} className="wrap-anywhere">{line}</p>)}
+                  </div>
+                  {open.category === "Safety" ? <p className="rounded-[18px] px-[16px] py-[12px] text-[13px] font-medium" style={{ background: "#FDF3F3", color: "#B23B3B" }}>Safety message — it reaches you on every channel, whatever your settings and quiet hours.</p> : null}
+                  <div className="flex items-center gap-[12px] rounded-[18px] bg-white px-[16px] py-[14px]" style={{ boxShadow: "0 1px 2px rgba(13,35,21,0.05), 0 8px 22px -16px rgba(13,35,21,0.22)" }}>
+                    <span className="flex h-[34px] w-[34px] flex-none items-center justify-center rounded-full" style={{ background: "#EAF6F0", color: "#17714F" }} aria-hidden><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="m5 12.5 4.5 4.5 9-10" /></svg></span>
+                    <span className="text-[14px] font-extrabold" style={{ color: "#0D2315" }}>{channelName(open.channel)} · delivered {when(open.at)}</span>
+                  </div>
+                  {open.acknowledgedAt ? <p className="rounded-[18px] px-[16px] py-[12px] text-[13px] font-extrabold" style={{ background: "#EAF6F0", color: "#17714F" }}>You acknowledged it · {when(open.acknowledgedAt)}</p> : null}
+                  {open.replies.map((reply) => (
+                    <div key={reply.id} className="rounded-[18px] bg-white px-[16px] py-[12px]" style={{ boxShadow: "0 1px 2px rgba(13,35,21,0.05), 0 8px 22px -16px rgba(13,35,21,0.22)" }}>
+                      <p className="text-[12px] font-semibold" style={{ color: "#6E7C74" }}>You wrote · {when(reply.at)} · {reply.state}</p>
+                      <p className="mt-[3px] text-[14px]" style={{ color: "#0D2315" }}>{reply.text}</p>
+                      {reply.outcome ? <p className="mt-[4px] text-[13px] font-semibold" style={{ color: "#17714F" }}>The school: {reply.outcome}</p> : null}
+                    </div>
+                  ))}
+                  <div className="grid gap-[8px] rounded-[20px] bg-white px-[16px] py-[14px]" style={{ boxShadow: "0 1px 2px rgba(13,35,21,0.05), 0 8px 22px -16px rgba(13,35,21,0.22)" }}>
+                    <label htmlFor="parent-reply-phone" className="text-[14px] font-extrabold" style={{ color: "#0D2315" }}>Reply to the school</label>
+                    <textarea id="parent-reply-phone" rows={3} value={draft} onChange={(event) => setDraft(event.target.value)} placeholder="Your reply goes to the school office." className="rounded-[14px] border-0 bg-[#F1F5F3] px-[14px] py-[12px] text-[16px]" />
+                    <button type="button" disabled={busy || draft.trim().length < 2} onClick={() => void call(open.id, "reply")} className="h-[48px] rounded-[14px] text-[15px] font-extrabold disabled:opacity-50" style={{ background: "#EEF4F0", color: "#0D2315" }}>Send reply</button>
+                    {note ? <p className="rounded-[12px] px-[12px] py-[8px] text-[13px]" style={{ background: "#FDF3F3", color: "#B23B3B" }}>{note}</p> : null}
+                  </div>
+                  <div className="sticky bottom-0 z-[30] -mx-4 -mb-4 mt-[6px] flex gap-[10px] rounded-t-[24px] bg-white px-[14px] pb-[12px] pt-[10px]" style={{ boxShadow: "0 -12px 30px -22px rgba(13,35,21,0.45)" }}>
+                    <button type="button" onClick={() => setReading(false)} className="h-[52px] flex-none rounded-[16px] px-[22px] text-[15px] font-extrabold" style={{ background: "#EEF4F0", color: "#0D2315" }}>Back</button>
+                    {open.acknowledgeAsked && !open.acknowledgedAt ? (
+                      <button type="button" disabled={busy} onClick={() => void call(open.id, "acknowledge")} className="h-[52px] min-w-0 flex-1 rounded-[16px] text-[15px] font-extrabold text-white disabled:opacity-60" style={{ background: "#0D2315" }}>I have read this</button>
+                    ) : (
+                      <Link href="/portals/parent/requests?new=1" className="flex h-[52px] min-w-0 flex-1 items-center justify-center rounded-[16px] text-[15px] font-extrabold text-white" style={{ background: "#0D2315" }}>Ask about this</Link>
+                    )}
+                  </div>
+                </div>
+              ) : null}
+              <div className={phone ? "max-md:hidden" : undefined}>
               <button type="button" onClick={() => setReading(false)} className="mb-[8px] text-[11.5px] font-semibold md:hidden" style={{ color: "#12796A" }}>← All messages</button>
               <div className="flex flex-wrap items-center gap-[6px]">
                 <Pill category={open.category} />
@@ -175,6 +235,7 @@ export function ParentInbox({ school, you, messages, showChildren, empty }: Inbo
                   <button type="button" disabled={busy || draft.trim().length < 2} onClick={() => void call(open.id, "reply")} className="rounded-[9px] border bg-white px-[14px] py-[7px] text-[12px] font-semibold disabled:opacity-50" style={{ borderColor: "#CFDDD5", color: "#0D2315" }}>Send reply</button>
                 </div>
                 {note ? <p className="rounded-[9px] px-[10px] py-[7px] text-[11.5px]" style={{ background: "#FDF3F3", color: "#B23B3B" }}>{note}</p> : null}
+              </div>
               </div>
             </article>
           ) : null}
