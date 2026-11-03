@@ -3,7 +3,8 @@ import { localContracts } from "@/lib/api/local-contracts.zod";
 import { name as nameCell, pill, row, text } from "@/lib/modules/panels";
 import type { DrawerSpec, LinePoint, ListItem, PanelFact, PanelTone, TableRow } from "@/lib/modules/panels";
 import { termShort } from "@/lib/modules/panels";
-import { PW, dLong, dShort, loadMe } from "@/lib/modules/live/parent/shared";
+import { payableFor } from "@/lib/modules/live/parent/fees";
+import { PW, dLong, dShort, loadMe, money } from "@/lib/modules/live/parent/shared";
 import type { ParentContent } from "@/lib/modules/live/parent/shared";
 
 type Component = { name: string; short: string; max: number; score: number | "ABS" | null };
@@ -44,7 +45,12 @@ const bestAndLowest = (card: NonNullable<Card["card"]>) => {
 export async function resultsPage(child: string, query: Record<string, string | undefined>): Promise<ParentContent> {
   const [me, data] = await Promise.all([loadMe(), apiGet(`${PW}/results?child=${encodeURIComponent(child)}`, observe<Results>(localContracts["src/lib/modules/live/parent/results.ts#dc63be9f"]))]);
   const one = child === "all" ? null : data.children.find((entry) => entry.id === child) ?? null;
-  return one ? childResults(one, data, me.school, query) : familyResults(data);
+  if (!one) return familyResults(data);
+  // Only when the card is actually held: the way out of a held card is a
+  // payment, so the page that breaks the news carries it. Every other reading
+  // of this page has no business asking the bursary anything.
+  const owed = one.cards[0]?.held && me.sees.includes("Fees") ? await payableFor(one.id) : null;
+  return childResults(one, data, me.school, query, owed);
 }
 
 /** What the school has released since the last report card, subject by subject. */
@@ -140,7 +146,9 @@ function familyResults(data: Results): ParentContent {
   };
 }
 
-function childResults(kid: Kid, data: Results, school: string, query: Record<string, string | undefined>): ParentContent {
+type Owed = Awaited<ReturnType<typeof payableFor>>;
+
+function childResults(kid: Kid, data: Results, school: string, query: Record<string, string | undefined>, owed: Owed): ParentContent {
   const tab = TABS.includes(query.tab ?? "") ? query.tab! : TABS[0]!;
   const withData = kid.cards.filter((card) => card.card);
   const head = {
@@ -149,7 +157,11 @@ function childResults(kid: Kid, data: Results, school: string, query: Record<str
     desc: tab === TABS[1]
       ? `Every report card ${kid.first} has received at ${school}, kept exactly as it was published.`
       : "Latest report card and this term’s released scores. Tap any subject to see how its score was reached.",
-    ...(withData.length && !kid.cards[0]?.held ? { primary: { label: "Printable report card", href: `/api/v1/reports/report-card/${kid.id}` } } : {}),
+    ...(kid.cards[0]?.held
+      // A held card has one thing worth doing, and it is not printing.
+      ? (owed?.pay ? { primary: { label: `Pay ${money(owed.amount)}`, drawer: owed.pay } } : {})
+      : withData.length ? { primary: { label: "Printable report card", href: `/api/v1/reports/report-card/${kid.id}` } } : {}),
+    ...(owed ? { launchers: [{ label: "Ask for a plan", drawer: owed.plan }] } : {}),
   };
 
   if (tab === TABS[1]) {
@@ -215,9 +227,23 @@ function childResults(kid: Kid, data: Results, school: string, query: Record<str
       row("1fr", [{
         type: "note", tone: "withheld", title: `${kid.first}’s ${latest.term} report card is held by the school`,
         body: `${latest.held.reason ? `${latest.held.reason.replace(/[.\s]+$/, "")}.` : "The school has not said why."} The card itself is complete and unchanged — it opens the moment the school releases it.`,
-        acts: [{ label: "See fees and payments", href: `/portals/parent/fees?child=${kid.id}` }],
+        acts: owed
+          ? [
+              ...(owed.pay ? [{ label: `Pay ${money(owed.amount)}`, primary: true, drawer: owed.pay }] : []),
+              { label: "Ask for a plan", drawer: owed.plan },
+              { label: "See fees and payments", href: `/portals/parent/fees?child=${kid.id}` },
+            ]
+          : [{ label: "See fees and payments", href: `/portals/parent/fees?child=${kid.id}` }],
       }]),
-      row("1fr", [{ type: "facts", title: "Why it is held", per: 3, facts: [["Held since", dLong(latest.held.since), "By the school"], ["Reason", latest.held.reason || "Not given"], ["Released by", "The school", "You are told when it is"]] }]),
+      row("1fr", [{
+        type: "facts", title: "Why it is held", per: 3,
+        facts: [
+          ["Held since", dLong(latest.held.since), "By the school"],
+          ["Reason", latest.held.reason || "Not given"],
+          ...(owed ? [["Balance owed", money(owed.amount), "Across every unpaid bill", "negative"] as PanelFact] : []),
+          ["Released by", owed ? "Payment, or a plan" : "The school", "You are told the same hour"],
+        ],
+      }]),
     );
     return { ...head, rows };
   }
