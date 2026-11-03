@@ -112,6 +112,23 @@ function reportPaid(kids: FeeChild[], chosen: FeeChild | null): DrawerSpec {
   };
 }
 
+/**
+ * What one child still owes, and the two ways out of it, for a page that is not Fees.
+ *
+ * A report card held over an unpaid balance is the case this exists for: the
+ * page that tells a parent their child's card is held is the page where they
+ * will want to clear it, and sending them to Fees to find the same bill is a
+ * step that teaches them nothing. It is read straight from the fee position, so
+ * the figure is the school's, never this page's guess. A school that does not
+ * show fees to parents gets nothing back rather than an error.
+ */
+export async function payableFor(childId: string): Promise<{ amount: number; pay: DrawerSpec | null; plan: DrawerSpec } | null> {
+  const data = await apiGet(`${PW}/fees?child=${encodeURIComponent(childId)}`, observe<Fees>(localContracts["src/lib/modules/live/parent/fees.ts#a95ca495"])).catch(() => null);
+  const entry = data?.children.find((child) => child.id === childId);
+  if (!entry || entry.outstanding <= 0) return null;
+  return { amount: entry.outstanding, pay: payOnline(entry), plan: askTheBursar([{ id: entry.id, first: entry.first }], { id: entry.id, first: entry.first }, "plan") };
+}
+
 /* ───────────────────────── the paper ───────────────────────── */
 
 const letterhead = (me: ParentMe) => ({ name: me.office.name || me.school, place: me.office.where ?? undefined, contact: [me.office.phone, me.office.website].filter(Boolean).join(" · ") || undefined });
