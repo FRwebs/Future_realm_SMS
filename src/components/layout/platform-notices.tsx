@@ -1,6 +1,7 @@
 "use client";
 
 import { AlertTriangle, Info, Megaphone, Wrench, X } from "lucide-react";
+import { usePathname } from "next/navigation";
 import { useState } from "react";
 
 import { configApi } from "@/components/configuration/api";
@@ -23,10 +24,15 @@ const stamp = (value: string) =>
 function Notice({ tone, icon: Icon, title, children, onClose }: { tone: Tone; icon: typeof Info; title: string; children?: React.ReactNode; onClose?: () => void }) {
   // On a teacher's phone a notice is one of the page's own soft cards, not a ruled box laid over it.
   const soft = usePhoneKind() === "teacher";
+  // The teacher mobile mockup keeps every screen but the first clear of announcements. What is only information waits on Today; what
+  // changes what the teacher can do — maintenance, read-only, a warning — is never hidden.
+  const home = usePathname().replace(/\/$/, "") === "/command-center/today";
   return (
     <div
       role={tone === "critical" ? "alert" : "status"}
-      className={cn("flex items-start gap-3 border px-3.5 py-2.5 text-[12.5px] leading-5 rounded-[10px]", TONE[tone], soft && "max-md:rounded-[18px] max-md:border-transparent max-md:px-4 max-md:py-3 max-md:font-medium", soft && tone === "info" && "max-md:bg-[#E9F3EE] max-md:text-[#2F5A49]")}
+      data-notice=""
+      data-quiet={soft && tone === "info" && !home ? "" : undefined}
+      className={cn("flex items-start gap-3 border px-3.5 py-2.5 text-[12.5px] leading-5 rounded-[10px]", TONE[tone], soft && tone === "info" && !home && "max-md:hidden", soft && "max-md:rounded-[18px] max-md:border-transparent max-md:px-4 max-md:py-3 max-md:font-medium", soft && tone === "info" && "max-md:bg-[#E9F3EE] max-md:text-[#2F5A49]")}
     >
       <Icon className="mt-0.5 size-4 shrink-0" aria-hidden />
       <div className="min-w-0 flex-1">
@@ -69,7 +75,8 @@ export function PlatformNotices({ sync, operational = true }: { sync: PlatformSy
   if (!readOnly && !platformMessage && !windows.length && !announcements.length && !pendingSwitch) return null;
 
   return (
-    <div className="grid gap-2 px-4 pt-3 md:px-6">
+    // When a teacher's phone is hiding every notice here, the strip's own padding goes with them.
+    <div className="grid gap-2 px-4 pt-3 max-md:[&:not(:has([data-notice]:not([data-quiet])))]:hidden md:px-6">
       {readOnly ? (
         <Notice tone="warning" icon={AlertTriangle} title={readOnly.kind === "maintenance" ? "FutureRealm is in maintenance — read only" : "Read-only until you choose a plan"}>
           {readOnly.reason}

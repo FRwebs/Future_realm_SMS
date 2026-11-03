@@ -123,7 +123,8 @@ export function PhoneTeacherBar({
     return own?.label ?? "Your workspace";
   }, [rail, segments]);
   // `/attendance/mark` is a tab; `/attendance/mark/<class>/<subject>/<period>` is a screen pushed on top of it.
-  const pushed = segments.length > 2;
+  // Writing a message is the one tab with no place in the strip: it is reached by the button on Sent, and left by the arrow.
+  const pushed = segments.length > 2 || (segments[0] === "communication-center" && segments[1] === "compose");
   const tone = TONES[sync.tone];
   const crest = crestOf(schoolName ?? "Your school");
   const who = initials(session.name);

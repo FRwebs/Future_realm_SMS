@@ -23,7 +23,7 @@ export type TabBarItem = {
  * a hairline that runs the width of the page. Values are matched to the
  * mockup's own tab style — 11.5px, 9px/13px padding, 3px between tabs.
  */
-export function TabBar({ items, ariaLabel }: { items: TabBarItem[]; ariaLabel: string }) {
+export function TabBar({ items, ariaLabel, hideOnTeacherPhone }: { items: TabBarItem[]; ariaLabel: string; hideOnTeacherPhone?: boolean }) {
   const pathname = usePathname();
   const ui = useUiText();
   const teacherPhone = usePhoneKind() === "teacher";
@@ -34,7 +34,7 @@ export function TabBar({ items, ariaLabel }: { items: TabBarItem[]; ariaLabel: s
     <>
     {teacherPhone ? (
       // On a teacher's phone the tabs are a segmented control: one white pill, the current segment filled ink.
-      <nav aria-label={ariaLabel} className="min-w-0 md:hidden">
+      <nav aria-label={ariaLabel} className={cn("min-w-0 md:hidden", hideOnTeacherPhone && "max-md:hidden")}>
         <div className="flex gap-[4px] overflow-x-auto rounded-[15px] bg-white p-[4px]" style={{ boxShadow: "0 1px 2px rgba(13,35,21,0.05), 0 8px 22px -14px rgba(13,35,21,0.22)" }}>
           {items.map((item) => {
             const active = pathname === item.href;
