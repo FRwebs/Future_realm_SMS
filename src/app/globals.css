@@ -1437,3 +1437,38 @@ summary:focus-visible,
     display: none;
   }
 }
+
+/* A form on a phone is a page with a bar of buttons under it: each button is a thumb's width tall, and the one that goes forward takes the room. */
+@media (max-width: 767.98px) {
+  [data-drawer-phone] [data-drawer-panel] {
+    max-width: none !important;
+    max-height: none !important;
+    height: 100%;
+    border-radius: 0 !important;
+    background: #f4f7f5;
+    box-shadow: none !important;
+  }
+  [data-drawer-phone] footer > div:first-child:not(:has(button)) {
+    display: none;
+  }
+  [data-drawer-phone] footer {
+    box-shadow: 0 -12px 30px -22px rgba(13, 35, 21, 0.45);
+    border-top: 0 !important;
+    flex-wrap: nowrap;
+  }
+  [data-drawer-phone] footer > div:last-child {
+    width: 100%;
+    flex-wrap: nowrap;
+  }
+  [data-drawer-phone] footer button {
+    min-height: 52px;
+    border-radius: 16px;
+    padding-inline: 20px;
+    font-size: 15px;
+    font-weight: 800;
+  }
+  [data-drawer-phone] footer button[style*="background: rgb(13, 35, 21)"],
+  [data-drawer-phone] footer button[style*="background:#0D2315"] {
+    flex: 1;
+  }
+}

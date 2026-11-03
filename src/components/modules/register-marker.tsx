@@ -187,7 +187,23 @@ export function RegisterMarker({ panel, openDrawer }: { panel: MarkerPanel; open
 
   return (
     <div className="grid min-w-0 gap-4">
-      <div className="grid gap-3" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))" }}>
+      {/* A phone reads the day as one card: how far through, and the four counts that matter. */}
+      <div className="rounded-[20px] bg-white px-[16px] py-[14px] md:hidden" style={{ boxShadow: "0 1px 2px rgba(13,35,21,0.05), 0 8px 22px -16px rgba(13,35,21,0.22)" }}>
+        <div className="flex items-center justify-between gap-[10px]">
+          <p><span className="text-[26px] font-black leading-none" style={{ color: INK }}>{total - counts.unmarked}</span><span className="ml-[6px] text-[14px] font-semibold" style={{ color: MUTED }}>of {total} marked</span></p>
+          <span className="rounded-full px-[12px] py-[4px] text-[12px] font-extrabold" style={submitted ? { background: "#EAF6F0", color: "#17714F" } : done ? { background: "#EEEDFA", color: "#4A44A0" } : { background: "#FDF6E7", color: "#8A6410" }}>{submitted ? "Submitted" : done ? "Ready" : counts.unmarked === total ? "Not started" : "In progress"}</span>
+        </div>
+        <div className="mt-[10px] h-[6px] overflow-hidden rounded-full" style={{ background: "#EDF3EF" }}><div className="h-full rounded-full" style={{ width: `${total ? Math.round(((total - counts.unmarked) / total) * 100) : 0}%`, background: "#22A06B" }} /></div>
+        <div className="mt-[12px] grid grid-cols-4 gap-[8px]">
+          {([["Present", counts.PRESENT, "positive"], ["Absent", counts.ABSENT, "negative"], ["Late", counts.LATE, "attention"], ["Excused", counts.EXCUSED, "submitted"]] as const).map(([label, value, tone]) => (
+            <div key={label} className="rounded-[14px] px-[10px] py-[8px]" style={{ background: value ? toneOf(tone).bg : "#F4F7F5" }}>
+              <p className="text-[19px] font-black leading-none" style={{ color: value ? toneOf(tone).fg : "#9AA8A0" }}>{value}</p>
+              <p className="mt-[3px] text-[12px] font-semibold" style={{ color: MUTED }}>{label}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+      <div className="grid gap-3 max-md:hidden" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))" }}>
         <Kpi label="Marked" value={String(total - counts.unmarked)} unit={`of ${total}`} sub={done ? "Every child accounted for" : `${counts.unmarked} still unmarked`} tone={unmarkedTone} />
         <Kpi label="Present" value={String(counts.PRESENT)} sub="On time" tone={counts.PRESENT ? "positive" : "neutral"} />
         <Kpi label="Absent" value={String(counts.ABSENT)} sub={counts.noReason ? `${counts.noReason} with no reason yet` : counts.ABSENT ? "All have a reason" : "None absent"} tone={counts.noReason ? "negative" : counts.ABSENT ? "attention" : "neutral"} />
@@ -210,7 +226,7 @@ export function RegisterMarker({ panel, openDrawer }: { panel: MarkerPanel; open
       ) : null}
 
       <section className={cn(SHELL)} style={{ borderColor: "#DEE8E2" }} aria-label={`Roster · ${panel.arm}`}>
-        <div className="mx-[-18px] flex flex-wrap items-start justify-between gap-[14px] border-b px-[18px] pb-[12px] pt-[14px]" style={{ borderColor: "#EDF3EF" }}>
+        <div className="mx-[-18px] flex flex-wrap items-start justify-between gap-[14px] border-b px-[18px] pb-[12px] pt-[14px] max-md:hidden" style={{ borderColor: "#EDF3EF" }}>
           <div className="min-w-0 flex-[1_1_260px]">
             <div className="flex flex-wrap items-center gap-2">
               <h2 className="text-[12.5px] font-semibold" style={{ color: INK }}>Roster · {panel.arm}</h2>
@@ -226,7 +242,21 @@ export function RegisterMarker({ panel, openDrawer }: { panel: MarkerPanel; open
           </p>
         </div>
 
-        <div className="mx-[-18px] flex flex-wrap items-center gap-[8px] border-b px-[18px] py-[10px]" style={{ borderColor: "#EDF3EF", background: "#FAFCFB" }}>
+        <div className="mx-[-18px] mb-[12px] grid gap-[12px] px-[18px] md:hidden">
+          <label className="flex h-[48px] items-center gap-[10px] rounded-[16px] bg-white px-[14px]" style={{ boxShadow: "0 1px 2px rgba(13,35,21,0.05), 0 8px 22px -16px rgba(13,35,21,0.22)" }}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#8C9A92" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden><circle cx="11" cy="11" r="6.5" /><path d="m16 16 4 4" /></svg>
+            <input value={query} onChange={(event) => { setQuery(event.target.value); setPage(0); }} placeholder="Find a child by name or roll number" aria-label="Find a child" className="min-w-0 flex-1 bg-transparent text-[14px] font-medium outline-none" style={{ color: INK }} />
+          </label>
+          <div className="-mx-[18px] flex gap-[8px] overflow-x-auto px-[18px] pb-[2px]" style={{ scrollbarWidth: "none" }} role="tablist" aria-label="Show">
+            {([["All", total], ["Unmarked", counts.unmarked], ["Present", counts.PRESENT], ["Absent", counts.ABSENT], ["Late", counts.LATE], ["Excused", counts.EXCUSED]] as const).map(([name, n]) => (
+              <button key={name} type="button" role="tab" aria-selected={filter === name} onClick={() => { setFilter(name); setPage(0); }} className="flex min-h-[40px] flex-none items-center gap-[7px] rounded-full border px-[15px] text-[14px] font-bold" style={filter === name ? { background: "#E3F1EA", borderColor: "#5FBF9F", color: INK } : { background: "#fff", borderColor: "#E4EDE8", color: "#435048" }}>
+                {name}<span className="rounded-full px-[7px] text-[11.5px] font-black" style={{ background: filter === name ? INK : "#EDF3EF", color: filter === name ? "#fff" : "#435048" }}>{n}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="mx-[-18px] flex flex-wrap items-center gap-[8px] border-b px-[18px] py-[10px] max-md:hidden" style={{ borderColor: "#EDF3EF", background: "#FAFCFB" }}>
           <input
             value={query}
             onChange={(event) => {
@@ -281,44 +311,36 @@ export function RegisterMarker({ panel, openDrawer }: { panel: MarkerPanel; open
             const pill = toneOf(status ? CHOICES.find((choice) => choice.value === status)?.tone : "neutral");
             const away = status === "ABSENT" || status === "EXCUSED" || status === "LATE";
             return (
-              <li key={student.id} className="border-t px-[18px] py-[12px]" style={{ borderColor: "#F0F5F2" }}>
-                <div className="flex items-start gap-[10px]">
-                  <span className="mt-[2px] font-mono text-[11px]" style={{ color: MUTED }}>{String(student.roll).padStart(2, "0")}</span>
+              <li key={student.id} className="border-t px-[16px] py-[10px]" style={{ borderColor: "#F0F5F2" }}>
+                <div className="flex items-center gap-[10px]">
+                  <span aria-label={status ? LABEL[status] : "Unmarked"} className="h-[9px] w-[9px] flex-none rounded-full border" style={{ background: status ? pill.dot : "transparent", borderColor: status ? pill.dot : "#C9D6CE" }} />
                   <span className="min-w-0 flex-1">
                     <span className="block text-[14px] font-bold leading-[1.3]" style={{ color: INK }}>{student.name}</span>
-                    <span className="mt-[2px] block font-mono text-[11px]" style={{ color: MUTED }}>
-                      {student.adm}
-                      {student.termRate !== null ? <span style={{ color: student.termRate < 75 ? "#B23B3B" : MUTED }}>{` · ${student.termRate}% this term`}</span> : null}
+                    <span className="mt-[1px] block text-[12px] font-medium" style={{ color: MUTED }}>
+                      Roll {String(student.roll).padStart(2, "0")}
+                      {student.termRate !== null ? <span style={{ color: student.termRate < 75 ? "#B23B3B" : MUTED }}>{` · term ${student.termRate}%`}</span> : null}
                     </span>
                   </span>
-                  <span
-                    className="mt-[2px] inline-flex flex-none items-center gap-[5px] rounded-full border px-[8px] py-[2px] text-[10px] font-semibold"
-                    style={{ background: pill.bg, color: pill.fg, borderColor: pill.bd }}
-                  >
-                    <span className="h-[5px] w-[5px] rounded-full" style={{ background: pill.dot }} />
-                    {status ? LABEL[status] : "Unmarked"}
-                  </span>
-                </div>
-
-                <div className="mt-[9px] grid grid-cols-4 gap-[6px]" role="group" aria-label={`Mark for ${student.name}`}>
-                  {CHOICES.map((choice) => {
-                    const on = status === choice.value;
-                    const swatch = toneOf(choice.tone);
-                    return (
-                      <button
-                        key={choice.value}
-                        type="button"
-                        disabled={locked}
-                        aria-pressed={on}
-                        aria-label={`${choice.label} — ${student.name}`}
-                        onClick={() => set(student.id, choice.value)}
-                        className="flex h-[44px] items-center justify-center rounded-[11px] border text-[13px] font-extrabold disabled:cursor-not-allowed disabled:opacity-50"
-                        style={{ borderColor: on ? swatch.dot : "#DEE8E2", background: on ? swatch.dot : "#fff", color: on ? "#fff" : "#5E6D64" }}
-                      >
-                        {choice.label}
-                      </button>
-                    );
-                  })}
+                  <div className="flex flex-none gap-[6px]" role="group" aria-label={`Mark for ${student.name}`}>
+                    {CHOICES.map((choice) => {
+                      const on = status === choice.value;
+                      const swatch = toneOf(choice.tone);
+                      return (
+                        <button
+                          key={choice.value}
+                          type="button"
+                          disabled={locked}
+                          aria-pressed={on}
+                          aria-label={`${choice.label} — ${student.name}`}
+                          onClick={() => set(student.id, choice.value)}
+                          className="flex h-[40px] w-[40px] items-center justify-center rounded-[12px] text-[14px] font-extrabold disabled:cursor-not-allowed disabled:opacity-50"
+                          style={{ background: on ? swatch.dot : "#EEF3F0", color: on ? "#fff" : "#7C8A82" }}
+                        >
+                          {choice.short}
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
 
                 {away ? (
@@ -358,6 +380,19 @@ export function RegisterMarker({ panel, openDrawer }: { panel: MarkerPanel; open
             </li>
           ) : null}
         </ul>
+
+        <div className="sticky bottom-0 z-[30] mx-[-18px] -mb-[12px] mt-[12px] rounded-t-[22px] bg-white px-[14px] pb-[12px] pt-[10px] md:hidden" style={{ boxShadow: "0 -12px 30px -22px rgba(13,35,21,0.45)" }}>
+          <div className="mb-[8px] flex items-center justify-between px-[4px] text-[12.5px] font-bold">
+            <span style={{ color: counts.unmarked ? "#8A6410" : "#17714F" }}>{counts.unmarked ? `${counts.unmarked} still unmarked` : "Every child is marked"}</span>
+            <span style={{ color: MUTED }}>{total - counts.unmarked} / {total}</span>
+          </div>
+          <div className="flex gap-[10px]">
+            <button type="button" disabled={locked} onClick={restPresent} className="h-[52px] flex-none rounded-[16px] px-[18px] text-[15px] font-extrabold disabled:opacity-50" style={{ background: "#EEF4F0", color: INK }}>Rest present</button>
+            <button type="button" disabled={locked} onClick={review} className="h-[52px] min-w-0 flex-1 rounded-[16px] text-[15px] font-extrabold text-white disabled:opacity-50" style={{ background: INK }}>
+              {done ? (submitted ? "Review & save" : "Review & submit") : "Review & submit"}
+            </button>
+          </div>
+        </div>
 
         <div className="mx-[-18px] hidden overflow-x-auto md:block">
           <table className="w-full min-w-[760px] border-collapse text-left">
@@ -456,7 +491,7 @@ export function RegisterMarker({ panel, openDrawer }: { panel: MarkerPanel; open
           </table>
         </div>
 
-        <div className="mx-[-18px] mb-[-12px] flex flex-wrap items-center justify-between gap-[10px] border-t px-[18px] py-[10px]" style={{ borderColor: "#EDF3EF", background: "#F7FAF8" }}>
+        <div className="mx-[-18px] mb-[-12px] flex flex-wrap items-center justify-between gap-[10px] border-t px-[18px] py-[10px] max-md:hidden" style={{ borderColor: "#EDF3EF", background: "#F7FAF8" }}>
           <p className="text-[10.5px] leading-normal" style={{ color: MUTED }}>
             P present · A absent · L late · E excused. An unmarked child is not present — the register will not submit until every one is set, on every page.
           </p>
