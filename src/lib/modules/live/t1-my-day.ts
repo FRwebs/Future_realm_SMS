@@ -201,11 +201,52 @@ function todayTab(d: DayView, me: TeacherWorkspaceView, permissions: string[]): 
     }]),
   ];
 
+  const hour = Number.parseInt(d.clock.slice(0, 2), 10);
+  const greet = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
+  const given = me.person.name.split(/\s+/).find((word) => !/^(mr|mrs|ms|miss|dr|prof|engr|chief|rev|pastor|alhaji|alhaja)\.?$/i.test(word)) ?? me.person.name;
+  const deckIcon = (kind: string, work: string) => {
+    const hint = `${kind} ${work}`.toLowerCase();
+    return /regist|attend/.test(hint) ? ICON.reg : /score|sheet|observ/.test(hint) ? ICON.score : /remark|note|plan/.test(hint) ? ICON.pen : /return/.test(hint) ? ICON.shield : ICON.clock;
+  };
+  // The deck is what is owed, in deadline order. A teacher with little owed would be left with a single card, so the shortcuts they hold
+  // follow it as "Also today" cards — real places to go, never invented work — until there are a few to page through.
+  const owed = d.queue.slice(0, 5).map((item, index) => ({
+    eyebrow: index === 0 ? "First · today" : `Next · ${item.due}`, icon: deckIcon(item.kind, item.work), title: item.work, sub: item.what,
+    cta: { label: item.action, href: item.href } as { label: string; href: string } | null,
+  }));
+  const also = owed.length >= 4 ? [] : quick.filter((tile) => !d.queue.some((item) => item.href === tile.href)).slice(0, 4 - owed.length).map((tile) => ({
+    eyebrow: owed.length ? "Also today" : "First · today", icon: tile.icon, title: tile.label, sub: tile.sub, cta: { label: "Open", href: tile.href } as { label: string; href: string } | null,
+  }));
+  const deck = [...owed, ...also];
+  const phone: PanelRow = {
+    ...row("1fr", [{
+      type: "embed", component: "phone-today",
+      props: {
+        greeting: `${greet}, ${given}`,
+        dateline: `${dayWords(d.date)} · Week ${d.week} of ${d.weeks}`,
+        deck,
+        nextLine: nextPeriod ? `Next period · ${nextPeriod.what.split(" · ")[0]} at ${nextPeriod.from}` : null,
+        tiles: quick.slice(0, 4),
+        returned: d.returned.map((entry) => ({
+          title: entry.label, by: `${entry.by}${entry.byRole ? `, ${entry.byRole}` : ""}`, when: entry.at ? clockOf(entry.at) : "", note: entry.note || "Returned for correction",
+          fix: `Your work is editable again. Resubmit it and it goes back to ${entry.by}.`, href: `/score-entry-results/enter/${entry.classId}/${entry.subjectId}`,
+        })),
+        queue: d.queue.map((item) => ({ title: item.work, sub: item.what, state: item.state, tone: stateTone(item.state), due: item.due, urgent: item.urgent, href: item.href })),
+        periods: d.periods.map((period) => ({ from: period.from, to: period.to, title: period.what, sub: [period.where, period.note].filter(Boolean).join(" · "), state: period.state })),
+        periodsTag: d.schoolDay ? (nextPeriod ? `Next · ${nextPeriod.from}` : `${d.periods.length} ${d.periods.length === 1 ? "period" : "periods"}`) : "Not a school day",
+        lastSync: d.sync.lastSyncedAt ? `${shortDay(d.sync.lastSyncedAt)} · ${clockOf(d.sync.lastSyncedAt)}` : null,
+      },
+    }]),
+    show: "phone",
+  };
+  // The desktop reads the rows above; a teacher's phone reads one screen drawn from the same day. The past-cutoff note stays on both.
+  const shown = rows.filter((entry): entry is PanelRow => Boolean(entry)).map((entry, index) => (index === 0 && entry.panels[0]?.type === "note" ? entry : { ...entry, show: "desktop" as const }));
+
   return {
     title: early ? "Today’s sessions" : "My Day",
     desc: `${dayWords(d.date)} · everything you owe, in deadline order.`,
     primary: first ? { label: first.action, icon: ARROW, href: first.href } : { label: "Open my timetable", icon: ICON.clock, href: "/class-timetable/timetable" },
-    rows: rows.filter((entry): entry is PanelRow => Boolean(entry)),
+    rows: [...shown, phone],
   };
 }
 

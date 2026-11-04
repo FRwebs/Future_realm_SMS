@@ -28,7 +28,7 @@ async function gate() {
 type Page = TabContent & { crumb: { label: string; href: string } };
 
 function Workspace({ content }: { content: Page }) {
-  return <ModuleWorkspace eyebrow="Score Entry & Results" title={content.title ?? "Score Entry & Results"} description={content.desc ?? ""} primary={content.primary} launchers={content.launchers} rows={content.rows} back={content.crumb} />;
+  return <ModuleWorkspace eyebrow="Score Entry & Results" title={content.title ?? "Score Entry & Results"} description={content.desc ?? ""} primary={content.primary} launchers={content.launchers} rows={content.rows} back={content.crumb} floatPrimary={content.noFab ? false : undefined} />;
 }
 
 export async function ArmReviewView({ classId }: { classId: string }) {
@@ -122,8 +122,6 @@ export async function ScoreImportView({ classId, subjectId }: { classId: string;
   if (!access.ok) return access.denied;
   const back = `/score-entry-results/enter/${classId}/${subjectId}`;
   return (
-    <ModuleWorkspace eyebrow="Score Entry & Results" title="Import scores from Excel" description="Download the template, fill it in, check what would change, then import it as a draft." rows={[]} back={{ label: "Back to the sheet", href: back }}>
-      <ScoreImport classId={classId} subjectId={subjectId} back={back} />
-    </ModuleWorkspace>
+    <ModuleWorkspace eyebrow="Score Entry & Results" title="Import scores from Excel" description="Download the template, fill it in, check what would change, then import it as a draft." rows={[]} back={{ label: "Back to the sheet", href: back }} body={<ScoreImport classId={classId} subjectId={subjectId} back={back} />} />
   );
 }

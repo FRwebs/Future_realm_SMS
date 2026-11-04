@@ -18,6 +18,7 @@ import { cn } from "@/lib/utils/cn";
  * needed to move.
  */
 export type AssetValue = { choice: string; data?: string; name?: string };
+export type FileValue = { name: string; data: string; size: number };
 
 /** What an asset field says about itself in a review, in words. */
 export function assetSummary(value: unknown): string {
@@ -140,6 +141,44 @@ export function Field({
       <div className={wrap}>
         {label}
         <LinesField field={field} value={(value as Array<Record<string, string>>) ?? []} setValue={setValue} />
+        {hint}
+      </div>
+    );
+  }
+
+  if (field.kind === "file") {
+    const file = value && typeof value === "object" ? (value as FileValue) : null;
+    const limit = field.maxKb ?? 1500;
+    return (
+      <div className={wrap}>
+        {label}
+        <div className="flex flex-wrap items-center gap-[10px]">
+          <input
+            type="file"
+            accept={field.accept ?? "application/pdf,image/png,image/jpeg,image/webp"}
+            aria-label={`${field.label} file`}
+            className="max-w-full text-[11px] text-[#435048] file:mr-[10px] file:cursor-pointer file:rounded-[8px] file:border file:border-[#CFDDD5] file:bg-white file:px-[11px] file:py-[6px] file:text-[11px] file:font-semibold file:text-[#435048]"
+            onChange={async (event) => {
+              const chosen = event.target.files?.[0];
+              if (!chosen) { setValue(""); return; }
+              if (chosen.size > limit * 1024) {
+                setValue("");
+                event.target.value = "";
+                window.alert(`That file is ${Math.round(chosen.size / 1024)} KB. Keep it under ${limit >= 1024 ? `${Math.round((limit / 1024) * 10) / 10} MB` : `${limit} KB`} — a clear photo of the paper is enough.`);
+                return;
+              }
+              const data = await new Promise<string>((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(String(reader.result));
+                reader.onerror = () => reject(new Error("That file could not be read."));
+                reader.readAsDataURL(chosen);
+              }).catch(() => "");
+              if (!data) { setValue(""); window.alert("That file could not be read."); return; }
+              setValue({ name: chosen.name, data, size: chosen.size } satisfies FileValue);
+            }}
+          />
+          {file ? <span className="text-[10.5px] text-[#435048]">{file.name} · {Math.max(1, Math.round(file.size / 1024))} KB</span> : <span className="text-[10.5px] text-[#8B9A91]">Nothing chosen yet</span>}
+        </div>
         {hint}
       </div>
     );

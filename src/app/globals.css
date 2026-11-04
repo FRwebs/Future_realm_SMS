@@ -1,5 +1,5 @@
 /* Web fonts. A remote @import must come before every other rule, so it lives here and not inside the layered tokens file. */
-@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Manrope:wght@400;500;600;700;800&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Manrope:wght@400;500;600;700;800&family=Nunito:wght@400;500;600;700;800;900&display=swap");
 @import url("https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap");
 
 @import '../styles/tokens.css' layer(base);
@@ -1368,4 +1368,110 @@ summary:focus-visible,
 [tabindex]:not([tabindex='-1']):focus-visible {
   outline: 2px solid #12796a;
   outline-offset: 1px;
+}
+
+/*
+ * The phone skin.
+ *
+ * The parent and teacher mobile mockups are not the desktop design narrowed —
+ * they are their own thing: Nunito instead of Inter, cards that float on a
+ * tinted page with a soft shadow instead of sitting in a 1px box, and a
+ * noticeably larger type scale, because a phone is held at arm's length in a
+ * corridor rather than studied on a desk.
+ *
+ * It applies only to the portals whose mockups draw a bottom bar, and only
+ * below tablet width, so the school admin and the Back Office are untouched.
+ */
+@media (max-width: 767.98px) {
+  [data-phone-skin="on"] {
+    --font-display: "Nunito", system-ui, -apple-system, "Segoe UI", sans-serif;
+    --font-body: "Nunito", system-ui, -apple-system, "Segoe UI", sans-serif;
+    --color-bg-app: #f4f7f5;
+  }
+
+  [data-phone-skin="on"] main {
+    background: #f4f7f5;
+  }
+
+  /* A card lifts off the page instead of being ruled off from it. */
+  [data-phone-skin="on"] .panel-card {
+    border-radius: 20px;
+    border-color: transparent;
+    box-shadow:
+      0 1px 2px rgba(13, 35, 21, 0.05),
+      0 8px 22px -14px rgba(13, 35, 21, 0.22);
+  }
+
+  /* Read at arm's length: the mockup's own sizes for a panel's own words. */
+  [data-phone-skin="on"] .panel-card .panel-title {
+    font-size: 15.5px;
+    letter-spacing: -0.01em;
+  }
+
+  [data-phone-skin="on"] .panel-card .panel-sub {
+    font-size: 12.5px;
+    line-height: 1.45;
+  }
+
+  /* A month on a phone is a grid of soft tiles: the day centred, a dot where something is on, and today filled ink. */
+  [data-phone-skin="on"] [data-cal-cell] {
+    min-height: 46px;
+    align-items: center;
+    justify-content: center;
+    border: 0 !important;
+    border-radius: 14px;
+    background: #f1f5f3 !important;
+    padding: 4px;
+    box-shadow: none !important;
+  }
+  [data-phone-skin="on"] [data-cal-cell][data-cal-weekend] {
+    background: transparent !important;
+  }
+  [data-phone-skin="on"] [data-cal-cell][data-cal-today] {
+    background: #0d2315 !important;
+  }
+  [data-phone-skin="on"] [data-cal-cell] > span:first-child {
+    color: #5c6b62 !important;
+  }
+  [data-phone-skin="on"] [data-cal-cell][data-cal-today] span {
+    color: #fff !important;
+  }
+  [data-phone-skin="on"] [data-cal-cell] [data-cal-note] {
+    display: none;
+  }
+}
+
+/* A form on a phone is a page with a bar of buttons under it: each button is a thumb's width tall, and the one that goes forward takes the room. */
+@media (max-width: 767.98px) {
+  [data-drawer-phone] [data-drawer-panel] {
+    max-width: none !important;
+    max-height: none !important;
+    height: 100%;
+    border-radius: 0 !important;
+    background: #f4f7f5;
+    box-shadow: none !important;
+  }
+  [data-drawer-phone] footer > div:first-child:not(:has(button)) {
+    display: none;
+  }
+  [data-drawer-phone] footer {
+    box-shadow: 0 -12px 30px -22px rgba(13, 35, 21, 0.45);
+    border-top: 0 !important;
+    flex-wrap: nowrap;
+  }
+  [data-drawer-phone] footer > div:last-child {
+    width: 100%;
+    flex-wrap: nowrap;
+  }
+  [data-drawer-phone] footer button {
+    min-height: 52px;
+    border-radius: 16px;
+    padding-inline: 20px;
+    font-size: 15px;
+    font-weight: 800;
+  }
+  [data-drawer-phone] footer button[style*="background: rgb(13, 35, 21)"],
+  [data-drawer-phone] footer button[style*="background:#0D2315"] {
+    flex: 1;
+  }
 }

@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import type { Route } from "next";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -62,13 +63,16 @@ import {
 } from "lucide-react";
 
 import { apiJson, getUrl } from "@/lib/api/client";
-import { membershipsContract, notificationsContract } from "@/lib/api/contracts";
+import { membershipsContract, myProfileContract, notificationsContract } from "@/lib/api/contracts";
+import { PhoneNotificationSheet } from "@/components/layout/phone-teacher-notifications";
 import { roleLabels } from "@/lib/auth/roles";
 import type {
   SessionUser,
   StudentPortalNotificationView,
 } from "@/lib/domain/types";
 import type { PortalType } from "@/lib/navigation/registry";
+import { useHasPhoneBar } from "@/components/layout/phone-shell";
+import type { ParentChrome } from "@/lib/api/parent-workspace";
 import type { StudentChrome } from "@/lib/api/student-workspace";
 import { useUiText } from "@/hooks/use-ui-text";
 import { cn } from "@/lib/utils/cn";
@@ -90,6 +94,9 @@ type TopbarProps = {
   onToggleTheme?: () => void;
   currentThemeMode?: "dark" | "light";
   studentChrome?: StudentChrome | null;
+  parentChrome?: ParentChrome | null;
+  /** The teacher's phone draws its own bar, so this one stays on tablets and desktops only. */
+  hideOnPhone?: boolean;
 };
 
 type DropdownItem = {
@@ -155,7 +162,7 @@ function chromeButton() {
   return "inline-flex h-10 w-10 items-center justify-center rounded-[10px] border border-(--color-border-default) bg-(--color-bg-surface) text-(--color-text-secondary) shadow-(--shadow-sm) transition hover:border-(--color-border-strong) hover:bg-(--color-bg-subtle) hover:text-(--color-text-primary)";
 }
 
-function initials(name: string) {
+export function initials(name: string) {
   return name
     .split(" ")
     .filter(Boolean)
@@ -219,7 +226,7 @@ export function dropdownItemsFor(
   // sidebar; students and guardians keep the profile inside their own portal.
   const profilePath =
     session.role === "PARENT"
-      ? "/portals/parent/profile"
+      ? "/portals/parent/account"
       : session.role === "STUDENT"
         ? "/portals/student/profile"
         : accountPath;
@@ -276,7 +283,7 @@ function Icon({
   return <Component className={cn("h-3.5 w-3.5", className)} />;
 }
 
-function DropdownShell({
+export function DropdownShell({
   open,
   className,
   children,
@@ -300,12 +307,15 @@ function DropdownShell({
   );
 }
 
-function NotificationBell({
+export function NotificationBell({
   session,
   portalType,
+  phone,
 }: {
   session: SessionUser;
   portalType: PortalType;
+  /** The teacher's phone bar draws the bell as a bare icon with a count: dark on the light home bar, white on the curved one. */
+  phone?: "light" | "dark";
 }) {
   const [open, setOpen] = useState(false);
   const bellRef = useRef<HTMLDivElement>(null);
@@ -322,6 +332,13 @@ function NotificationBell({
     staleTime: 15_000,
   });
   const notifications = feed.data ?? [];
+  // A teacher's phone says what the person's own quiet hours are under the list, so it reads the setting only there.
+  const quiet = useQuery({
+    queryKey: ["profile", "me", "quiet-hours"],
+    queryFn: ({ signal }) => apiJson(getUrl("/api/v1/profile/me"), signal, myProfileContract),
+    enabled: Boolean(phone) && open,
+    staleTime: 5 * 60_000,
+  });
   const markAllRead = useMutation({
     mutationFn: async () => {
       const token = document.cookie.split("; ").find((item) => item.startsWith("fr_csrf="))?.split("=")[1];
@@ -334,6 +351,8 @@ function NotificationBell({
 
   useEffect(() => {
     function handleOutsideClick(event: MouseEvent) {
+      // The phone's sheet is drawn on the page, outside this element, and closes itself.
+      if ((event.target as Element).closest?.('[role="dialog"][aria-label="Notifications"], [aria-label="Close notifications"]')) return;
       if (bellRef.current && !bellRef.current.contains(event.target as Node)) {
         setOpen(false);
       }
@@ -357,7 +376,26 @@ function NotificationBell({
 
   return (
     <div ref={bellRef} className="relative">
-      <button
+      {phone ? (
+        <button
+          type="button"
+          onClick={() => { if (open) markRead(); setOpen((value) => !value); }}
+          className="relative flex h-[44px] w-[44px] flex-none items-center justify-center rounded-full transition-colors active:bg-black/10"
+          aria-label={t("unreadNotifications", { count })}
+          aria-expanded={open}
+        >
+          <Bell className="h-[22px] w-[22px]" strokeWidth={1.8} style={{ color: phone === "dark" ? "#fff" : "#0D2315" }} />
+          {count ? (
+            <span
+              className="absolute right-[4px] top-[5px] flex h-[18px] min-w-[18px] items-center justify-center rounded-full px-[4px] text-[10px] font-extrabold text-white"
+              style={{ background: "#C93F3F", border: `2px solid ${phone === "dark" ? "#0D2315" : "#F4F7F5"}` }}
+            >
+              {count > 99 ? "99+" : count}
+            </span>
+          ) : null}
+        </button>
+      ) : (
+<button
         type="button"
         onClick={() => { if (open) markRead(); setOpen((value) => !value); }}
         className="relative flex flex-none items-center gap-[6px] rounded-[9px] border border-[#DEE8E2] bg-(--color-bg-surface) px-[10px] py-[6.5px] transition hover:border-[#BFDCD1] hover:bg-[#F7FAF8]"
@@ -373,7 +411,20 @@ function NotificationBell({
         </span>
       </button>
 
-      <DropdownShell open={open} className="w-72">
+)}
+
+      {phone ? (
+        open ? (
+          <PhoneNotificationSheet
+            notices={notifications.map((item) => ({ id: item.id, title: item.title, body: item.body, href: (item as { href?: string | null }).href ?? null, unread: item.status !== "READ" }))}
+            unread={count}
+            settingsHref={session.role === "PARENT" ? "/portals/parent/prefs" : undefined}
+            quietHours={quiet.data ? String((quiet.data.preferences as { quietHours?: string } | null | undefined)?.quietHours ?? "None") : null}
+            onClose={() => { markRead(); setOpen(false); }}
+          />
+        ) : null
+      ) : null}
+      <DropdownShell open={open} className={cn("w-72", phone && "hidden")}>
         <div className="overflow-hidden rounded-2xl border border-(--color-border-default) bg-(--color-bg-surface) shadow-(--shadow-lg)">
           <div className="border-b border-(--color-border-default) px-4 py-3.5">
             <p className="text-sm font-semibold text-(--color-text-primary)">
@@ -430,6 +481,148 @@ function NotificationBell({
     </div>
   );
 }
+
+/**
+ * Which child the portal is about, in the bar.
+ *
+ * It is here rather than above the page because the choice belongs to the
+ * session: a parent who picks a child keeps that child as they move between
+ * attendance, results and fees. Each chip carries what is outstanding for that
+ * child, so a parent can see where the problem is without opening each one.
+ *
+ * On the two pages that are about the parent rather than a child — their
+ * notification choices and their own account — the chips give way to who they
+ * are and what those settings cover, as the mockup does.
+ */
+function ParentSwitcher({ chrome }: { chrome: ParentChrome }) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const params = useSearchParams();
+  const page = pathname.replace(/^\/portals\/parent\/?/, "") || "overview";
+  const selected = params.get("child") ?? "all";
+
+  const order = useMemo(() => ["all", ...chrome.children.map((child) => child.id)], [chrome.children]);
+  const href = useMemo(() => {
+    const base = `/portals/parent${page === "overview" ? "" : `/${page}`}`;
+    return (child: string) => (child === "all" ? base || "/portals/parent" : `${base}?child=${child}`);
+  }, [page]);
+
+  // The bar promises "0–3" and "[ ]"; a promise in the interface has to work.
+  // Typing in a field is never a shortcut, so inputs are left alone.
+  useEffect(() => {
+    if (PARENT_ACCOUNT_PAGES.includes(page) || !chrome.children.length) return;
+    const onKey = (event: KeyboardEvent) => {
+      if (event.metaKey || event.ctrlKey || event.altKey) return;
+      const target = event.target as HTMLElement | null;
+      if (target && (/^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName) || target.isContentEditable)) return;
+      const at = order.indexOf(selected);
+      let next: string | undefined;
+      if (/^[0-9]$/.test(event.key)) next = order[Number(event.key)];
+      else if (event.key === "[") next = order[Math.max(0, at - 1)];
+      else if (event.key === "]") next = order[Math.min(order.length - 1, at + 1)];
+      if (!next || next === selected) return;
+      event.preventDefault();
+      router.push(href(next) as Route);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [order, selected, page, href, router, chrome.children.length]);
+
+  if (PARENT_ACCOUNT_PAGES.includes(page)) {
+    return (
+      <div className="min-w-0">
+        <p className="truncate font-[family-name:var(--font-heading)] text-[12.5px] font-bold leading-[1.25] text-(--color-text-primary)">{chrome.account.title}</p>
+        <p className="truncate text-[9.5px] leading-[1.3]" style={{ color: "#67766D" }}>{chrome.account.sub}</p>
+      </div>
+    );
+  }
+  if (!chrome.children.length) return null;
+
+  /** The line under a child's name is the one for the page being read. */
+  const lineFor = (stats: ParentChrome["family"]["stats"]): [string, string] => {
+    const own = page === "overview" ? stats.home : page === "attendance" ? stats.attendance : page === "fees" ? stats.fees : null;
+    return own && own[0] ? own : stats.fallback;
+  };
+  const ink = (tone: string) =>
+    tone === "negative" ? "#B23B3B" : tone === "attention" ? "#8A6410" : tone === "positive" ? "#17714F" : tone === "progress" ? "#2A5A96" : "#5C6B62";
+
+  const chip = (
+    key: string,
+    initials: string,
+    name: string,
+    stats: ParentChrome["family"]["stats"],
+    swatch: [string, string, string],
+    needs: number,
+    urgent: boolean,
+    photo: string | null,
+  ) => {
+    const on = key === selected;
+    const [line, tone] = lineFor(stats);
+    return (
+      <Link
+        key={key}
+        href={href(key) as Route}
+        aria-current={on ? "true" : undefined}
+        title={`${name}${needs ? ` · ${needs} ${needs === 1 ? "thing needs" : "things need"} you` : ""} · press ${order.indexOf(key)}`}
+        className="flex min-w-0 max-w-[236px] flex-[0_1_auto] items-center gap-[8px] rounded-[9px] py-[4px] pl-[4px] pr-[13px] transition-[background,box-shadow] duration-150"
+        style={on ? { background: "#0D2315", boxShadow: "0 6px 14px -8px rgba(13,35,21,0.6)" } : { background: "transparent" }}
+      >
+        <span className="relative flex-none">
+          <span
+            className="flex h-[28px] w-[28px] items-center justify-center overflow-hidden rounded-full border font-[family-name:var(--font-heading)] text-[10px] font-extrabold"
+            style={{ background: swatch[0], color: swatch[1], borderColor: swatch[2] }}
+          >
+            {photo ? <img src={photo} alt="" className="h-full w-full object-cover" /> : initials}
+          </span>
+          {needs ? (
+            <span
+              className="absolute -right-[5px] -top-[4px] flex h-[15px] min-w-[15px] items-center justify-center rounded-full px-[4px] text-[9px] font-extrabold leading-none"
+              style={{ background: urgent ? "#C93F3F" : "#E0A526", color: urgent ? "#fff" : "#0D2315", border: `1.5px solid ${on ? "#0D2315" : "#F2F7F4"}` }}
+            >
+              {needs}
+            </span>
+          ) : null}
+        </span>
+        <span className="hidden min-w-0 sm:block">
+          <span className="block truncate text-[11.5px] font-bold leading-[1.25]" style={{ color: on ? "#fff" : "#0D2315" }}>{name}</span>
+          {line ? (
+            <span
+              className="block truncate text-[9.5px] leading-[1.3]"
+              style={{ color: on ? "rgba(255,255,255,0.76)" : ink(tone), fontWeight: on ? 500 : 600 }}
+            >
+              {line}
+            </span>
+          ) : null}
+        </span>
+      </Link>
+    );
+  };
+
+  return (
+    <>
+      <div
+        className="flex min-w-0 items-center gap-[3px] overflow-x-auto overflow-y-hidden rounded-[12px] border p-[3px]"
+        style={{ background: "#F2F7F4", borderColor: "#E4EDE8", scrollbarWidth: "none" }}
+      >
+        {chip("all", "All", "Whole family", chrome.family.stats, ALL_SWATCH, chrome.family.needs, chrome.family.urgent, null)}
+        {chrome.children.map((child) => chip(child.id, child.initials, child.first, child.stats, child.swatch, child.needs, child.urgent, child.photoUrl))}
+      </div>
+      <span
+        title="Switch child from the keyboard: 0 for the whole family, 1 onwards for each child, [ and ] to step through. You stay on the same page."
+        className="hidden flex-none cursor-help rounded-[6px] border border-b-2 bg-white px-[6px] py-[2px] text-[9.5px] font-bold whitespace-nowrap lg:inline-block"
+        style={{ borderColor: "#DEE8E2", color: "#6B7A71" }}
+      >
+        0–{chrome.children.length}
+      </span>
+    </>
+  );
+}
+
+/** The whole-family chip's own colour, distinct from any one child's. */
+const ALL_SWATCH: [string, string, string] = ["#E6F2EC", "#12796A", "#CFE4DB"];
+
+/** The parent pages that are about the parent, where the switcher gives way to their own name. */
+const PARENT_ACCOUNT_PAGES = ["prefs", "account", "sync"];
 
 /**
  * The lesson running now, and the one after it.
@@ -520,7 +713,7 @@ function SyncPill() {
   );
 }
 
-function ProfileDropdown({
+export function ProfileDropdown({
   session,
   schoolName,
   permissions,
@@ -799,8 +992,11 @@ export function Topbar({
   onToggleTheme,
   currentThemeMode,
   studentChrome,
+  parentChrome,
+  hideOnPhone,
 }: TopbarProps) {
   const t = useTranslations("shell");
+  const hasPhoneBar = useHasPhoneBar();
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -852,13 +1048,15 @@ export function Topbar({
   }, []);
 
   return (
-    <header className="sticky top-0 z-30 w-full shrink-0 border-b border-(--color-border-default) bg-(--color-bg-surface)">
+    <header className={cn("sticky top-0 z-30 w-full shrink-0 border-b border-(--color-border-default) bg-(--color-bg-surface)", hideOnPhone && "max-md:hidden")}>
       <div className="relative flex h-(--layout-topbar-height) items-center justify-between gap-4 overflow-visible px-4 md:px-6">
         <div className="flex min-w-0 flex-1 items-center gap-[10px]">
+          {/* A portal with a bar at the bottom of a phone navigates from
+              there, so the burger would open a rail nobody needs. */}
           <button
             type="button"
             onClick={onOpenMobileSidebar}
-            className={cn(chromeButton(), "md:hidden")}
+            className={cn(chromeButton(), hasPhoneBar ? "hidden" : "md:hidden")}
             aria-label={t("toggleMenu")}
           >
             <Menu className="h-4 w-4" />
@@ -870,13 +1068,18 @@ export function Topbar({
               the top bar over to that. */}
           {studentChrome ? <NowPill chrome={studentChrome} /> : null}
 
+          {/* "Which child" belongs to the session, not to one screen: a parent
+              who picks a child keeps that choice as they move around, so the
+              switcher lives in the bar. */}
+          {parentChrome ? <ParentSwitcher chrome={parentChrome} /> : null}
+
           {portalType === "super_admin" ? (
             <span className="hidden h-8 w-8 shrink-0 items-center justify-center rounded-[10px] bg-[#0d2315] text-[0.68rem] font-black text-white sm:flex">
               FR
             </span>
           ) : null}
 
-          {studentChrome ? null : (
+          {studentChrome || parentChrome ? null : (
           <div className="min-w-[96px] max-w-[340px] flex-[0_1_auto]">
             <p
               className={cn(
@@ -912,7 +1115,7 @@ export function Topbar({
 
           {/* The term is the one piece of context every screen is read against,
               so the mockup gives it its own chip rather than a meta clause. */}
-          {portalType !== "super_admin" && termChipLabel && !studentChrome ? (
+          {portalType !== "super_admin" && termChipLabel && !studentChrome && !parentChrome ? (
             <>
               <span className="hidden h-[22px] w-px flex-none bg-[#E6EEE9] sm:block" />
               <span
@@ -1042,7 +1245,7 @@ export function Topbar({
               >
                 <span
                   className="flex h-[27px] w-[27px] flex-none items-center justify-center rounded-full font-(family-name:--font-heading) text-[10px] font-extrabold"
-                  style={studentChrome ? { background: "#EBF1FA", color: "#2A5A96", border: "1px solid #C9DAF0" } : { background: "#0D2315", color: "#fff" }}
+                  style={studentChrome || parentChrome ? { background: "#EBF1FA", color: "#2A5A96", border: "1px solid #C9DAF0" } : { background: "#0D2315", color: "#fff" }}
                 >
                   {initials(session.name)}
                 </span>

@@ -1,4 +1,5 @@
 import { consentTab, loadConsent } from "@/lib/modules/live/m9-consent";
+import { familyFormsTab, loadForms } from "@/lib/modules/live/m9-family-forms";
 import { guardiansTab, loadFamilies } from "@/lib/modules/live/m9-guardians";
 import { loadSubmissionOptions, loadSubmissions, submissionsTab } from "@/lib/modules/live/m9-submissions";
 import type { TabContent } from "@/lib/modules/panels";
@@ -18,5 +19,6 @@ export async function parentsGuardiansLiveTab(tabSlug: string): Promise<TabConte
     return submissionsTab(data, options);
   }
   if (tabSlug === "consent") return consentTab(await loadConsent());
+  if (tabSlug === "forms") return familyFormsTab(await loadForms());
   return undefined;
 }

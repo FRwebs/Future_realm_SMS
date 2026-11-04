@@ -1,10 +1,12 @@
 "use client";
 
 import { AlertTriangle, Info, Megaphone, Wrench, X } from "lucide-react";
+import { usePathname } from "next/navigation";
 import { useState } from "react";
 
 import { configApi } from "@/components/configuration/api";
 import type { PlatformSyncView } from "@/lib/domain/types";
+import { usePhoneKind } from "@/components/layout/phone-shell";
 import { cn } from "@/lib/utils/cn";
 import { formatDay } from "@/lib/date-format";
 
@@ -20,8 +22,19 @@ const stamp = (value: string) =>
   formatDay(new Date(value), { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" }, "en-NG");
 
 function Notice({ tone, icon: Icon, title, children, onClose }: { tone: Tone; icon: typeof Info; title: string; children?: React.ReactNode; onClose?: () => void }) {
+  // On a teacher's phone a notice is one of the page's own soft cards, not a ruled box laid over it.
+  const soft = usePhoneKind() !== null;
+  // The teacher mobile mockup keeps every screen but the first clear of announcements. What is only information waits on Today; what
+  // changes what the teacher can do — maintenance, read-only, a warning — is never hidden.
+  const here = usePathname().replace(/\/$/, "");
+  const home = here === "/command-center/today" || here === "/portals/parent/overview" || here === "/portals/parent";
   return (
-    <div role={tone === "critical" ? "alert" : "status"} className={cn("flex items-start gap-3 rounded-[10px] border px-3.5 py-2.5 text-[12.5px] leading-5", TONE[tone])}>
+    <div
+      role={tone === "critical" ? "alert" : "status"}
+      data-notice=""
+      data-quiet={soft && tone === "info" && !home ? "" : undefined}
+      className={cn("flex items-start gap-3 border px-3.5 py-2.5 text-[12.5px] leading-5 rounded-[10px]", TONE[tone], soft && tone === "info" && !home && "max-md:hidden", soft && "max-md:rounded-[18px] max-md:border-transparent max-md:px-4 max-md:py-3 max-md:font-medium", soft && tone === "info" && "max-md:bg-[#E9F3EE] max-md:text-[#2F5A49]")}
+    >
       <Icon className="mt-0.5 size-4 shrink-0" aria-hidden />
       <div className="min-w-0 flex-1">
         <p className="font-bold">{title}</p>
@@ -43,12 +56,12 @@ function Notice({ tone, icon: Icon, title, children, onClose }: { tone: Tone; ic
  *
  * Most of this is addressed to whoever runs the school: a plan that has not
  * been chosen, a tier changing next term, "review pending approvals before
- * publishing reports". None of it is a student's to act on, and a child should
+ * publishing reports". None of it is a student's to act on, and a child or their parent should
  * not be handed an operator's notice above their homework. So a student is
  * shown only what actually reaches them — when the system will be down, and
  * that it is down now.
  */
-export function PlatformNotices({ sync, operational = true }: { sync: PlatformSyncView; operational?: boolean }) {
+export function PlatformNotices({ sync, operational = true, inline = false }: { sync: PlatformSyncView; operational?: boolean; /** Drawn inside the scrolling page, which already has its own gutters. */ inline?: boolean }) {
   const [gone, setGone] = useState<string[]>([]);
   const dismiss = (id: string) => {
     setGone((current) => [...current, id]);
@@ -63,7 +76,8 @@ export function PlatformNotices({ sync, operational = true }: { sync: PlatformSy
   if (!readOnly && !platformMessage && !windows.length && !announcements.length && !pendingSwitch) return null;
 
   return (
-    <div className="grid gap-2 px-4 pt-3 md:px-6">
+    // When a teacher's phone is hiding every notice here, the strip's own padding goes with them.
+    <div className={cn("grid gap-2 max-md:[&:not(:has([data-notice]:not([data-quiet])))]:hidden", inline ? "mb-3" : "px-4 pt-3 md:px-6")}>
       {readOnly ? (
         <Notice tone="warning" icon={AlertTriangle} title={readOnly.kind === "maintenance" ? "FutureRealm is in maintenance — read only" : "Read-only until you choose a plan"}>
           {readOnly.reason}

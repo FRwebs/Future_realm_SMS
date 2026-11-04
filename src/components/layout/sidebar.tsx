@@ -8,6 +8,7 @@ import { useTranslations } from "next-intl";
 import { ChevronDown, FileText, HelpCircle, LogOut, PanelLeftClose, PanelLeftOpen, Search, Settings, User, X } from "lucide-react";
 
 import { roleLabels } from "@/lib/auth/roles";
+import type { ParentChrome } from "@/lib/api/parent-workspace";
 import type { StudentChrome } from "@/lib/api/student-workspace";
 import { dropdownItemsFor } from "@/components/layout/topbar";
 import { SessionUser } from "@/lib/domain/types";
@@ -29,6 +30,7 @@ type SidebarProps = {
   /** A badge that needs its own colour, by item id — the mockup's amber "work to do", red once any of it is late. */
   navBadgeTones?: Record<string, "warning" | "danger" | undefined>;
   studentChrome?: StudentChrome | null;
+  parentChrome?: ParentChrome | null;
   hiddenNavIds?: string[];
   /** The teaching workspace's rail, when the signed-in person is a teacher. */
   teacherRail?: TeacherRail | null;
@@ -68,6 +70,7 @@ function SidebarContent({
   navBadges,
   navBadgeTones,
   studentChrome,
+  parentChrome,
   hiddenNavIds,
   teacherRail,
 }: {
@@ -83,6 +86,7 @@ function SidebarContent({
   /** A badge that needs its own colour, by item id — the mockup's amber "work to do", red once any of it is late. */
   navBadgeTones?: Record<string, "warning" | "danger" | undefined>;
   studentChrome?: StudentChrome | null;
+  parentChrome?: ParentChrome | null;
   hiddenNavIds?: string[];
   teacherRail?: TeacherRail | null;
 }) {
@@ -462,7 +466,20 @@ function SidebarContent({
         </div>
       ) : null}
 
-      {studentChrome ? null : (
+      {/* A parent's rail ends with the school office. They know who they are;
+          what they reach for is the school's phone number. */}
+      {parentChrome && !collapsed ? (
+        <div className="border-t px-[13px] pb-[14px] pt-[11px]" style={{ borderColor: "rgba(255,255,255,0.1)" }}>
+          <p className="mb-[7px] text-[9px] font-bold uppercase tracking-[0.1em]" style={{ color: "rgba(255,255,255,0.55)" }}>
+            School office
+          </p>
+          <p className="truncate text-[11px] font-semibold text-white">{parentChrome.office.name}</p>
+          <p className="mt-[2px] truncate text-[10px] font-semibold" style={{ color: "#3EE08A" }}>{parentChrome.office.term}</p>
+          <p className="mt-[2px] truncate text-[10px]" style={{ color: "rgba(255,255,255,0.6)" }} title={parentChrome.office.line}>{parentChrome.office.line}</p>
+        </div>
+      ) : null}
+
+      {studentChrome || parentChrome ? null : (
       <div ref={accountMenuRef} className="relative border-t border-[rgba(255,255,255,0.13)] px-4 py-3.5">
         {accountMenuOpen && (
           <div
@@ -541,6 +558,7 @@ export function Sidebar({
   navBadges,
   navBadgeTones,
   studentChrome,
+  parentChrome,
   hiddenNavIds,
   teacherRail,
 }: SidebarProps) {
@@ -568,6 +586,7 @@ export function Sidebar({
           navBadges={navBadges}
           navBadgeTones={navBadgeTones}
           studentChrome={studentChrome}
+          parentChrome={parentChrome}
           hiddenNavIds={hiddenNavIds}
           teacherRail={teacherRail}
         />
@@ -586,6 +605,7 @@ export function Sidebar({
             navBadges={navBadges}
             navBadgeTones={navBadgeTones}
             studentChrome={studentChrome}
+            parentChrome={parentChrome}
             hiddenNavIds={hiddenNavIds}
             teacherRail={teacherRail}
             isMobile

@@ -796,6 +796,34 @@ export const NAV_REGISTRY: NavigationRegistryItem[] = [
     group: "Parent Portal",
     order: 125,
   },
+  // The rebuilt parent portal. Its own rail comes from parent-workspace.ts and
+  // obeys the school's guardian-visibility policy, so these are registered only
+  // to be reachable, and kept out of the generic sidebar.
+  ...(
+    [
+      ["overview", "Overview", 121],
+      ["attendance", "Attendance", 126],
+      ["learning", "Timetable and lessons", 127],
+      ["results", "Results and reports", 128],
+      ["calendar", "Calendar", 129],
+      ["meetings", "Meetings", 130],
+      ["fees", "Fees and payments", 131],
+      ["consents", "Forms and consents", 132],
+      ["requests", "Requests", 133],
+      ["prefs", "Notifications", 134],
+      ["account", "Account and security", 135],
+    ] as const
+  ).map(([slug, label, order]) => ({
+    id: `parent_${slug}`,
+    label,
+    icon: "Users" as const,
+    path: `/portals/parent/${slug}`,
+    requiredPermissions: [] as string[],
+    portalType: "school" as const,
+    group: "Parent Portal" as const,
+    order,
+    hideFromSidebar: true,
+  })),
 ];
 
 /**

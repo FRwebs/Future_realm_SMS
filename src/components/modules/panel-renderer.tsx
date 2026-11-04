@@ -20,7 +20,9 @@ import {
   X,
 } from "lucide-react";
 
+import { usePhoneKind } from "@/components/layout/phone-shell";
 import { Field, initialValue } from "@/components/modules/field";
+import { PhoneFacts, PhoneList, PhoneNote, PhoneStats, PhoneSteps, PhoneTable } from "@/components/modules/phone-teacher-panels";
 import { ModuleDrawer } from "@/components/modules/lazy-drawer";
 import type {
   DrawerSpec,
@@ -228,7 +230,9 @@ function TriggerControl({
  * foot bleed to the box edge; the body keeps an 18px gutter.
  */
 export const PANEL_SHELL =
-  "min-w-0 overflow-hidden rounded-[14px] border bg-(--color-bg-surface) px-[18px] pb-[12px]";
+  // `panel-card` is the hook the phone skin restyles: on a phone these float on
+  // a tinted page with a soft shadow instead of sitting in a 1px box.
+  "panel-card min-w-0 overflow-hidden rounded-[14px] border bg-(--color-bg-surface) px-[18px] pb-[12px]";
 
 /** The mockup's two panel-action faces: ink for the primary, outlined otherwise. */
 function panelActClass(primary?: boolean) {
@@ -279,7 +283,7 @@ export function PanelHeader({
       <div className="min-w-0 flex-[1_1_260px]">
         <div className="flex flex-wrap items-center gap-2">
           <h2
-            className="text-pretty text-[12.5px] font-semibold leading-[1.3]"
+            className="panel-title text-pretty text-[12.5px] font-semibold leading-[1.3]"
             style={{ color: INK }}
           >
             {title}
@@ -299,7 +303,7 @@ export function PanelHeader({
         </div>
         {sub ? (
           <p
-            className="mt-[3.5px] text-pretty text-[10.5px] leading-normal"
+            className="panel-sub mt-[3.5px] text-pretty text-[10.5px] leading-normal"
             style={{ color: MUTED }}
           >
             {sub}
@@ -401,6 +405,112 @@ function FactList({ facts, per }: { facts: PanelFact[]; per?: number }) {
         </div>
       ))}
     </dl>
+  );
+}
+
+/**
+ * A table's rows, on a phone.
+ *
+ * A table is a grid because a wide screen can hold one; a phone cannot, and
+ * sideways-scrolling a register to find one child's mark is nobody's idea of
+ * reading. Both mobile mockups answer this the same way — the same rows, as a
+ * generous list: who it is on the left, the figures underneath as labelled
+ * pairs, and the row's own action at the right where a thumb is.
+ *
+ * It is built from the very same cells the table draws, so a row cannot say one
+ * thing on a laptop and another on a phone. The column headings become the
+ * labels, which is why a table with good headings reads well here for free.
+ */
+function PhoneRows({
+  rows,
+  head,
+  noun,
+  openDrawer,
+  onOpen,
+}: {
+  rows: TableRow[];
+  head: string[];
+  noun: string;
+  openDrawer: (spec: DrawerSpec) => void;
+  onOpen: (row: TableRow) => void;
+}) {
+  const ui = useUiText();
+  if (!rows.length) return null;
+  return (
+    <ul className="mx-[-18px] md:hidden">
+      {rows.map((row, index) => {
+        // What leads the row: a person if the table names one, else its first cell.
+        const lead = row.cells.find((cell): cell is Extract<TableCellKind, { kind: "name" }> => cell.kind === "name") ?? null;
+        const leadAt = lead ? row.cells.indexOf(lead) : -1;
+        const action = row.cells.find((cell): cell is Extract<TableCellKind, { kind: "action" }> => cell.kind === "action" && Boolean(cell.href || cell.drawer)) ?? null;
+        const actionAt = action ? row.cells.indexOf(action) : -1;
+        // Everything else becomes a labelled pair under the title.
+        const facts = row.cells
+          .map((cell, at) => ({ cell, at }))
+          .filter(({ cell, at }) => at !== leadAt && at !== actionAt && cell.kind !== "action")
+          .filter(({ cell }) => !(cell.kind === "text" && !cell.text.trim()));
+        const title = lead ? lead.name : facts[0] && facts[0].cell.kind === "text" ? facts[0].cell.text : (head[0] ?? "");
+        const rest = lead ? facts : facts.slice(1);
+        const initials = lead?.name.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]).join("").toUpperCase();
+        const opens = Boolean(row.href || row.drawer || action);
+
+        return (
+          <li key={index} className={cn("px-[16px]", index ? "border-t" : "")} style={index ? { borderColor: "#F2F7F4" } : undefined}>
+            <div
+              className={cn("flex min-h-[66px] items-start gap-[12px] py-[12px]", opens && "cursor-pointer")}
+              {...(opens
+                ? {
+                    role: "button" as const,
+                    tabIndex: 0,
+                    onClick: (event: React.MouseEvent) => {
+                      if ((event.target as HTMLElement).closest("a,button,input,select,textarea,label")) return;
+                      onOpen(row);
+                    },
+                    // A row a thumb can tap is a row a keyboard can open.
+                    onKeyDown: (event: React.KeyboardEvent) => {
+                      if (event.key !== "Enter" && event.key !== " ") return;
+                      if ((event.target as HTMLElement).closest("a,button,input,select,textarea,label")) return;
+                      event.preventDefault();
+                      onOpen(row);
+                    },
+                  }
+                : {})}
+            >
+              {lead && lead.avatar !== false ? (
+                <span
+                  className="flex h-[44px] w-[44px] flex-none items-center justify-center rounded-full font-(family-name:--font-heading) text-[13.5px] font-extrabold"
+                  style={{ background: "#EEF4F0", color: INK }}
+                >
+                  {initials}
+                </span>
+              ) : null}
+              <span className="min-w-0 flex-1">
+                <span className="block text-[14px] font-bold leading-[1.3]" style={{ color: INK }}>{title}</span>
+                {lead?.sub ? <span className="mt-[2px] block text-[12.5px] leading-[1.45]" style={{ color: "#5C6B62" }}>{lead.sub}</span> : null}
+                {rest.length ? (
+                  <span className="mt-[7px] flex flex-wrap items-center gap-x-[14px] gap-y-[5px]">
+                    {rest.map(({ cell, at }) => (
+                      <span key={at} className="flex min-w-0 items-baseline gap-[5px] text-[12px]">
+                        {head[at] ? <span style={{ color: "#8C9A92" }}>{ui(head[at]!)}</span> : null}
+                        <span className="min-w-0">
+                          <Cell cell={cell} openDrawer={openDrawer} />
+                        </span>
+                      </span>
+                    ))}
+                  </span>
+                ) : null}
+              </span>
+              {action ? (
+                <span className="flex-none">
+                  <Cell cell={action} openDrawer={openDrawer} />
+                </span>
+              ) : null}
+            </div>
+          </li>
+        );
+      })}
+      <li className="sr-only">{`${rows.length} ${noun}`}</li>
+    </ul>
   );
 }
 
@@ -876,9 +986,23 @@ function TableView({ panel, openDrawer, engine }: { panel: Extract<Panel, { type
           </p>
         </div>
       ) : (
-        // Wide tables scroll sideways; a keyboard has to be able to reach the scrolling region to move it (axe: scrollable-region-focusable).
-        // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex
-        <div className="mx-[-18px] min-w-0 overflow-x-auto" tabIndex={0} role="region" aria-label={panel.title ? `${panel.title} — scrolls sideways` : "Table — scrolls sideways"}>
+        <>
+        <PhoneRows
+          rows={visible}
+          head={panel.head}
+          noun={noun}
+          openDrawer={openDrawer}
+          onOpen={(row) => {
+            const own = row.cells.find((cell): cell is Extract<TableCellKind, { kind: "action" }> => cell.kind === "action" && Boolean(cell.href || cell.drawer));
+            const href = row.href ?? (row.drawer ? undefined : own?.href);
+            const spec = row.href ? undefined : (row.drawer ?? own?.drawer ?? (panel.noRowOpen ? undefined : rowDetailDrawer(panel, row) ?? undefined));
+            if (href) router.push(href as Route);
+            else if (spec) openDrawer(spec);
+          }}
+        />
+        {/* Wide tables scroll sideways; a keyboard has to be able to reach the scrolling region to move it (axe: scrollable-region-focusable). */}
+        {/* eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex */}
+        <div className="mx-[-18px] hidden min-w-0 overflow-x-auto md:block" tabIndex={0} role="region" aria-label={panel.title ? `${panel.title} — scrolls sideways` : "Table — scrolls sideways"}>
           <table className={cn("w-full border-collapse", dense ? "min-w-0" : "min-w-[640px]")}>
             <thead>
               <tr
@@ -996,6 +1120,7 @@ function TableView({ panel, openDrawer, engine }: { panel: Extract<Panel, { type
             ) : null}
           </table>
         </div>
+        </>
       )}
 
       {pageCount > 1 ? (
@@ -1264,7 +1389,34 @@ function CardTile({ card }: { card: KpiCard }) {
   );
 }
 
-export function PanelView({
+/**
+ * A panel, drawn for whoever is looking. On a teacher's phone the stat cards, tables, lists and notes are the teacher mobile mockup's own
+ * blocks; everywhere else, and for every other kind of panel, it is the panel the desktop reads.
+ */
+export function PanelView({ panel, openDrawer }: { panel: Panel; openDrawer: OpenDrawer }) {
+  const teacherPhone = usePhoneKind() !== null;
+  const only = "show" in panel ? panel.show : undefined;
+  const phone =
+    teacherPhone && (panel.type === "kpi" || panel.type === "list" || panel.type === "note" || panel.type === "facts" || (panel.type === "steps" && !panel.prevHref && !panel.nextHref) || (panel.type === "table" && !panel.window && !panel.selectable && !panel.bulkActs));
+  if (!phone) return <PanelViewDesktop panel={panel} openDrawer={openDrawer} />;
+  return (
+    <>
+      {only === "desktop" ? null : <div className="md:hidden">
+        {panel.type === "kpi" ? <PhoneStats panel={panel} openDrawer={openDrawer} /> : null}
+        {panel.type === "table" ? <PhoneTable panel={panel} openDrawer={openDrawer} /> : null}
+        {panel.type === "list" ? <PhoneList panel={panel} openDrawer={openDrawer} /> : null}
+        {panel.type === "note" ? <PhoneNote panel={panel} openDrawer={openDrawer} /> : null}
+        {panel.type === "facts" ? <PhoneFacts panel={panel} openDrawer={openDrawer} /> : null}
+        {panel.type === "steps" ? <PhoneSteps panel={panel} /> : null}
+      </div>}
+      {only === "phone" ? null : <div className="max-md:hidden">
+        <PanelViewDesktop panel={panel} openDrawer={openDrawer} />
+      </div>}
+    </>
+  );
+}
+
+function PanelViewDesktop({
   panel,
   openDrawer,
 }: {
@@ -1307,11 +1459,17 @@ export function PanelView({
             flush
           />
         )}
+        {/*
+          Two across on a phone, as the mobile mockups lay them out.
+
+          `auto-fit` with a 200-odd pixel minimum collapses to a single column
+          at 375px, which turns four figures into a tall stack a thumb has to
+          scroll past. The mockup pairs them instead: four figures fit on one
+          screen, which is the whole point of putting them at the top.
+        */}
         <div
-          className="grid items-stretch gap-[10px]"
-          style={{
-            gridTemplateColumns: `repeat(auto-fit, minmax(${minCol}px, 1fr))`,
-          }}
+          className="grid grid-cols-2 items-stretch gap-[10px] md:[grid-template-columns:var(--kpi-cols)]"
+          style={{ "--kpi-cols": `repeat(auto-fit, minmax(${minCol}px, 1fr))` } as React.CSSProperties}
         >
           {panel.cards.map((card) => {
             const swatch = card.tone ? toneOf(card.tone) : null;
@@ -1573,6 +1731,76 @@ export function PanelView({
           openDrawer={openDrawer}
         />
         <FactList facts={panel.facts} per={panel.per} />
+        {panel.foot ? <PanelFoot>{panel.foot}</PanelFoot> : null}
+      </section>
+    );
+  }
+
+  if (panel.type === "calendar") {
+    const columns = panel.per ?? 5;
+    return (
+      <section className={PANEL_SHELL} style={{ borderColor: CARD_BORDER }}>
+        <div className="max-md:hidden"><PanelHeader title={panel.title} sub={panel.sub} openDrawer={openDrawer} /></div>
+        {panel.acts?.length ? (
+          <div className="mb-[10px] flex flex-wrap gap-[5px] max-md:hidden">
+            {panel.acts.map((act) => (
+              <Link
+                key={act.label + act.href}
+                href={act.href as Route}
+                className="rounded-[8px] border px-[10px] py-[5px] text-[10.5px] font-semibold"
+                style={act.on ? { background: INK, color: "#fff", borderColor: INK } : { background: "#fff", color: "#435048", borderColor: CARD_BORDER }}
+              >
+                {act.label}
+              </Link>
+            ))}
+          </div>
+        ) : null}
+        {panel.dow?.length ? (
+          <div className="mb-[5px] grid gap-[6px]" style={{ gridTemplateColumns: `repeat(${columns}, minmax(0,1fr))` }}>
+            {panel.dow.map((day) => (
+              <span key={day} className="text-[9.5px] font-bold uppercase tracking-[0.07em]" style={{ color: MUTED }}>{day}</span>
+            ))}
+          </div>
+        ) : null}
+        <div className="grid gap-[6px]" style={{ gridTemplateColumns: `repeat(${columns}, minmax(0,1fr))` }}>
+          {panel.cells.map((cell, index) => {
+            if (cell.blank) return <span key={`blank-${index}`} className="min-h-[62px]" />;
+            const swatch = cell.tone ? toneOf(cell.tone) : null;
+            const style = {
+              background: swatch ? swatch.bg : "#FBFDFC",
+              border: swatch ? `1px solid ${swatch.bd}` : "1px dashed #E4EDE8",
+              boxShadow: cell.today ? "inset 0 0 0 1.5px #0D2315" : undefined,
+            } as React.CSSProperties;
+            const body = (
+              <>
+                <span className="text-[11.5px] font-bold" style={{ color: swatch ? INK : "#AAB8B0" }}>{cell.label}</span>
+                {cell.note ? (
+                  <span data-cal-note="" className="truncate text-[9.5px] font-bold" style={{ color: swatch ? swatch.fg : "#AAB8B0" }}>{cell.note}</span>
+                ) : null}
+                {swatch ? <span aria-hidden className="hidden h-[5px] w-[5px] rounded-full max-md:block" style={{ background: swatch.dot }} /> : null}
+              </>
+            );
+            const className = "flex min-h-[62px] min-w-0 flex-col justify-between rounded-[10px] p-[7px] text-left";
+            const flags = { "data-cal-cell": "", ...(cell.weekend ? { "data-cal-weekend": "" } : {}), ...(cell.today ? { "data-cal-today": "" } : {}) };
+            const trigger = cell as Partial<Trigger>;
+            if (trigger.href) return <Link key={`${cell.label}-${index}`} href={trigger.href as Route} className={className} style={style} {...flags}>{body}</Link>;
+            if (trigger.drawer) {
+              const spec = trigger.drawer;
+              return <button key={`${cell.label}-${index}`} type="button" onClick={() => openDrawer(spec)} className={className} style={style} {...flags}>{body}</button>;
+            }
+            return <span key={`${cell.label}-${index}`} className={className} style={style} {...flags}>{body}</span>;
+          })}
+        </div>
+        {panel.legend?.length ? (
+          <div className="mt-[10px] flex flex-wrap items-center gap-x-[14px] gap-y-[5px]">
+            {panel.legend.map((entry) => (
+              <span key={entry.label} className="flex items-center gap-[5px] text-[9.5px] font-semibold" style={{ color: "#5F6E65" }}>
+                <span className="h-[8px] w-[8px] rounded-full" style={{ background: toneOf(entry.tone).dot }} />
+                {entry.label}
+              </span>
+            ))}
+          </div>
+        ) : null}
         {panel.foot ? <PanelFoot>{panel.foot}</PanelFoot> : null}
       </section>
     );
@@ -2400,7 +2628,8 @@ export function PanelRowsWithDrawer({
       });
       if (!panels.length) return null;
       const cols = panels.length === panelRow.panels.length ? panelRow.cols : panels.map(() => "1fr").join(" ");
-      return { cols, panels };
+      const kept: PanelRow = { cols, panels, ...(panelRow.show ? { show: panelRow.show } : {}) };
+      return kept;
     })
     .filter((row): row is PanelRow => row !== null);
 
@@ -2411,7 +2640,7 @@ export function PanelRowsWithDrawer({
           key={index}
           // One column on small screens; the mockup's ratios apply from lg up via
           // the --panel-cols custom property (see .panel-row in globals.css).
-          className="panel-row grid gap-4"
+          className={cn("panel-row grid gap-4", panelRow.show === "desktop" && "max-md:hidden", panelRow.show === "phone" && "md:hidden")}
           style={
             { ["--panel-cols" as string]: panelRow.cols } as React.CSSProperties
           }

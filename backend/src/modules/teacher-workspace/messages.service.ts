@@ -5,6 +5,7 @@ import { z } from "zod";
 import type { SessionPayload } from "../../../../src/lib/auth/session-core";
 import { prisma } from "../../../../src/lib/db/prisma";
 import { mergeBody } from "../../../../src/lib/messaging/merge";
+import { plansFeatures } from "../plans-features/plans-features.service";
 import { FamilyDispatchService, SMS_NAIRA, channelOf, type Family } from "../communications/family-dispatch.service";
 import { fullName } from "../fee-management/fees.shared";
 import { guardianPortal } from "../guardian-management/guardians.shared";
@@ -63,10 +64,10 @@ export class TeacherMessagesService {
     return {
       arms: me.formArms,
       families: families.map((family) => ({
-        id: family.id, name: family.name, phone: family.phone ?? "", email: family.email ?? "", children: family.children, arms: family.arms, canSms: family.canSms, canEmail: family.canEmail,
+        id: family.id, name: family.name, phone: family.phone ?? "", email: family.email ?? "", children: family.children, arms: family.arms, canSms: family.canSms, canEmail: family.canEmail, canWhatsApp: Boolean(family.canWhatsApp),
         portal: family.portal, language: family.language,
       })),
-      wallet: { sms: wallet?.smsBalance ?? 0 }, threshold: Number.isFinite(threshold) ? threshold : null, sender: school?.name ?? "Your school", smsNaira: SMS_NAIRA,
+      wallet: { sms: wallet?.smsBalance ?? 0, whatsapp: wallet?.whatsappBalance ?? 0 }, whatsappOffered: (await plansFeatures.entitled(session.schoolId, "communications.whatsapp")).allowed, threshold: Number.isFinite(threshold) ? threshold : null, sender: school?.name ?? "Your school", smsNaira: SMS_NAIRA,
       drafts: drafts.filter((row) => (row.audience as Meta | null)?.draft).map((row) => {
         const meta = (row.audience ?? {}) as Meta;
         return { id: row.id, body: row.body, channel: row.channel, audience: meta.audience ?? "all", families: meta.guardianIds ?? [], acknowledge: Boolean(meta.acknowledge), savedAt: row.updatedAt.toISOString() };
@@ -97,10 +98,15 @@ export class TeacherMessagesService {
     }
 
     // The same arithmetic the composer showed: who can be reached on this channel, and what each family's own message costs.
-    const plan = this.dispatcher.plan(channelOf(input.channel), input.body, chosen);
+    const plan = this.dispatcher.plan(channelOf(input.channel), input.body, chosen, name);
     if (!plan.reach) throw new BadRequestException("Nobody in that audience can be reached on this channel, so there is nothing to send. Fix the contact details first.");
     const [wallet, threshold] = await Promise.all([prisma.notificationWallet.findUnique({ where: { schoolId: session.schoolId } }), ConfigStoreThreshold(session.schoolId)]);
-    if (plan.credits > (wallet?.smsBalance ?? 0)) throw new BadRequestException(`This would cost ${plan.credits} credits and the school has ${wallet?.smsBalance ?? 0}. Send it in-app, or ask the office to top up.`);
+    if (input.channel === "WHATSAPP") {
+      const allowed = await plansFeatures.entitled(session.schoolId, "communications.whatsapp");
+      if (!allowed.allowed) throw new BadRequestException(`WhatsApp is not part of this school's plan. ${allowed.why}`);
+    }
+    const balance = (input.channel === "WHATSAPP" ? wallet?.whatsappBalance : wallet?.smsBalance) ?? 0;
+    if (plan.credits > balance) throw new BadRequestException(`This would cost ${plan.credits} credits and the school has ${balance}. Send it in-app, or ask the office to top up.`);
     const needsApproval = plan.reach > threshold;
 
     const fields = {

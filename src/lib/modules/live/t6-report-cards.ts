@@ -3,7 +3,7 @@ import { localContracts } from "@/lib/api/local-contracts.zod";
 import type { TeacherWorkspaceView } from "@/lib/api/teacher-workspace";
 import { cardDrawer, completionHref, formMasterDrawer, remarkHref } from "@/lib/modules/live/m6-forms";
 import type { ArchiveOverview, CardState, CompletionArmPage, CompletionOverview, RemarkPage, RemarksOverview } from "@/lib/modules/live/m6-types";
-import type { DrawerSpec, PanelFact, PanelRow, PanelTone, TabContent, TableCellKind, TableRow } from "@/lib/modules/panels";
+import type { DrawerSpec, Panel, PanelFact, PanelRow, PanelTone, TabContent, TableCellKind, TableRow } from "@/lib/modules/panels";
 import { pill, row, text } from "@/lib/modules/panels";
 import { formatDay } from "@/lib/date-format";
 
@@ -30,15 +30,22 @@ const gradeTone = (grade: string | null): PanelTone => {
 };
 const shortDate = (iso: string) => formatDay(new Date(`${iso}T00:00:00Z`), { day: "numeric", month: "long", timeZone: "UTC" });
 
-export async function teacherReportCardsTab(tabSlug: string, me: TeacherWorkspaceView): Promise<TabContent | null | undefined> {
+export async function teacherReportCardsTab(tabSlug: string, me: TeacherWorkspaceView, query: Record<string, string | undefined> = {}): Promise<TabContent | null | undefined> {
   if (tabSlug === "remarks") {
     const [o, to] = await Promise.all([apiGet(`${RC}/remarks`, observe<RemarksOverview>(localContracts["src/lib/modules/live/t6-report-cards.ts#c6bfd201"])), apiGet(`${API}/remarks/recipient`, observe<string | null>(localContracts["src/lib/modules/live/t6-report-cards.ts#cdb686ad"])).catch(() => null)]);
     return remarksTab(o, me, to);
   }
   if (tabSlug === "completion") return completionTab(await apiGet(`${RC}/completion`, observe<CompletionOverview>(localContracts["src/lib/modules/live/t6-report-cards.ts#f6bbf96f"])), me);
-  if (tabSlug === "archive") return archiveTab(await apiGet(`${RC}/archive`, observe<ArchiveOverview>(localContracts["src/lib/modules/live/t6-report-cards.ts#d068c297"])), me);
+  if (tabSlug === "archive") return archiveTab(await apiGet(`${RC}/archive`, observe<ArchiveOverview>(localContracts["src/lib/modules/live/t6-report-cards.ts#d068c297"])), me, query.arm);
   return undefined;
 }
+
+const phoneOnly = (panel: Panel): PanelRow => ({ ...row("1fr", [panel]), show: "phone" as const });
+const desktopOnly = (rows: Array<PanelRow | null>): PanelRow[] => rows.filter((entry): entry is PanelRow => Boolean(entry)).map((entry) => ({ ...entry, show: "desktop" as const }));
+const initialsOf = (name: string) => name.split(/\s+/).filter(Boolean).slice(0, 2).map((word) => word[0]!.toUpperCase()).join("");
+const DOC = "M6.5 3.5h8L18.5 8v12.5h-12zM14.5 3.5V8h4M9 12.5h6M9 16h4";
+/** The note that closes both screens: this person reads cards; the Principal publishes them. */
+const readOnlyNote = (): PanelRow => phoneOnly({ type: "note", tone: "neutral", icon: DOC, title: "You read cards; the Principal publishes them", body: "Only your own remarks are editable. A revised card notifies the family." });
 
 function noArm(title: string, desc: string, body: string): TabContent {
   return { title, desc, rows: [row("1fr", [{ type: "note", tone: "neutral", icon: EYE, title: "You hold no form class this term", body }])] };
@@ -80,6 +87,18 @@ function remarksTab(o: RemarksOverview, me: TeacherWorkspaceView, to: string | n
         { label: "Days to publication", value: publish ? String(Math.max(0, publish.days)) : "—", sub: publish ? `Cards go out ${shortDate(publish.iso)}` : "Set by the school", tone: publish && publish.days < 7 ? "attention" : "positive" },
       ],
     }]),
+    // The phone shows where the remarks are as three stages, the way the teacher mobile mockup does, between the figures and the children.
+    {
+      ...row("1fr", [{
+        type: "steps", title: "Where your remarks are",
+        steps: [
+          { label: "Write each child’s remark", sub: `${written + drafts} of ${n} written · saved as you go`, state: written + drafts === n ? "done" : "current" },
+          { label: "Submit to the Principal", sub: "Together, once every remark is written", state: written === n ? "done" : written + drafts === n ? "current" : "todo" },
+          { label: "Published to families", sub: publish ? shortDate(publish.iso) : "No publication date is set", state: "todo" },
+        ],
+      }]),
+      show: "phone" as const,
+    },
     row("1fr", [{
       type: "table", title: `${own.name} · every child`, tag: `${written} of ${n} written`, tagTone: written === n ? "positive" : "attention", sub: "Open a child to write. The record you need is on the same page.", meta: `${n} children · your class`, noun: "remark", nounPlural: "children",
       search: "Find a child by name or admission number", head: ["Student", "Admission no", "Attend", "Remark", ""], rows: tableRows, per: 10, noRowOpen: true, empty: "Nobody is on this class’s roll.",
@@ -89,7 +108,8 @@ function remarksTab(o: RemarksOverview, me: TeacherWorkspaceView, to: string | n
   ];
   return {
     title: "Remarks", desc: `${own.name}. A teacher writes a remark; a Principal publishes a document.`,
-    primary: first ? { label: written === n ? "Open the first remark" : written + drafts ? "Continue writing" : "Start with the first child", icon: PEN, href: remarkHref(first.classId, first.id) } : undefined,
+    phoneTitle: `${own.name} remarks`, phoneDesc: `A teacher writes a remark; a Principal publishes a document.${publish ? ` Cards are published ${shortDate(publish.iso)}.` : ""}`,
+    primary: first ? { label: written === n ? "Open the first remark" : written + drafts ? "Continue writing" : "Start with the first child", phoneLabel: "Write remarks", icon: PEN, href: remarkHref(first.classId, first.id) } : undefined,
     launchers: drafts ? [{ label: `Submit ${drafts} remark${drafts === 1 ? "" : "s"}`, drawer: submit }] : [],
     rows: panels.filter((entry): entry is PanelRow => Boolean(entry)),
   };
@@ -111,6 +131,22 @@ function completionTab(o: CompletionOverview, me: TeacherWorkspaceView): TabCont
     ] as TableCellKind[],
   }));
   const publish = o.publishDate;
+  const ready = total("ready") + total("published");
+  // The phone: two figures, then the classes to choose from, as the teacher mobile mockup draws it.
+  const phone: PanelRow[] = [
+    phoneOnly({ type: "kpi", bare: true, cards: [
+      { label: "Cards ready", value: String(ready), unit: `of ${total("roll")}`, sub: `Across ${arms.length} ${arms.length === 1 ? "class" : "classes"}`, tone: ready === total("roll") ? "positive" : "attention" },
+      { label: "Publication", value: publish ? shortDate(publish.iso).replace(/ (\w{3})\w*$/, " $1") : "—", sub: publish ? "The Principal publishes" : "No date is set" },
+    ] }),
+    phoneOnly({
+      type: "list", title: "Choose a class", tag: `${arms.length} ${arms.length === 1 ? "class" : "classes"}`, tagTone: "neutral", sub: "Completion is answered per class: one form master, one broadsheet, one printing run.",
+      items: arms.map((arm) => ({
+        icon: DOC, label: arm.name, pill: arm.state, tone: cardTone(arm.state), href: completionHref(arm.id),
+        sub: `${own.has(arm.id) ? (me.persona === "early-years" ? "Class teacher" : "Form master") : "Assistant form master"} · ${arm.ready + arm.published} of ${arm.roll} ready${arm.owed ? ` · ${arm.owed} remark${arm.owed === 1 ? "" : "s"} owed` : ""}${arm.blocked ? ` · ${arm.blocked} blocked on scores` : ""}`,
+      })),
+    }),
+    readOnlyNote(),
+  ];
   const panels: Array<PanelRow | null> = [
     row("1fr", [{
       type: "kpi", title: `${o.term.name} ${o.term.session}`, per: 5,
@@ -138,13 +174,14 @@ function completionTab(o: CompletionOverview, me: TeacherWorkspaceView): TabCont
   ];
   return {
     title: "Completion", desc: `Report cards for the ${arms.length === 1 ? "arm" : `${arms.length} arms`} you answer for. Read any card exactly as the family will; the Principal publishes them.`,
+    phoneTitle: arms.length === 1 ? "Your class" : "Your classes", phoneDesc: "Choose a class to see where every card stands before the Principal publishes.",
     primary: arms.length === 1 ? { label: `Open ${arms[0]!.name}`, icon: ARROW, href: completionHref(arms[0]!.id) } : mineOwed ? { label: `Write the ${mineOwed} remarks you owe`, icon: PEN, href: "/report-cards/remarks" } : undefined,
     launchers: arms.length === 1 && mineOwed ? [{ label: "Write the remarks you owe", href: "/report-cards/remarks" }] : [],
-    rows: panels.filter((entry): entry is PanelRow => Boolean(entry)),
+    rows: [...phone, ...desktopOnly(panels)],
   };
 }
 
-function archiveTab(o: ArchiveOverview, me: TeacherWorkspaceView): TabContent {
+function archiveTab(o: ArchiveOverview, me: TeacherWorkspaceView, armId?: string): TabContent {
   const arms = o.arms;
   if (!arms.length) return noArm("Archive", "Published report cards for the arms you answer for.", "Published cards appear here for the arms you are form master of.");
   const revised = o.rows.filter((entry) => entry.state === "Revised").length;
@@ -156,9 +193,40 @@ function archiveTab(o: ArchiveOverview, me: TeacherWorkspaceView): TabContent {
       { kind: "action", label: "Open", drawer: cardDrawer(entry.studentId, entry.termId, entry.name) },
     ] as TableCellKind[],
   }));
-  return {
-    title: "Archive", desc: `Every card published for ${arms.map((arm) => arm.name).join(" and ")}, exactly as the family received it.`,
-    rows: [
+  const terms = (id: string) => new Set(o.rows.filter((entry) => entry.classId === id).map((entry) => entry.termId)).size;
+  const picked = arms.find((arm) => arm.id === armId) ?? (arms.length === 1 ? arms[0] : undefined);
+  const phone: PanelRow[] = picked
+    ? [
+        phoneOnly({ type: "kpi", bare: true, cards: [
+          { label: "Cards on file", value: String(o.rows.filter((entry) => entry.classId === picked.id).length), sub: `${picked.name} · ${terms(picked.id)} term${terms(picked.id) === 1 ? "" : "s"}` },
+          { label: "Latest publication", value: latest ? shortDate(latest).replace(/ (\w{3})\w*$/, " $1") : "—", sub: latest ? "The most recent card on file" : "Nothing published yet" },
+        ] }),
+        phoneOnly({
+          type: "list", title: `${picked.name} · published cards`, tag: `${o.rows.filter((entry) => entry.classId === picked.id).length}`, tagTone: "neutral", sub: "Open a card to read it as the family did.",
+          empty: "No card has been published for this class yet.",
+          items: o.rows.filter((entry) => entry.classId === picked.id).map((entry) => ({
+            avatar: initialsOf(entry.name), label: entry.name, pill: entry.state, tone: entry.state === "Revised" ? ("attention" as const) : ("positive" as const),
+            sub: `${entry.term}${entry.published ? ` · published ${shortDate(entry.published)}` : ""}`, drawer: cardDrawer(entry.studentId, entry.termId, entry.name),
+          })),
+        }),
+        readOnlyNote(),
+      ]
+    : [
+        phoneOnly({ type: "kpi", bare: true, cards: [
+          { label: "Cards on file", value: String(o.rows.length), sub: `${arms.length} ${arms.length === 1 ? "class" : "classes"} · ${o.terms.length} term${o.terms.length === 1 ? "" : "s"}` },
+          { label: "Latest publication", value: latest ? shortDate(latest).replace(/ (\w{3})\w*$/, " $1") : "—", sub: latest ? "The most recent card on file" : "Nothing published yet" },
+        ] }),
+        phoneOnly({
+          type: "list", title: "Choose a class", tag: `${arms.length} classes`, tagTone: "neutral", sub: "Published cards, class by class.",
+          items: arms.map((arm) => {
+            const mine = me.formArms.some((entry) => entry.id === arm.id);
+            const count = o.rows.filter((entry) => entry.classId === arm.id).length;
+            return { icon: DOC, label: arm.name, pill: mine ? "Yours" : "Assisting", tone: mine ? ("positive" as const) : ("neutral" as const), sub: `${mine ? (me.persona === "early-years" ? "Class teacher" : "Form master") : "Assistant form master"} · ${count} published card${count === 1 ? "" : "s"} · ${terms(arm.id)} term${terms(arm.id) === 1 ? "" : "s"}`, href: `/report-cards/archive?arm=${arm.id}` };
+          }),
+        }),
+        readOnlyNote(),
+      ];
+  const desktop = [
       row("1fr", [{
         type: "kpi", title: "Your archive", per: 4,
         cards: [
@@ -173,7 +241,11 @@ function archiveTab(o: ArchiveOverview, me: TeacherWorkspaceView): TabContent {
         search: "Find a child by name or admission number", filters: [{ label: "State", value: "All", options: ["All", "Published", "Revised"] }],
         head: ["Student", "Admission no", "Arm", "Term", "Published", "State", ""], rows, per: 10, noRowOpen: true, empty: "No card has been published for your arms yet.", foot: "Read only. Retrievals are logged.",
       }]),
-    ],
+  ];
+  return {
+    title: "Archive", desc: `Every card published for ${arms.map((arm) => arm.name).join(" and ")}, exactly as the family received it.`,
+    phoneTitle: picked ? `${picked.name} archive` : arms.length === 1 ? "Your class" : "Your classes", phoneDesc: picked ? "Published cards, exactly as the family received them." : "Choose a class to retrieve a card exactly as the family received it.",
+    rows: [...phone, ...desktopOnly(desktop)],
   };
 }
 

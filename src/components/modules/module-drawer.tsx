@@ -1,6 +1,6 @@
 "use client";
 
-import { X } from "lucide-react";
+import { ArrowLeft, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -11,6 +11,7 @@ import type { DrawerSpec, FormField, PanelFact } from "@/lib/modules/panels";
 import { Field, assetSummary, fieldVisible, initialValue } from "@/components/modules/field";
 import { sendJson, sendJsonForData } from "@/lib/modules/submit";
 import { INK, MUTED } from "@/lib/modules/tones";
+import { usePhoneKind } from "@/components/layout/phone-shell";
 import { useUiText } from "@/hooks/use-ui-text";
 import { focusOnMount, useFocusTrap } from "@/lib/ui/focus";
 import { apiRaw } from "@/lib/api/client";
@@ -22,10 +23,10 @@ export function FactRows({ facts }: { facts: PanelFact[] }) {
       {facts.map(([label, value, note], index) => (
         <div
           key={`${label}-${index}`}
-          className="flex items-start justify-between gap-[14px] px-[13px] py-[10px] last:border-b-0"
+          className="flex items-start justify-between gap-[14px] px-[13px] py-[10px] last:border-b-0 max-md:flex-col max-md:gap-[4px]"
           style={{ borderBottom: "1px solid #F2F7F4" }}
         >
-          <div className="min-w-0 basis-[40%]">
+          <div className="min-w-0 basis-[40%] max-md:order-2 max-md:basis-auto">
             <p
               className="text-[9.5px] font-bold uppercase leading-[1.35] tracking-[0.06em]"
               style={{ color: MUTED }}
@@ -42,7 +43,7 @@ export function FactRows({ facts }: { facts: PanelFact[] }) {
             ) : null}
           </div>
           <p
-            className="min-w-0 flex-1 text-pretty text-right text-[11.5px] font-semibold leading-[1.45]"
+            className="min-w-0 max-w-full flex-1 break-words text-pretty text-right text-[11.5px] font-semibold leading-[1.45] max-md:order-1 max-md:text-left max-md:text-[14px]"
             style={{ color: INK }}
           >
             {value}
@@ -253,6 +254,8 @@ export const asText = (value: unknown) =>
         : "No"
       : value && typeof value === "object" && "choice" in value
         ? assetSummary(value)
+        : value && typeof value === "object" && "data" in value && "name" in value
+          ? String((value as { name: string }).name)
         : prettyDate(String(value ?? ""));
 
 /** What a field's answer reads as when it is read back before saving. */
@@ -478,6 +481,8 @@ function DrawerPanel({
 }) {
   const panel = useFocusTrap<HTMLDivElement>();
   const ui = useUiText();
+  // A portal with a phone skin opens its forms as a page of their own on a phone — back arrow, title, steps, a bar of buttons — as its mockups do.
+  const phone = usePhoneKind() !== null;
   const [committed, setCommitted] = useState(false);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -643,12 +648,12 @@ function DrawerPanel({
   }
 
   const primaryLabel = spec.commitLabel ?? (isEdit ? "Save changes" : "Confirm");
-  const askBeforeWriting =
-    staged && /^(add|create|new)\s/i.test(spec.title) && !isEdit
+  const askBeforeWriting = spec.confirmTitle ??
+    (staged && /^(add|create|new)\s/i.test(spec.title) && !isEdit
       ? `Create this ${noun}?`
       : staged
         ? "Save these changes?"
-        : "Run this now?";
+        : "Run this now?");
 
   const confirmView: Record<ConfirmKind, Parameters<typeof ConfirmSheet>[0]> = {
     save: {
@@ -693,7 +698,8 @@ function DrawerPanel({
 
   return createPortal(
     <div
-      className="fixed inset-0 z-42 flex items-center justify-center overflow-y-auto px-6 py-8"
+      className={phone ? "fixed inset-0 z-42 flex items-stretch justify-center overflow-y-auto p-0 md:items-center md:px-6 md:py-8" : "fixed inset-0 z-42 flex items-center justify-center overflow-y-auto px-6 py-8"}
+      data-drawer-phone={phone ? "" : undefined}
       role="dialog"
       aria-modal="true"
       aria-label={spec.title}
@@ -710,14 +716,43 @@ function DrawerPanel({
         ref={panel}
         tabIndex={-1}
         className="relative flex w-full flex-col overflow-hidden rounded-[20px] bg-white outline-hidden"
+        data-drawer-panel=""
         style={{
           maxWidth: `${panelMax}px`,
           maxHeight: "calc(100vh - 64px)",
           boxShadow: "0 45px 90px -36px rgba(13,35,21,0.6)",
         }}
       >
+        {phone ? (
+          <header className="relative z-[1] flex-none overflow-hidden rounded-b-[26px] md:hidden" style={{ background: INK, boxShadow: "0 12px 26px -20px rgba(13,35,21,0.9)" }}>
+            <span aria-hidden className="pointer-events-none absolute -right-[64px] -top-[96px] h-[190px] w-[190px] rounded-full border-[1.5px]" style={{ borderColor: "rgba(95,214,180,0.12)" }} />
+            <div className="relative grid min-h-[62px] grid-cols-[52px_minmax(0,1fr)_52px] items-center px-[4px] py-[6px]">
+              <button type="button" onClick={requestClose} aria-label="Back" className="flex h-[44px] w-[44px] items-center justify-center justify-self-center rounded-full text-white active:bg-white/10">
+                <ArrowLeft className="h-[22px] w-[22px]" strokeWidth={2.1} />
+              </button>
+              <div className="min-w-0 text-center">
+                <div className="line-clamp-2 text-[min(16.5px,4.8vw)] font-extrabold leading-[1.25] text-white">{committed ? doneTitle : spec.title}</div>
+                {!committed && (staged || steps.length) ? (
+                  <div className="truncate text-[12.5px] font-medium leading-[1.2]" style={{ color: "rgba(255,255,255,0.7)" }}>
+                    {staged ? (reviewing ? "Check, then send" : "Next: Check and confirm") : step?.title}
+                  </div>
+                ) : spec.kicker ? <div className="truncate text-[12.5px] font-medium leading-[1.2]" style={{ color: "rgba(255,255,255,0.7)" }}>{spec.kicker}</div> : null}
+              </div>
+              <span />
+            </div>
+            {!committed && (staged || steps.length) ? (
+              <div className="relative flex items-center gap-[10px] px-[18px] pb-[14px]">
+                {(staged ? [0, 1] : steps.map((_, index) => index)).map((index) => {
+                  const at = staged ? (reviewing ? 1 : 0) : stepIndex;
+                  return <span key={index} className="h-[4px] flex-1 rounded-full" style={{ background: index <= at ? "#5FD6B4" : "rgba(255,255,255,0.16)" }} />;
+                })}
+                <span className="flex-none text-[12.5px] font-bold" style={{ color: "rgba(255,255,255,0.8)" }}>Step {(staged ? (reviewing ? 1 : 0) : stepIndex) + 1} of {staged ? 2 : steps.length}</span>
+              </div>
+            ) : null}
+          </header>
+        ) : null}
         <header
-          className="relative flex-none overflow-hidden px-[23.5px] py-[20px]"
+          className={`relative flex-none overflow-hidden px-[23.5px] py-[20px]${phone ? " max-md:hidden" : ""}`}
           style={{ background: INK }}
         >
           <svg
@@ -798,8 +833,9 @@ function DrawerPanel({
           </div>
         </header>
 
-        <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-[23.5px] py-[21.5px]">
-          <div className="grid gap-[14px]">
+        <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-[23.5px] py-[21.5px] max-md:px-[16px] max-md:py-[16px]">
+          {phone && spec.sub && !committed ? <p className="mb-[12px] px-[2px] text-pretty text-[13.5px] leading-[1.5] md:hidden" style={{ color: MUTED }}>{spec.sub}</p> : null}
+          <div className={`grid gap-[14px]${phone ? " max-md:rounded-[20px] max-md:bg-white max-md:p-[16px] max-md:shadow-[0_1px_2px_rgba(13,35,21,0.05),0_8px_22px_-16px_rgba(13,35,21,0.22)]" : ""}`}>
             {committed ? (
               <CommitDone spec={spec} result={result} doneTitle={doneTitle} doneBody={doneBody} doneLines={doneKind === "saved" && staged ? doneLines : undefined} />
             ) : null}
@@ -944,7 +980,7 @@ function DrawerPanel({
         </div>
 
         <footer
-          className="flex flex-none flex-wrap items-center justify-between gap-x-[14.5px] gap-y-[10px] px-[23.5px] py-[14.5px]"
+          className={`flex flex-none flex-wrap items-center justify-between gap-x-[14.5px] gap-y-[10px] px-[23.5px] py-[14.5px]${phone ? " max-md:rounded-t-[24px] max-md:bg-white! max-md:px-[14px] max-md:pb-[calc(12px+env(safe-area-inset-bottom))]" : ""}`}
           style={{ background: "#FBFDFC", borderTop: "1px solid #EDF3EF" }}
         >
           <div className="flex min-w-[140px] flex-1 basis-[200px] items-center gap-[12px]">

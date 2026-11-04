@@ -12,6 +12,7 @@ export function ModuleTabs({
   visibleTabSlugs,
   labels,
   name,
+  hideOnPhone,
 }: {
   module: SchoolModule;
   /** The tabs to show, in the order to show them. */
@@ -20,12 +21,15 @@ export function ModuleTabs({
   labels?: Record<string, string>;
   /** The holder's own name for the module. */
   name?: string;
+  /** A teacher's phone reaches the other tab by a button on the screen, not a strip. */
+  hideOnPhone?: boolean;
 }) {
   const bySlug = new Map(module.tabs.map((tab) => [tab.slug, tab]));
 
   return (
     <TabBar
       ariaLabel={`${name ?? module.name} tabs`}
+      hideOnTeacherPhone={hideOnPhone}
       items={visibleTabSlugs
         .map((slug) => bySlug.get(slug))
         .filter((tab): tab is NonNullable<typeof tab> => Boolean(tab))

@@ -105,6 +105,10 @@ export default async function SchoolModuleTabPage({ params, searchParams }: Page
   return (
     <ModuleWorkspace
       eyebrow={moduleName}
+      phoneTitle={content?.phoneTitle}
+      phoneDesc={content?.phoneDesc}
+      phonePrimary={content?.phonePrimary}
+      phoneEyebrow={content?.phoneEyebrow ?? `${moduleName} · ${tabLabels?.[tab.slug] ?? tab.label}`}
       title={content?.title ?? tabLabels?.[tab.slug] ?? tab.label}
       description={content?.desc ?? (teaching ? teacherModuleDescription(module.code, teaching.persona) : undefined) ?? module.description}
       primary={content?.primary}
@@ -135,7 +139,7 @@ export default async function SchoolModuleTabPage({ params, searchParams }: Page
             ]
       }
     >
-      <ModuleTabs module={module} visibleTabSlugs={visibleTabSlugs} labels={tabLabels} name={moduleName} />
+      <ModuleTabs module={module} visibleTabSlugs={visibleTabSlugs} labels={tabLabels} name={moduleName} hideOnPhone={Boolean(teaching) && module.code === "m12"} />
     </ModuleWorkspace>
   );
 }
