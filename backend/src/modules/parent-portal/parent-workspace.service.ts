@@ -15,6 +15,7 @@ import { deviceName, hide, icsFor } from "../student-portal/student-workspace.se
 import { randomBytes } from "node:crypto";
 import { plansFeatures } from "../plans-features/plans-features.service";
 import { loadGuardianPolicy, type GuardianVisible } from "./guardian-policy";
+import { linkSchool, schoolOffers } from "./school-links";
 import { clockIn, todayIn } from "./school-time";
 
 /**
@@ -1337,6 +1338,7 @@ export class ParentWorkspaceService {
     const user = guardian.user;
     // Every school this login is a guardian at, named with the children it holds — one entry for the ordinary family.
     const mine = rows.flatMap((row) => row.students);
+    const offers = await schoolOffers(session);
     return {
       name: `${guardian.firstName} ${guardian.lastName}`,
       userId: user?.userCode ?? user?.username ?? null,
@@ -1359,7 +1361,15 @@ export class ParentWorkspaceService {
           children: children.filter((student) => student.schoolId === id).map((student) => student.firstName),
         };
       }),
+      /** Records other schools wrote with this login's own email that no login holds yet: offered, never linked unasked. */
+      offers,
     };
+  }
+
+  /** Accept one offer: the signed-in parent links a school's record of them to this login. */
+  async linkSchool(session: SessionPayload, guardianId: string) {
+    this.assert(session);
+    return linkSchool(session, guardianId);
   }
 
   /** Sign-in protection and the last times this account was used. */

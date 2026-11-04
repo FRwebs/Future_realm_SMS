@@ -173,6 +173,12 @@ export class ParentWorkspaceController {
     return { ok: true, data: await this.workspace.account(session) };
   }
 
+  /** Link another school's record of this parent to this login — the parent's own accept, never the school's. */
+  @Post("account/schools/:id/link")
+  async linkSchool(@CurrentSession() session: SessionPayload, @Param("id") id: string) {
+    return { ok: true, data: await this.workspace.linkSchool(session, id) };
+  }
+
   @Get("security")
   async security(@CurrentSession() session: SessionPayload) {
     return { ok: true, data: await this.workspace.security(session) };
