@@ -15,6 +15,7 @@ type Account = {
   name: string; userId: string | null; relationship: string; primaryFor: string[]; email: string | null; phone: string;
   address: string | null; timezone: string; language: string; since: string; sms: boolean; emailOn: boolean;
   schools: Array<{ name: string; short: string; place: string; children: string[] }>;
+  offers: Array<{ id: string; name: string; relationship: string; school: string; short: string; place: string; children: string[] }>;
 };
 type Security = {
   mustChangePassword: boolean; mfaEnabled: boolean; mfaEnrolledAt: string | null; passwordChangedAt: string | null;
@@ -168,9 +169,26 @@ function schoolsTab(head: Head, account: Account): ParentContent {
     commitLabel: "Request a copy", commitDone: "Copy requested", commitDoneBody: "The registrar will prepare it. You can follow it under Requests.",
     submit: { endpoint: `${PW}/account/requests`, method: "POST", body: { kind: "copy" } },
   };
+  // A school that wrote this parent's own email is offered, never linked on its own: the parent says it is them.
+  const offers: ListItem[] = account.offers.map((offer) => ({
+    lead: { value: offer.short.slice(0, 3).toUpperCase(), tone: "attention" },
+    label: offer.school,
+    sub: [offer.place, `${offer.name}, ${offer.relationship.toLowerCase()}`, offer.children.join(" and ")].filter(Boolean).join(" · "),
+    viewLabel: "This is me",
+    drawer: {
+      mode: "commit", tone: "progress", kicker: "Your schools", title: `Add ${offer.school} to your account?`,
+      sub: `${offer.school} holds a record for ${offer.name} with your email address. If that is you, ${offer.children.length > 1 ? "its children join" : "the child joins"} the family you already see here, under the same sign-in. If it is not you, leave it — nothing is shared until you say so.`,
+      confirmTitle: "Is this you?",
+      commitLabel: "Yes, add this school", commitDone: "School added", commitDoneBody: `${offer.school} is now part of your account. Its children appear beside the others.`,
+      submit: { endpoint: `${PW}/account/schools/${offer.id}/link`, method: "POST" },
+    } satisfies DrawerSpec,
+  }));
   return {
     ...head,
     rows: [
+      ...(offers.length ? [row("1fr", [{
+        type: "list" as const, title: "Another school has your email", sub: "Only you can say a record is yours. Check the name and the children before you add it.", items: offers,
+      }])] : []),
       row("1fr", [{
         type: "list", title: "School linked to your account", sub: "The school is responsible for the records it holds about your children.",
         items: account.schools.map((school): ListItem => ({
