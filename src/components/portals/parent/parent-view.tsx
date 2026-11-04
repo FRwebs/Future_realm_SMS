@@ -6,7 +6,7 @@ import { ModuleWorkspace } from "@/components/modules/module-workspace";
 import { getServerSession } from "@/lib/auth/session";
 import { getPlatformSync } from "@/lib/api/platform-sync";
 import { buildParentPage, PAGE_MODULE } from "@/lib/modules/live/parent";
-import { childOf, loadMe } from "@/lib/modules/live/parent/shared";
+import { childOf, loadMe, wholeFamily } from "@/lib/modules/live/parent/shared";
 import { parentPages } from "@/lib/modules/parent-workspace";
 
 /** One page of a parent's own workspace. Only a guardian's account reaches it; everything on it is their own family's record. */
@@ -61,8 +61,8 @@ export async function ParentView({ page, query }: { page: string; query: Record<
   const active = content.tab ?? content.tabs?.[0]?.label ?? "";
   return (
     <ModuleWorkspace
-      eyebrow={content.eyebrow ?? "Your school"}
-      phoneEyebrow={content.phoneEyebrow}
+      eyebrow={wholeFamily(content.eyebrow ?? "Your school", me)}
+      phoneEyebrow={content.phoneEyebrow === undefined ? undefined : wholeFamily(content.phoneEyebrow, me)}
       phoneTitle={content.phoneTitle}
       phoneDesc={content.phoneDesc}
       phonePrimary={content.phonePrimary}

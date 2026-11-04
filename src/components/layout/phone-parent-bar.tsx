@@ -52,6 +52,7 @@ export function PhoneParentBar({
   portalType,
   pages,
   kids,
+  schools,
 }: {
   session: SessionUser;
   portalType: PortalType;
@@ -59,6 +60,8 @@ export function PhoneParentBar({
   pages: Record<string, string>;
   /** The children's first names, by id: a page about one child says whose it is. */
   kids: Record<string, string>;
+  /** How many schools the family is at: a page about the whole family says which. */
+  schools: number;
 }) {
   const pathname = usePathname();
   const params = useSearchParams();
@@ -77,7 +80,7 @@ export function PhoneParentBar({
     window.addEventListener("fr:phone-reading", on);
     return () => window.removeEventListener("fr:phone-reading", on);
   }, []);
-  const who = ABOUT_PARENT.includes(slug) ? session.name : (childId && kids[childId]) || "Whole family";
+  const who = ABOUT_PARENT.includes(slug) ? session.name : (childId && kids[childId]) || (schools > 1 ? `Whole family · ${schools === 2 ? "both" : `all ${schools}`} schools` : "Whole family");
 
   if (home) {
     return (

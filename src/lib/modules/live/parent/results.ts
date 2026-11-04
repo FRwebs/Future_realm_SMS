@@ -20,6 +20,8 @@ type Card = {
 };
 type Kid = {
   id: string; first: string; arm: string; cards: Card[];
+  /** Named only when the family is at more than one school. */
+  school?: string;
   released: Array<{ name: string; parts: Array<{ code: string; name: string; max: number; score: number | null; on: string | null }> }>;
 };
 type Results = {
@@ -121,7 +123,7 @@ function familyResults(data: Results): ParentContent {
     const { best } = card ? bestAndLowest(card) : { best: null };
     return {
       avatar: initialsOf(kid.first), label: kid.first, href: `/portals/parent/results?child=${kid.id}`,
-      sub: held ? `${kid.cards[0]!.term} ${kid.cards[0]!.session} · held by the school` : latest ? `${latest.term} ${latest.session} · ${card ? place(card.position, card.outOf) : "Not ranked"}${best ? ` · best ${best.name}` : ""}` : "No report card yet",
+      sub: `${held ? `${kid.cards[0]!.term} ${kid.cards[0]!.session} · held by the school` : latest ? `${latest.term} ${latest.session} · ${card ? place(card.position, card.outOf) : "Not ranked"}${best ? ` · best ${best.name}` : ""}` : "No report card yet"}${kid.school ? ` · ${kid.school}` : ""}`,
       ...(card ? { figure: num(card.average) } : {}),
     };
   });
@@ -187,7 +189,7 @@ function childResults(kid: Kid, data: Results, school: string, query: Record<str
       : "Latest report card and this term’s released scores. Tap any subject to see how its score was reached.",
     ...(kid.cards[0]?.held
       // A held card has one thing worth doing, and it is not printing.
-      ? (owed?.pay ? { primary: { label: `Pay ${money(owed.amount)}`, drawer: owed.pay } } : {})
+      ? (owed?.pay ? { primary: { label: `Pay ${money(owed.amount, owed.currency)}`, drawer: owed.pay } } : {})
       : withData.length ? { primary: { label: "Printable report card", href: `/api/v1/reports/report-card/${kid.id}` } } : {}),
     ...(owed ? { launchers: [{ label: "Ask for a plan", drawer: owed.plan }] } : {}),
   };
@@ -257,7 +259,7 @@ function childResults(kid: Kid, data: Results, school: string, query: Record<str
         body: `${latest.held.reason ? `${latest.held.reason.replace(/[.\s]+$/, "")}.` : "The school has not said why."} The card itself is complete and unchanged — it opens the moment the school releases it.`,
         acts: owed
           ? [
-              ...(owed.pay ? [{ label: `Pay ${money(owed.amount)}`, primary: true, drawer: owed.pay }] : []),
+              ...(owed.pay ? [{ label: `Pay ${money(owed.amount, owed.currency)}`, primary: true, drawer: owed.pay }] : []),
               { label: "Ask for a plan", drawer: owed.plan },
               { label: "See fees and payments", href: `/portals/parent/fees?child=${kid.id}` },
             ]
@@ -268,7 +270,7 @@ function childResults(kid: Kid, data: Results, school: string, query: Record<str
         facts: [
           ["Held since", dLong(latest.held.since), "By the school"],
           ["Reason", latest.held.reason || "Not given"],
-          ...(owed ? [["Balance owed", money(owed.amount), "Across every unpaid bill", "negative"] as PanelFact] : []),
+          ...(owed ? [["Balance owed", money(owed.amount, owed.currency), "Across every unpaid bill", "negative"] as PanelFact] : []),
           ["Released by", owed ? "Payment, or a plan" : "The school", "You are told the same hour"],
         ],
       }]),

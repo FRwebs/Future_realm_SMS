@@ -11,6 +11,8 @@ type Term = {
 };
 type Child = {
   id: string; name: string; first: string; arm: string;
+  /** Named only when the family is at more than one school. */
+  school?: string;
   today: { status: string; reason: string | null; at: string | null } | null;
   terms: Term[];
 };
@@ -130,7 +132,7 @@ function familyAttendance(data: Attendance, school: string): ParentContent {
           const last = index > 0 ? entry.terms[index - 1]! : null;
           return {
             avatar: initialsOf(entry.name), label: entry.name, href: `/portals/parent/attendance?child=${entry.id}`,
-            sub: term ? `${term.present} of ${term.marked} days · ${term.away} away · ${term.late} late${last ? ` · last term ${pctText(last.pct)}` : ""}` : "No register yet",
+            sub: `${term ? `${term.present} of ${term.marked} days · ${term.away} away · ${term.late} late${last ? ` · last term ${pctText(last.pct)}` : ""}` : "No register yet"}${entry.school ? ` · ${entry.school}` : ""}`,
             figure: pctText(term?.pct ?? null), side: term?.unexplained ? `${term.unexplained} to explain` : "All explained", tone: term?.unexplained ? "attention" : "positive",
           };
         }),

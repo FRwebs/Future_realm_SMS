@@ -22,7 +22,7 @@ export type ParentChromeChild = {
 export type ParentChrome = {
   /** The chips in the top bar: the whole family, then each child. */
   children: ParentChromeChild[];
-  family: { stats: StatsByPage; needs: number; urgent: boolean };
+  family: { stats: StatsByPage; needs: number; urgent: boolean; /** How many schools the family's children are spread across. */ schools: number };
   /** Shown instead of the chips on the pages that are about the parent, not a child. */
   account: { title: string; sub: string };
   /** The block at the foot of the rail: how to reach the school. */
@@ -99,7 +99,7 @@ export const getParentChrome = cache(async (role: string): Promise<ParentChrome 
     return await ttlCached(`pchrome:${session.schoolId}:${session.userId}`, 30_000, async () => {
       const [me, needs, stats] = await Promise.all([
         apiGet(`${PW}/me`, observe<{
-          name: string; children: Array<{ id: string; first: string; initials: string; arm: string; photoUrl: string | null }>;
+          name: string; children: Array<{ id: string; first: string; initials: string; arm: string; photoUrl: string | null; schoolId?: string }>;
           term: { name: string; week: number } | null;
           office: { name: string; phone: string | null; website: string | null; where: string | null };
         }>(localContracts["src/lib/api/parent-workspace.ts#465d2ff7"])),
@@ -124,6 +124,7 @@ export const getParentChrome = cache(async (role: string): Promise<ParentChrome 
           stats: stats?.family ?? { ...blank, fallback: [kids === 1 ? "1 child" : `${kids} children`, ""] },
           needs: count,
           urgent: needs.items.some((need) => need.tone === "negative"),
+          schools: new Set(me.children.map((child) => (child as { schoolId?: string }).schoolId ?? "")).size,
         },
         account: {
           title: "Your account",

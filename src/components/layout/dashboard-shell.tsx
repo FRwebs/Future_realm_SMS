@@ -151,7 +151,7 @@ export function DashboardShell({
         />
 
         <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
-          {parentChrome && phoneTabs?.items.length ? <PhoneParentBar session={session} portalType={portalType} kids={Object.fromEntries(parentChrome.children.map((child) => [child.id, child.first]))} pages={Object.fromEntries(phoneTabs.items.map((item) => [item.id.replace(/^p_/, ""), item.label]))} /> : null}
+          {parentChrome && phoneTabs?.items.length ? <PhoneParentBar session={session} portalType={portalType} kids={Object.fromEntries(parentChrome.children.map((child) => [child.id, child.first]))} schools={parentChrome.family.schools} pages={Object.fromEntries(phoneTabs.items.map((item) => [item.id.replace(/^p_/, ""), item.label]))} /> : null}
           {teacherRail && !parentChrome && phoneTabs?.items.length ? <PhoneTeacherBar session={session} schoolName={schoolName} portalType={portalType} rail={teacherRail} /> : null}
           <Topbar
             hideOnPhone={Boolean((teacherRail || parentChrome) && phoneTabs?.items.length)}
@@ -218,7 +218,7 @@ export function DashboardShell({
               items={phoneTabs.items}
               primaryIds={phoneTabs.primaryIds}
               label={phoneTabs.label}
-              account={{ session, schoolName, kids: parentChrome?.children.length }}
+              account={{ session, schoolName, kids: parentChrome?.children.length, schools: parentChrome?.family.schools }}
               counts={Object.fromEntries(Object.entries(navBadges ?? {}).map(([key, value]) => [key, value ?? 0]))}
               urgent={Object.fromEntries(Object.entries(navBadgeTones ?? {}).map(([key, tone]) => [key, tone === "danger"]))}
             />

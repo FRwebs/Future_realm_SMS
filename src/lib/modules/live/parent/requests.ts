@@ -15,6 +15,8 @@ type Requests = {
   today: string; items: Item[]; typical: number | null;
   types: Array<{ name: string; days: number; reviewer: string; accepted: boolean }>;
   children: Array<{ id: string; first: string; name: string }>;
+  /** Named only when the family is at more than one school. */
+  schools?: Array<{ id: string; name: string }>;
 };
 
 const TABS = ["Open", "Closed", "All"];
@@ -130,14 +132,20 @@ function askDrawer(type: string, data: Requests, chosen?: string): DrawerSpec {
   const kind = KINDS.find((entry) => entry.type === type);
   const target = data.types.find((entry) => entry.name === type);
   const needsChild = kind?.need === "child";
+  const schools = data.schools ?? [];
   const fields: FormField[] = [
     ...(kids.length > 1 || needsChild
       ? [{ kind: "select", label: "Who is it about?", required: needsChild, value: kids.find((entry) => entry.id === chosen)?.name ?? kids[0]?.name ?? "", options: kids.map((entry) => entry.name) } as FormField]
       : []),
+    // A request about no child in particular has to be told which school it is for, when there is more than one.
+    ...(schools.length > 1 && !needsChild ? [{ kind: "select", label: "Which school, if it is not about one child?", value: schools[0]!.name, options: schools.map((entry) => entry.name), hint: "Leave it as it is when you have chosen a child above — it goes to that child’s school." } as FormField] : []),
     ...(type === "Absence explanation" ? [{ kind: "text", type: "date", label: "Which day?", required: true, value: "" } as FormField] : []),
     { kind: "area", label: "What would you like to say?", required: true, value: "", placeholder: "Your own words — the person who reads it has only these" },
   ];
-  const encode = kids.length ? { "Who is it about?": Object.fromEntries(kids.map((entry) => [entry.name, entry.id])) } : undefined;
+  const encode = {
+    ...(kids.length ? { "Who is it about?": Object.fromEntries(kids.map((entry) => [entry.name, entry.id])) } : {}),
+    ...(schools.length > 1 ? { "Which school, if it is not about one child?": Object.fromEntries(schools.map((entry) => [entry.name, entry.id])) } : {}),
+  };
   return {
     kicker: "Requests", title: kind?.label ?? "Ask the school something", mode: "form",
     sub: `${kind?.sub ?? "It goes to the school as a request you can follow."}${target?.reviewer ? ` It goes to the ${target.reviewer.toLowerCase()}.` : ""}`,
@@ -145,8 +153,8 @@ function askDrawer(type: string, data: Requests, chosen?: string): DrawerSpec {
     commitDoneBody: "You can follow it on this page. A request closes only with a written answer.",
     submit: {
       endpoint: "/api/v1/parent-portal/submissions", method: "POST",
-      map: { "Who is it about?": "child", "Which day?": "dates", "What would you like to say?": "detail" },
-      body: { type }, ...(encode ? { encode } : {}),
+      map: { "Who is it about?": "child", ...(schools.length > 1 && !needsChild ? { "Which school, if it is not about one child?": "school" } : {}), "Which day?": "dates", "What would you like to say?": "detail" },
+      body: { type }, ...(Object.keys(encode).length ? { encode } : {}),
     },
   };
 }

@@ -1,15 +1,21 @@
 import { apiGet, observe } from "@/lib/api/server";
 import { localContracts } from "@/lib/api/local-contracts.zod";
 import { name as nameCell, pill, row, text } from "@/lib/modules/panels";
-import type { DocumentSpec, DrawerSpec, FormField, ListItem, Panel, PanelRow, PanelTone, TableCellKind, TableRow } from "@/lib/modules/panels";
-import { PW, dLong, dShort, loadMe, money } from "@/lib/modules/live/parent/shared";
+import type { DocumentSpec, DrawerSpec, FormField, KpiCard, ListItem, Panel, PanelRow, PanelTone, TableCellKind, TableRow } from "@/lib/modules/panels";
+import { PW, currencyName, dLong, dShort, loadMe, money as fmt, symbolOf } from "@/lib/modules/live/parent/shared";
 import type { ParentContent, ParentMe } from "@/lib/modules/live/parent/shared";
 
 type FeeChild = {
   id: string; name: string; first: string; arm: string; invoiceNo: string; invoiceId: string | null; payInvoiceId: string | null; payAmount: number; term: string;
   billed: number; paid: number; balance: number; outstanding: number; fromEarlier: number; oldestDue: string | null;
   status: string; tone: PanelTone;
+  /** Which school billed this child, in what money. The school is named only when the family spans more than one. */
+  schoolId?: string; school?: string; currency?: string;
 };
+
+/** Writes a figure in one child's own school's money, so two currencies are never mixed in a sentence. */
+const moneyOf = (entry: { currency?: string }) => (value: number) => fmt(value, entry.currency);
+
 type FeeInvoice = {
   id: string; childId: string; child: string; number: string; term: string; termId: string | null; current: boolean;
   issued: string; due: string; total: number; discount: number; fine: number; balance: number; status: string;
@@ -24,7 +30,7 @@ type FeePlan = {
   items: Array<{ id: string; due: string; amount: number; paid: number; status: string }>;
 };
 type FeeReport = { id: string; childId: string | null; amount: number; method: string; date: string; reference: string; owner: string | null; sent: string };
-type Fees = { children: FeeChild[]; invoices: FeeInvoice[]; payments: FeePayment[]; plans: FeePlan[]; reports: FeeReport[] };
+export type Fees = { children: FeeChild[]; invoices: FeeInvoice[]; payments: FeePayment[]; plans: FeePlan[]; reports: FeeReport[] };
 
 const TABS = ["This term", "Payments and receipts", "Earlier terms"];
 const METHOD: Record<string, string> = { CASH: "Cash", TRANSFER: "Bank transfer", BANK_TRANSFER: "Bank transfer", POS: "POS", ONLINE: "Online", USSD: "USSD", CHEQUE: "Cheque", SCHOLARSHIP: "Scholarship", WAIVER: "Waiver" };
@@ -70,18 +76,20 @@ function askTheBursar(kids: Kid[], chosen: Kid | null, kind: "question" | "plan"
 
 /** Pay now, by card, bank or USSD, through the school's payment gateway; the family is taken to its page to finish. */
 function payOnline(entry: FeeChild): DrawerSpec | null {
+  const money = moneyOf(entry);
+  const amountLabel = `Amount to pay (${symbolOf(entry.currency)})`;
   if (!entry.payInvoiceId || entry.payAmount <= 0) return null;
   return {
     kicker: "Fees", title: `Pay ${money(entry.payAmount)} for ${entry.first}`, mode: "form",
     sub: "You are taken to the payment page to finish. The balance and the receipt update the moment the school’s payment provider confirms it.",
     fields: [
-      { kind: "text", label: "Amount to pay (₦)", required: true, value: String(entry.payAmount), hint: "The whole balance, or part of it." },
+      { kind: "text", label: amountLabel, required: true, value: String(entry.payAmount), hint: "The whole balance, or part of it." },
       { kind: "select", label: "How will you pay?", required: true, value: "Card", options: ["Card", "Bank transfer", "USSD"] },
     ],
     confirmTitle: "Go to the payment page?", commitLabel: "Continue to payment", commitDone: "Ready to pay", commitDoneBody: "Open the payment page to finish. Nothing is paid until you do.",
     submit: {
       endpoint: "/api/v1/finance/payments", method: "POST",
-      map: { "Amount to pay (₦)": "amount", "How will you pay?": "paymentChannel" },
+      map: { [amountLabel]: "amount", "How will you pay?": "paymentChannel" },
       encode: { "How will you pay?": { Card: "card", "Bank transfer": "bank_transfer", USSD: "ussd" } },
       body: { invoiceId: entry.payInvoiceId, method: "ONLINE", provider: "PAYSTACK" },
     },
@@ -91,9 +99,12 @@ function payOnline(entry: FeeChild): DrawerSpec | null {
 /** Paid by bank transfer or at the bursary counter: tell the bursar here, so it can be matched and receipted. */
 function reportPaid(kids: FeeChild[], chosen: FeeChild | null): DrawerSpec {
   const target = chosen ?? (kids.length === 1 ? kids[0]! : null);
+  // One currency in play is named in the label; with two schools the amount is in whichever school's money the child is billed in.
+  const currencies = [...new Set((target ? [target] : kids).map((kid) => kid.currency ?? "NGN"))];
+  const amountLabel = currencies.length === 1 ? `Amount you paid (${symbolOf(currencies[0])})` : "Amount you paid";
   const fields: FormField[] = [
     ...(target ? [] : [{ kind: "select", label: "Which child?", required: true, value: kids[0]?.first ?? "", options: kids.map((kid) => kid.first) } as FormField]),
-    { kind: "text", label: "Amount you paid (₦)", required: true, value: target?.payAmount ? String(target.payAmount) : "" },
+    { kind: "text", label: amountLabel, required: true, ...(currencies.length > 1 ? { hint: "In the money of the school that billed this child." } : {}), value: target?.payAmount ? String(target.payAmount) : "" },
     { kind: "choice", label: "How did you pay?", required: true, value: "Bank transfer", options: ["Bank transfer", "At the bursary"] },
     { kind: "text", type: "date", label: "Day you paid", required: true, value: today() },
     { kind: "text", label: "Bank reference", optional: true, value: "", placeholder: "From your transfer receipt or bank app", hint: "It helps the bursar find it on the statement." },
@@ -105,7 +116,7 @@ function reportPaid(kids: FeeChild[], chosen: FeeChild | null): DrawerSpec {
     fields, confirmTitle: "Send this to the bursary?", commitLabel: "Send to the bursary", commitDone: "Sent to the bursary", commitDoneBody: "It shows as reported until the bursar has matched it. You can follow it under Requests.",
     submit: {
       endpoint: `${PW}/fees/report`, method: "POST",
-      map: { "Amount you paid (₦)": "amount", "How did you pay?": "method", "Day you paid": "date", "Bank reference": "reference", "Anything the bursar should know?": "note", ...(target ? {} : { "Which child?": "child" }) },
+      map: { [amountLabel]: "amount", "How did you pay?": "method", "Day you paid": "date", "Bank reference": "reference", "Anything the bursar should know?": "note", ...(target ? {} : { "Which child?": "child" }) },
       body: target ? { child: target.id } : {},
       ...(target ? {} : { encode: { "Which child?": Object.fromEntries(kids.map((kid) => [kid.first, kid.id])) } }),
     },
@@ -122,11 +133,11 @@ function reportPaid(kids: FeeChild[], chosen: FeeChild | null): DrawerSpec {
  * the figure is the school's, never this page's guess. A school that does not
  * show fees to parents gets nothing back rather than an error.
  */
-export async function payableFor(childId: string): Promise<{ amount: number; pay: DrawerSpec | null; plan: DrawerSpec } | null> {
+export async function payableFor(childId: string): Promise<{ amount: number; currency: string; pay: DrawerSpec | null; plan: DrawerSpec } | null> {
   const data = await apiGet(`${PW}/fees?child=${encodeURIComponent(childId)}`, observe<Fees>(localContracts["src/lib/modules/live/parent/fees.ts#a95ca495"])).catch(() => null);
   const entry = data?.children.find((child) => child.id === childId);
   if (!entry || entry.outstanding <= 0) return null;
-  return { amount: entry.outstanding, pay: payOnline(entry), plan: askTheBursar([{ id: entry.id, first: entry.first }], { id: entry.id, first: entry.first }, "plan") };
+  return { amount: entry.outstanding, currency: entry.currency ?? "NGN", pay: payOnline(entry), plan: askTheBursar([{ id: entry.id, first: entry.first }], { id: entry.id, first: entry.first }, "plan") };
 }
 
 /* ───────────────────────── the paper ───────────────────────── */
@@ -134,6 +145,7 @@ export async function payableFor(childId: string): Promise<{ amount: number; pay
 const letterhead = (me: ParentMe) => ({ name: me.office.name || me.school, place: me.office.where ?? undefined, contact: [me.office.phone, me.office.website].filter(Boolean).join(" · ") || undefined });
 
 function invoicePaper(invoice: FeeInvoice, entry: FeeChild, paid: FeePayment[], me: ParentMe): DrawerSpec {
+  const money = moneyOf(entry);
   const settled = invoice.balance <= 0;
   const doc: DocumentSpec = {
     heading: "Invoice preview", state: settled ? { label: "Settled", tone: "positive" } : { label: "Balance owed", tone: invoice.due < today() ? "negative" : "attention" },
@@ -161,6 +173,7 @@ function invoicePaper(invoice: FeeInvoice, entry: FeeChild, paid: FeePayment[], 
 }
 
 function receiptPaper(payment: FeePayment, invoice: FeeInvoice | undefined, entry: FeeChild, me: ParentMe): DrawerSpec {
+  const money = moneyOf(entry);
   const ref = payment.receipt ?? payment.reference;
   const doc: DocumentSpec = {
     heading: "Receipt preview", state: { label: "Receipt issued", tone: "positive" }, meta: `${ref} · ${entry.name} · ${money(payment.amount)}`, letterhead: letterhead(me),
@@ -178,6 +191,7 @@ function receiptPaper(payment: FeePayment, invoice: FeeInvoice | undefined, entr
 }
 
 function statementPaper(invoice: FeeInvoice, entry: FeeChild, paid: FeePayment[], me: ParentMe): DrawerSpec {
+  const money = moneyOf(entry);
   const doc: DocumentSpec = {
     heading: "Statement preview", state: invoice.balance > 0 ? { label: "Balance owed", tone: "attention" } : { label: "Settled", tone: "positive" },
     meta: `${invoice.term || invoice.number} · ${entry.name}`, letterhead: letterhead(me), kicker: "STATEMENT OF ACCOUNT", title: `${invoice.term || invoice.number} · ${entry.name}`, ref: invoice.number,
@@ -197,43 +211,82 @@ function statementPaper(invoice: FeeInvoice, entry: FeeChild, paid: FeePayment[]
 
 const phoneOnly = (panel: Panel): PanelRow => ({ ...row("1fr", [panel]), show: "phone" as const });
 
-function familyFees(data: Fees, me: ParentMe): ParentContent {
+/**
+ * The family's fees, school by school.
+ *
+ * A family at one school reads the totals as they always were. A family at two reads each school's figures in that school's own money —
+ * naira at one, cedis at the other — and nothing is added across them: a sum of ₦ and GH₵ is not a number anyone owes.
+ */
+export function familyFees(data: Fees, me: ParentMe): ParentContent {
   const kids = data.children.map((entry) => ({ id: entry.id, first: entry.first }));
-  const owed = data.children.reduce((sum, entry) => sum + entry.outstanding, 0);
-  const earlier = data.children.reduce((sum, entry) => sum + entry.fromEarlier, 0);
-  const billed = data.children.reduce((sum, entry) => sum + entry.billed, 0);
-  const paid = data.children.reduce((sum, entry) => sum + entry.paid, 0);
+  type Group = { key: string; school: string; currency: string; children: FeeChild[] };
+  const groups: Group[] = [];
+  for (const entry of data.children) {
+    const key = entry.schoolId ?? "";
+    let group = groups.find((item) => item.key === key);
+    if (!group) { group = { key, school: entry.school ?? "", currency: entry.currency ?? "NGN", children: [] }; groups.push(group); }
+    group.children.push(entry);
+  }
+  const many = groups.length > 1;
+  const total = (list: FeeChild[], field: "outstanding" | "fromEarlier" | "billed" | "paid") => list.reduce((sum, entry) => sum + entry[field], 0);
+  const lone = groups[0] ?? { key: "", school: "", currency: "NGN", children: [] as FeeChild[] };
+  const money = (value: number) => fmt(value, lone.currency);
   const worst = data.children.find((entry) => entry.tone === "negative");
   const payable = data.children.filter((entry) => entry.payAmount > 0);
   const onlyPayable = payable.length === 1 ? payable[0]! : null;
+  const childMoney = (entry: FeeChild) => moneyOf(entry);
   const reported = data.reports.reduce((sum, entry) => sum + entry.amount, 0);
+  const owed = total(data.children, "outstanding");
+  const earlier = total(data.children, "fromEarlier");
+  const billed = total(data.children, "billed");
+  const paid = total(data.children, "paid");
+  const cards: KpiCard[] = many
+    ? groups.flatMap((group) => {
+        const gowed = total(group.children, "outstanding");
+        const gbilled = total(group.children, "billed");
+        const gpaid = total(group.children, "paid");
+        const gworst = group.children.find((entry) => entry.tone === "negative");
+        const label = group.school || "This school";
+        return [
+          { label: `${label} · owed now`, value: gowed > 0 ? fmt(gowed, group.currency) : "Nothing owed", sub: gworst ? `${gworst.first}’s balance is overdue` : gowed > 0 ? "Part paid" : "Every bill settled", tone: gowed > 0 ? (gworst ? "negative" : "attention") : "positive", icon: "wallet" },
+          { label: `${label} · paid`, value: fmt(gpaid, group.currency), sub: gbilled ? `Of ${fmt(gbilled, group.currency)} billed` : "Nothing to pay", tone: "positive" as PanelTone, icon: "check" },
+        ];
+      })
+    : [
+        { label: "Owed now", value: owed > 0 ? money(owed) : "Nothing owed", sub: earlier > 0 ? `${money(earlier)} of it from an earlier bill` : worst ? `${worst.first}’s balance is overdue` : owed > 0 ? "Part paid" : "Every bill settled", tone: owed > 0 ? (worst ? "negative" : "attention") : "positive", icon: "wallet" },
+        { label: "Billed this term", value: money(billed), sub: billed ? `for ${plural(data.children.length, "child", "children")}` : "Nothing billed yet", tone: "neutral" as PanelTone, icon: "receipt" },
+        { label: "Paid this term", value: money(paid), sub: billed ? `${Math.round((paid / billed) * 100)}% of what was billed` : "Nothing to pay", tone: "positive" as PanelTone, icon: "check" },
+        { label: "Receipts on record", value: String(data.payments.length), sub: reported ? `${money(reported)} reported, waiting for the bursar` : data.payments.length ? "Every payment the bursar has recorded" : "None yet", tone: reported ? "submitted" : ("neutral" as PanelTone), icon: "doc" },
+      ];
+  const currencies = [...new Set(groups.map((group) => group.currency))];
+  const apart: PanelRow | null = many
+    ? row("1fr", [{
+        type: "note", tone: "neutral", icon: "M12 8.2v4.6M12 16h.02M12 3.6 21 19.4H3z",
+        title: currencies.length > 1 ? "Two currencies, kept apart" : "Two schools, kept apart",
+        body: `${groups.map((group) => `${group.school || "One school"} bills in ${currencyName(group.currency)}`).join(", ")}. Nothing is converted or added together.`,
+      }])
+    : null;
   return {
-    eyebrow: "Whole family", title: "Fees and payments",
-    desc: `What ${me.school} has billed, and what is still owed. It updates the moment the bursar records a payment.`,
-    phoneEyebrow: "Whole family · this term", phoneDesc: "",
-    ...(onlyPayable && payOnline(onlyPayable) ? { primary: { label: `Pay ${money(onlyPayable.payAmount)}`, drawer: payOnline(onlyPayable)! } } : {}),
+    eyebrow: many ? "Whole family · both schools" : "Whole family", title: "Fees and payments",
+    desc: many ? "What each of your schools has billed, and what is still owed at each. It updates the moment a bursar records a payment." : `What ${me.school} has billed, and what is still owed. It updates the moment the bursar records a payment.`,
+    phoneEyebrow: many ? "Whole family · this term" : "Whole family · this term", phoneDesc: "",
+    ...(onlyPayable && payOnline(onlyPayable) ? { primary: { label: `Pay ${childMoney(onlyPayable)(onlyPayable.payAmount)}`, drawer: payOnline(onlyPayable)! } } : {}),
     launchers: [
       { label: "I have paid", drawer: reportPaid(payable.length ? payable : data.children, null) },
       { label: "Ask the bursar", drawer: askTheBursar(kids, null) },
     ],
     rows: [
-      row("1fr", [{
-        type: "kpi", bare: true, per: 4,
-        cards: [
-          { label: "Owed now", value: owed > 0 ? money(owed) : "Nothing owed", sub: earlier > 0 ? `${money(earlier)} of it from an earlier bill` : worst ? `${worst.first}’s balance is overdue` : owed > 0 ? "Part paid" : "Every bill settled", tone: owed > 0 ? (worst ? "negative" : "attention") : "positive", icon: "wallet" },
-          { label: "Billed this term", value: money(billed), sub: billed ? `for ${plural(data.children.length, "child", "children")}` : "Nothing billed yet", tone: "neutral" as PanelTone, icon: "receipt" },
-          { label: "Paid this term", value: money(paid), sub: billed ? `${Math.round((paid / billed) * 100)}% of what was billed` : "Nothing to pay", tone: "positive" as PanelTone, icon: "check" },
-          { label: "Receipts on record", value: String(data.payments.length), sub: reported ? `${money(reported)} reported, waiting for the bursar` : data.payments.length ? "Every payment the bursar has recorded" : "None yet", tone: reported ? "submitted" : ("neutral" as PanelTone), icon: "doc" },
-        ],
-      }]),
+      row("1fr", [{ type: "kpi", bare: true, per: Math.min(4, cards.length), cards }]),
+      ...(apart ? [apart] : []),
       phoneOnly({
         type: "list", noFind: true, title: "This term, child by child", empty: "No child on your account has been billed yet.",
         items: data.children.map((entry): ListItem => {
           const drawer = entry.payAmount > 0 ? payOnline(entry) : null;
           const initials = entry.name.split(/\s+/).filter(Boolean).slice(0, 2).map((word) => word[0]!.toUpperCase()).join("");
+          const sum = childMoney(entry);
           return {
             avatar: initials, label: entry.name, href: `/portals/parent/fees?child=${entry.id}`, tone: entry.tone,
-            sub: entry.outstanding > 0 ? `${money(entry.outstanding)}${entry.tone === "negative" ? " · overdue" : " · owed"}` : entry.invoiceNo || "Nothing billed",
+            sub: `${entry.outstanding > 0 ? `${sum(entry.outstanding)}${entry.tone === "negative" ? " · overdue" : " · owed"}` : entry.invoiceNo || "Nothing billed"}${many && entry.school ? ` · ${entry.school}` : ""}`,
             ...(drawer ? { act: { label: "Pay", drawer } } : { pill: entry.status }),
           };
         }),
@@ -242,17 +295,20 @@ function familyFees(data: Fees, me: ParentMe): ParentContent {
       { ...row("1fr", [{
         type: "table", title: "This term, child by child", sub: "Open a child for the invoice, every receipt and earlier terms.",
         noun: "child", nounPlural: "children", head: ["Child", "Invoice", "Billed", "Paid", "Owed in all", "Status", ""], dense: true,
-        rows: data.children.map((entry): TableRow => ({
-          href: `/portals/parent/fees?child=${entry.id}`, keywords: `${entry.name} ${entry.invoiceNo}`,
-          cells: [
-            nameCell(entry.name, entry.arm, { avatar: false }),
-            entry.invoiceNo ? nameCell(entry.invoiceNo, entry.term, { avatar: false }) : text("Nothing billed"),
-            text(money(entry.billed), { mono: true }), text(money(entry.paid), { mono: true }),
-            { kind: "text", text: money(entry.outstanding), strong: true, mono: true, ...(entry.tone === "negative" ? { tone: "negative" as PanelTone } : {}) },
-            pill(entry.status, entry.tone),
-            { kind: "action", label: "Open", href: `/portals/parent/fees?child=${entry.id}` },
-          ],
-        })),
+        rows: data.children.map((entry): TableRow => {
+          const sum = childMoney(entry);
+          return {
+            href: `/portals/parent/fees?child=${entry.id}`, keywords: `${entry.name} ${entry.invoiceNo}`,
+            cells: [
+              nameCell(entry.name, many && entry.school ? `${entry.arm} · ${entry.school}` : entry.arm, { avatar: false }),
+              entry.invoiceNo ? nameCell(entry.invoiceNo, entry.term, { avatar: false }) : text("Nothing billed"),
+              text(sum(entry.billed), { mono: true }), text(sum(entry.paid), { mono: true }),
+              { kind: "text", text: sum(entry.outstanding), strong: true, mono: true, ...(entry.tone === "negative" ? { tone: "negative" as PanelTone } : {}) },
+              pill(entry.status, entry.tone),
+              { kind: "action", label: "Open", href: `/portals/parent/fees?child=${entry.id}` },
+            ],
+          };
+        }),
         empty: "No child on your account has been billed yet.",
         foot: "A discount the school has applied is its own line on the invoice, not a reduced total.",
       }]), show: "desktop" as const },
@@ -263,6 +319,7 @@ function familyFees(data: Fees, me: ParentMe): ParentContent {
 /* ───────────────────────── one child ───────────────────────── */
 
 function childFees(entry: FeeChild, data: Fees, query: Record<string, string | undefined>, me: ParentMe): ParentContent {
+  const money = moneyOf(entry);
   const tab = TABS.includes(query.tab ?? "") ? query.tab! : TABS[0]!;
   const kid = { id: entry.id, first: entry.first };
   const invoices = data.invoices.filter((invoice) => invoice.childId === entry.id);
@@ -278,7 +335,7 @@ function childFees(entry: FeeChild, data: Fees, query: Record<string, string | u
 
   const head = {
     eyebrow: `${entry.name} · ${entry.arm}`, title: "Fees and payments",
-    desc: "Billed in Nigerian naira (NGN). Updates the moment the bursar records a payment.",
+    desc: `Billed in ${currencyName(entry.currency)} (${entry.currency ?? "NGN"}). Updates the moment the bursar records a payment.`,
     tabs: TABS.map((label) => ({ label })), tab,
     ...(pay ? { primary: { label: `Pay ${money(entry.payAmount)}`, drawer: pay } } : {}),
     launchers: [
