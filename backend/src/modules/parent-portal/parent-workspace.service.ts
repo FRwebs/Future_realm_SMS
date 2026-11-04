@@ -166,6 +166,8 @@ export class ParentWorkspaceService {
           currency: site?.currency ?? "NGN",
           /** This school's own time zone, and the day and the clock in it — two schools can be an hour apart. */
           timezone: zoneAt(id), today: todayAt(id), now: nowAt(id), place: site?.city?.trim() || "",
+          /** How to reach this school's own office, for the paper it issues. */
+          office: { phone: site?.mainPhone ?? null, website: site?.website ?? null, where: [site?.city, site?.state].filter(Boolean).join(", ") || null },
           sees: [...policyAt(id).sees],
           term: row ? { id: row.id, name: row.name, session: row.academicSession.name, start: from, end: to, week: at, weeks: of } : null,
         };
@@ -255,7 +257,7 @@ export class ParentWorkspaceService {
         const over = Math.floor((dayOf(at(invoice.studentId).today).getTime() - dayOf(isoDay(invoice.dueOn)).getTime()) / DAY);
         items.push({
           kind: "fee", childId: invoice.studentId, child: firstOf.get(invoice.studentId) ?? "",
-          label: `Balance · ${money(Number(invoice.balance))}`,
+          label: `Balance · ${moneyIn(at(invoice.studentId).site?.currency ?? "NGN", Number(invoice.balance))}`,
           sub: over > 0 ? `${over} ${over === 1 ? "day" : "days"} overdue on ${invoice.invoiceNumber}. Pay, report a transfer, or ask for a plan.` : `Due ${isoDay(invoice.dueOn)} on ${invoice.invoiceNumber}.`,
           pill: over > 0 ? "Overdue" : `Due ${shortDay(isoDay(invoice.dueOn))}`, tone: over > 0 ? "negative" : "progress",
           action: "Pay", href: `/portals/parent/fees?child=${invoice.studentId}`, due: isoDay(invoice.dueOn),
@@ -320,7 +322,7 @@ export class ParentWorkspaceService {
       if (at(child).policy.sees.has("Fees")) {
         items.push({
           kind: "instalment", childId: child, child: firstOf.get(child) ?? "",
-          label: `Instalment · ${money(Number(item.amount) - Number(item.paidAmount))}`,
+          label: `Instalment · ${moneyIn(at(child).site?.currency ?? "NGN", Number(item.amount) - Number(item.paidAmount))}`,
           sub: `Due ${longDay(isoDay(item.dueOn))} under the payment plan the school approved.`,
           pill: `Due ${shortDay(isoDay(item.dueOn))}`, tone: "progress",
           action: "Pay", href: `/portals/parent/fees?child=${child}`, due: isoDay(item.dueOn),
@@ -1097,6 +1099,8 @@ export class ParentWorkspaceService {
       : null;
     return {
       today, items, typical,
+      /** Which schools a request about no child in particular can be sent to: named only when the family is at more than one. */
+      schools: many ? schoolIds.map((id) => ({ id, name: siteAt(id)?.shortName?.trim() || siteAt(id)?.name || "" })) : [],
       types: types.map((type) => ({ name: type.name, days: type.target, reviewer: type.reviewer, accepted: type.accepted })),
       children: children.map((student) => ({ id: student.id, first: student.firstName, name: [student.firstName, student.middleName, student.lastName].filter(Boolean).join(" "), school: many ? siteAt(student.schoolId)?.shortName?.trim() || siteAt(student.schoolId)?.name || "" : "" })),
     };
@@ -1645,7 +1649,7 @@ const money = (value: number) => `₦${value.toLocaleString("en-NG", { maximumFr
 /** The same figure in the school's own money, because a family at two schools is billed in two currencies and the two never add up. */
 const moneyIn = (currency: string, value: number) => {
   try {
-    return new Intl.NumberFormat("en-NG", { style: "currency", currency, maximumFractionDigits: 0 }).format(value);
+    return new Intl.NumberFormat(({ GHS: "en-GH", KES: "en-KE", ZAR: "en-ZA", GBP: "en-GB" } as Record<string, string>)[currency] ?? "en-NG", { style: "currency", currency, maximumFractionDigits: 0 }).format(value);
   } catch {
     return money(value);
   }

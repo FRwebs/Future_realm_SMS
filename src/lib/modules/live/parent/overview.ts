@@ -104,7 +104,7 @@ function familyOverview(me: ParentMe, needs: NeedItem[], more: PanelRow[]): Pare
         items: me.children.map((entry): ListItem => {
           const mine = needs.filter((need) => need.childId === entry.id);
           return {
-            avatar: entry.initials, label: entry.name, sub: `${entry.arm} · ${entry.level}`,
+            avatar: entry.initials, label: entry.name, sub: `${entry.arm} · ${entry.level}${me.manySchools && entry.school ? ` · ${entry.school}` : ""}`,
             side: mine.length ? `${mine.length} ${mine.length === 1 ? "thing" : "things"} to do` : "Nothing to do",
             tone: mine.some((need) => need.tone === "negative") ? "negative" : mine.length ? "attention" : "positive", href: `/portals/parent/overview?child=${entry.id}`,
           };
@@ -143,7 +143,7 @@ function familyOverview(me: ParentMe, needs: NeedItem[], more: PanelRow[]): Pare
             const mine = needs.filter((need) => need.childId === entry.id);
             return {
               label: entry.name,
-              sub: `${entry.arm} · ${entry.admissionNumber}`,
+              sub: `${entry.arm} · ${entry.admissionNumber}${me.manySchools && entry.school ? ` · ${entry.school}` : ""}`,
               pill: mine.length ? `${mine.length} to do` : "Nothing to do",
               tone: mine.some((need) => need.tone === "negative") ? "negative" : mine.length ? "attention" : "positive",
               href: `/portals/parent/overview?child=${entry.id}`,

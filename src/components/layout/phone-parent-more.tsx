@@ -50,13 +50,14 @@ const Heading = ({ children }: { children: React.ReactNode }) => <h3 className="
  * The More sheet of the parent mobile mockup: who is signed in, every page that is not on the bar under its heading, the things a parent
  * asks for most, and the way out. A heading with nothing under it — a page this school keeps back from parents — is not drawn.
  */
-export function ParentMoreSheet({ items, primaryIds, counts, urgent, session, kids, school, onClose }: {
+export function ParentMoreSheet({ items, primaryIds, counts, urgent, session, kids, schools, school, onClose }: {
   items: TabBarItem[];
   primaryIds: string[];
   counts: Record<string, number>;
   urgent: Record<string, boolean>;
   session: SessionUser;
   kids: number;
+  schools: number;
   school?: string;
   onClose: () => void;
 }) {
@@ -99,7 +100,7 @@ export function ParentMoreSheet({ items, primaryIds, counts, urgent, session, ki
           <span className="relative flex h-[46px] w-[46px] flex-none items-center justify-center rounded-full bg-[#E3F1EA] text-[15px] font-extrabold" style={{ color: INK }}>{initials(session.name)}</span>
           <span className="relative min-w-0 flex-1">
             <span className="block truncate text-[16px] font-extrabold text-white">{session.name}</span>
-            <span className="mt-[1px] block truncate text-[12.5px] font-medium" style={{ color: "rgba(255,255,255,0.7)" }}>Parent · {kids} {kids === 1 ? "child" : "children"}{school ? ` · ${school}` : ""}</span>
+            <span className="mt-[1px] block truncate text-[12.5px] font-medium" style={{ color: "rgba(255,255,255,0.7)" }}>Parent · {kids} {kids === 1 ? "child" : "children"}{schools > 1 ? ` · ${schools} schools` : school ? ` · ${school}` : ""}</span>
           </span>
           <span className="relative flex flex-none items-center gap-[3px] text-[13.5px] font-extrabold" style={{ color: "#5FD6B4" }}>Account <Glyph path={CHEVRON} size={15} stroke={2.2} /></span>
         </Link>

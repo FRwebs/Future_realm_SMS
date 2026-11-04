@@ -51,7 +51,7 @@ export function PortalTabBar({
   urgent: Record<string, boolean>;
   label: string;
   /** Who is signed in. A teacher's More sheet opens on their own card and ends in sign-out. */
-  account?: { session: SessionUser; schoolName?: string; kids?: number };
+  account?: { session: SessionUser; schoolName?: string; kids?: number; schools?: number };
 }) {
   const kind = usePhoneKind();
   const pathname = usePathname();
@@ -114,7 +114,7 @@ export function PortalTabBar({
       {moreOpen && kind === "teacher" && account ? (
         <TeacherMoreSheet items={items} primaryIds={primaryIds} counts={counts} urgent={urgent} pathname={pathname} session={account.session} schoolName={account.schoolName} onClose={() => setMoreOpen(false)} />
       ) : moreOpen && kind === "parent" && account ? (
-        <ParentMoreSheet items={items} primaryIds={primaryIds} counts={counts} urgent={urgent} session={account.session} kids={account.kids ?? 0} school={account.schoolName} onClose={() => setMoreOpen(false)} />
+        <ParentMoreSheet items={items} primaryIds={primaryIds} counts={counts} urgent={urgent} session={account.session} kids={account.kids ?? 0} schools={account.schools ?? 1} school={account.schoolName} onClose={() => setMoreOpen(false)} />
       ) : moreOpen ? (
         <>
           <button type="button" aria-label="Close" onClick={() => setMoreOpen(false)} className="fixed inset-0 z-[37] bg-[rgba(13,35,21,0.5)] md:hidden" />
