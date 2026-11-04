@@ -3,7 +3,7 @@ import type { ListItem, Panel, PanelRow } from "@/lib/modules/panels";
 import { loadCalendar, item as eventItem } from "@/lib/modules/live/parent/calendar";
 import { liveLesson, loadLearning } from "@/lib/modules/live/parent/learning";
 import { loadRequests, requestItem } from "@/lib/modules/live/parent/requests";
-import { dDow, greeting, loadMe, loadNeeds } from "@/lib/modules/live/parent/shared";
+import { clocksOf, dDow, greeting, loadMe, loadNeeds } from "@/lib/modules/live/parent/shared";
 import type { NeedItem, ParentContent, ParentMe } from "@/lib/modules/live/parent/shared";
 
 /**
@@ -40,7 +40,7 @@ function homeBlocks(me: ParentMe, child: string, learning: Learning | null, cale
   const inClass = (learning?.children ?? []).map((kid) => ({ kid, live: liveLesson(kid, me) })).filter((entry) => entry.live.now);
   if (inClass.length) {
     blocks.push(phoneOnly({
-      type: "list", noFind: true, title: "Right now in class", sub: me.now,
+      type: "list", noFind: true, title: "Right now in class", sub: clocksOf(me),
       items: inClass.map(({ kid, live }): ListItem => ({
         avatar: me.children.find((entry) => entry.id === kid.id)?.initials ?? kid.first.slice(0, 2).toUpperCase(),
         label: `${kid.first} · ${live.now!.subject}`, pill: "Now", tone: "progress", href: `/portals/parent/learning?child=${kid.id}`,

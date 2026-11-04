@@ -34,6 +34,7 @@ import {
   StudentFinanceLedgerView
 } from "../../../../src/lib/domain/types";
 import { getPaymentGateway } from "../../../../src/lib/integrations/payment-gateways";
+import { assertGuardianMaySee } from "../parent-portal/guardian-policy";
 import { sendNotification } from "../../../../src/lib/integrations/notifications";
 import { componentFor } from "../../../../src/lib/modules/allocation-build";
 import { formatNigeriaClassName, normalizeNigeriaClassValue } from "../../../../src/lib/school-options";
@@ -1221,6 +1222,32 @@ export class FinanceService {
     return created;
   }
 
+  /**
+   * The school that billed an invoice a parent wants to pay.
+   *
+   * A parent whose children are at two schools holds a guardian record at each, but is signed in to only one — so an invoice from the
+   * other school is not in the signed-in school's books. The invoice says which school it belongs to, and the guardian link says whether
+   * this login may pay it; the payment is then made at that school, under its own policy and in its own currency.
+   */
+  async parentInvoiceSchool(session: SessionPayload, invoiceId: string): Promise<string> {
+    const invoice = await prisma.invoice.findFirst({
+      where: { id: invoiceId, status: { notIn: ["VOID", "PAID"] } },
+      select: { schoolId: true, student: { select: { guardians: { select: { guardian: { select: { userId: true, schoolId: true } } } } } } },
+    });
+    if (!invoice) throw new NotFoundException("Open invoice not found.");
+    const owns = invoice.student.guardians.some((link) => link.guardian.userId === session.userId && link.guardian.schoolId === invoice.schoolId);
+    if (!owns) throw new ForbiddenException("Parents can only pay invoices for linked children.");
+    return invoice.schoolId;
+  }
+
+  /** A parent's online payment, made at the school that billed it. */
+  async initializeParentPayment(session: SessionPayload, payload: unknown) {
+    const { invoiceId } = paymentSchema.pick({ invoiceId: true }).parse(payload);
+    const schoolId = await this.parentInvoiceSchool(session, invoiceId);
+    await assertGuardianMaySee(schoolId, "Fees");
+    return this.initializePaymentFlow(schoolId, session.userId, payload, session);
+  }
+
   async initializePaymentFlow(schoolId: string, recordedById: string, payload: unknown, session?: SessionPayload) {
     const parsed = paymentSchema.parse(payload);
     const reference = parsed.reference || nextCode("PAY");
@@ -1231,6 +1258,8 @@ export class FinanceService {
       throw new BadRequestException("Payment amount exceeds the outstanding balance. Re-submit with overpayment confirmation if intentional.");
     }
     const gateway = getPaymentGateway(provider);
+    // Each school bills in its own currency; the gateway is told which, so a cedi invoice is not charged in naira.
+    const billed = await prisma.school.findUnique({ where: { id: schoolId }, select: { currency: true } });
     const studentFullName = studentName(invoice.student);
     const parentGuardian = invoice.student.guardians[0]?.guardian;
     const callbackUrl =
@@ -1239,6 +1268,7 @@ export class FinanceService {
         : `${process.env.APP_URL ?? "http://localhost:3000"}/finance/payments`;
     const checkout = await gateway.initializePayment({
       amount: parsed.amount,
+      currency: billed?.currency ?? "NGN",
       email: parsed.email || parentGuardian?.email || "accounts@greenfieldcollege.ng",
       customerName: parentGuardian ? `${parentGuardian.firstName} ${parentGuardian.lastName}` : studentFullName,
       customerPhone: parentGuardian?.phone,
@@ -2459,7 +2489,8 @@ export class FinanceService {
     });
     if (!invoice) throw new NotFoundException("Open invoice not found.");
     if (session?.role === "PARENT") {
-      const ownsInvoice = invoice.student.guardians.some((link) => link.guardian.userId === session.userId && link.guardian.schoolId === session.schoolId);
+      // The guardian record that counts is the one at the school that billed the invoice, not necessarily the one signed in to.
+      const ownsInvoice = invoice.student.guardians.some((link) => link.guardian.userId === session.userId && link.guardian.schoolId === schoolId);
       if (!ownsInvoice) throw new ForbiddenException("Parents can only pay invoices for linked children.");
     }
     return invoice;
