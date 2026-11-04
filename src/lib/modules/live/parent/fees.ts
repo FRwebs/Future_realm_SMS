@@ -142,14 +142,23 @@ export async function payableFor(childId: string): Promise<{ amount: number; cur
 
 /* ───────────────────────── the paper ───────────────────────── */
 
-const letterhead = (me: ParentMe) => ({ name: me.office.name || me.school, place: me.office.where ?? undefined, contact: [me.office.phone, me.office.website].filter(Boolean).join(" · ") || undefined });
+/**
+ * The paper's head: the school that billed the child, not the one the parent signed in to. A family at two schools holds papers from
+ * both, and a receipt from Ridgeview must not carry Grace Academy's name and phone number.
+ */
+export const letterhead = (me: ParentMe, entry?: { schoolId?: string }) => {
+  const own = entry?.schoolId ? me.schools?.find((school) => school.id === entry.schoolId) : undefined;
+  const office = own?.office ?? me.office;
+  const name = own?.name || me.office.name || me.school;
+  return { name, place: office.where ?? undefined, contact: [office.phone, office.website].filter(Boolean).join(" · ") || undefined };
+};
 
 function invoicePaper(invoice: FeeInvoice, entry: FeeChild, paid: FeePayment[], me: ParentMe): DrawerSpec {
   const money = moneyOf(entry);
   const settled = invoice.balance <= 0;
   const doc: DocumentSpec = {
     heading: "Invoice preview", state: settled ? { label: "Settled", tone: "positive" } : { label: "Balance owed", tone: invoice.due < today() ? "negative" : "attention" },
-    meta: `${invoice.number} · ${entry.name} · ${money(invoice.total)}`, letterhead: letterhead(me),
+    meta: `${invoice.number} · ${entry.name} · ${money(invoice.total)}`, letterhead: letterhead(me, entry),
     kicker: "INVOICE", title: `Invoice ${invoice.number}`, ref: invoice.term || `Issued ${dLong(invoice.issued)}`,
     stamp: settled ? { text: "PAID", tone: "positive" } : undefined,
     idents: [["Billed to", me.name], ["For", entry.name], ["Class", entry.arm], ["Term", invoice.term || "Not tied to a term"], ["Issued", dLong(invoice.issued)], ["Due", dLong(invoice.due)]],
@@ -176,7 +185,7 @@ function receiptPaper(payment: FeePayment, invoice: FeeInvoice | undefined, entr
   const money = moneyOf(entry);
   const ref = payment.receipt ?? payment.reference;
   const doc: DocumentSpec = {
-    heading: "Receipt preview", state: { label: "Receipt issued", tone: "positive" }, meta: `${ref} · ${entry.name} · ${money(payment.amount)}`, letterhead: letterhead(me),
+    heading: "Receipt preview", state: { label: "Receipt issued", tone: "positive" }, meta: `${ref} · ${entry.name} · ${money(payment.amount)}`, letterhead: letterhead(me, entry),
     kicker: "OFFICIAL RECEIPT", title: `Receipt ${ref}`, ref: `${payment.paidAt ? dLong(payment.paidAt) : ""}${payment.term ? ` · ${payment.term}` : ""}`,
     idents: [["Received from", me.name], ["On behalf of", entry.name], ["Class", entry.arm], ["Payment mode", word(payment.method)], ["Reference", payment.bankRef || payment.reference || "—"], ["Date received", payment.paidAt ? dLong(payment.paidAt) : "—"], ["Against", payment.invoice], ...(payment.by ? [["Recorded by", `${payment.by} · Bursary`] as [string, string]] : [])],
     totals: [
@@ -194,7 +203,7 @@ function statementPaper(invoice: FeeInvoice, entry: FeeChild, paid: FeePayment[]
   const money = moneyOf(entry);
   const doc: DocumentSpec = {
     heading: "Statement preview", state: invoice.balance > 0 ? { label: "Balance owed", tone: "attention" } : { label: "Settled", tone: "positive" },
-    meta: `${invoice.term || invoice.number} · ${entry.name}`, letterhead: letterhead(me), kicker: "STATEMENT OF ACCOUNT", title: `${invoice.term || invoice.number} · ${entry.name}`, ref: invoice.number,
+    meta: `${invoice.term || invoice.number} · ${entry.name}`, letterhead: letterhead(me, entry), kicker: "STATEMENT OF ACCOUNT", title: `${invoice.term || invoice.number} · ${entry.name}`, ref: invoice.number,
     idents: [["For", entry.name], ["Class", entry.arm], ["Invoice", invoice.number], ["Issued", dLong(invoice.issued)], ["Due", dLong(invoice.due)]],
     tables: [{
       title: "Payments", heads: [{ label: "Receipt", align: "left" }, { label: "Date" }, { label: "Method" }, { label: "Amount", align: "right" }],
