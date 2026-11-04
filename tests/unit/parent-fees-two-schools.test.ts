@@ -1,4 +1,4 @@
-import { familyFees, type Fees } from "@/lib/modules/live/parent/fees";
+import { familyFees, letterhead, type Fees } from "@/lib/modules/live/parent/fees";
 import type { ParentMe } from "@/lib/modules/live/parent/shared";
 
 const child = (over: Record<string, unknown>) => ({ id: "c", name: "Chioma Adebayo", first: "Chioma", arm: "SSS 2A", invoiceNo: "INV-1", invoiceId: "i", payInvoiceId: "i", payAmount: 0, term: "First Term", billed: 0, paid: 0, balance: 0, outstanding: 0, fromEarlier: 0, oldestDue: null, status: "Paid in full", tone: "positive", ...over });
@@ -37,5 +37,25 @@ describe("the family's fees across two schools", () => {
     expect(cards.map((card) => card.label)).toEqual(["Owed now", "Billed this term", "Paid this term", "Receipts on record"]);
     expect(cards[0]!.value).toBe("₦124,000");
     expect(panels(one).some((panel) => panel.type === "note")).toBe(false);
+  });
+});
+
+describe("the paper a school issues", () => {
+  const family = {
+    school: "Grace Academy", office: { name: "Grace Academy", phone: "0803", website: "grace.example.ng", where: "Abuja, FCT" },
+    schools: [
+      { id: "s1", name: "Grace Academy", office: { phone: "0803", website: "grace.example.ng", where: "Abuja, FCT" } },
+      { id: "s2", name: "Ridgeview International School", office: { phone: "0302000111", website: "ridgeview.example.gh", where: "Accra, Greater Accra" } },
+    ],
+  } as unknown as ParentMe;
+
+  it("carries the name and office of the school that billed the child", () => {
+    expect(letterhead(family, { schoolId: "s2" })).toEqual({ name: "Ridgeview International School", place: "Accra, Greater Accra", contact: "0302000111 · ridgeview.example.gh" });
+    expect(letterhead(family, { schoolId: "s1" }).name).toBe("Grace Academy");
+  });
+
+  it("falls back to the signed-in school's office when the child's school is not known", () => {
+    expect(letterhead(family).name).toBe("Grace Academy");
+    expect(letterhead(family, { schoolId: "nope" }).contact).toBe("0803 · grace.example.ng");
   });
 });
