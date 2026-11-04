@@ -3,12 +3,13 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 
+import { HideOnTeacherPhone, OnePageOnPhone, PhoneSection, TabsOnLaptop, TeacherPhoneHead } from "@/components/account/teacher-phone-head";
 import { ModuleHero } from "@/components/data-display/module-hero";
 import { PanelRows } from "@/components/modules/panel-renderer";
 import { TabBar } from "@/components/modules/tab-bar";
 import { LOCALES } from "@/i18n/locales";
 import { getUiText } from "@/i18n/ui-text";
-import { accountContentFor, accountTabs, type AccountWords, type MyProfile } from "@/lib/modules/account";
+import { accountContentFor, accountTabs, roleLabelOf, type AccountWords, type MyProfile } from "@/lib/modules/account";
 import { getServerSession } from "@/lib/auth/session";
 import { apiGet } from "@/lib/api/server";
 
@@ -54,22 +55,37 @@ export default async function AccountTabPage({ params }: PageProps) {
     save: t("saveLanguage"),
   };
 
-  const content = accountContentFor(session, schoolName, profile, words)[tab.slug];
+  const all = accountContentFor(session, schoolName, profile, words);
+  const content = all[tab.slug];
 
   return (
     <div className="grid gap-5">
-      <ModuleHero
-        eyebrow={t("eyebrow")}
-        title={ui(content?.title ?? tab.label)}
-        description={content?.desc ?? ""}
-      />
+      <HideOnTeacherPhone>
+        <ModuleHero
+          eyebrow={t("eyebrow")}
+          title={ui(content?.title ?? tab.label)}
+          description={content?.desc ?? ""}
+        />
+      </HideOnTeacherPhone>
+      <TeacherPhoneHead eyebrow={roleLabelOf(session.role)} name={session.name} line={`${session.email} · ${schoolName}`} />
 
-      <TabBar
-        ariaLabel={t("tabs")}
-        items={accountTabs.map((entry) => ({ href: `/account/${entry.slug}`, label: ui(entry.label) }))}
-      />
+      <TabsOnLaptop>
+        <TabBar
+          ariaLabel={t("tabs")}
+          hideOnTeacherPhone
+          items={accountTabs.map((entry) => ({ href: `/account/${entry.slug}`, label: ui(entry.label) }))}
+        />
 
-      {content ? <PanelRows rows={content.rows} /> : null}
+        {content ? <PanelRows rows={content.rows} /> : null}
+      </TabsOnLaptop>
+
+      {/* A teacher's phone reads the account as one page: who they are, how the product reaches and opens for them, how it is secured, what was done. */}
+      <OnePageOnPhone>
+        {([["Your account", "Held by the school office. A change is a request, so the record stays trustworthy.", "profile"], ["Notifications and preferences", "How Nooria reaches you, and how it opens.", "preferences"], ["Security", "Your password, two-step sign-in and where you are signed in.", "security"], ["Recent activity", "Sign-ins and changes on your account.", "my-activity"]] as const).map(([title, sub, key]) => {
+          const part = all[key];
+          return part ? <PhoneSection key={key} title={title} sub={sub}><PanelRows rows={part.rows} /></PhoneSection> : null;
+        })}
+      </OnePageOnPhone>
     </div>
   );
 }

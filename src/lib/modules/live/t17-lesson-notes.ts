@@ -2,7 +2,7 @@ import { apiGet, observe } from "@/lib/api/server";
 import { localContracts } from "@/lib/api/local-contracts.zod";
 import type { TeacherWorkspaceView } from "@/lib/api/teacher-workspace";
 import { LN_API, type AddOptions, type Letterhead, type NoteData, type Overview, type SchemeData, type Section, type SubjectNotesData, type ThreadEntry } from "@/lib/modules/lesson-notes-types";
-import type { DrawerSpec, PanelRow, PanelTone, TabContent, TableCellKind, TableRow, TrackerRow } from "@/lib/modules/panels";
+import type { DrawerSpec, Panel, PanelRow, PanelTone, TabContent, TableCellKind, TableRow, TrackerRow } from "@/lib/modules/panels";
 import { bar, pill, row, text as cell } from "@/lib/modules/panels";
 import { formatDay } from "@/lib/date-format";
 
@@ -15,6 +15,7 @@ import { formatDay } from "@/lib/date-format";
 export const API = LN_API;
 const EYE = "M2.5 12s3.5-6.5 9.5-6.5S21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12zM12 14.6a2.6 2.6 0 1 0 0-5.2 2.6 2.6 0 0 0 0-5.2";
 const PEN = "M4 20h4L19 9l-4-4L4 16zM13.5 6.5l4 4";
+const NOTE = "M5 4.5h9.5A2.5 2.5 0 0 1 17 7v12.5H7.5A2.5 2.5 0 0 1 5 17zM9 8.5h5M9 12h5";
 const SEND = "M4.5 12.5 19.5 5l-4 15-4.2-5.3z";
 
 type Page = TabContent & { crumb: { label: string; href: string } };
@@ -82,14 +83,74 @@ async function curriculumTab(query: Q): Promise<TabContent> {
   const chosen = overview.subjects.find((entry) => entry.subjectId === query.subject) ?? overview.subjects[0];
   const scheme = chosen ? await apiGet(`${API}/curriculum/${chosen.subjectId}${withTerm(query.term)}`, observe<SchemeData>(localContracts["src/lib/modules/live/t17-lesson-notes.ts#65671609"])) : null;
   const week = Number(query.week);
+  const opened = Number.isFinite(week) && week > 0;
+  const workspace = embed("scheme-workspace", { overview, scheme, initialWeek: opened ? week : undefined });
+  // A week that has been opened is the editor on every screen. Until then the phone reads the scheme as a list: one row for each week.
+  const phone = opened ? [] : phoneScheme(overview, scheme, chosen, Boolean(query.subject));
+  const thisWeek = scheme && !scheme.readOnly && scheme.term.current ? scheme.weeks.find((entry) => entry.week === scheme.term.current && entry.kind !== "free" && entry.kind !== "pre") : undefined;
   return {
     title: "Curriculum",
     desc: scheme
       ? `${scheme.term.name}, ${scheme.term.session}. Plan the term once, then teach from it every week.`
       : `${overview.term.name}, ${overview.term.session}. One scheme of work for each subject you teach.`,
+    phoneTitle: "Scheme of work",
+    phoneDesc: scheme && (overview.subjects.length === 1 || query.subject)
+      ? [scheme.curriculum, scheme.subject, scheme.per ? `${scheme.per} periods a week` : null, scheme.term.current ? `Week ${scheme.term.current} of ${scheme.term.weeks}` : null].filter(Boolean).join(" · ")
+      : `${overview.term.name}, ${overview.term.session}. One scheme of work for each subject you teach.`,
     primary: overview.canAdd ? { label: "Add a subject", href: "/lesson-notes/curriculum/add" } : undefined,
-    rows: [embed("scheme-workspace", { overview, scheme, initialWeek: Number.isFinite(week) && week > 0 ? week : undefined })],
+    phonePrimary: scheme && thisWeek ? { label: "This week’s note", icon: PEN, href: `/lesson-notes/notes/${scheme.subjectId}/${thisWeek.week}?term=${scheme.term.id}` } : undefined,
+    rows: phone.length ? [...phone, { ...workspace, show: "desktop" as const }] : [workspace],
   };
+}
+
+const WEEK_TONE: Record<string, "positive" | "progress" | "attention" | "neutral" | "submitted"> = { Taught: "positive", "In progress": "progress", "Partly taught": "attention", Postponed: "attention", Planned: "neutral", Revision: "submitted", "Free week": "neutral", "Not planned": "neutral" };
+
+/** The phone's scheme of work: the term's chips, two figures, then the weeks — or, for a teacher with several subjects, the subjects to choose from first. */
+export function phoneScheme(overview: Overview, scheme: SchemeData | null, chosen: Overview["subjects"][number] | undefined, subjectNamed: boolean): PanelRow[] {
+  if (!scheme || !chosen) return [{ ...row("1fr", [{ type: "note", tone: "neutral", icon: EYE, title: "No subject on your scheme of work yet", body: "A scheme of work belongs to a subject you teach in an arm. When the school names you on one it appears here — or add a subject yourself." }]), show: "phone" as const }];
+  const shown = (panel: Panel): PanelRow => ({ ...row("1fr", [panel]), show: "phone" as const });
+  if (overview.subjects.length > 1 && !subjectNamed) {
+    return [
+      shown({ type: "kpi", bare: true, cards: [
+        { label: "Your subjects", value: String(overview.subjects.length), sub: overview.subjects.slice(0, 2).map((entry) => entry.subject).join(" · ") },
+        { label: "Topics taught", value: String(overview.subjects.reduce((sum, entry) => sum + entry.taught, 0)), unit: `of ${overview.subjects.reduce((sum, entry) => sum + entry.teachTotal, 0)}`, sub: overview.term.name },
+      ] }),
+      shown({
+        type: "list", title: "Choose a subject", tag: `${overview.subjects.length} subjects`, tagTone: "neutral", sub: "A scheme of work is one subject for one term. Open one to see its weeks.",
+        items: overview.subjects.map((entry) => ({
+          icon: NOTE, label: entry.subject, pill: entry.status, tone: entry.status === "Behind" ? ("attention" as const) : entry.status === "Not planned" || entry.status === "Read only" ? ("neutral" as const) : ("positive" as const),
+          sub: `${entry.arms.join(", ")} · ${entry.planned ? `${entry.taught} of ${entry.teachTotal} topics taught` : "nothing planned yet"}`,
+          href: `/lesson-notes/curriculum?subject=${entry.subjectId}&term=${scheme.term.id}`,
+        })),
+      }),
+    ];
+  }
+  const term = scheme.term;
+  const teach = scheme.weeks.filter((entry) => entry.kind === "teach" || entry.kind === "rev");
+  const left = term.current ? scheme.weeks.filter((entry) => entry.kind !== "pre" && entry.week > term.current!).length : null;
+  const weekHref = (entry: SchemeData["weeks"][number]) => `/lesson-notes/curriculum?subject=${scheme.subjectId}&term=${term.id}&week=${entry.week}`;
+  return [
+    ...(scheme.terms.length > 1 ? [shown({ type: "embed", component: "phone-chips", props: { chips: scheme.terms.map((entry) => ({ label: entry.name, on: entry.id === term.id, href: `/lesson-notes/curriculum?subject=${scheme.subjectId}&term=${entry.id}` })) } })] : []),
+    shown({ type: "kpi", bare: true, cards: [
+      { label: "Topics taught", value: String(chosen.taught), unit: `of ${chosen.teachTotal}`, sub: chosen.awaitingTimetable ? "Waiting for the timetable" : chosen.status === "Behind" ? `Behind for week ${term.current ?? ""}`.trim() : chosen.planned ? (term.current ? `On schedule for week ${term.current}` : "Nothing is due yet") : "Nothing planned yet", tone: chosen.status === "Behind" ? "attention" : "positive" },
+      { label: "Weeks left", value: left === null ? "—" : String(left), sub: left === null ? "The term is not running" : "Left in the term" },
+    ] }),
+    shown({
+      type: "list", title: `${scheme.subject} · ${term.name.toLowerCase()}`, sub: scheme.readOnly ? "You read this scheme; the subject’s teacher plans it." : "Tap a week to open its note, edit its topic, mark it covered, or push it on.",
+      empty: "Nothing is planned for this term yet. Open the scheme on a larger screen, or add the subject from the standard curriculum.",
+      items: teach.length || scheme.weeks.some((entry) => entry.kind === "free" && entry.topic)
+        ? scheme.weeks.filter((entry) => entry.kind !== "pre" && (entry.kind !== "free" || entry.topic)).map((entry) => {
+            const now = term.current === entry.week;
+            return {
+              lead: { value: `W${entry.week}`, tone: now ? ("progress" as const) : ("neutral" as const) },
+              label: entry.topic || "Free week", sub: entry.subtopics.length ? entry.subtopics.join(" · ") : entry.dates,
+              pill: now && !entry.status.startsWith("Taught") ? "This week" : entry.status, tone: now ? ("progress" as const) : (WEEK_TONE[entry.status] ?? ("neutral" as const)),
+              side: entry.assessment ?? undefined, href: weekHref(entry),
+            };
+          })
+        : [],
+    }),
+  ];
 }
 
 export async function addSubjectPage(): Promise<Page> {
@@ -159,11 +220,75 @@ function notesTab(v: Landing, query: Q): TabContent {
   })));
   const other = v.terms.filter((t) => t.id !== v.term.id);
   const next = v.subjects.find((entry) => entry.next && !entry.readOnly);
+  // The phone's blocks, in the mockup's order: what this week asks for, what came back, two figures, and every subject with where it stands.
+  const open = v.subjects.find((entry) => entry.thisWeek && !entry.readOnly && entry.thisWeek.state !== "Approved" && entry.thisWeek.state !== "Submitted") ?? v.subjects.find((entry) => entry.thisWeek) ?? null;
+  const dueNow = v.subjects.filter((entry) => entry.thisWeek);
+  const doneNow = dueNow.filter((entry) => entry.thisWeek!.state === "Approved" || entry.thisWeek!.state === "Submitted").length;
+  const phoneRows: Array<PanelRow | null> = [
+    open?.thisWeek
+      ? {
+          ...row("1fr", [{
+            type: "embed", component: "phone-hero",
+            props: {
+              eyebrow: `This week · ${open.subject} · ${open.arms.join(" · ")}`, icon: PEN, title: open.thisWeek.topic || `Week ${open.thisWeek.week}`,
+              sub: `Week ${open.thisWeek.week} · ${open.thisWeek.state === "Not started" ? "not written yet" : open.thisWeek.state === "Approved" ? "signed" : open.thisWeek.state.toLowerCase()}`,
+              cta: { label: open.readOnly ? "Read this week’s note" : open.thisWeek.state === "Not started" ? "Write the note" : open.thisWeek.state === "Draft" ? "Continue the note" : "Open the note", href: `/lesson-notes/notes/${open.subjectId}/${open.thisWeek.week}?term=${v.term.id}` },
+            },
+          }]),
+          show: "phone" as const,
+        }
+      : null,
+    v.rework.length
+      ? {
+          ...row("1fr", [{
+            type: "list", title: "Returned to you", tag: `${v.rework.length} ${v.rework.length === 1 ? "note" : "notes"}`, tagTone: "negative", sub: "Corrected and resubmitted from the note itself.",
+            items: v.rework.map((entry) => ({ label: `Week ${entry.week} · ${entry.topic}`, sub: `${entry.subject} · ${entry.arms.join(", ")}${v.signer ? ` · ${v.signer.name}` : ""}`, quote: `“${entry.note || "No comment left"}”`, href: `/lesson-notes/notes/${entry.subjectId}/${entry.week}?term=${v.term.id}` })),
+          }]),
+          show: "phone" as const,
+        }
+      : null,
+    {
+      ...row("1fr", [{
+        type: "kpi", bare: true,
+        cards: [
+          { label: "Signed this term", value: String(k.signed), unit: k.signed === 1 ? "note" : "notes", sub: v.signer ? `By ${v.signer.name}` : "No one is named to sign them yet", tone: "positive" },
+          { label: "This week", value: String(doneNow), unit: `of ${dueNow.length}`, sub: dueNow.length ? (doneNow === dueNow.length ? "Every note is in" : "Still to write or send") : v.term.current ? "Nothing is due" : "The term is not running", tone: dueNow.length && doneNow < dueNow.length ? "attention" : "positive" },
+        ],
+      }]),
+      show: "phone" as const,
+    },
+    {
+      ...row("1fr", [{
+        type: "list", title: "Your subjects and classes", tag: `${v.subjects.length} ${v.subjects.length === 1 ? "subject" : "subjects"}`, tagTone: "attention",
+        sub: "One note serves every class on a row. Open one for its weeks.", empty: "You are not named on a subject.",
+        items: v.subjects.map((entry) => ({
+          icon: PEN, tone: entry.returned ? ("negative" as const) : entry.state === "Behind" || entry.state === "Draft open" ? ("attention" as const) : ("positive" as const),
+          label: `${entry.subject} · ${entry.arms.join(", ")}`,
+          sub: `${entry.thisWeek ? `Week ${entry.thisWeek.week} · ${entry.thisWeek.topic || "no topic"}` : v.term.current ? "Nothing this week" : "The term is not running"} · ${entry.signed} ${entry.signed === 1 ? "note" : "notes"} signed`,
+          pill: entry.returned ? `${entry.returned} returned` : entry.thisWeek ? entry.thisWeek.state : entry.state, href: `/lesson-notes/notes/${entry.subjectId}?term=${v.term.id}`,
+        })),
+      }]),
+      show: "phone" as const,
+    },
+    history.length
+      ? {
+          ...row("1fr", [{
+            type: "list", title: "Note history", sub: "Signed notes from earlier terms stay here to teach from again.",
+            items: v.history.flatMap((entry) => entry.terms.map((t) => ({ icon: PEN, label: entry.subject, sub: `${t.term}${t.session ? `, ${t.session}` : ""} · ${t.signed} signed note${t.signed === 1 ? "" : "s"}`, href: `/lesson-notes/notes/history/${entry.subjectId}` }))),
+          }]),
+          show: "phone" as const,
+        }
+      : null,
+  ];
   return {
-    title: "Notes", desc: `${v.term.name}, ${v.term.session}${v.term.current ? ` · week ${v.term.current} of ${v.term.weeks}` : ""}. ${v.signer ? `${v.signer.name} signs your notes.` : "No one is named to sign your notes yet."}`,
-    primary: next ? { label: `Write week ${next.next}`, icon: PEN, href: `/lesson-notes/notes/${next.subjectId}/${next.next}?term=${v.term.id}` } : undefined,
+    title: "Notes", phoneTitle: "Your notes this term", phoneDesc: "Plan the term once and teach from it weekly. One note serves every arm that takes the subject.",
+    phoneEyebrow: `Lesson Notes${v.term.current ? ` · Week ${v.term.current} of ${v.term.weeks}` : ` · ${v.term.name}`}`,
+    desc: `${v.term.name}, ${v.term.session}${v.term.current ? ` · week ${v.term.current} of ${v.term.weeks}` : ""}. ${v.signer ? `${v.signer.name} signs your notes.` : "No one is named to sign your notes yet."}`,
+    primary: next ? { label: `Write week ${next.next}`, phoneLabel: "Write note", icon: PEN, href: `/lesson-notes/notes/${next.subjectId}/${next.next}?term=${v.term.id}` } : undefined,
     launchers: other.map((t) => ({ label: `Notes for ${t.name}`, href: `/lesson-notes/notes?term=${t.id}` })),
     rows: [
+      ...phoneRows.filter((entry): entry is PanelRow => Boolean(entry)),
+      ...desktopOnly([
       row("1fr", [{
         type: "kpi", per: 5, sub: query.term ? undefined : "Counted from your own notes — nothing here is typed in twice.",
         cards: [
@@ -192,9 +317,13 @@ function notesTab(v: Landing, query: Q): TabContent {
         head: ["Subject and term", "Signed notes", ""], rows: history, empty: "No signed note from an earlier term yet.",
         emptyTitle: "Nothing from earlier terms yet", emptyBody: "Once a note is signed and the term has passed, it is kept here. When the topic comes round again you can start from it.",
       }]),
+      ]),
     ],
   };
 }
+
+/** Rows the desktop draws and a teacher's phone replaces with its own blocks. */
+const desktopOnly = (rows: PanelRow[]): PanelRow[] => rows.map((entry) => ({ ...entry, show: "desktop" as const }));
 
 export async function subjectNotesPage(subjectId: string, termId?: string): Promise<Page> {
   const data = await loadSubjectNotes(subjectId, termId);

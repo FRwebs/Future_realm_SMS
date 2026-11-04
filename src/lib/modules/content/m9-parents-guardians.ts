@@ -538,4 +538,9 @@ export const parentsGuardiansContent: ModuleContent = {
       ]),
     ],
   },
+  forms: {
+    title: "Forms",
+    desc: "Trips, leave and agreements the school needs families to answer — and who has.",
+    rows: [row("1fr", [{ type: "note", tone: "neutral", title: "Forms are read from the school's records", body: "Open this tab while connected to see the forms sent and each family's answer." }])],
+  },
 };

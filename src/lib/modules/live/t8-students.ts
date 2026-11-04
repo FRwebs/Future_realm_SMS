@@ -25,9 +25,9 @@ const WARN = "M12 8.2v4.6M12 16h.02M12 3.6 21 19.4H3z";
 const EYE = "M2.5 12s3.5-6.5 9.5-6.5S21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12zM12 14.6a2.6 2.6 0 1 0 0-5.2 2.6 2.6 0 0 0 0-5.2";
 const pair = (items: Array<{ value: string; label: string }>) => Object.fromEntries(items.map((item) => [item.label, item.value]));
 
-export async function teacherStudentsTab(tabSlug: string, me: TeacherWorkspaceView, permissions: string[]): Promise<TabContent | null | undefined> {
+export async function teacherStudentsTab(tabSlug: string, me: TeacherWorkspaceView, permissions: string[], query: Record<string, string | undefined> = {}): Promise<TabContent | null | undefined> {
   if (tabSlug !== "registry") return undefined;
-  return studentsTab(await apiGet(`${API}/students`, observe<StudentsView>(localContracts["src/lib/modules/live/t8-students.ts#d82b02f9"])), me, new Set(permissions));
+  return studentsTab(await apiGet(`${API}/students`, observe<StudentsView>(localContracts["src/lib/modules/live/t8-students.ts#d82b02f9"])), me, new Set(permissions), query.class);
 }
 
 const label = (student: { name: string; adm: string; arm: string }) => `${student.name} · ${student.arm} · ${student.adm}`;
@@ -84,7 +84,7 @@ export function changeDrawer(students: StudentsView["rows"], pre?: { id: string 
   };
 }
 
-function studentsTab(v: StudentsView, me: TeacherWorkspaceView, held: Set<string>): TabContent {
+function studentsTab(v: StudentsView, me: TeacherWorkspaceView, held: Set<string>, classNamed?: string): TabContent {
   const own = v.formArms[0];
   const early = me.persona === "early-years";
   const word = early ? "class teacher" : "form master";
@@ -105,8 +105,50 @@ function studentsTab(v: StudentsView, me: TeacherWorkspaceView, held: Set<string
   const incident = incidentDrawer(v.rows);
   const concern = concernDrawer(v.rows);
   const change = changeDrawer(v.rows);
+  // The phone leads with the classes the teacher answers for, then the children — the mockup's order. Each class says how much of its record is theirs.
+  const arms = [...new Map(v.rows.map((student) => [student.arm, student])).values()].map((first) => ({ arm: first.arm, own: v.formArms.some((entry) => entry.name === first.arm), count: v.rows.filter((student) => student.arm === first.arm).length }));
+  // A class is opened from the list, and its children are read there — until one is chosen the phone shows no child at all.
+  const chosen = many ? arms.find((entry) => entry.arm === classNamed) : undefined;
+  const classHref = (name: string) => `/student-records/registry?class=${encodeURIComponent(name)}`;
+  const phoneRows: Array<PanelRow | null> = chosen
+    ? [
+        { ...row("1fr", [{ type: "embed", component: "phone-chips", props: { chips: [{ label: "All classes", href: "/student-records/registry" }, ...arms.map((entry) => ({ label: entry.arm, on: entry.arm === chosen.arm, href: classHref(entry.arm) }))] } }]), show: "phone" as const },
+        {
+          ...row("1fr", [{
+            type: "table", title: chosen.arm, tag: `${chosen.count} ${chosen.count === 1 ? "child" : "children"}`, tagTone: "neutral", sub: "Open a child for the record a parent conversation needs.", noun: "child", nounPlural: "children",
+            search: "Find a child by name or admission number", head: ["Student", "Admission no", "Attend", "Flag", "Guardian", ""], rows: tableRows.filter((_, index) => v.rows[index]!.arm === chosen.arm), per: 10, noRowOpen: true, foot: "A medical alert says contact the office.",
+          }]),
+          show: "phone" as const,
+        },
+      ]
+    : many
+    ? [
+        {
+          ...row("1fr", [{
+            type: "kpi", bare: true,
+            cards: [
+              { label: "Classes", value: String(arms.length), sub: arms.map((entry) => entry.arm).join(" · ") },
+              { label: "Children", value: String(v.kpis.children), sub: "Across every class you see" },
+            ],
+          }]),
+          show: "phone" as const,
+        },
+        {
+          ...row("1fr", [{
+            type: "list", title: "Choose a class", tag: `${arms.length} classes`, tagTone: "neutral", sub: "What you can see depends on why you hold the class.",
+            items: arms.map((entry) => ({
+              icon: "M12 4 3.5 8 12 12l8.5-4zM6 10.5v4.8c0 1.7 2.7 3.2 6 3.2s6-1.5 6-3.2v-4.8", tone: entry.own ? ("positive" as const) : ("progress" as const),
+              label: entry.arm, sub: `${entry.own ? `${early ? "Class teacher" : "Form master"} · ` : "Subject teacher · "}${entry.count} ${entry.count === 1 ? "child" : "children"}`,
+              pill: entry.own ? "Full record" : "Class list", href: classHref(entry.arm),
+            })),
+          }]),
+          show: "phone" as const,
+        },
+      ]
+    : [];
   const panels: Array<PanelRow | null> = [
-    row("1fr", [{
+    ...phoneRows,
+    {...row("1fr", [{
       type: "kpi", sub: own ? `Your ${word}’s view. A subject teacher sees only the children they teach.` : "The children you teach — and only them.", per: 5,
       cards: [
         { label: "Children", value: String(v.kpis.children), sub: own ? (v.formArms.length > 1 ? `${v.formArms.map((arm) => arm.name).join(" · ")}` : `${own.name} · one class, one ${word}`) : `${new Set(v.rows.map((student) => student.arm)).size} arm${new Set(v.rows.map((student) => student.arm)).size === 1 ? "" : "s"}` },
@@ -115,15 +157,15 @@ function studentsTab(v: StudentsView, me: TeacherWorkspaceView, held: Set<string
         { label: "Learning support plans", value: String(v.kpis.support), sub: "You see the strategies, never the diagnosis", tone: "withheld" },
         { label: "Guardians not activated", value: String(v.kpis.notActivated), sub: "They cannot receive anything in-app", tone: v.kpis.notActivated ? "attention" : "positive" },
       ],
-    }]),
-    row("1fr", [{
+    }]), show: "desktop" as const },
+    { ...row("1fr", [{
       type: "table", title: own && !many ? own.name : "The children you answer for", sub: "Open a child for the record a parent conversation needs.", meta: `${v.rows.length} children`, noun: "child", nounPlural: "children",
       search: "Find a child by name or admission number", filters: [{ label: "Flag", value: "All", options: ["All", "Medical alert", "Learning support", "Chronic absence"], column: 3 }],
       head: ["Student", "Admission no", "Attend", "Flag", "Guardian", ""], rows: tableRows, per: 10, noRowOpen: true, foot: "A medical alert says contact the office.",
-    }]),
+    }]), ...(many ? { show: "desktop" as const } : {}) },
     row("1fr 1fr", [
       {
-        type: "facts", title: "What this record shows you", sub: "Restricted information is granted to a named person, never inherited from a role.", per: 1,
+        type: "facts", show: "desktop", title: "What this record shows you", sub: "Restricted information is granted to a named person, never inherited from a role.", per: 1,
         facts: [
           ["Overview, academic, attendance, report cards", "Read", own ? "Your class in full" : "The children you teach"],
           ["Wellbeing", "Emergency flag only", "Enough for a child’s safety, not for a staff room"],
@@ -142,7 +184,10 @@ function studentsTab(v: StudentsView, me: TeacherWorkspaceView, held: Set<string
   ];
   return {
     title: "My students", desc: own ? `${own.name}, your class. Nobody else’s.` : "The children you teach. Nobody else’s.",
-    primary: { label: "Report an incident", icon: WARN, drawer: incident },
+    phoneEyebrow: chosen ? `My Students · ${chosen.arm}` : many ? "My Students · Your classes" : undefined,
+    phoneTitle: chosen ? chosen.arm : many ? "Your classes" : undefined,
+    phoneDesc: chosen ? (chosen.own ? "Your class, with the full record." : "The class list, attendance and your subject.") : many ? "Your form class has the full record. Others show the list, attendance and your subject." : undefined,
+    primary: { label: "Report an incident", phoneLabel: "Report incident", icon: WARN, drawer: incident },
     launchers: [{ label: "Request a record change", drawer: change }, ...(held.has("communication-center.compose.view") && own ? [{ label: "Message these families", href: "/communication-center/compose" }] : [])],
     rows: panels.filter((entry): entry is PanelRow => Boolean(entry)),
   };

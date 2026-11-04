@@ -25,6 +25,7 @@ export const SUBMISSION_DEFAULTS: SubmissionType[] = [
   { name: "Result query", target: 3, reviewer: "Exam Officer", accepted: true },
   { name: "Fee query", target: 5, reviewer: "Bursar", accepted: true },
   { name: "Meeting request", target: 5, reviewer: "Principal", accepted: true },
+  { name: "Data copy request", target: 10, reviewer: "Registrar", accepted: true },
   { name: "Consent action", target: 0, reviewer: "Handled in person", accepted: false },
   { name: "Withdrawal notice", target: 0, reviewer: "Handled in person", accepted: false }
 ];

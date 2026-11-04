@@ -3,7 +3,7 @@ import { localContracts } from "@/lib/api/local-contracts.zod";
 import type { TeacherWorkspaceView } from "@/lib/api/teacher-workspace";
 import { articleDrawer, raiseTicketDrawer, ticketDrawer } from "@/lib/modules/live/m16-forms";
 import type { SupportOverview, SyncOverview } from "@/lib/modules/live/m16-types";
-import type { PanelRow, TabContent, TableCellKind, TableRow } from "@/lib/modules/panels";
+import type { Panel, PanelRow, TabContent, TableCellKind, TableRow } from "@/lib/modules/panels";
 import { pill, row, text } from "@/lib/modules/panels";
 
 /**
@@ -13,6 +13,14 @@ import { pill, row, text } from "@/lib/modules/panels";
 
 const PLUS = "M12 5.5v13M5.5 12h13";
 const TYPE: Record<string, [string, string]> = { ATTENDANCE: ["A register", "Attendance · Mark"], SCORE_ENTRY: ["A score sheet", "Scores · Enter"] };
+
+const phoneOnly = (panel: Panel): PanelRow => ({ ...row("1fr", [panel]), show: "phone" as const });
+const desktopOnly = (rows: Array<PanelRow | null>): PanelRow[] => rows.filter((entry): entry is PanelRow => Boolean(entry)).map((entry) => ({ ...entry, show: "desktop" as const }));
+const CLOCK = "M12 7v5l3 2M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0z";
+const INFO = "M12 11v5M12 8h.01M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0z";
+const HELP = "M9.5 9.5a2.5 2.5 0 1 1 3.4 2.3c-.6.3-.9.8-.9 1.4M12 16.5h.01M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0z";
+const CHAT = "M4 5.5h16v10.5H9l-5 4zM8 9.5h8M8 12.8h5";
+const DOC = "M6.5 3.5h8L18.5 8v12.5h-12zM14.5 3.5V8h4M9 12.5h6M9 16h4";
 
 const ago = (minutes: number | null) => (minutes === null ? "—" : minutes < 1 ? "Just now" : minutes < 60 ? `${minutes} min ago` : minutes < 1440 ? `${Math.round(minutes / 60)} h ago` : `${Math.round(minutes / 1440)} d ago`);
 const since = (iso: string | null) => (iso ? ago(Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 60_000))) : "Never");
@@ -53,7 +61,27 @@ function syncTab(o: SyncOverview, me: TeacherWorkspaceView): TabContent {
       },
     ]),
   ];
-  return { title: "Sync", desc: "Is my work saved — answered without a connection.", rows: panels.filter((entry): entry is PanelRow => Boolean(entry)) };
+  // The phone: what is waiting and when it last got through, the queue itself, this phone's own figures folded shut, and the promise about conflicts.
+  const phone: PanelRow[] = [
+    phoneOnly({ type: "kpi", bare: true, cards: [
+      { label: "Waiting to send", value: String(o.pending), unit: o.pending === 1 ? "item" : "items", sub: o.pending ? `Oldest saved ${ago(o.oldestMinutes)}` : "Nothing queued", tone: o.pending ? "offline" : "positive" },
+      { label: "Last successful sync", value: since(o.lastSyncedAt), sub: o.lastSyncedAt ? "Your last item to reach the school" : "Nothing of yours has synced yet", tone: o.lastSyncedAt ? "positive" : "neutral" },
+    ] }),
+    phoneOnly({
+      type: "list", title: "Waiting to send", sub: "In the order they will send. Each is written to this phone first.", empty: "Nothing is waiting. What you save goes straight to the school.",
+      items: o.queue.map((entry) => ({
+        icon: CLOCK, label: `${(TYPE[entry.type] ?? [entry.type])[0]}${entry.count > 1 ? ` · ${entry.count}` : ""}`, sub: `${(TYPE[entry.type] ?? ["", "—"])[1]} · saved ${ago(entry.oldestMinutes)}`,
+        pill: entry.refused ? "Refused" : "Queued", tone: entry.refused ? ("negative" as const) : ("offline" as const),
+      })),
+    }),
+    phoneOnly({ type: "embed", component: "phone-device", props: {} }),
+    phoneOnly({ type: "note", tone: conflicts ? "attention" : "neutral", icon: INFO, title: "Conflicts are never resolved silently", body: conflicts ? `${conflicts} ${conflicts === 1 ? "change was" : "changes were"} made on two devices. Both versions are kept, and a leader will choose.` : "If two devices change the same mark, you see both and choose. Nothing is overwritten silently." }),
+  ];
+  return {
+    title: "Sync", desc: "Is my work saved — answered without a connection.",
+    phoneEyebrow: "Sync & Support · This phone", phoneTitle: o.pending ? `${o.pending} waiting to send` : "Everything is synced",
+    phoneDesc: "What is on this phone, what has reached the school, and what is still waiting.",
+    rows: [...phone, ...desktopOnly(panels)] };
 }
 
 function guides(me: TeacherWorkspaceView): Array<[string, string]> {
@@ -85,9 +113,28 @@ function helpTab(o: SupportOverview, me: TeacherWorkspaceView): TabContent {
     ]),
     ticketRows.length ? row("1fr", [{ type: "table", title: "What you have raised", head: ["Ticket", "State", "Age", ""], rows: ticketRows, noRowOpen: true, noun: "ticket", nounPlural: "tickets" }]) : null,
   ];
+  // The phone reads help as one list after another: the guides for the job, the articles, a way to talk to a person, and what has been raised.
+  const phone: PanelRow[] = [
+    phoneOnly({ type: "list", title: "Guides for your role", sub: "Short, and they work without a connection.", items: guides(me).map(([label, sub]) => ({ icon: DOC, label, sub })) }),
+    phoneOnly({
+      type: "list", title: "Common questions", sub: mine.length ? "Written for your job." : "From the school’s help library.",
+      items: shown.length ? shown.map((article) => ({ icon: HELP, label: article.title, sub: article.summary, pill: article.video ? "Video" : undefined, drawer: articleDrawer(article) })) : [{ icon: HELP, label: "No article has been written yet", sub: "Raise a ticket and ask — what people ask becomes the next article." }],
+    }),
+    phoneOnly({
+      type: "list", title: "Talk to a person",
+      items: [{ icon: CHAT, label: "Raise a ticket", sub: `Answered in-app · usually within ${o.responseTarget}`, drawer: raiseTicketDrawer() }],
+    }),
+    ...(tickets.tickets.length
+      ? [phoneOnly({
+          type: "list", title: "Your tickets", tag: `${tickets.open} open`, tagTone: tickets.open ? "attention" : "neutral",
+          items: tickets.tickets.slice(0, 8).map((ticket) => ({ icon: CHAT, label: ticket.subject, sub: `${ticket.ticketNo} · ${ticket.ageDays ? `${ticket.ageDays} day${ticket.ageDays === 1 ? "" : "s"}` : "Today"}`, pill: ticket.status.replace(/_/g, " ").toLowerCase().replace(/^./, (c) => c.toUpperCase()), drawer: ticketDrawer(ticket) })),
+        })]
+      : []),
+  ];
   return {
     title: "Help & Support", desc: "Written for your job, not for the whole platform.",
+    phoneTitle: "How can we help?", phoneDesc: "Guides work offline. A ticket reaches the school’s administrator first.",
     primary: { label: "Raise a ticket", icon: PLUS, drawer: raiseTicketDrawer() },
-    rows: panels.filter((entry): entry is PanelRow => Boolean(entry)),
+    rows: [...phone, ...desktopOnly(panels)],
   };
 }

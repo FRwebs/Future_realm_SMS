@@ -9,8 +9,10 @@ import { ttlCached } from "@/lib/cache/ttl";
 import { getPlatformSync } from "@/lib/api/platform-sync";
 import { getStudentBadges, getStudentChrome } from "@/lib/api/student-workspace";
 import { getTeacherBadges, getTeacherWorkspace } from "@/lib/api/teacher-workspace";
+import { getParentChrome, getParentRail } from "@/lib/api/parent-workspace";
+import { PARENT_PHONE_TABS, parentHref, parentNavigation, parentPages, parentPhoneTabLabel, visibleParentPages } from "@/lib/modules/parent-workspace";
 import { studentNavigation } from "@/lib/modules/student-workspace";
-import { teacherNavigation } from "@/lib/modules/teacher-workspace";
+import { teacherNavigation, teacherPhoneTabLabelFor, teacherPhoneTabOrder } from "@/lib/modules/teacher-workspace";
 import { getServerPermissions } from "@/lib/auth/server-access";
 import { getServerSession } from "@/lib/auth/session";
 import { getDefaultPermissionsForRole } from "@/lib/navigation/registry";
@@ -41,7 +43,7 @@ export default async function AppLayout({
     redirect("/login");
   }
 
-  const [permissions, schoolContext, platformSync, teacher, teacherBadges, studentBadges, studentChrome] = await Promise.all([
+  const [permissions, schoolContext, platformSync, teacher, teacherBadges, studentBadges, studentChrome, parentRail, parentChrome] = await Promise.all([
     getServerPermissions(session).catch(() => getDefaultPermissionsForRole(session.role)),
     getCachedSchoolContext(session.schoolId),
     getPlatformSync(session.schoolId),
@@ -49,12 +51,44 @@ export default async function AppLayout({
     getTeacherBadges(session.role, session.schoolId),
     getStudentBadges(session.role),
     getStudentChrome(session.role),
+    getParentRail(session.role),
+    getParentChrome(session.role),
   ]);
 
   // A teacher's rail: the teacher modules their permissions reach, in the teacher's order, then anything more the school has granted.
-  const teacherRail = teacher ? teacherNavigation(teacher.persona, permissions) : session.role === "STUDENT" ? studentNavigation(platformSync?.switchedOff.map((module) => module.slug) ?? [], studentBadges.hidden) : null;
-  const navBadges = session.role === "STUDENT" ? studentBadges.counts : teacherBadges;
-  const navBadgeTones = session.role === "STUDENT" ? studentBadges.tones : undefined;
+  const teacherRail = teacher
+    ? teacherNavigation(teacher.persona, permissions)
+    : session.role === "STUDENT"
+      ? studentNavigation(platformSync?.switchedOff.map((module) => module.slug) ?? [], studentBadges.hidden)
+      : session.role === "PARENT" && parentRail
+        ? parentNavigation(parentRail.sees)
+        : null;
+  // The bottom bar on a phone. Only the two portals whose mockups draw one get
+  // it; which four tabs is each portal's own rule.
+  const phoneTabs = (() => {
+    if (session.role === "PARENT" && parentRail) {
+      const visible = visibleParentPages(parentRail.sees);
+      const items = parentPages
+        .filter((page) => visible.includes(page.slug))
+        .map((page) => ({ id: `p_${page.slug}`, label: page.label, short: parentPhoneTabLabel[page.slug] ?? page.label, icon: page.icon, href: parentHref(page.slug) }));
+      return { items, primaryIds: PARENT_PHONE_TABS.map((slug) => `p_${slug}`).filter((id) => items.some((item) => item.id === id)), label: "Parent portal" };
+    }
+    if (teacher && teacherRail && "items" in teacherRail) {
+      const items = teacherRail.items.map((item) => ({
+        id: item.id,
+        label: item.label,
+        short: teacherPhoneTabLabelFor(item.id.replace(/^t_/, ""), teacher.persona) || item.label,
+        icon: item.iconPath ?? "",
+        href: item.href,
+      }));
+      const primaryIds = teacherPhoneTabOrder.map((code) => `t_${code}`).filter((id) => items.some((item) => item.id === id)).slice(0, 4);
+      return { items, primaryIds, label: "Teaching workspace" };
+    }
+    return null;
+  })();
+
+  const navBadges = session.role === "STUDENT" ? studentBadges.counts : session.role === "PARENT" ? (parentRail?.counts ?? {}) : teacherBadges;
+  const navBadgeTones = session.role === "STUDENT" ? studentBadges.tones : session.role === "PARENT" ? parentRail?.tones : undefined;
 
   return (
     <DashboardShell
@@ -69,6 +103,8 @@ export default async function AppLayout({
       navBadges={teacherRail ? navBadges : undefined}
       navBadgeTones={teacherRail ? navBadgeTones : undefined}
       studentChrome={studentChrome}
+      parentChrome={parentChrome}
+      phoneTabs={phoneTabs}
     >
       {children}
     </DashboardShell>

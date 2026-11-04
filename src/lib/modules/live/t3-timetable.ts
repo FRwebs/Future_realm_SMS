@@ -65,11 +65,69 @@ export async function teacherTimetableTab(tabSlug: string, me: TeacherWorkspaceV
 function timetableTab(v: TimetableView, me: TeacherWorkspaceView, schoolName: string, permissions: string[]): TabContent {
   const held = new Set(permissions);
   const early = me.persona === "early-years";
+
+  // A teacher's phone starts from the classes they are timetabled with, not from a grid: pick one to see when you teach it. The classes are the
+  // teacher's own assignments, so the list is true whether or not the school has published its timetable yet.
+  type Cls = { id: string; arm: string; subjects: string[]; form: boolean; cover: boolean; until: string | null; periods: number };
+  const classes: Cls[] = [];
+  const classOf = (id: string, arm: string): Cls => {
+    let found = classes.find((entry) => entry.id === id);
+    if (!found) { found = { id, arm, subjects: [], form: false, cover: false, until: null, periods: 0 }; classes.push(found); }
+    return found;
+  };
+  for (const arm of me.formArms) classOf(arm.id, arm.name).form = true;
+  for (const entry of me.teaching) {
+    const one = classOf(entry.classId, entry.arm);
+    if (!one.subjects.includes(entry.subject)) one.subjects.push(entry.subject);
+    one.periods += entry.periods;
+    if (entry.basis === "Cover") { one.cover = true; one.until = entry.until; }
+  }
+  const rank = (entry: Cls) => (entry.form && !entry.cover ? 0 : entry.cover ? 2 : 1);
+  classes.sort((a, b) => rank(a) - rank(b));
+  const inWeek = (arm: string) => (v.published ? v.week.reduce((sum, line) => sum + line.cells.filter((entry) => entry?.arm === arm).length, 0) : 0);
+  const nextOne = v.periods.find((period) => period.state === "next" || period.state === "now");
+  const phoneTitle = "Your classes";
+  const phoneRows: PanelRow[] = classes.length
+    ? [
+        {
+          ...row("1fr", [{
+            type: "kpi", bare: true,
+            cards: [
+              { label: "Classes", value: String(classes.length), sub: classes.map((entry) => entry.arm).join(" · ") },
+              { label: "Next", value: nextOne ? nextOne.from : "—", sub: nextOne ? `${nextOne.arm} · ${nextOne.room}` : v.published ? "Nothing else today" : "Not published yet", tone: nextOne ? "progress" : "neutral" },
+              { label: early ? "Sessions today" : "Periods today", value: String(v.periods.length), sub: v.published ? dayWords(v.date).split(" ")[0] : "Not published yet" },
+              { label: "Periods this week", value: String(v.published ? v.weekCount : v.teachingPerWeek), sub: v.published ? "Across every class" : "On your assignments", tone: "positive" },
+            ],
+          }]),
+          show: "phone" as const,
+        },
+        {
+          ...row("1fr", [{
+            type: "list", title: "Choose a class", tag: `${classes.length} ${classes.length === 1 ? "class" : "classes"}`, tagTone: "neutral",
+            sub: "Tap one to see when you teach it, where, and what is due for it.",
+            items: classes.map((entry) => {
+              const week = inWeek(entry.arm) || entry.periods;
+              return {
+                icon: entry.form ? "M12 4 3.5 8 12 12l8.5-4zM6 10.5v4.8c0 1.7 2.7 3.2 6 3.2s6-1.5 6-3.2v-4.8" : "M4 5h16v15H4zM4 9.5h16M9 9.5V20M14.5 9.5V20",
+                tone: entry.cover ? ("attention" as const) : entry.form ? ("positive" as const) : ("progress" as const),
+                label: entry.arm,
+                sub: `${entry.subjects.length ? `${entry.subjects.length > 2 ? `${entry.subjects.length} subjects` : entry.subjects.join(", ")}${entry.form ? " · form class" : ""}` : entry.form ? "Form class" : "Timetabled"} · ${week} ${week === 1 ? "period" : "periods"} a week`,
+                pill: entry.cover ? "Cover" : entry.form ? "Form class" : "Subject", href: `/class-timetable/classes/${entry.id}`,
+              };
+            }),
+            foot: classes.some((entry) => entry.cover) ? "A cover class leaves this list on the day the cover ends." : "Your classes are set by the office. Something wrong? Ask from Teaching.",
+          }]),
+          show: "phone" as const,
+        },
+      ]
+    : [];
+  const term = me.term ? `Timetable · ${me.term.name}` : "Timetable";
+  const phoneDesc = "Every class you are timetabled with this term. Open one for its week, or see them all together.";
   if (!v.published) {
     return {
-      title: "Timetable", desc: "Your periods, your rooms, your arms.",
+      title: "Timetable", desc: "Your periods, your rooms, your arms.", phoneTitle, phoneDesc, phoneEyebrow: term,
       launchers: [{ label: "What I am assigned to", href: "/class-timetable/teaching" }],
-      rows: [row("1fr", [{ type: "note", tone: "attention", icon: CLOCK, title: "The school has not published its timetable yet", body: "A period appears here the moment the school publishes the timetable for this term — exactly as it does for a child’s family. Until then there is nothing of yours to show, and nothing is guessed.", acts: [{ label: "What I am assigned to", href: "/class-timetable/teaching" }] }])],
+      rows: [...phoneRows, row("1fr", [{ type: "note", tone: "attention", icon: CLOCK, title: "The school has not published its timetable yet", body: "A period appears here the moment the school publishes the timetable for this term — exactly as it does for a child’s family. Until then there is nothing of yours to show, and nothing is guessed.", acts: [{ label: "What I am assigned to", href: "/class-timetable/teaching" }] }])],
     };
   }
   const teaching = v.periods;
@@ -105,10 +163,12 @@ function timetableTab(v: TimetableView, me: TeacherWorkspaceView, schoolName: st
   };
 
   return {
-    title: "Timetable", desc: early ? "Your sessions, today first." : "Your periods, your rooms, your arms — today first.",
-    primary: { label: "Print my timetable", icon: PRINT, drawer: printDrawer },
+    title: "Timetable", desc: early ? "Your sessions, today first." : "Your periods, your rooms, your arms — today first.", phoneTitle, phoneDesc, phoneEyebrow: term,
+    primary: { label: "Print my timetable", phoneLabel: "My full week", icon: PRINT, drawer: printDrawer },
     launchers: [{ label: "What I am assigned to", href: "/class-timetable/teaching" }],
     rows: [
+      ...phoneRows,
+      ...desktopOnly([
       row("1fr", [{
         type: "kpi", sub: `${dayWords(v.date)} · your own timetable, never the school’s.`, per: 4,
         cards: [
@@ -133,6 +193,7 @@ function timetableTab(v: TimetableView, me: TeacherWorkspaceView, schoolName: st
         empty: "Nothing is timetabled for you this week.",
         foot: "A blank is free — not a period nobody told you about.",
       }]),
+    ]),
     ],
   };
 }
@@ -258,3 +319,6 @@ function teachingTab(v: TeachingView, questions: Question[], me: TeacherWorkspac
     rows: rows.filter((entry): entry is PanelRow => Boolean(entry)),
   };
 }
+
+/** Rows the desktop draws and a teacher's phone replaces with its own blocks. */
+const desktopOnly = (rows: PanelRow[]): PanelRow[] => rows.map((entry) => ({ ...entry, show: "desktop" as const }));

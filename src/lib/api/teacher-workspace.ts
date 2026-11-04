@@ -36,7 +36,7 @@ export const getTeacherWorkspace = cache(async (role: string, schoolId: string):
 });
 
 /**
- * What the teacher's rail counts beside a module — today, the families waiting on their form teacher. It is a number someone is waiting
+ * What the teacher's rail counts beside a module — registers still to mark, score sheets still open, and the families waiting on their form teacher. It is a number someone is waiting
  * to see move, so it is remembered for seconds only, and for nobody who is not teaching staff.
  */
 export const getTeacherBadges = cache(async (role: string, schoolId: string): Promise<Record<string, number>> => {
@@ -44,8 +44,14 @@ export const getTeacherBadges = cache(async (role: string, schoolId: string): Pr
   try {
     const session = await getServerSession();
     if (!session) return {};
-    const counts = await ttlCached(`badge:${schoolId}:${session.userId}`, 20_000, () => apiGet("/api/v1/teacher-workspace/badges", observe<{ families: number }>(localContracts["src/lib/api/teacher-workspace.ts#7aba5950"])));
-    return counts.families > 0 ? { t_m9: counts.families } : {};
+    const counts = await ttlCached(`badge:${schoolId}:${session.userId}`, 20_000, () => apiGet("/api/v1/teacher-workspace/badges", observe<{ families: number; registers: number; sheets: number; notes?: number }>(localContracts["src/lib/api/teacher-workspace.ts#7aba5950"])));
+    // Attendance and Scores carry what is still owed; Lesson Notes carries notes to write or rework; Guardians carries the families waiting. Each is a number someone is waiting to see fall.
+    const out: Record<string, number> = {};
+    if (counts.registers > 0) out.t_m4 = counts.registers;
+    if (counts.sheets > 0) out.t_m5 = counts.sheets;
+    if (counts.families > 0) out.t_m9 = counts.families;
+    if ((counts.notes ?? 0) > 0) out.t_m17 = counts.notes!;
+    return out;
   } catch {
     return {};
   }

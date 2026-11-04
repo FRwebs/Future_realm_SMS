@@ -154,6 +154,8 @@ export type DrawerSpec = {
   commitDoneBody?: string;
   /** Omit and the drawer confirms without sending — a dry run, not a decision. */
   submit?: DrawerSubmit;
+  /** What the sheet asks before it writes, when the title does not make a sentence of its own — "Send this to the school?". */
+  confirmTitle?: string;
   /**
    * A form taken in stages.
    *
@@ -344,6 +346,8 @@ export type PanelAction = {
   primary?: boolean;
   /** SVG path for the header's primary button. Defaults to a plus. */
   icon?: string;
+  /** What the phone's floating button says, when the header's label is too long for a button — "Mark register", not "Mark JSS 2 Gold · 9 children". */
+  phoneLabel?: string;
   /** On a table: download the rows as they are (or only the ticked ones, from the bulk bar) as a CSV. */
   export?: boolean;
   /**
@@ -361,6 +365,20 @@ export type ListItem = {
   sub?: string;
   pill?: string;
   tone?: PanelTone;
+  /** A small line under the pill, at the right edge — "34 children". */
+  side?: string;
+  /** A figure set bold above the pill, at the right edge — a sheet's average, "53.5". */
+  figure?: string;
+  /** SVG path for a round icon at the row's left, in place of a date tile. */
+  icon?: string;
+  /** A returned comment, quoted in a tinted box under the row's text. */
+  quote?: string;
+  /** Initials in a round tile at the row's left — a person, not a thing. */
+  avatar?: string;
+  /** One button at the row's right in place of the pill — "Call". */
+  act?: { label: string; icon?: string; drawer?: DrawerSpec; href?: string };
+  /** A thin progress line under the row's text, with its figure at the right — "21 of 34". */
+  bar?: { pct: number; label: string; tone?: PanelTone };
   viewLabel?: string;
   /** Opened in a drawer, so a record reads the same wherever it is reached from. */
   facts?: PanelFact[];
@@ -382,6 +400,22 @@ export function termShort(term: string, session: string): string {
   const years = session.match(/(\d{4})\D+(\d{4})/);
   return years ? `${n} ${years[1]!.slice(2)}/${years[2]!.slice(2)}` : `${n} ${session}`;
 }
+
+/**
+ * One day in a `calendar`. A blank cell is the padding before a month's first
+ * weekday — it is not a day, so it says nothing and does nothing.
+ */
+export type CalendarCell = {
+  label: string;
+  /** The one line inside the cell: what the mark was, or why there is none. */
+  note?: string;
+  tone?: PanelTone;
+  /** Ringed, because it is today. */
+  today?: boolean;
+  blank?: boolean;
+  /** A Saturday or Sunday: drawn without a tile on a phone, as the mockup's are. */
+  weekend?: boolean;
+} & Partial<Trigger>;
 
 /** One point on a `line` panel. A null value is a gap — the line breaks rather than being drawn across it. */
 export type LinePoint = {
@@ -510,6 +544,11 @@ export type FormField = {
    * and kept on the record as it is, so nothing depends on a file store.
    */
   | { kind: "asset"; options: [keep: string, upload: string, remove: string] }
+  /**
+   * A document a person attaches: a scan or a photo of the paper. Read in the browser and sent whole as a data URL with its name, so the
+   * answer is `{ name, data, size }`; a file larger than `maxKb` is refused where it is chosen, not after the upload.
+   */
+  | { kind: "file"; accept?: string; maxKb?: number }
 );
 
 /**
@@ -939,6 +978,8 @@ export type Panel =
     }
   | {
       type: "list";
+      /** On a phone a long list is searchable; this turns the box off where the list is a to-do, not a directory. */
+      noFind?: boolean;
       /** Lifted off the page: offered as one line at its foot, which opens it. The rule behind a page without making the page half rules. */
       tuck?: string;
       tuckIcon?: string;
@@ -971,6 +1012,9 @@ export type Panel =
       facts: PanelFact[];
       acts?: PanelAction[];
       foot?: string;
+      /** On a teacher's phone this block is one folded row that opens on a tap, as the mockup draws its rules. */
+      phoneFold?: boolean;
+      show?: "desktop" | "phone";
       /**
        * Facts per row. The mockup lays them out as an auto-fit grid, so `per`
        * only widens the minimum column: 1 gives one wide column of prose.
@@ -990,6 +1034,8 @@ export type Panel =
       /** SVG path for the note's icon chip. Defaults to the mockup's warning triangle. */
       icon?: string;
       acts?: PanelAction[];
+      /** Drawn on one kind of screen only. A phone has no room for the desktop's explanations; a laptop has no use for the phone's. */
+      show?: "desktop" | "phone";
     }
   | RosterPanel
   | ScoreSheetPanel
@@ -998,6 +1044,30 @@ export type Panel =
   | DayStripPanel
   | SheetEntryPanel
   | { type: "bars"; title: string; sub?: string; rows: BarRow[]; foot?: string }
+  /**
+   * A month of days as a grid, each saying what happened on it.
+   *
+   * A calendar is the one shape that answers "which days" without being read
+   * line by line: a parent scanning a term for absences sees the pattern — a
+   * run of Mondays, a week in March — that the same days as a list would hide.
+   * Weekend columns are simply left out, because a school week is five days and
+   * a seven-column grid spends two of them on nothing.
+   */
+  | {
+      type: "calendar";
+      title: string;
+      sub?: string;
+      /** Columns — five for a school week. */
+      per?: number;
+      /** The column headings. */
+      dow?: string[];
+      /** Which month is being shown, as chips above the grid. */
+      acts?: Array<{ label: string; href: string; on?: boolean; count?: number }>;
+      cells: CalendarCell[];
+      /** What the colours mean. Left out, no key is drawn. */
+      legend?: Array<{ label: string; tone: PanelTone }>;
+      foot?: string;
+    }
   /**
    * A measure over time: one point per day, week, term or cycle, joined by a
    * line, with the range the values actually occupy filling the plot rather
@@ -1130,6 +1200,8 @@ export type Panel =
 export type PanelRow = {
   cols: string;
   panels: Panel[];
+  /** A row drawn only on a wide screen (the desktop's reading of a page) or only on a phone (its own screen for the same facts). */
+  show?: "desktop" | "phone";
 };
 
 export type TabContent = {
@@ -1140,6 +1212,15 @@ export type TabContent = {
   primary?: PanelAction;
   /** Secondary jumps out of this tab, beside the primary action. */
   launchers?: PanelAction[];
+  /** The small green line over the title on a teacher's phone: "Attendance · Thursday 4 September". Defaults to the module and the tab. */
+  phoneEyebrow?: string;
+  /** The title and line under it on a teacher's phone, when the mockup words them differently from the desktop. */
+  phoneTitle?: string;
+  phoneDesc?: string;
+  /** The phone's floating button, when it is not the desktop header's primary — "This week's note" where the header says "Add a subject". */
+  phonePrimary?: PanelAction;
+  /** The page carries its own bar of buttons on a phone, so the floating one is not drawn over it. */
+  noFab?: boolean;
   rows: PanelRow[];
 };
 

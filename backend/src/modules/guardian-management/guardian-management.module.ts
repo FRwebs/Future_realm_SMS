@@ -4,12 +4,13 @@ import { PermissionsGuard } from "../../auth/permissions.guard";
 import { RolesManagementModule } from "../roles-management/roles-management.module";
 import { ConsentService } from "./consent.service";
 import { FamiliesService } from "./families.service";
+import { FormsService } from "./forms.service";
 import { GuardianManagementController } from "./guardian-management.controller";
 import { SubmissionsService } from "./submissions.service";
 
 @Module({
   imports: [RolesManagementModule],
   controllers: [GuardianManagementController],
-  providers: [FamiliesService, ConsentService, SubmissionsService, PermissionsGuard]
+  providers: [FamiliesService, ConsentService, SubmissionsService, FormsService, PermissionsGuard]
 })
 export class GuardianManagementModule {}

@@ -162,8 +162,43 @@ function enterTab(v: SheetsView, me: TeacherWorkspaceView): TabContent {
   const subjects = unique(rows.map((entry) => (entry.cells[0] as { text: string }).text));
   const arms = unique(rows.map((entry) => (entry.cells[1] as { text: string }).text));
   const total = v.assigned;
+  const sheetNote = (entry: SheetRow) => {
+    const lockedNow = locked(entry.state);
+    return entry.basis === "Cover" && !lockedNow ? `Cover until ${entry.until ? shortDay(entry.until) : "the cover ends"} · attributed to you`
+      : entry.state === "Submitted" ? "Locked to you · with the reviewer" : entry.state === "Approved" ? "Final · feeds the report cards"
+      : entry.flagged ? `${entry.flagged} mark${entry.flagged === 1 ? " is" : "s are"} above the maximum` : entry.entered > 0 && entry.mean !== null ? `Average ${entry.mean} so far` : v.closes ? `Closes ${short(v.closes)}` : "No closing date set";
+  };
+  // The phone's own blocks, in the mockup's order: what came back, four figures, the sheets with how far each has got, and where a sheet can be.
+  const phoneRows: Array<PanelRow | null> = [
+    v.kpis.firstReturned && lead
+      ? { ...row("1fr", [{ type: "note", tone: "negative", title: `Returned · ${lead.subject} ${lead.arm}`, body: `“${lead.returned ?? "Returned for correction"}”`, acts: [{ label: "Correct it now", href: gridHref(lead.classId, lead.subjectId) }] }]), show: "phone" as const }
+      : null,
+    { ...row("1fr", [{
+      type: "kpi", bare: true,
+      cards: [
+        { label: "Sheets outstanding", value: String(k.open), unit: `of ${k.sheets}`, sub: v.daysLeft !== null ? `${v.daysLeft} day${v.daysLeft === 1 ? "" : "s"} left` : "No closing date set", tone: k.open ? "negative" : "positive" },
+        { label: "Marks entered", value: String(k.entered), unit: `of ${k.children}`, sub: "Across your sheets", tone: k.entered < k.children ? "attention" : "positive" },
+        { label: "Returned to you", value: String(k.returned), sub: k.firstReturned ? `${k.firstReturned.subject} ${k.firstReturned.arm}` : "Nothing sent back", tone: k.returned ? "negative" : "positive" },
+        { label: "Blank is not zero", value: String(Math.max(0, k.children - k.entered)), unit: "blanks", sub: "A blank means no total", tone: k.children - k.entered > 0 ? "attention" : "positive" },
+      ],
+    }]), show: "phone" as const },
+    { ...row("1fr", [{
+      type: "list", title: "Your sheets", sub: "One subject-arm is one sheet. Open one and every child in that arm is on it.",
+      empty: "Nothing is assigned to you for score entry. If you teach a subject, ask the office to add it in Timetable → Teaching.",
+      items: [
+        ...v.rows.map((entry) => ({
+          label: `${entry.subject} · ${entry.arm}`, pill: entry.state, tone: tone(entry.state), sub: sheetNote(entry),
+          bar: { pct: entry.roll ? Math.round((entry.entered / entry.roll) * 100) : 0, label: `${entry.entered} of ${entry.roll}`, tone: entry.entered === entry.roll ? ("positive" as const) : ("attention" as const) },
+          href: locked(entry.state) ? previewHref(entry.classId, entry.subjectId) : gridHref(entry.classId, entry.subjectId),
+        })),
+        ...v.restricted.map((entry) => ({ label: `${entry.subject} · ${entry.arm}`, pill: "Register only", tone: "withheld" as const, sub: "Cover · score entry was not granted with this cover", drawer: coverWhy(entry) })),
+      ],
+      foot: "Type a mark in any box. Tap a name to mark an absence.",
+    }]), show: "phone" as const },
+  ];
   const panels: Array<PanelRow | null> = [
-    row("1fr", [{
+    ...phoneRows,
+    { ...row("1fr", [{
       type: "kpi", sub: `${v.windowName ?? "Scores"} · ${v.term}${v.closes ? ` · the window closes ${short(v.closes)}` : ""}.`, per: 5,
       cards: [
         { label: "Sheets outstanding", value: String(k.open), unit: `of ${k.sheets}`, sub: v.daysLeft !== null ? `${v.daysLeft} day${v.daysLeft === 1 ? "" : "s"} left` : "No closing date set", tone: k.open ? "negative" : "positive" },
@@ -172,19 +207,19 @@ function enterTab(v: SheetsView, me: TeacherWorkspaceView): TabContent {
         { label: "Saved on this device", value: String(v.pending), unit: "marks", sub: "Queued, provisional", tone: "offline" },
         { label: "Blank is not zero", value: String(Math.max(0, k.children - k.entered)), unit: "blanks", sub: "A blank leaves a child without a total", tone: k.children - k.entered > 0 ? "attention" : "positive" },
       ],
-    }]),
-    row("1fr", [{
+    }]), show: "desktop" as const },
+    { ...row("1fr", [{
       type: "table", dense: true, title: "Your sheets", sub: "One subject-arm is one sheet. Open one and every child in that arm is on it.", meta: `${total} assignment${total === 1 ? "" : "s"} · ${v.rows.length} with score entry`, noun: "sheet", nounPlural: "sheets",
       search: total > 2 ? "Find a subject or an arm" : undefined,
       filters: total > 1 ? [{ label: "Subject", value: "All", options: ["All", ...subjects], column: 0 }, { label: "Arm", value: "All", options: ["All", ...arms], column: 1 }, { label: "State", value: "All", options: ["All", "Not started", "In progress", "Submitted", "Returned", "Approved", "Not granted"], column: 3 }] : undefined,
       head: ["Subject", "Arm", "Roll", "State", "Entered", "Avg", "Note", ""], rows, noRowOpen: true, per: 12,
       empty: "Nothing is assigned to you for score entry. If you teach a subject, ask the office to add it in Timetable → Teaching.",
       foot: "Type a mark, Tab moves across, A marks a child absent.",
-    }]),
+    }]), show: "desktop" as const },
     row("1.1fr 1fr", [
-      { type: "steps", title: "Where a sheet of yours can be", steps: [{ label: "Draft · yours alone", state: "current" }, { label: "Submitted · locked to you", state: "todo" }, { label: "Returned or approved", state: "todo" }] },
+      { type: "steps", title: "Where a sheet of yours can be", steps: [{ label: "Draft · yours alone", sub: "Editable, saved on this phone, visible to nobody else", state: "current" }, { label: "Submitted · locked to you", sub: "Visible to your reviewer · online only", state: "todo" }, { label: "Returned or approved", sub: "Returned comes back with a comment; approved feeds the report cards", state: "todo" }] },
       {
-        type: "facts", title: "What the states mean", per: 1,
+        type: "facts", show: "desktop", title: "What the states mean", per: 1,
         facts: [
           ["Draft", "Editable, saved as you go, visible to nobody else", "Not counted in any review"],
           ["Submitted", "Locked to you, visible to your reviewer", "Online only"],
@@ -197,7 +232,8 @@ function enterTab(v: SheetsView, me: TeacherWorkspaceView): TabContent {
   ];
   return {
     title: me.persona === "early-years" ? "Enter observations" : "Enter scores", desc: "Your assigned subject-arms. Nothing else is enterable by you.",
-    primary: lead ? { label: `${lead.state === "Returned" ? "Correct " : lead.state === "Not started" ? "Start " : "Continue "}${lead.subject} ${lead.arm}`, icon: PEN, href: locked(lead.state) ? previewHref(lead.classId, lead.subjectId) : gridHref(lead.classId, lead.subjectId) } : undefined,
+    phoneEyebrow: `Scores · ${v.windowName ?? "Examination"}`,
+    primary: lead ? { label: `${lead.state === "Returned" ? "Correct " : lead.state === "Not started" ? "Start " : "Continue "}${lead.subject} ${lead.arm}`, phoneLabel: "Enter scores", icon: PEN, href: locked(lead.state) ? previewHref(lead.classId, lead.subjectId) : gridHref(lead.classId, lead.subjectId) } : undefined,
     launchers: lead && !locked(lead.state) ? [{ label: "Import from the school’s Excel template", href: `${gridHref(lead.classId, lead.subjectId)}/import` }] : [],
     rows: panels.filter((entry): entry is PanelRow => Boolean(entry)),
   };
@@ -224,6 +260,7 @@ export function teacherGridPage(g: Grid, v: SheetsView): Content {
   const remove = undefined;
   return {
     crumb: { label: "Back to your sheets", href: "/score-entry-results/enter" },
+    noFab: true,
     title: `Enter scores · ${g.subject.name} ${g.arm.name}`, desc: "Absent is not zero, and blank is not zero. Save a draft as you go — nothing leaves you until you submit it.",
     primary: { label: "Preview, then submit", icon: EYE, href: previewHref(g.arm.id, g.subject.id) },
     launchers: [{ label: "Results for this arm", href: resultHref(g.arm.id, g.subject.id) }],
@@ -364,7 +401,46 @@ function resultsTab(r: ResultsView, permissions: string[]): TabContent {
     sub: entry.ranked ? `${entry.failed} below ${40} · highest ${entry.high}` : "Nothing entered yet", tone: (entry.mean ?? 0) >= 60 ? "positive" as const : (entry.mean ?? 0) >= 50 ? "submitted" as const : "attention" as const,
   }));
   const form = r.formArms[0];
-  const panels: Array<PanelRow | null> = [
+  const initialsOf = (name: string) => name.split(/\s+/).filter(Boolean).slice(0, 2).map((word) => word[0]!.toUpperCase()).join("");
+  const stateOf = (entry: ResultsView["rows"][number]) => (!entry.ranked ? "Not entered" : entry.state === "Approved" ? "Final" : "Provisional");
+  // The phone's blocks, in the mockup's order: each sheet with its average, where each subject's comments are written, the form class, and the children to look at.
+  const phoneRows: Array<PanelRow | null> = [
+    { ...row("1fr", [{
+      type: "list", title: "Your sheets",
+      empty: "No result yet — nothing is assigned to you for score entry.",
+      items: r.rows.map((entry) => ({
+        label: `${entry.subject} · ${entry.arm}`, figure: entry.ranked && entry.mean !== null ? String(entry.mean) : "—",
+        pill: stateOf(entry), tone: !entry.ranked ? ("attention" as const) : entry.state === "Approved" ? ("positive" as const) : ("progress" as const), icon: SCORE,
+        sub: entry.ranked ? `${entry.passed} of ${entry.ranked} at the pass mark${entry.high !== null ? ` · highest ${entry.high}` : ""}` : "Nothing entered yet",
+        href: entry.ranked ? resultHref(entry.classId, entry.subjectId) : gridHref(entry.classId, entry.subjectId),
+      })),
+    }]), show: "phone" as const },
+    r.rows.some((entry) => entry.ranked)
+      ? { ...row("1fr", [{
+          type: "list", title: "Subject comments", sub: "One line per child, printed under your subject on the report card.",
+          items: r.rows.filter((entry) => entry.ranked).map((entry) => ({ label: `${entry.subject} · ${entry.arm}`, sub: `${entry.roll} ${entry.roll === 1 ? "child" : "children"} · open the sheet, then a child`, icon: PEN, href: resultHref(entry.classId, entry.subjectId) })),
+        }]), show: "phone" as const }
+      : null,
+    form && canSee("report-cards", "remarks")
+      ? { ...row("1fr", [{
+          type: "tiles", title: `${form.name} · your form class`, sub: "Every subject your class takes, not only yours.",
+          tiles: [
+            { label: `${form.name} broadsheet`, sub: "Every child against every subject, with positions and the marks still missing", icon: SCORE, href: broadsheetHref(form.id) },
+            { label: "Remarks for the report cards", sub: `${r.remarks.written} of ${r.remarks.roll} written`, icon: PEN, href: "/report-cards/remarks" },
+          ],
+        }]), show: "phone" as const }
+      : null,
+    r.look.length
+      ? { ...row("1fr", [{
+          type: "list", title: "Children to look at", tag: String(r.look.length), tagTone: "neutral", sub: "Below the pass mark, or close to it, in your subjects.",
+          items: r.look.map((entry) => ({
+            avatar: initialsOf(entry.child), label: entry.child, figure: String(entry.total), pill: entry.grade ?? undefined, tone: entry.why === "Below the pass mark" ? ("negative" as const) : ("attention" as const),
+            sub: `${entry.subject} · ${entry.arm} · ${entry.why.toLowerCase()}`, href: studentHref(entry.classId, entry.subjectId, entry.studentId),
+          })),
+        }]), show: "phone" as const }
+      : null,
+  ];
+  const desktopRows: Array<PanelRow | null> = [
     row("1fr", [{
       type: "kpi", per: 4,
       cards: [
@@ -404,8 +480,10 @@ function resultsTab(r: ResultsView, permissions: string[]): TabContent {
         }])
       : null,
   ];
+  const panels: Array<PanelRow | null> = [...phoneRows, ...desktopRows.map((entry) => (entry ? { ...entry, show: "desktop" as const } : null))];
   return {
     title: "Results", desc: "Your subjects, arm by arm, then any child — and how every number was reached.",
+    phoneTitle: "Your subjects", phoneDesc: "Every number explained — tap a sheet for its ranking and spread.",
     primary: lead ? { label: `Open ${lead.subject} ${lead.arm}`, icon: ARROW, href: resultHref(lead.classId, lead.subjectId) } : undefined,
     launchers: form && canSee("student-records", "registry") ? [{ label: `Your form class broadsheet · ${form.name}`, href: broadsheetHref(form.id) }] : [],
     rows: panels.filter((entry): entry is PanelRow => Boolean(entry)),
@@ -493,6 +571,29 @@ export function subjectResultPage(s: SubjectResult): Content {
       },
     ]),
   ];
+  // The phone: the four figures that matter, then a line for each child — place, total, grade and whether their comment is written.
+  const initialsOf = (name: string) => name.split(/\s+/).filter(Boolean).slice(0, 2).map((word) => word[0]!.toUpperCase()).join("");
+  const phoneRows: PanelRow[] = [
+    { ...row("1fr", [{
+      type: "kpi", bare: true,
+      cards: [
+        { label: "Class average", value: st.mean === null ? "—" : String(st.mean), unit: `/ ${maxTotal}`, sub: others || `Over ${n} children`, tone: s.others.length && s.others[0]!.mean > (st.mean ?? 0) ? "attention" : "positive" },
+        { label: "Highest", value: s.high ? String(s.high.total) : "—", sub: s.high?.name ?? "", tone: "positive" },
+        { label: "Lowest", value: s.low ? String(s.low.total) : "—", sub: s.low?.name ?? "", tone: s.low && s.low.total < s.passMark ? "negative" : "attention" },
+        { label: "Pass rate", value: st.passRate === null ? "—" : `${st.passRate}%`, sub: `${st.pass} of ${n} at ${s.passMark} or above`, tone: st.pass === n ? "positive" : "attention" },
+      ],
+    }]), show: "phone" as const },
+    { ...row("1fr", [{
+      type: "list", title: `Every child in ${s.arm.name}`, tag: "Ranked by total", tagTone: "neutral",
+      sub: "A child with a blank or an absence is listed last and not ranked.",
+      items: order.map((entry) => ({
+        avatar: initialsOf(entry.name), label: entry.name, href: studentHref(s.arm.id, s.subject.id, entry.id),
+        sub: `${entry.pos ? `Position ${entry.pos}` : "Not ranked"} · ${roll(entry.roll)}${entry.since === null ? "" : ` · ${entry.since > 0 ? "+" : entry.since < 0 ? "−" : ""}${Math.abs(entry.since)} on last term`} · comment ${entry.comment ? "written" : "not written"}`,
+        ...(entry.complete && entry.total !== null ? { figure: String(entry.total) } : {}),
+        ...(entry.complete && entry.grade ? { pill: entry.grade, tone: gradeTone(entry.grade) } : {}),
+      })),
+    }]), show: "phone" as const },
+  ];
   const paper: DrawerSpec = {
     mode: "document", kicker: "Results", title: `Print ${s.subject.name} · ${s.arm.name}`,
     doc: {
@@ -522,7 +623,7 @@ export function subjectResultPage(s: SubjectResult): Content {
       ...(s.own ? [{ label: s.state === "Approved" || s.state === "Submitted" ? "Open the sheet" : "Open the entry grid", href: s.state === "Approved" || s.state === "Submitted" ? previewHref(s.arm.id, s.subject.id) : gridHref(s.arm.id, s.subject.id) }] : []),
       ...(s.own && firstNo ? [{ label: "Write subject comments", href: studentHref(s.arm.id, s.subject.id, firstNo.id) }] : []),
     ],
-    rows: panels.filter((entry): entry is PanelRow => Boolean(entry)),
+    rows: [...phoneRows, ...panels.filter((entry): entry is PanelRow => Boolean(entry)).map((entry) => ({ ...entry, show: "desktop" as const }))],
   };
 }
 

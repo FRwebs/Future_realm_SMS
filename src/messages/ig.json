@@ -323,7 +323,13 @@
     "run_this_now": "Mee nke a ugbu a?",
     "update_password": "Melite okwuntụghe",
     "change_password": "Gbanwee okwuntụghe",
-    "sign_out": "Pụọ"
+    "sign_out": "Pụọ",
+    "timetable_and_lessons": "Oge Ọmụmụ na Nkuzi",
+    "results_and_reports": "Nsonaazụ na Akụkọ",
+    "meetings": "Nzukọ",
+    "fees_and_payments": "Ụgwọ Ụlọ akwụkwọ na Ịkwụ Ụgwọ",
+    "forms_and_consents": "Fọm na Nkwenye",
+    "requests": "Arịrịọ"
   },
   "shell": {
     "expandSidebar": "Gbasaa ogwe n'akụkụ",

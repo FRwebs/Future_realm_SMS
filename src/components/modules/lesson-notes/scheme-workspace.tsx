@@ -304,7 +304,7 @@ function Workspace({ overview, scheme, initialWeek }: WorkspaceProps) {
         {editing ? <Strip tone="blue">You are editing a draft. Nothing changes for anyone until you save. {changedCount ? `${changedCount} week${changedCount === 1 ? "" : "s"} changed.` : "Change a week to enable saving."}</Strip> : null}
 
         {/* subjects and term */}
-        <SubjectCards overview={overview} selected={scheme.subjectId} termId={scheme.term.id} locked={editing} onBlocked={() => toast.show("Save or discard your changes first.", "bad")} terms={scheme.terms} current={scheme.term.id} editing={editing} onTerm={() => toast.show("Save or discard your changes first.", "bad")} />
+        <div className="max-md:hidden"><SubjectCards overview={overview} selected={scheme.subjectId} termId={scheme.term.id} locked={editing} onBlocked={() => toast.show("Save or discard your changes first.", "bad")} terms={scheme.terms} current={scheme.term.id} editing={editing} onTerm={() => toast.show("Save or discard your changes first.", "bad")} /></div>
 
         {/* nothing planned */}
         {!planned.length && !editing ? (
@@ -364,7 +364,7 @@ function Workspace({ overview, scheme, initialWeek }: WorkspaceProps) {
             </div>
 
             {/* the weeks, and the one that is open */}
-            <div className="grid lg:grid-cols-[minmax(0,1.45fr)_minmax(300px,1fr)]">
+            <div className="grid max-md:flex max-md:flex-col lg:grid-cols-[minmax(0,1.45fr)_minmax(300px,1fr)]">
               <div className="min-w-0">
                 <div className="grid items-center gap-3 border-b px-[18px] py-[9px]" style={{ gridTemplateColumns: cols, background: "#F7FAF8", borderColor: "#E6EEE9" }}>
                   {["Wk", "Topic", "Status", editing ? "Move" : "Note"].map((head, i) => <span key={head} className={LABEL} style={{ color: MUTED, textAlign: i === 3 ? "right" : undefined }}>{head}</span>)}
@@ -441,7 +441,7 @@ function Workspace({ overview, scheme, initialWeek }: WorkspaceProps) {
               </div>
 
               {/* the open week */}
-              <div className="min-w-0 border-t px-[18px] pb-[18px] pt-[16px] lg:border-l lg:border-t-0" style={{ borderColor: RULE }}>
+              <div className="min-w-0 border-t px-[18px] pb-[18px] pt-[16px] max-md:order-first max-md:border-b max-md:border-t-0 lg:border-l lg:border-t-0" style={{ borderColor: RULE }}>
                 {!editing ? (
                   <WeekDetail scheme={scheme} week={week} weeks={weeks} per={per} readOnly={readOnly} frozen={frozen(week)} busy={busy === "mark"} onTick={tick} onMark={mark} onPlan={() => startEdit()} />
                 ) : (

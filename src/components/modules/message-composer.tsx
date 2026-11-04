@@ -22,10 +22,10 @@ type MessageValues = z.infer<typeof messageSchema>;
  * cannot reach and why, what each family will actually read (their own name, their own child), and what it costs the school — a long SMS
  * is more than one credit. The server works all of it out again when the message is sent; this is only the same sum, shown early.
  */
-export type ComposerFamily = { id: string; name: string; phone: string; email: string; children: string[]; arms: string[]; canSms: boolean; canEmail: boolean; portal: string; language: string };
+export type ComposerFamily = { id: string; name: string; phone: string; email: string; children: string[]; arms: string[]; canSms: boolean; canEmail: boolean; canWhatsApp?: boolean; portal: string; language: string };
 export type ComposerDraft = { id: string; body: string; channel: string; audience: string; families: string[]; acknowledge: boolean; savedAt: string };
 export type ComposerProps = {
-  arms: string[]; families: ComposerFamily[]; wallet: number; threshold: number | null; sender: string; smsNaira: number; drafts: ComposerDraft[];
+  arms: string[]; families: ComposerFamily[]; wallet: number; whatsappWallet?: number; whatsappOffered?: boolean; threshold: number | null; sender: string; smsNaira: number; drafts: ComposerDraft[];
   prefill?: { audience?: string; families?: string[]; channel?: string; body?: string; draftId?: string; acknowledge?: boolean };
   base: string; sentHref: string;
   openDrawer?: (spec: DrawerSpec) => void;
@@ -36,12 +36,13 @@ const CHANNELS: Array<{ code: Channel; label: string; sub: string }> = [
   { code: "IN_APP", label: "In-app", sub: "Free" },
   { code: "SMS", label: "SMS", sub: "1 credit a part" },
   { code: "EMAIL", label: "Email", sub: "Free" },
+  { code: "WHATSAPP", label: "WhatsApp", sub: "1 credit · opted-in families" },
 ];
 const asAudience = (value: string | undefined): Audience => (value === "selected" || value === "one" ? value : "all");
-const asChannel = (value: string | undefined): Channel => (value === "SMS" || value === "EMAIL" ? value : "IN_APP");
+const asChannel = (value: string | undefined): Channel => (value === "SMS" || value === "EMAIL" || value === "WHATSAPP" ? value : "IN_APP");
 const day = (iso: string) => formatDay(new Date(iso), { day: "numeric", month: "short", timeZone: "Africa/Lagos" });
 
-export function MessageComposer({ arms, families, wallet, threshold, sender, smsNaira, drafts, prefill, base, sentHref, openDrawer }: ComposerProps) {
+export function MessageComposer({ arms, families, wallet, whatsappWallet = 0, whatsappOffered = false, threshold, sender, smsNaira, drafts, prefill, base, sentHref, openDrawer }: ComposerProps) {
   const router = useRouter();
   const box = useRef<HTMLTextAreaElement>(null);
   const [audience, setAudience] = useState<Audience>(asAudience(prefill?.audience));
@@ -66,14 +67,15 @@ export function MessageComposer({ arms, families, wallet, threshold, sender, sms
   const plan = useMemo(() => chosen.map((family) => {
     const text = mergeBody(body, { Guardian: family.name, Child: joinNames(family.children) || "your child", Class: joinNames(family.arms) || "your child’s class" });
     const reach = reachOf(channel, family);
-    return { family, text, reachable: reach.ok, reason: reach.ok ? null : reach.reason, segments: channel === "SMS" && reach.ok ? smsSegments(text) : 0 };
+    return { family, text, reachable: reach.ok, reason: reach.ok ? null : reach.reason, segments: channel === "SMS" && reach.ok ? smsSegments(text) : channel === "WHATSAPP" && reach.ok ? 1 : 0 };
   }), [chosen, body, channel]);
   const reach = plan.filter((row) => row.reachable).length;
   const left = plan.filter((row) => !row.reachable);
   const credits = plan.reduce((sum, row) => sum + row.segments, 0);
   const unknown = unknownFields(body);
   const held = threshold !== null && reach > threshold;
-  const short = credits > wallet;
+  const balance = channel === "WHATSAPP" ? whatsappWallet : wallet;
+  const short = credits > balance;
   const parts = channel === "SMS" ? smsSegments(body) : 0;
   const ready = body.trim().length >= 8 && reach > 0 && unknown.length === 0 && !short && chosen.length > 0;
   const sample = plan.find((row) => row.reachable) ?? plan[0];
@@ -198,7 +200,7 @@ export function MessageComposer({ arms, families, wallet, threshold, sender, sms
             <div className="grid gap-[6px]">
               <span className="text-[10.5px] font-bold uppercase tracking-[0.06em]" style={{ color: MUTED }}>Channel</span>
               <div className="grid gap-[8px] sm:grid-cols-3" role="radiogroup" aria-label="Channel">
-                {CHANNELS.map((entry) => (
+                {CHANNELS.filter((entry) => entry.code !== "WHATSAPP" || whatsappOffered || channel === "WHATSAPP").map((entry) => (
                   <button key={entry.code} type="button" role="radio" aria-checked={channel === entry.code} onClick={() => setChannel(entry.code)} className="flex min-w-0 flex-col gap-[2px] rounded-[10px] px-[12px] py-[9px] text-left" style={{ border: `1.5px solid ${channel === entry.code ? "#12796A" : CARD_BORDER}`, background: channel === entry.code ? "#EAF6F0" : "#fff" }}>
                     <span className="text-[12px] font-bold" style={{ color: INK }}>{entry.label}</span>
                     <span className="text-[10.5px]" style={{ color: MUTED }}>{entry.sub}</span>
@@ -253,8 +255,8 @@ export function MessageComposer({ arms, families, wallet, threshold, sender, sms
           <dl className="grid gap-0 px-[16px]">
             {([
               ["Recipients", String(reach), audience === "all" ? everyone : audience === "one" ? "One family" : "Selected families"],
-              ["Channel", channelName, channel === "SMS" ? "1 credit for each part of the message" : "Free"],
-              ["Cost", `${credits} credit${credits === 1 ? "" : "s"}${credits ? ` · ₦${(credits * smsNaira).toFixed(2)}` : ""}`, channel === "SMS" ? `School balance ${wallet.toLocaleString("en-NG")} → ${Math.max(0, wallet - credits).toLocaleString("en-NG")}` : "Nothing is charged"],
+              ["Channel", channelName, channel === "SMS" ? "1 credit for each part of the message" : channel === "WHATSAPP" ? "1 credit a message, sent as the school’s approved WhatsApp template, only to families who chose WhatsApp" : "Free"],
+              ["Cost", `${credits} credit${credits === 1 ? "" : "s"}${credits && channel === "SMS" ? ` · ₦${(credits * smsNaira).toFixed(2)}` : ""}`, channel === "SMS" || channel === "WHATSAPP" ? `School balance ${balance.toLocaleString("en-NG")} → ${Math.max(0, balance - credits).toLocaleString("en-NG")}` : "Nothing is charged"],
               ["Left out", String(left.length), left.length ? `${left[0]!.family.name}${left.length > 1 ? ` and ${left.length - 1} more` : ""} — ${(left[0]!.reason ?? "").replace(/ — nothing was sent\.$/, "").toLowerCase()}` : "Everybody chosen can be reached"],
               ["Your audience limit", arms.length > 3 ? "The classes you teach, only" : `${armLabel} families only`, "Set on your account, not by this screen"],
               ["Above the threshold", threshold === null ? "Never routes for approval" : `${threshold} recipients`, threshold === null ? "" : held ? "This send will wait for the Principal" : "Below it — this sends now"],
@@ -267,7 +269,7 @@ export function MessageComposer({ arms, families, wallet, threshold, sender, sms
               </div>
             ))}
           </dl>
-          {short || held ? <p className="mx-[16px] mt-[4px] rounded-[9px] px-[11px] py-[9px] text-[11.5px]" style={{ background: toneOf(noteTone).bg, color: toneOf(noteTone).fg }}>{short ? `This would cost ${credits} credits and the school has ${wallet}. Send it in-app, or ask the office to top up.` : `More than ${threshold} recipients: it will be held for the Principal before it leaves.`}</p> : null}
+          {short || held ? <p className="mx-[16px] mt-[4px] rounded-[9px] px-[11px] py-[9px] text-[11.5px]" style={{ background: toneOf(noteTone).bg, color: toneOf(noteTone).fg }}>{short ? `This would cost ${credits} credits and the school has ${balance}. Send it in-app, or ask the office to top up.` : `More than ${threshold} recipients: it will be held for the Principal before it leaves.`}</p> : null}
         </section>
       </div>
 

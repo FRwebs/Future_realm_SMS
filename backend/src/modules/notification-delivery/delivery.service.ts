@@ -138,7 +138,7 @@ export class DeliveryService implements OnModuleInit, OnModuleDestroy {
         if (!to) {
           await this.mark(row.id, meta, "FAILED", { error: "No address to send to" });
           if (meta.prepaid === true) {
-            await this.refund(row.schoolId, "SMS", row.title, Number(meta.credits ?? 1));
+            await this.refund(row.schoolId, row.channel === "WHATSAPP" ? "WHATSAPP" : "SMS", row.title, Number(meta.credits ?? 1));
             await reflectCarrierAnswer(row.id, "FAILED", "No address to send to");
           }
           result.failed++;
@@ -184,7 +184,7 @@ export class DeliveryService implements OnModuleInit, OnModuleDestroy {
           result.failed++;
           // A prepaid message that was never delivered gives its credits back, and its recipient's row says it failed.
           if (prepaid) {
-            await this.refund(row.schoolId, "SMS", row.title, Number(meta.credits ?? 1));
+            await this.refund(row.schoolId, row.channel === "WHATSAPP" ? "WHATSAPP" : "SMS", row.title, Number(meta.credits ?? 1));
             await reflectCarrierAnswer(row.id, "FAILED", outcome.error);
           }
         }
