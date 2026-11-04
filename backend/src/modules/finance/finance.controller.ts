@@ -11,7 +11,6 @@ import { CurrentSession } from "../../auth/current-session.decorator";
 import { RolesGuard } from "../../auth/roles.guard";
 import { Roles } from "../../auth/roles.decorator";
 import { SessionGuard } from "../../auth/session.guard";
-import { assertGuardianMaySee } from "../parent-portal/guardian-policy";
 import { FinanceService } from "./finance.service";
 
 const financeOversightRoles = ["SUPER_ADMIN", "SCHOOL_OWNER", "PROPRIETOR", "ADMINISTRATOR", "PRINCIPAL", "ADMIN_OFFICER", "BURSAR", "ACCOUNTANT", "ACCOUNT_OFFICER"] as const;
@@ -165,8 +164,11 @@ export class FinanceController {
   @UseGuards(SessionGuard, CsrfGuard, RolesGuard)
   @Roles(...financeOversightRoles, "PARENT")
   async initializePayment(@CurrentSession() session: SessionPayload, @Body() body: Record<string, unknown>) {
-    if (session.role !== "PARENT") this.assertFinanceManager(session);
-    else await assertGuardianMaySee(session.schoolId, "Fees");
+    if (session.role === "PARENT") {
+      // The invoice's own school decides the policy, the books and the currency — not the school the parent happened to sign in to.
+      return { ok: true, data: await this.financeService.initializeParentPayment(session, body) };
+    }
+    this.assertFinanceManager(session);
     return {
       ok: true,
       data: await this.financeService.initializePaymentFlow(session.schoolId, session.userId, body, session)

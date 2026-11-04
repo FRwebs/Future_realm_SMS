@@ -15,6 +15,7 @@ import { deviceName, hide, icsFor } from "../student-portal/student-workspace.se
 import { randomBytes } from "node:crypto";
 import { plansFeatures } from "../plans-features/plans-features.service";
 import { loadGuardianPolicy, type GuardianVisible } from "./guardian-policy";
+import { clockIn, todayIn } from "./school-time";
 
 /**
  * What a parent's own workspace reads.
@@ -69,13 +70,16 @@ export class ParentWorkspaceService {
     const guardianIds = rows.map((row) => row.id);
     const [terms, sites, policies] = await Promise.all([
       prisma.term.findMany({ where: { schoolId: { in: schoolIds }, isCurrent: true }, include: { academicSession: true } }),
-      prisma.school.findMany({ where: { id: { in: schoolIds } }, select: { id: true, name: true, shortName: true, currency: true, mainPhone: true, website: true, city: true, state: true } }),
+      prisma.school.findMany({ where: { id: { in: schoolIds } }, select: { id: true, name: true, shortName: true, currency: true, timezone: true, mainPhone: true, website: true, city: true, state: true } }),
       Promise.all(schoolIds.map(async (id) => [id, await loadGuardianPolicy(id)] as const)),
     ]);
     const termAt = (schoolId: string) => terms.find((term) => term.schoolId === schoolId) ?? null;
     const siteAt = (schoolId: string) => sites.find((site) => site.id === schoolId) ?? null;
     const policyAt = (schoolId: string) => policies.find(([id]) => id === schoolId)?.[1] ?? { sees: new Set<GuardianVisible>() };
     const guardianAt = (schoolId: string) => rows.find((row) => row.schoolId === schoolId) ?? guardian;
+    const zoneAt = (schoolId: string) => siteAt(schoolId)?.timezone || "Africa/Lagos";
+    const todayAt = (schoolId: string) => todayIn(zoneAt(schoolId));
+    const nowAt = (schoolId: string) => clockIn(zoneAt(schoolId));
     const children = rows.flatMap((row) => row.students.map((link) => link.student));
     return {
       guardian, rows, guardianIds, schoolIds, children,
@@ -84,11 +88,14 @@ export class ParentWorkspaceService {
       term: termAt(guardian.schoolId),
       school: siteAt(guardian.schoolId),
       policy: policyAt(guardian.schoolId),
-      termAt, siteAt, policyAt, guardianAt,
+      termAt, siteAt, policyAt, guardianAt, zoneAt, todayAt, nowAt,
+      /** The day and the clock at the school the parent signed in to: the page's own "today", which every school's own day can differ from. */
+      todayLead: todayAt(guardian.schoolId),
+      nowLead: nowAt(guardian.schoolId),
       /** Everything about the school a child attends: used wherever a page reads or writes about one child. */
       at: (studentId: string) => {
         const schoolId = children.find((student) => student.id === studentId)?.schoolId ?? guardian.schoolId;
-        return { schoolId, guardianId: guardianAt(schoolId).id, term: termAt(schoolId), site: siteAt(schoolId), policy: policyAt(schoolId) };
+        return { schoolId, guardianId: guardianAt(schoolId).id, term: termAt(schoolId), site: siteAt(schoolId), policy: policyAt(schoolId), today: todayAt(schoolId), now: nowAt(schoolId) };
       },
       /** What any of this family's schools shows parents: a page is in the rail if one school shows it. */
       sees: new Set(policies.flatMap(([, policy]) => [...policy.sees])),
@@ -110,14 +117,14 @@ export class ParentWorkspaceService {
    * school lets them see. Everything else in the portal is read against this.
    */
   async me(session: SessionPayload) {
-    const { guardian, guardianIds, term, school, children, many, schoolIds, termAt, siteAt, policyAt, sees } = await this.context(session);
+    const { guardian, guardianIds, term, school, children, many, schoolIds, termAt, siteAt, policyAt, sees, todayAt, nowAt, zoneAt, todayLead, nowLead } = await this.context(session);
     // What the rail counts on Messages: what any of this family's schools has sent that has not been opened.
     const unread = await prisma.messageDelivery.count({ where: { guardianId: { in: guardianIds }, readAt: null, status: { in: ["DELIVERED", "PENDING"] }, campaign: { status: "SENT" } } });
-    const today = isoDay(new Date());
-    const termWeek = (row: { startDate: Date; endDate: Date } | null) => {
+    const today = todayLead;
+    const termWeek = (row: { startDate: Date; endDate: Date } | null, day = today) => {
       if (!row) return { start: null, end: null, week: 0, weeks: 0 };
       const weeks = Math.max(1, Math.ceil((row.endDate.getTime() - row.startDate.getTime()) / (7 * DAY)));
-      const week = Math.min(weeks, Math.max(0, Math.floor((dayOf(today).getTime() - dayOf(isoDay(row.startDate)).getTime()) / (7 * DAY)) + 1));
+      const week = Math.min(weeks, Math.max(0, Math.floor((dayOf(day).getTime() - dayOf(isoDay(row.startDate)).getTime()) / (7 * DAY)) + 1));
       return { start: isoDay(row.startDate), end: isoDay(row.endDate), week, weeks };
     };
     const { start, end, week, weeks } = termWeek(term);
@@ -139,7 +146,7 @@ export class ParentWorkspaceService {
       },
       term: term ? { id: term.id, name: term.name, session: term.academicSession.name, start, end, week, weeks } : null,
       today,
-      now: clock(),
+      now: nowLead,
       /** What this family's schools show parents. A page every one of them keeps back is not in the rail. */
       sees: [...sees],
       /** True when this family's children are at more than one school, which the portal has to say out loud rather than quietly total. */
@@ -151,12 +158,14 @@ export class ParentWorkspaceService {
       schools: schoolIds.map((id) => {
         const site = siteAt(id);
         const row = termAt(id);
-        const { start: from, end: to, week: at, weeks: of } = termWeek(row);
+        const { start: from, end: to, week: at, weeks: of } = termWeek(row, todayAt(id));
         return {
           id,
           name: site?.name ?? "",
           short: site?.shortName?.trim() || site?.name || "",
           currency: site?.currency ?? "NGN",
+          /** This school's own time zone, and the day and the clock in it — two schools can be an hour apart. */
+          timezone: zoneAt(id), today: todayAt(id), now: nowAt(id), place: site?.city?.trim() || "",
           sees: [...policyAt(id).sees],
           term: row ? { id: row.id, name: row.name, session: row.academicSession.name, start: from, end: to, week: at, weeks: of } : null,
         };
@@ -193,11 +202,10 @@ export class ParentWorkspaceService {
    * it. `scope` is a child's id, or "all" for the whole family.
    */
   async needs(session: SessionPayload, scope: string) {
-    const { rows, guardianIds, schoolIds, children, at, termAt, siteAt, many } = await this.context(session);
+    const { rows, guardianIds, schoolIds, children, at, termAt, siteAt, many, todayAt } = await this.context(session);
     const mine = scope === "all" ? children : children.filter((student) => student.id === scope);
     if (!mine.length) return { items: [] };
     const ids = mine.map((student) => student.id);
-    const today = isoDay(new Date());
     // Each school runs its own term, so "this term's absences" is one question per school, not one for the family.
     const thisTerm = schoolIds.map((id) => ({ schoolId: id, ...(termAt(id) ? { termId: termAt(id)!.id } : {}) }));
 
@@ -243,7 +251,8 @@ export class ParentWorkspaceService {
 
     for (const invoice of invoices) {
       if (at(invoice.studentId).policy.sees.has("Fees")) {
-        const over = Math.floor((dayOf(today).getTime() - dayOf(isoDay(invoice.dueOn)).getTime()) / DAY);
+        // Overdue is counted on the day it is at the school that billed it.
+        const over = Math.floor((dayOf(at(invoice.studentId).today).getTime() - dayOf(isoDay(invoice.dueOn)).getTime()) / DAY);
         items.push({
           kind: "fee", childId: invoice.studentId, child: firstOf.get(invoice.studentId) ?? "",
           label: `Balance · ${money(Number(invoice.balance))}`,
@@ -291,7 +300,7 @@ export class ParentWorkspaceService {
       items.push({
         kind: "form", childId: null, child: form.children.length ? form.children.map((child) => child.first).join(" and ") : "",
         label: form.data.title, sub: `${form.data.kind} form from the school${form.data.due ? ` · reply by ${longDay(form.data.due)}` : ""}.`,
-        pill: form.data.due ? `Reply by ${shortDay(form.data.due)}` : "Waiting", tone: form.data.due && form.data.due < today ? "negative" : "attention",
+        pill: form.data.due ? `Reply by ${shortDay(form.data.due)}` : "Waiting", tone: form.data.due && form.data.due < todayAt(form.schoolId) ? "negative" : "attention",
         action: "Review", href: "/portals/parent/consents?tab=Forms+to+sign", due: form.data.due ?? "9999-12-30",
       });
     }
@@ -499,8 +508,8 @@ export class ParentWorkspaceService {
     const student = await this.child(session, input.child);
     const { at } = await this.context(session);
     // It goes to the bursary of the school that billed the child, under that school's own guardian record.
-    const { schoolId, guardianId } = at(student.id);
-    const detail = `I paid ₦${input.amount.toLocaleString("en-NG")} for ${student.firstName} by ${input.method.toLowerCase()} on ${input.date}${input.reference ? `, bank reference ${input.reference}` : ""}.${input.note ? ` ${input.note}` : ""}`;
+    const { schoolId, guardianId, site } = at(student.id);
+    const detail = `I paid ${moneyIn(site?.currency ?? "NGN", input.amount)} for ${student.firstName} by ${input.method.toLowerCase()} on ${input.date}${input.reference ? `, bank reference ${input.reference}` : ""}.${input.note ? ` ${input.note}` : ""}`;
     return openSubmission(schoolId, {
       guardianId, childId: student.id, type: "Fee query", detail, channel: "Portal", evidence: input.reference || null,
       payload: { kind: "payment-report", amount: input.amount, method: input.method, date: input.date, reference: input.reference ?? "" } as Prisma.InputJsonValue,
@@ -522,16 +531,16 @@ export class ParentWorkspaceService {
    * and says nothing it cannot back up.
    */
   async switcher(session: SessionPayload) {
-    const { children, schoolIds, guardianIds, at, termAt, siteAt, many, sees } = await this.context(session);
+    const { children, schoolIds, guardianIds, at, termAt, siteAt, many, sees, todayAt } = await this.context(session);
     const ids = children.map((student) => student.id);
-    const today = isoDay(new Date());
     const thisTerm = schoolIds.map((id) => ({ schoolId: id, ...(termAt(id) ? { termId: termAt(id)!.id } : {}) }));
 
     const [needs, marks, termMarks, invoices, explanations] = await Promise.all([
       this.needs(session, "all"),
       ids.length
         ? prisma.studentAttendance.findMany({
-            where: { schoolId: { in: schoolIds }, studentId: { in: ids }, date: dayOf(today) },
+            // Today's mark is the one for the day it is at each child's own school.
+            where: { studentId: { in: ids }, OR: schoolIds.map((id) => ({ schoolId: id, date: dayOf(todayAt(id)) })) },
             select: { studentId: true, status: true },
           })
         : Promise.resolve([]),
@@ -634,7 +643,7 @@ export class ParentWorkspaceService {
    * who arrived late was in school.
    */
   async attendance(session: SessionPayload, scope: string) {
-    const { children, schoolIds, guardianIds, at, siteAt, many, sees } = await this.context(session);
+    const { children, schoolIds, guardianIds, at, siteAt, many, sees, todayLead } = await this.context(session);
     if (!sees.has("Attendance")) throw new ForbiddenException("Your school has not made attendance visible to parents.");
     const shown = children.filter((student) => at(student.id).policy.sees.has("Attendance"));
     const mine = scope === "all" ? shown : shown.filter((student) => student.id === scope);
@@ -661,7 +670,7 @@ export class ParentWorkspaceService {
     ]);
 
     const explained = new Set(explanations.flatMap((row) => (row.dates ?? []).map((date) => `${row.studentId ?? ""}:${date}`)));
-    const today = isoDay(new Date());
+    const today = todayLead;
     const present = (status: string) => status === "PRESENT" || status === "LATE";
 
     // Only the terms this family actually has marks in, newest last.
@@ -669,7 +678,8 @@ export class ParentWorkspaceService {
 
     const perChild = mine.map((student) => {
       const theirs = marks.filter((mark) => mark.studentId === student.id);
-      const todayMark = theirs.find((mark) => isoDay(mark.date) === today) ?? null;
+      // "Today" is the day it is at this child's own school.
+      const todayMark = theirs.find((mark) => isoDay(mark.date) === at(student.id).today) ?? null;
       // A child's terms are their own school's: two schools do not share a calendar, so one child's list never shows the other's terms.
       const byTerm = termsWithMarks.filter((term) => term.schoolId === student.schoolId).map((term) => {
         const days = theirs.filter((mark) => mark.termId === term.id);
@@ -734,7 +744,7 @@ export class ParentWorkspaceService {
    * (or, where it never marked anything, wrote an audience that includes them). Each carries the children it concerns.
    */
   async calendar(session: SessionPayload, scope: string) {
-    const { guardianIds, children, term, at, termAt, siteAt, many, sees } = await this.context(session);
+    const { guardianIds, children, term, at, termAt, siteAt, many, sees, todayLead } = await this.context(session);
     const mine = scope === "all" ? children : children.filter((student) => student.id === scope);
     const ids = mine.map((student) => student.id);
     // Only the schools this view is actually about: opening one child must not bring the other school's term dates with it.
@@ -781,7 +791,7 @@ export class ParentWorkspaceService {
       out.push({ id: `t-start-${row.id}`, date: isoDay(row.startDate), end: isoDay(row.startDate), title: `${row.name} begins`, cat: "Term", time: "", where: "", note: "", school: whose(schoolId), kids });
       out.push({ id: `t-end-${row.id}`, date: isoDay(row.endDate), end: isoDay(row.endDate), title: `${row.name} ends`, cat: "Term", time: "", where: "", note: "", school: whose(schoolId), kids });
     }
-    return { today: isoDay(new Date()), term: term ? { name: term.name, start: isoDay(term.startDate), end: isoDay(term.endDate) } : null, events: out.sort((a, b) => a.date.localeCompare(b.date) || a.title.localeCompare(b.title)) };
+    return { today: todayLead, term: term ? { name: term.name, start: isoDay(term.startDate), end: isoDay(term.endDate) } : null, events: out.sort((a, b) => a.date.localeCompare(b.date) || a.title.localeCompare(b.title)) };
   }
 
   /**
@@ -817,7 +827,7 @@ export class ParentWorkspaceService {
    * recorded on the meeting itself, and the person who set it up is told.
    */
   async meetings(session: SessionPayload, scope: string) {
-    const { guardianIds, children, siteAt, many } = await this.context(session);
+    const { guardianIds, children, siteAt, many, todayLead } = await this.context(session);
     const rows = await prisma.parentMeeting.findMany({
       where: { guardianId: { in: guardianIds }, deletedAt: null },
       include: { student: { select: { id: true, firstName: true } }, staff: { include: { user: { select: { firstName: true, lastName: true } } } } },
@@ -829,7 +839,7 @@ export class ParentWorkspaceService {
       orderBy: { createdAt: "desc" }, take: 20, include: { student: { select: { firstName: true } } },
     });
     return {
-      today: isoDay(new Date()),
+      today: todayLead,
       children: children.map((student) => ({ id: student.id, first: student.firstName, school: many ? siteAt(student.schoolId)?.shortName?.trim() || siteAt(student.schoolId)?.name || "" : "" })),
       meetings: rows.filter((row) => scope === "all" || !row.studentId || row.studentId === scope).map((row) => ({
         id: row.id, title: row.title, at: row.scheduledAt.toISOString(), date: isoDay(row.scheduledAt),
@@ -942,10 +952,10 @@ export class ParentWorkspaceService {
   }
 
   async forms(session: SessionPayload) {
-    const { rows, children, siteAt, many } = await this.context(session);
+    const { rows, children, siteAt, many, todayLead } = await this.context(session);
     const forms = await this.formsFor(rows, children);
     return {
-      today: isoDay(new Date()),
+      today: todayLead,
       forms: forms.map((form) => ({
         id: form.id, title: form.data.title, kind: form.data.kind, audience: form.data.audience, due: form.data.due, open: form.data.status === "OPEN",
         facts: form.data.facts, ask: form.data.ask, yes: form.data.yes, no: form.data.no, sentOn: form.data.createdAt.slice(0, 10), by: form.data.createdBy,
@@ -1047,7 +1057,7 @@ export class ParentWorkspaceService {
    * ones the school's records actually hold — sent, with whom, and closed — never a story filled in around them.
    */
   async requests(session: SessionPayload, scope: string) {
-    const { guardianIds, schoolIds, children, siteAt, many } = await this.context(session);
+    const { guardianIds, schoolIds, children, siteAt, many, todayLead, todayAt } = await this.context(session);
     // Each school sets its own answer times for its own kinds of request; where they differ, the slower one is the honest promise.
     const perSchool = await Promise.all(schoolIds.map((id) => submissionTypes(id)));
     const types = [...new Map(perSchool.flat().map((type) => [type.name, type])).values()].map((type) => ({
@@ -1064,7 +1074,7 @@ export class ParentWorkspaceService {
       include: { student: { select: { id: true, firstName: true } } },
     });
     const target = new Map(types.map((type) => [type.name, type.target]));
-    const today = isoDay(new Date());
+    const today = todayLead;
     const items = rows.map((row) => {
       const open = row.state !== "RESOLVED" && row.state !== "DECLINED";
       const withdrawn = row.state === "DECLINED" && /^withdrawn by/i.test(row.outcome ?? "");
@@ -1076,7 +1086,8 @@ export class ParentWorkspaceService {
         state: withdrawn ? "Withdrawn" : stateWord(row.state), open,
         owner: row.ownerName, role: row.ownerRole, outcome: row.outcome,
         opened: isoDay(row.createdAt), closed: row.resolvedAt ? isoDay(row.resolvedAt) : null,
-        due, late: open && Boolean(due) && due! < today, channel: row.channel,
+        // Late is judged on the day it is at the school that has the request.
+        due, late: open && Boolean(due) && due! < todayAt(row.schoolId), channel: row.channel,
         school: many ? siteAt(row.schoolId)?.shortName?.trim() || siteAt(row.schoolId)?.name || "" : "",
       };
     });
@@ -1214,7 +1225,7 @@ export class ParentWorkspaceService {
    * scheme of work only once it has been approved — a teacher's draft is not a promise to a family.
    */
   async learning(session: SessionPayload, scope: string) {
-    const { children, term, at, termAt, siteAt, many, sees } = await this.context(session);
+    const { children, term, at, termAt, siteAt, many, sees, todayLead, todayAt, nowAt, zoneAt } = await this.context(session);
     if (!sees.has("Timetable")) throw new ForbiddenException("Your school has not made the timetable visible to parents.");
     const shown = children.filter((student) => at(student.id).policy.sees.has("Timetable"));
     const mine = scope === "all" ? shown : shown.filter((student) => student.id === scope);
@@ -1223,13 +1234,15 @@ export class ParentWorkspaceService {
     const theirSchools = [...new Set(mine.map((student) => student.schoolId))];
     const running = theirSchools.filter((id) => termAt(id));
     const inTerm = running.map((id) => ({ schoolId: id, termId: termAt(id)!.id }));
-    if (!classIds.length || !inTerm.length) return { week: 0, weeks: 0, today: isoDay(new Date()), components: [], tests: [], children: mine.map((student) => emptyLearning(student)) };
+    if (!classIds.length || !inTerm.length) return { week: 0, weeks: 0, today: todayLead, components: [], tests: [], children: mine.map((student) => emptyLearning(student)) };
 
-    const today = isoDay(new Date());
-    const weekIn = (row: { startDate: Date; endDate: Date } | null) => {
+    const today = todayLead;
+    // A week is counted on the day it is at the school whose term it is.
+    const weekIn = (row: { startDate: Date; endDate: Date; schoolId?: string } | null) => {
       if (!row) return { week: 0, weeks: 0 };
+      const day = row.schoolId ? todayAt(row.schoolId) : today;
       const of = Math.max(1, Math.ceil((row.endDate.getTime() - row.startDate.getTime()) / (7 * DAY)));
-      return { week: Math.min(of, Math.max(1, Math.floor((dayOf(today).getTime() - dayOf(isoDay(row.startDate)).getTime()) / (7 * DAY)) + 1)), weeks: of };
+      return { week: Math.min(of, Math.max(1, Math.floor((dayOf(day).getTime() - dayOf(isoDay(row.startDate)).getTime()) / (7 * DAY)) + 1)), weeks: of };
     };
     // The page's own heading follows the school they signed in to, falling back to whichever of their schools is in term.
     const lead = (term && running.includes(term.schoolId) ? term : termAt(running[0]!))!;
@@ -1241,7 +1254,7 @@ export class ParentWorkspaceService {
         orderBy: [{ dayOfWeek: "asc" }, { periodNumber: "asc" }],
       }),
       prisma.examTimetableEntry.findMany({
-        where: { OR: running.map((id) => ({ schoolId: id, OR: [{ termId: termAt(id)!.id }, { termId: null }] })), classId: { in: classIds }, examDate: { gte: dayOf(today) } },
+        where: { OR: running.map((id) => ({ schoolId: id, examDate: { gte: dayOf(todayAt(id)) }, OR: [{ termId: termAt(id)!.id }, { termId: null }] })), classId: { in: classIds } },
         include: { subject: true },
         orderBy: { examDate: "asc" },
       }),
@@ -1252,8 +1265,9 @@ export class ParentWorkspaceService {
       }),
       prisma.calendarEvent.findMany({
         where: {
-          schoolId: { in: theirSchools }, endsAt: { gte: dayOf(today) },
-          OR: ["exam", "test", "assess"].map((word) => ({ type: { contains: word, mode: "insensitive" as const } })),
+          // Upcoming is judged on the day it is at the school that put the event on its calendar.
+          OR: theirSchools.map((id) => ({ schoolId: id, endsAt: { gte: dayOf(todayAt(id)) } })),
+          AND: [{ OR: ["exam", "test", "assess"].map((word) => ({ type: { contains: word, mode: "insensitive" as const } })) }],
         },
         orderBy: { startsAt: "asc" }, take: 40,
       }),
@@ -1288,6 +1302,8 @@ export class ParentWorkspaceService {
         return {
           id: student.id, first: student.firstName, arm: armName(student.currentClass?.name, student.currentClass?.arm),
           school: many ? siteAt(student.schoolId)?.shortName?.trim() || siteAt(student.schoolId)?.name || "" : "",
+          /** The day and the clock at this child's school: a lesson is "now" by the school's clock, not the parent's. */
+          today: todayAt(student.schoolId), now: nowAt(student.schoolId), zone: zoneAt(student.schoolId),
           published: own.length > 0, slots, periods,
           topics: schemes
             .filter((scheme) => scheme.classId === student.currentClassId)
@@ -1737,6 +1753,5 @@ const emptyLearning = (student: { id: string; firstName: string; currentClass?: 
 });
 const dayOf = (iso: string) => new Date(`${iso}T00:00:00Z`);
 const isoDay = (value: Date) => value.toISOString().slice(0, 10);
-const clock = () => new Date().toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: "Africa/Lagos" });
 /** "JSS 1" + "Silver" → "JSS 1 Silver"; the school's own words for where a child sits. */
 const armName = (name?: string | null, arm?: string | null) => [name, arm].filter(Boolean).join(" ") || "No class";

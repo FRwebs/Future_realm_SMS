@@ -16,6 +16,10 @@ export type ParentMe = {
   language: string; school: string;
   term: { id: string; name: string; session: string; start: string | null; end: string | null; week: number; weeks: number } | null;
   today: string; now: string;
+  /** True when the family's children are at more than one school. */
+  manySchools?: boolean;
+  /** Every school the family belongs to, each with its own currency, time zone and the day and clock in it. */
+  schools?: Array<{ id: string; name: string; short: string; currency: string; timezone: string; today: string; now: string; place: string }>;
   /** The school office: its name, how to ring it, where it is. */
   office: { name: string; phone: string | null; website: string | null; where: string | null };
   /** What this school has chosen to show parents, by page name. */
@@ -52,6 +56,14 @@ export type ParentContent = TabContent & {
  * back to the family view rather than erroring: the switcher is a view, not a
  * permission, and the reads behind it are scoped to their own children.
  */
+/** The clock at each of the family's schools — one time for a one-school family, and each school's own when they differ ("10:34 Abuja · 09:34 Accra"). */
+export const clocksOf = (me: ParentMe): string => {
+  const schools = me.schools ?? [];
+  // Schools on the same clock need it said once; it is only when they differ that each one's own is named.
+  if (schools.length < 2 || schools.every((school) => school.now === schools[0]!.now)) return me.now;
+  return schools.map((school) => `${school.now} ${school.place || school.short}`).join(" · ");
+};
+
 export const childOf = (query: Record<string, string | undefined>, me: ParentMe): string => {
   const asked = query.child?.trim();
   return asked && me.children.some((child) => child.id === asked) ? asked : "all";

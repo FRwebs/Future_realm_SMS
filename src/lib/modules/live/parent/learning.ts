@@ -2,12 +2,14 @@ import { apiGet, observe } from "@/lib/api/server";
 import { localContracts } from "@/lib/api/local-contracts.zod";
 import { name as nameCell, row, text } from "@/lib/modules/panels";
 import type { ListItem, PanelFact, TableRow } from "@/lib/modules/panels";
-import { PW, dDow, dShort, dayOf, loadMe } from "@/lib/modules/live/parent/shared";
+import { PW, clocksOf, dDow, dShort, dayOf, loadMe } from "@/lib/modules/live/parent/shared";
 import type { ParentContent, ParentMe } from "@/lib/modules/live/parent/shared";
 
 type Slot = { day: number; n: number; from: string; to: string; kind: string; subject: string; teacher: string; lab: boolean };
 export type Kid = {
   id: string; first: string; arm: string; published: boolean; slots: Slot[];
+  /** The day and the clock at this child's school; a lesson is "now" by that clock. */
+  today?: string; now?: string;
   periods: Array<{ n: number; from: string; to: string; kind: string }>;
   topics: Array<{ subject: string; teacher: string; now: string | null; next: string | null }>;
   exams: Array<{ id: string; subject: string; date: string; from: string; to: string; venue: string }>;
@@ -33,11 +35,12 @@ export async function learningPage(child: string, query: Record<string, string |
 
 /** The lesson running now for a child, and the next one today — read against the school's own clock. */
 export function liveLesson(kid: Kid, me: ParentMe) {
-  const day = dayOf(me.today).getUTCDay();
+  const clock = kid.now ?? me.now;
+  const day = dayOf(kid.today ?? me.today).getUTCDay();
   const today = kid.slots.filter((slot) => slot.day === day && slot.kind === "lesson").sort((a, b) => a.from.localeCompare(b.from));
-  const now = today.find((slot) => slot.from <= me.now && me.now < slot.to) ?? null;
-  const next = today.find((slot) => slot.from > me.now) ?? null;
-  const onBreak = !now && kid.slots.some((slot) => slot.day === day && slot.kind === "break" && slot.from <= me.now && me.now < slot.to);
+  const now = today.find((slot) => slot.from <= clock && clock < slot.to) ?? null;
+  const next = today.find((slot) => slot.from > clock) ?? null;
+  const onBreak = !now && kid.slots.some((slot) => slot.day === day && slot.kind === "break" && slot.from <= clock && clock < slot.to);
   return { now, next, onBreak };
 }
 
@@ -70,7 +73,7 @@ function familyLearning(data: Learning, me: ParentMe): ParentContent {
     desc: "Where each child is right now, and every test ahead.",
     rows: [row("minmax(0,1.2fr) minmax(0,1fr)", [
       {
-        type: "list", title: "Right now in class", sub: `${dDow(me.today)} · ${me.now}.`,
+        type: "list", title: "Right now in class", sub: `${dDow(me.today)} · ${clocksOf(me)}.`,
         empty: "No child is in a class that has a published timetable yet.",
         items: data.children.map((kid): ListItem => {
           const live = liveLesson(kid, me);

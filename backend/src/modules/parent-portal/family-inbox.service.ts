@@ -16,6 +16,8 @@ const stateLabel = (state: string) => (state === "RESOLVED" ? "Resolved" : state
 
 const submitSchema = z.object({
   child: z.string().optional(),
+  /** For a request about no child in particular, which of the family's schools it is for. Left out, it goes to the school they signed in to. */
+  school: z.string().optional(),
   type: z.string().min(1, "Choose what this is about."),
   detail: z.string().trim().min(8, "Say a little more — the person who reads it has only your words."),
   evidence: z.string().trim().max(300).optional(),
@@ -149,9 +151,12 @@ export class FamilyInboxService {
     if (aboutChild && !child) throw new BadRequestException("Choose which child this is about.");
     if (input.type === "Absence explanation" && !input.dates.length) throw new BadRequestException("Choose the days you are explaining.");
     if (input.type === "Collection change" && !input.collector) throw new BadRequestException("Say who will collect your child, and on which day.");
-    // It goes to the school the child is at; a request about no child goes to the school they signed in to.
-    const made = await openSubmission(child?.schoolId ?? guardian.schoolId, {
-      guardianId: child?.guardianId ?? guardian.id, childId: child?.studentId, type: input.type, detail: input.detail, channel: "Portal", evidence: input.evidence, dates: input.type === "Absence explanation" ? input.dates : [],
+    // It goes to the school the child is at. A request about no child goes to the school the parent names, or else the one they signed in
+    // to — and only ever to a school they are a guardian at.
+    const named = !child && input.school ? guardian.rows.find((row) => row.schoolId === input.school) : undefined;
+    if (!child && input.school && !named) throw new ForbiddenException("You are not a guardian at that school.");
+    const made = await openSubmission(child?.schoolId ?? named?.schoolId ?? guardian.schoolId, {
+      guardianId: child?.guardianId ?? named?.id ?? guardian.id, childId: child?.studentId, type: input.type, detail: input.detail, channel: "Portal", evidence: input.evidence, dates: input.type === "Absence explanation" ? input.dates : [],
       payload: input.type === "Collection change" ? input.collector : undefined,
     });
     return made;
