@@ -16,11 +16,39 @@ export const studentPages = [
   { slug: "profile", label: "My profile", icon: "M3.5 5.5h17v13h-17zM8.5 12.5a2 2 0 1 0 0-4 2 2 0 0 0 0 4zM5.8 16c.5-1.5 1.5-2.2 2.7-2.2s2.2.7 2.7 2.2M14 10h4M14 13.5h3" },
   { slug: "notifications", label: "Notifications", icon: "M12 3.5A5.5 5.5 0 0 0 6.5 9v3.2L5 15.5h14l-1.5-3.3V9A5.5 5.5 0 0 0 12 3.5zM10 18.5a2 2 0 0 0 4 0" },
   { slug: "account", label: "Account and security", icon: "M4.5 10.5h15V20h-15zM8 10.5V7.5a4 4 0 0 1 8 0v3M12 14v2.5" },
+  // The phone's own page: the mobile mockup has it, the desktop one does not, so it lives in the phone's More sheet and never in the rail.
+  { slug: "sync", label: "Sync and this phone", icon: "M20 11.5a8 8 0 0 0-13.7-5L4 8.8M4 12.5a8 8 0 0 0 13.7 5l2.3-2.3M4 4.5v4.3h4.3M19.7 19.5v-4.3h-4.3" },
 ] as const;
 
 export type StudentPageSlug = (typeof studentPages)[number]["slug"];
 
 export const studentHref = (slug: string) => (slug === "today" ? "/portals/student" : `/portals/student/${slug}`);
+
+/**
+ * The four pages that get their own tab at the bottom of a phone, from the mobile mockup's own `tabMods()`.
+ *
+ * They are the school day as a student lives it — what is on now, what each subject is doing, what they owe, how they did —
+ * while everything else is opened when something prompts it, so it lives behind More.
+ */
+export const STUDENT_PHONE_TABS: StudentPageSlug[] = ["today", "subjects", "assignments", "results"];
+
+/** The name a page goes by in that bar, where a label has a fifth of a phone to fit in. */
+export const studentPhoneTabLabel: Record<string, string> = {
+  today: "Today", subjects: "Subjects", assignments: "Work", results: "Results",
+  timetable: "Timetable", attendance: "Attendance", calendar: "Calendar", messages: "Messages",
+  profile: "Profile", notifications: "Notifications", account: "Account", sync: "Sync",
+};
+
+/**
+ * How the phone's More sheet groups what is not a tab, as the mockup's own `moreVals` does.
+ * A group with nothing left in it is not drawn.
+ */
+export const STUDENT_MORE_GROUPS: Array<{ title: string; slugs: StudentPageSlug[] }> = [
+  { title: "My learning", slugs: ["timetable", "attendance", "calendar"] },
+  { title: "My school", slugs: ["messages"] },
+  { title: "Me", slugs: ["profile", "notifications", "account"] },
+  { title: "This phone", slugs: ["sync"] },
+];
 
 const section = (title: string, slugs: StudentPageSlug[]) => ({
   title,
@@ -44,6 +72,7 @@ export function studentNavigation(switchedOff: string[] = [], hidden: string[] =
         section("My learning", keep(["timetable", "subjects", "assignments", "results"])),
         section("My school", keep(["attendance", "calendar", "messages"])),
         section("Me", ["profile", "notifications", "account"]),
+        // `sync` is deliberately absent: it is about the phone in your hand, and the desktop rail has no business offering it.
       ];
   return { items: [], extra: [], groups: groups.filter((group) => group.items.length || !group.title) };
 }

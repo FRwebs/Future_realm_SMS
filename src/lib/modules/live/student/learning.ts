@@ -258,6 +258,9 @@ export async function assignmentsPage(query: Record<string, string | undefined>)
   }
   return {
     eyebrow: `${me.arm}${me.term ? ` · Week ${me.term.week}` : ""}`, title: "Assignments", desc: "Homework from all your subjects, in one place. Homework is practice — it is not part of your CA.", tabs, tab,
+    // The phone floats this, as the mockup does, and only while something is actually waiting: it opens the oldest piece still
+    // to hand in — the late one first — because that is the one a student has come to the page for.
+    ...(todo.length && me.policy?.homework !== false ? { primary: { label: "Hand in work", drawer: handInDrawer(todo[0]!) } } : {}),
     launchers: askable.people.length ? [{ label: "Ask for more time", drawer: askDrawer(askable.people, { topic: "More time for an assignment", fmReads: askable.formMasterReads }) }] : [],
     rows: [
       row("1fr", [{

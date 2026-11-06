@@ -6,6 +6,7 @@ import type { Route } from "next";
 import { usePathname, useSearchParams } from "next/navigation";
 
 import { ParentMoreSheet } from "@/components/layout/phone-parent-more";
+import { StudentMoreSheet } from "@/components/layout/phone-student-more";
 import { TeacherMoreSheet } from "@/components/layout/phone-teacher-more";
 import { usePhoneKind } from "@/components/layout/phone-shell";
 import type { SessionUser } from "@/lib/domain/types";
@@ -51,7 +52,7 @@ export function PortalTabBar({
   urgent: Record<string, boolean>;
   label: string;
   /** Who is signed in. A teacher's More sheet opens on their own card and ends in sign-out. */
-  account?: { session: SessionUser; schoolName?: string; kids?: number; schools?: number };
+  account?: { session: SessionUser; schoolName?: string; kids?: number; schools?: number; /** A student's class and admission number, for their own card. */ line?: string };
 }) {
   const kind = usePhoneKind();
   const pathname = usePathname();
@@ -113,6 +114,8 @@ export function PortalTabBar({
     <>
       {moreOpen && kind === "teacher" && account ? (
         <TeacherMoreSheet items={items} primaryIds={primaryIds} counts={counts} urgent={urgent} pathname={pathname} session={account.session} schoolName={account.schoolName} onClose={() => setMoreOpen(false)} />
+      ) : moreOpen && kind === "student" && account ? (
+        <StudentMoreSheet items={items} primaryIds={primaryIds} counts={counts} urgent={urgent} session={account.session} school={account.schoolName} line={account.line} onClose={() => setMoreOpen(false)} />
       ) : moreOpen && kind === "parent" && account ? (
         <ParentMoreSheet items={items} primaryIds={primaryIds} counts={counts} urgent={urgent} session={account.session} kids={account.kids ?? 0} schools={account.schools ?? 1} school={account.schoolName} onClose={() => setMoreOpen(false)} />
       ) : moreOpen ? (
