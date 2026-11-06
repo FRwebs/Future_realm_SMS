@@ -293,7 +293,8 @@ export function PhoneList({ panel, openDrawer }: { panel: Extract<Panel, { type:
     const drawer = item.drawer ?? (item.facts?.length ? ({ title: item.label, sub: item.sub, facts: item.facts, readOnly: panel.readOnly } as DrawerSpec) : undefined);
     const act = item.act ? { label: item.act.label, icon: item.act.icon, href: item.act.href, run: item.act.drawer ? () => openDrawer(item.act!.drawer!) : undefined } : undefined;
     return {
-      key: `${index}-${item.label}`, title: item.label, sub: item.sub,
+      // The phone's copy rule on a row's second line. The drawer behind the row keeps the full sentence.
+      key: `${index}-${item.label}`, title: item.label, sub: tightFor(true, "opt", item.sub),
       lead: item.lead ? { top: item.lead.top, value: item.lead.value, tone: item.lead.tone ?? item.tone } : item.avatar ? { value: item.avatar, round: true, tone: item.tone } : item.icon ? { value: "", icon: item.icon, tone: item.tone } : undefined,
       pill: item.pill ? { label: item.pill, tone: item.tone } : undefined,
       side: item.side, figure: item.figure, bar: item.bar, quote: item.quote, act,

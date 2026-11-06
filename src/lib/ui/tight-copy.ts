@@ -268,7 +268,11 @@ export function tighten(rule: TightRule, text: string): string {
     case "ph": {
       if (length <= 52 || (/^e\.g\./.test(value) && length <= 64)) return value;
       const only = cut(sentences(value)[0]!);
-      return only.length <= 52 ? only : "";
+      // The one place this rule does not drop a line. Everywhere else an empty slot is the
+      // absence of an explanation; in an empty box it is the absence of the only guidance there
+      // is, and a placeholder two characters over its budget is not worth a blank field. The
+      // mockup can afford the stricter rule because its own placeholders are already short.
+      return only;
     }
     default:
       return value;

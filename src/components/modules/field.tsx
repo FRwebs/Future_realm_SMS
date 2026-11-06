@@ -3,6 +3,8 @@
 import { AddableChecks, LinesField, MatrixField, PickerField } from "@/components/modules/field-extras";
 import type { FormField } from "@/lib/modules/panels";
 import { CARD_BORDER, MUTED } from "@/lib/modules/tones";
+import { usePhoneKind } from "@/components/layout/phone-shell";
+import { tightFor } from "@/lib/ui/tight-copy";
 
 const CONTROL =
   "w-full min-w-0 rounded-[10px] border-[1.5px] px-[11.5px] py-[10px] text-[12px] font-medium leading-normal text-[#0D2315] outline-hidden min-h-[38px] box-border focus:border-[#12796A]";
@@ -93,8 +95,12 @@ export function Field({
     </div>
   );
 
-  const hint = field.hint ? (
-    <p className="mt-[5px] text-[10px] leading-[1.45] text-[#6B7A71]">{field.hint}</p>
+  // The phone's copy rule. A form is where the longest sentences in the product live, and a hint that
+  // runs to three lines on a 375px screen is read past rather than read.
+  const phone = usePhoneKind() !== null;
+  const hintText = tightFor(phone, "hint", field.hint);
+  const hint = hintText ? (
+    <p className="mt-[5px] text-[10px] leading-[1.45] text-[#6B7A71]">{hintText}</p>
   ) : null;
 
   const wrap = cn("min-w-0", field.span === 2 && "col-span-full");
@@ -107,8 +113,8 @@ export function Field({
         <p className="text-pretty pt-[2px] text-[11.5px] font-semibold leading-normal text-[#0D2315]">
           {picked?.value ?? field.value}
         </p>
-        {picked?.hint ?? field.hint ? (
-          <p className="mt-[5px] text-[10px] leading-[1.45] text-[#6B7A71]">{picked?.hint ?? field.hint}</p>
+        {tightFor(phone, "hint", picked?.hint ?? field.hint) ? (
+          <p className="mt-[5px] text-[10px] leading-[1.45] text-[#6B7A71]">{tightFor(phone, "hint", picked?.hint ?? field.hint)}</p>
         ) : null}
       </div>
     );
@@ -267,7 +273,7 @@ export function Field({
             className="text-[11.5px] font-semibold"
             style={{ color: on ? "#12796A" : MUTED }}
           >
-            {on ? (field.onLabel ?? "On") : (field.offLabel ?? "Off")}
+            {tightFor(phone, "toggle", on ? (field.onLabel ?? "On") : (field.offLabel ?? "Off"))}
           </span>
         </button>
         {hint}
@@ -403,7 +409,7 @@ export function Field({
         <textarea
           value={value as string}
           onChange={(event) => setValue(event.target.value)}
-          placeholder={field.placeholder}
+          placeholder={tightFor(phone, "ph", field.placeholder)}
           aria-label={field.label}
           className={cn(CONTROL, "min-h-[80px] resize-y bg-white leading-[1.55]")}
           style={{ borderColor: CARD_BORDER }}
@@ -422,7 +428,7 @@ export function Field({
         type={field.type ?? "text"}
         value={value as string}
         onChange={(event) => setValue(event.target.value)}
-        placeholder={field.placeholder}
+        placeholder={tightFor(phone, "ph", field.placeholder)}
         readOnly={field.readOnly}
         aria-label={field.label}
         className={CONTROL}
