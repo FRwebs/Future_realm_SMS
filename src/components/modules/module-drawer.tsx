@@ -12,6 +12,7 @@ import { Field, assetSummary, fieldVisible, initialValue } from "@/components/mo
 import { sendJson, sendJsonForData } from "@/lib/modules/submit";
 import { INK, MUTED } from "@/lib/modules/tones";
 import { usePhoneKind } from "@/components/layout/phone-shell";
+import { tightFor } from "@/lib/ui/tight-copy";
 import { useUiText } from "@/hooks/use-ui-text";
 import { focusOnMount, useFocusTrap } from "@/lib/ui/focus";
 import { apiRaw } from "@/lib/api/client";
@@ -834,7 +835,8 @@ function DrawerPanel({
         </header>
 
         <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-[23.5px] py-[21.5px] max-md:px-[16px] max-md:py-[16px]">
-          {phone && spec.sub && !committed ? <p className="mb-[12px] px-[2px] text-pretty text-[13.5px] leading-[1.5] md:hidden" style={{ color: MUTED }}>{spec.sub}</p> : null}
+          {/* The phone's copy rule: the sentence under a sheet's title keeps its lead, since the fields below it say the rest. */}
+          {phone && tightFor(true, "shsub", spec.sub) && !committed ? <p className="mb-[12px] px-[2px] text-pretty text-[13.5px] leading-[1.5] md:hidden" style={{ color: MUTED }}>{tightFor(true, "shsub", spec.sub)}</p> : null}
           <div className={`grid gap-[14px]${phone ? " max-md:rounded-[20px] max-md:bg-white max-md:p-[16px] max-md:shadow-[0_1px_2px_rgba(13,35,21,0.05),0_8px_22px_-16px_rgba(13,35,21,0.22)]" : ""}`}>
             {committed ? (
               <CommitDone spec={spec} result={result} doneTitle={doneTitle} doneBody={doneBody} doneLines={doneKind === "saved" && staged ? doneLines : undefined} />

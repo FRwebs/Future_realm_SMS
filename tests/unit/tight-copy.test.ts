@@ -89,6 +89,13 @@ describe("the phone’s copy rule", () => {
     }
   });
 
+  it("never empties a placeholder, which is the only guidance an empty box has", () => {
+    const long = "Anything the parent should see printed on their receipt, in one line.";
+    const out = tighten("ph", long);
+    expect(out).not.toBe("");
+    expect(long).toContain(out.replace(/\.$/, ""));
+  });
+
   it("leaves a string below the floor alone, however it is ruled", () => {
     expect(tightFor(true, "head", "Nothing owed")).toBe("Nothing owed");
   });

@@ -1518,6 +1518,8 @@ function PanelViewDesktop({
   panel: Panel;
   openDrawer: OpenDrawer;
 }) {
+  // Whether a phone is reading this, for the slots whose copy shortens there.
+  const tilePhone = usePhoneKind() !== null;
   if (panel.type === "kpi") {
     // ONE card, everywhere in the product: same box, same 1px border, same label
     // scale, same numeral scale, same link affordance, same height. The state a
@@ -2148,12 +2150,13 @@ function PanelViewDesktop({
                   >
                     {tile.label}
                   </span>
-                  {tile.sub ? (
+                  {/* The phone's copy rule: a tile is a button with a label, and its second line earns its place or goes. */}
+                  {tightFor(tilePhone, "tile", tile.sub) ? (
                     <span
                       className="mt-[2.5px] block text-pretty text-[10px] leading-[1.45]"
                       style={{ color: MUTED }}
                     >
-                      {tile.sub}
+                      {tightFor(tilePhone, "tile", tile.sub)}
                     </span>
                   ) : null}
                 </span>
