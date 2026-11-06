@@ -31,7 +31,7 @@ const Heading = ({ children }: { children: React.ReactNode }) => <h3 className="
  * person already knows it is, rather than reordered for the sake of a phone. Under it are the things that belong to the person
  * rather than a module: what is routed to them, their own record, and the way out.
  */
-export function AdminMoreSheet({ groups, counts, urgent, session, schoolName, role, onClose }: {
+export function AdminMoreSheet({ groups, counts, urgent, session, schoolName, role, pageActs, onClose }: {
   /** The rail's sections, minus whatever is already a tab. */
   groups: Array<{ title: string; items: TabBarItem[] }>;
   counts: Record<string, number>;
@@ -40,6 +40,8 @@ export function AdminMoreSheet({ groups, counts, urgent, session, schoolName, ro
   schoolName?: string;
   /** What this person is called at this school, for their own card. */
   role: string;
+  /** What the page underneath can do, in its own words. The sheet asks the page to run one by index. */
+  pageActs: string[];
   onClose: () => void;
 }) {
   const router = useRouter();
@@ -87,6 +89,28 @@ export function AdminMoreSheet({ groups, counts, urgent, session, schoolName, ro
           </span>
           <span className="relative flex flex-none items-center gap-[3px] text-[13.5px] font-extrabold" style={{ color: "#5FD6B4" }}>Account <Glyph path={CHEVRON} size={15} stroke={2.2} /></span>
         </Link>
+
+        {/* What the page underneath offers, before the rest of the portal: a thumb that opened More
+            while reading a page is more likely to want something on it than a different module. */}
+        {pageActs.length ? (
+          <>
+            <Heading>On this screen</Heading>
+            <div className="overflow-hidden rounded-[18px]" style={CARD}>
+              {pageActs.map((label, index) => (
+                <button
+                  key={label}
+                  type="button"
+                  onClick={() => { onClose(); window.dispatchEvent(new CustomEvent("fr:page-act", { detail: index })); }}
+                  className="flex min-h-[60px] w-full items-center gap-[12px] px-[14px] py-[10px] text-left"
+                  style={index === pageActs.length - 1 ? undefined : { borderBottom: "1px solid #EDF3EF" }}
+                >
+                  <span className="flex h-[40px] w-[40px] flex-none items-center justify-center rounded-full" style={{ background: "#EEF4F0", color: "#17604F" }}><Glyph path={CHEVRON} size={18} /></span>
+                  <span className="min-w-0 flex-1 text-[14.5px] font-bold leading-[1.3]" style={{ color: INK }}>{label}</span>
+                </button>
+              ))}
+            </div>
+          </>
+        ) : null}
 
         {groups.map((group) => (
           <section key={group.title}><Heading>{group.title}</Heading><div className="grid grid-cols-3 gap-[10px]">{group.items.map(tile)}</div></section>

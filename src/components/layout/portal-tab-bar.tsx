@@ -65,6 +65,15 @@ export function PortalTabBar({
 
   // A route change closes the sheet; otherwise it sits over the page just asked for.
   useEffect(() => { setMoreOpen(false); }, [pathname, params]);
+
+  /** What the page on screen can do, published by it, for the More sheet's own "On this screen". */
+  const [pageActs, setPageActs] = useState<string[]>([]);
+  useEffect(() => {
+    const on = (event: Event) => setPageActs((event as CustomEvent<string[]>).detail ?? []);
+    window.addEventListener("fr:page-acts", on);
+    window.dispatchEvent(new Event("fr:page-acts-ask"));
+    return () => window.removeEventListener("fr:page-acts", on);
+  }, []);
   useEffect(() => {
     if (!moreOpen) return;
     const onKey = (event: KeyboardEvent) => { if (event.key === "Escape") setMoreOpen(false); };
@@ -124,6 +133,7 @@ export function PortalTabBar({
           session={account.session}
           schoolName={account.schoolName}
           role={account.line ?? ""}
+          pageActs={pageActs}
           onClose={() => setMoreOpen(false)}
         />
       ) : moreOpen && kind === "teacher" && account ? (

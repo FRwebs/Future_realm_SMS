@@ -25,7 +25,7 @@ const FIXTURE: Record<string, unknown> = {
   attendance: { current: "tm1", terms: [{ id: "tm1", name: "Second Term", session: "2025/2026", start: "2026-01-05", end: "2026-04-30", arm: "SSS 3 - C", days: ["MON", "TUE"] }], records: [{ date: "2026-04-13", status: "PRESENT", term: "tm1", reason: null, code: null, by: "Boma Hart", at: null }, { date: "2026-04-14", status: "ABSENT", term: "tm1", reason: null, code: null, by: "Boma Hart", at: null }], closed: [] },
   calendar: { events: [{ id: "e1", date: "2026-04-15", end: "2026-04-15", title: "Chemistry test", cat: "Assessment", time: "09:00 – 10:00", where: "", note: "" }] },
   messages: { formMaster: { id: "t1", name: "Boma Hart" }, items: [{ id: "m1", cat: "From teachers", from: "Boma Hart", fromId: "t1", role: "teacher", title: "Your essay", body: ["Well done."], at: "2026-04-13T09:00:00Z", read: false, to: "" }] },
-  cards: { cards: [{ id: "r1", term: "First Term", session: "2025/2026", arm: "SSS 3 - C", average: 73.6, grade: "B2", position: 1, size: 10, published: "2026-01-02", teacherComment: "Strong term", principalComment: "Keep going", attendance: { present: 18, days: 20 }, subjects: [{ id: "sub1", name: "Biology", total: 68, grade: "B3", position: 5, of: 10, classAverage: 61.2, parts: [{ code: "CA", name: "Continuous Assessment", max: 40, score: 22 }, { code: "EXAM", name: "Exam", max: 60, score: 46 }] }] }] },
+  cards: { cards: [{ id: "r1", term: "First Term", session: "2025/2026", arm: "SSS 3 - C", average: 73.6, grade: "B2", position: 1, size: 10, published: "2026-01-02", teacherComment: "Strong term", principalComment: "Keep going", attendance: { present: 18, days: 20 }, formMaster: "Mrs Ada Eze", teacherBy: "Mrs Ada Eze", principalBy: "Mr Sola Benson", gradeRemark: "Very good", traits: [{ title: "Conduct", items: [{ label: "Punctuality", value: "Excellent" }] }], subjects: [{ id: "sub1", name: "Biology", total: 68, grade: "B3", position: 5, of: 10, classAverage: 61.2, parts: [{ code: "CA", name: "Continuous Assessment", max: 40, score: 22 }, { code: "EXAM", name: "Exam", max: 60, score: 46 }] }] }] },
   askable: { people: [{ id: "t1", name: "Boma Hart", role: "Form master" }] },
   prefs: { matrix: {}, quiet: "None", remind: "The day before" },
 };
@@ -89,6 +89,15 @@ describe("a student’s workspace", () => {
     expect(table.head).toEqual(["Subject", "Continuous Assessment · 40", "Exam · 60", "Total", "Grade", "Position", ""]);
     expect(table.rows[0]!.cells[3]).toMatchObject({ kind: "text", text: "68" });
     expect(table.rows[0]!.cells[5]).toMatchObject({ kind: "text", text: "5th" });
+  });
+
+  it("shows the conduct ratings the school published, attributed to whoever wrote each remark", async () => {
+    const content = await resultsPage({});
+    const conduct = panels(content).find((panel) => panel.type === "facts" && panel.title === "Conduct and skills") as Extract<Panel, { type: "facts" }>;
+    expect(conduct.facts[0]).toEqual(["Punctuality", "Excellent", "Conduct"]);
+    const wrote = panels(content).find((panel) => panel.type === "list" && panel.title === "What the teachers wrote") as Extract<Panel, { type: "list" }>;
+    expect(wrote.items[0]!.sub).toBe("Form master · Mrs Ada Eze");
+    expect(wrote.items[1]!.sub).toBe("Principal · Mr Sola Benson");
   });
 
   it("draws the timetable from what the school published, and says so when it has not", async () => {

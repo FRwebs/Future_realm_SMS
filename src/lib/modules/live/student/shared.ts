@@ -39,6 +39,10 @@ export type Message = { id: string; cat: "From teachers" | "School" | "Sent"; fr
 export type Card = {
   id: string; term: string; session: string; arm: string; average: number; grade: string; position: number | null; size: number; published: string; teacherComment: string; principalComment: string;
   attendance: { present: number; days: number };
+  /** What the form master rated beyond the marks, from the card the school published. Empty where it published none. */
+  traits: Array<{ title: string; items: Array<{ label: string; value: string }> }>;
+  /** Who wrote each remark, and what the grade was said to mean — the published card's own words. */
+  formMaster: string | null; teacherBy: string | null; principalBy: string | null; gradeRemark: string | null;
   subjects: Array<{ id: string; name: string; total: number; grade: string; position: number | null; of: number; classAverage: number | null; parts: Array<{ code: string; name: string; max: number; score: number }> }>;
 };
 export type Askable = { formMasterReads?: boolean; people: Array<{ id: string; name: string; role: string }> };

@@ -17,6 +17,7 @@ import {
   ChevronRight,
   Minus,
   Search,
+  SlidersHorizontal,
   X,
 } from "lucide-react";
 
@@ -717,6 +718,10 @@ function TableView({ panel, openDrawer, engine }: { panel: Extract<Panel, { type
   const filtered = filteredRows;
 
   const hasControls = Boolean(panel.search || panel.filters?.length);
+  // The filters, opened as a screen of their own on a phone.
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  /** How many filters are actually narrowing the list, so the phone's button can say so. */
+  const narrowed = (panel.filters ?? []).filter((filter) => (filterValues[filter.label] ?? filter.value) !== filter.value).length;
 
   /** The ticked rows, or every row that passes the filters when none is ticked. On a long table "every row" is the server's to say. */
   function exportRows(onlySelected: boolean) {
@@ -858,10 +863,31 @@ function TableView({ panel, openDrawer, engine }: { panel: Extract<Panel, { type
             </label>
           ) : null}
 
+          {/* On a phone the filters are a screen of their own: four or five pills of a laptop's
+              size wrap into a wall above the table a thumb has come to read, and each select is
+              too small to aim at. The button below opens them full width instead, as the mockup
+              does, and says how many are narrowing the list. */}
+          {(panel.filters ?? []).length ? (
+            <button
+              type="button"
+              onClick={() => setFiltersOpen(true)}
+              className="flex min-h-[38px] flex-1 items-center justify-between gap-[8px] rounded-[9px] border bg-white px-[12px] text-[12.5px] font-semibold md:hidden"
+              style={{ borderColor: "#DEE8E2", color: INK }}
+            >
+              <span className="flex items-center gap-[7px]">
+                <SlidersHorizontal className="h-[14px] w-[14px]" strokeWidth={2} style={{ color: "#6B7A71" }} />
+                {ui("Filters")}
+              </span>
+              {narrowed ? (
+                <span className="flex h-[20px] min-w-[20px] items-center justify-center rounded-full px-[6px] text-[11px] font-black" style={{ background: "#0D2315", color: "#fff" }}>{narrowed}</span>
+              ) : null}
+            </button>
+          ) : null}
+
           {(panel.filters ?? []).map((filter) => (
             <label
               key={filter.label}
-              className="relative flex cursor-pointer items-center gap-[6px] whitespace-nowrap rounded-[9px] border bg-white py-[7px] pl-[10px] pr-[26px] text-[11px] transition border-[#DEE8E2] focus-within:border-[#12796A] hover:border-[#BFDCD1] hover:bg-[#F7FAF8]"
+              className="relative hidden cursor-pointer items-center gap-[6px] whitespace-nowrap rounded-[9px] border bg-white py-[7px] pl-[10px] pr-[26px] text-[11px] transition border-[#DEE8E2] focus-within:border-[#12796A] hover:border-[#BFDCD1] hover:bg-[#F7FAF8] md:flex"
               style={{ color: INK }}
             >
               <span style={{ color: MUTED }}>{filter.label}</span>
@@ -891,10 +917,76 @@ function TableView({ panel, openDrawer, engine }: { panel: Extract<Panel, { type
             </label>
           ))}
 
-          <span className="ml-auto text-[10.5px]" style={{ color: MUTED }}>
+          <span className="ml-auto text-[10.5px] max-md:hidden" style={{ color: MUTED }}>
             {filterNote}
           </span>
         </div>
+      ) : null}
+
+      {filtersOpen ? (
+        <>
+          <button type="button" aria-label={ui("Close")} onClick={() => setFiltersOpen(false)} className="fixed inset-0 z-[37] bg-[rgba(13,35,21,0.5)] md:hidden" />
+          <div role="dialog" aria-label={ui("Filters")} className="fixed inset-x-0 bottom-0 z-[38] max-h-[85vh] overflow-y-auto overscroll-contain rounded-t-[26px] bg-white px-[16px] pb-[calc(18px+env(safe-area-inset-bottom))] pt-[10px] md:hidden" style={{ boxShadow: "0 -12px 30px -18px rgba(13,35,21,0.55)" }}>
+            <span className="mx-auto mb-[12px] block h-[4px] w-[38px] rounded-full" style={{ background: "#DEE8E2" }} />
+            <div className="mb-[4px] flex items-center justify-between">
+              <h2 className="text-[19px] font-extrabold tracking-[-0.01em]" style={{ color: INK }}>{ui("Filters")}</h2>
+              <button type="button" onClick={() => setFiltersOpen(false)} aria-label={ui("Close")} className="flex h-[38px] w-[38px] items-center justify-center rounded-full" style={{ background: "#F2F7F4", color: INK }}>
+                <X className="h-[16px] w-[16px]" strokeWidth={2.2} />
+              </button>
+            </div>
+            <p className="mb-[14px] text-[12px]" style={{ color: MUTED }}>{filterNote}</p>
+            {(panel.filters ?? []).map((filter) => {
+              const current = filterValues[filter.label] ?? filter.value;
+              return (
+                <div key={filter.label} className="mb-[16px]">
+                  <p className="mb-[8px] text-[11px] font-bold uppercase tracking-[0.07em]" style={{ color: MUTED }}>{filter.label}</p>
+                  {/* A short list is chips a thumb can hit; a long one stays a select, because
+                      twenty chips is the same wall of options in a taller shape. */}
+                  {filter.options.length > 8 ? (
+                    <select
+                      value={current}
+                      onChange={(event) => {
+                        const target = filter.go?.[event.target.value];
+                        if (target) { router.push(target as Route); return; }
+                        engine.setFilter(filter, event.target.value);
+                      }}
+                      aria-label={filter.label}
+                      className="h-[46px] w-full rounded-[11px] border bg-white px-[12px] text-[14px] font-semibold outline-hidden"
+                      style={{ borderColor: "#DEE8E2", color: INK }}
+                    >
+                      {filter.options.map((option) => <option key={option} value={option}>{option}</option>)}
+                    </select>
+                  ) : (
+                    <div className="flex flex-wrap gap-[8px]">
+                      {filter.options.map((option) => {
+                        const on = option === current;
+                        return (
+                          <button
+                            key={option}
+                            type="button"
+                            aria-pressed={on}
+                            onClick={() => {
+                              const target = filter.go?.[option];
+                              if (target) { router.push(target as Route); return; }
+                              engine.setFilter(filter, option);
+                            }}
+                            className="min-h-[40px] rounded-full border px-[14px] text-[13px] font-bold"
+                            style={on ? { background: "#0D2315", borderColor: "#0D2315", color: "#fff" } : { background: "#fff", borderColor: "#DEE8E2", color: "#435048" }}
+                          >
+                            {option}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+            <button type="button" onClick={() => setFiltersOpen(false)} className="mt-[4px] h-[50px] w-full rounded-[14px] text-[15px] font-extrabold text-white" style={{ background: "#0D2315" }}>
+              {ui("Show results")}
+            </button>
+          </div>
+        </>
       ) : null}
 
       {engine.failure ? (

@@ -223,14 +223,20 @@ export function ScoreGrid({ panel }: { panel: ScoreSheetPanel }) {
           return (
             <li
               key={student.id}
-              className="flex flex-wrap items-center gap-x-[12px] gap-y-[6px] border-b py-[8px]"
+              /* A laptop reads this across under its headings. A phone cannot: two 72px
+                 boxes and a total leave the name a third of the screen, and the boxes end up
+                 too small to hit. So the same row wraps — the name and the total on the first
+                 line, the two marks side by side and full width beneath, as the mockup draws
+                 it — rather than a second copy of each field that a screen reader would read
+                 out twice. */
+              className="flex flex-wrap items-center gap-x-[12px] gap-y-[6px] border-b py-[8px] max-md:gap-y-[10px] max-md:py-[13px]"
               style={{ borderColor: "#F2F7F4" }}
             >
-              <span className="min-w-0 flex-1">
-                <span className="block text-[11.5px] font-semibold leading-[1.35]" style={{ color: INK }}>
+              <span className="min-w-0 flex-1 max-md:order-1 max-md:basis-0">
+                <span className="block text-[11.5px] font-semibold leading-[1.35] max-md:text-[14px]" style={{ color: INK }}>
                   {student.name}
                 </span>
-                <span className="block text-[10px] leading-[1.4]" style={{ color: MUTED }}>
+                <span className="block text-[10px] leading-[1.4] max-md:mt-[1px] max-md:text-[12px]" style={{ color: MUTED }}>
                   {student.locked
                     ? `Locked — ${student.sheetStatus?.toLowerCase() ?? "already decided"}`
                     : (student.admissionNumber ?? "")}
@@ -246,7 +252,8 @@ export function ScoreGrid({ panel }: { panel: ScoreSheetPanel }) {
                 disabled={student.locked}
                 aria-label={`Continuous assessment for ${student.name}`}
                 onChange={(event) => setField(student.id, "ca", event.target.value)}
-                className="w-[72px] rounded-[8px] border px-[8px] py-[6px] text-[11.5px] tabular-nums outline-hidden focus:border-[#BFDCD1] disabled:bg-[#F7FAF8] disabled:text-[#8B9A91]"
+                placeholder={`CA /${panel.maxCa}`}
+                className="w-[72px] rounded-[8px] border px-[8px] py-[6px] text-[11.5px] tabular-nums outline-hidden focus:border-[#BFDCD1] disabled:bg-[#F7FAF8] disabled:text-[#8B9A91] max-md:order-3 max-md:h-[46px] max-md:w-auto max-md:flex-1 max-md:basis-[calc(50%-6px)] max-md:rounded-[11px] max-md:px-[12px] max-md:text-center max-md:text-[16px] max-md:font-bold"
                 style={{ borderColor: "#DEE8E2", color: INK }}
               />
               <input
@@ -258,11 +265,12 @@ export function ScoreGrid({ panel }: { panel: ScoreSheetPanel }) {
                 disabled={student.locked}
                 aria-label={`Exam mark for ${student.name}`}
                 onChange={(event) => setField(student.id, "exam", event.target.value)}
-                className="w-[72px] rounded-[8px] border px-[8px] py-[6px] text-[11.5px] tabular-nums outline-hidden focus:border-[#BFDCD1] disabled:bg-[#F7FAF8] disabled:text-[#8B9A91]"
+                placeholder={`Exam /${panel.maxExam}`}
+                className="w-[72px] rounded-[8px] border px-[8px] py-[6px] text-[11.5px] tabular-nums outline-hidden focus:border-[#BFDCD1] disabled:bg-[#F7FAF8] disabled:text-[#8B9A91] max-md:order-4 max-md:h-[46px] max-md:w-auto max-md:flex-1 max-md:basis-[calc(50%-6px)] max-md:rounded-[11px] max-md:px-[12px] max-md:text-center max-md:text-[16px] max-md:font-bold"
                 style={{ borderColor: "#DEE8E2", color: INK }}
               />
               <span
-                className="w-[56px] text-right text-[12px] font-bold tabular-nums"
+                className="w-[56px] text-right text-[12px] font-bold tabular-nums max-md:order-2 max-md:w-auto max-md:flex-none max-md:text-[19px]"
                 style={{ color: total === null ? MUTED : total >= 50 ? "#17714F" : "#A32B2B" }}
               >
                 {total === null ? "—" : total}

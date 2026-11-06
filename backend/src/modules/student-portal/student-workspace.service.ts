@@ -4,6 +4,7 @@ import { z } from "zod";
 
 import type { SessionPayload } from "../../../../src/lib/auth/session-core";
 import { prisma } from "../../../../src/lib/db/prisma";
+import { readCard } from "../report-cards/published-card";
 import { switchedOffModules } from "../platform-sync/availability";
 import { isForStudents } from "./student-notify";
 import { hiddenPages, loadStudentPolicy, type StudentVisible } from "./student-policy";
@@ -584,6 +585,20 @@ export class StudentWorkspaceService {
       orderBy: { publishedAt: "desc" }
     });
     const sizes = await Promise.all(sheets.map((sheet) => prisma.resultSheet.count({ where: { schoolId: session.schoolId, classId: sheet.classId, termId: sheet.termId, status: "PUBLISHED" } })));
+    /*
+     * The card the school actually published, where it has published one.
+     *
+     * A result sheet holds the marks; the report card holds what the school signed off on top of
+     * them — the conduct and skill ratings the form master gave, who wrote each remark, and the
+     * grade's own wording. A student was being shown the marks alone, so the half of their report
+     * card that is not a number was missing from their copy while their parent could read it. This
+     * is the same snapshot the parent portal reads, so the two can never disagree.
+     */
+    const published = await prisma.reportCard.findMany({
+      where: { schoolId: session.schoolId, studentId: student.id, status: { in: ["PUBLISHED", "LOCKED"] }, publishedAt: { not: null }, withheldAt: null },
+      select: { termId: true, data: true },
+    });
+    const cardFor = (termId: string) => readCard(published.find((row) => row.termId === termId)?.data ?? null);
     const attendance = await Promise.all(sheets.map((sheet) => prisma.studentAttendance.groupBy({ by: ["status"], where: { schoolId: session.schoolId, studentId: student.id, termId: sheet.termId, subjectId: null }, _count: { _all: true } })));
     /* each subject's total for every child in the same class and term, so a position and a class average can be read honestly */
     const peers = await Promise.all(sheets.map((sheet) => prisma.scoreEntry.groupBy({
@@ -599,9 +614,17 @@ export class StudentWorkspaceService {
         }
         const days = attendance[index]!.reduce((sum, row) => sum + row._count._all, 0);
         const present = attendance[index]!.filter((row) => row.status === "PRESENT" || row.status === "LATE").reduce((sum, row) => sum + row._count._all, 0);
+        const card = cardFor(sheet.termId);
         return {
           id: sheet.id, term: sheet.term.name, session: sheet.term.academicSession.name, arm: armName(sheet.classRoom.name, sheet.classRoom.arm), average: Number(sheet.averageScore), grade: sheet.grade ?? "", position: sheet.position ?? null, size: sizes[index] ?? 0,
           published: sheet.publishedAt!.toISOString().slice(0, 10), teacherComment: sheet.teacherComment ?? "", principalComment: sheet.principalComment ?? "", attendance: { present, days },
+          /** What the form master rated beyond the marks. Empty where the school published a card without them, or published none at all. */
+          traits: card?.traits ?? [],
+          /** Who wrote each remark, and what the grade itself was said to mean — all from the published card. */
+          formMaster: card?.formMaster ?? null,
+          teacherBy: card?.classTeacherBy ?? null,
+          principalBy: card?.principalBy ?? null,
+          gradeRemark: card?.gradeRemark ?? null,
           subjects: [...bySubject.values()].map((subject) => {
             const total = subject.parts.reduce((sum, part) => sum + part.score, 0);
             const field = peers[index]!.filter((row) => row.subjectId === subject.id).map((row) => row._sum.score ?? 0);
