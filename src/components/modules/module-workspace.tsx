@@ -135,6 +135,15 @@ function HeaderAction({
  * floating. Overview already carries the same action in its first panel. These
  * keep their action in the header, where it covers nothing.
  */
+/**
+ * The pages whose phone bar already says what a page head would.
+ *
+ * A teacher's Today and a student's Today both open on a greeting in the bar;
+ * repeating it underneath is the same sentence twice, which is how the mockups
+ * avoid it too.
+ */
+const PHONE_NO_HEAD = ["/command-center/today", "/portals/student", "/portals/student/today"];
+
 const PHONE_NO_FAB = [
   // The teacher's Today already carries its first job as the deck's own button; a second one floating over it would say it twice.
   "/command-center/today",
@@ -146,6 +155,18 @@ const PHONE_NO_FAB = [
   "/portals/parent/consents",
   "/portals/parent/prefs",
   "/portals/parent/sync",
+  // The student mockup floats one only where there is something to do: handing work in,
+  // asking a teacher, reporting a wrong detail, changing a password. Today, the subjects,
+  // the timetable, the marks, the register, the calendar and the settings are read.
+  "/portals/student",
+  "/portals/student/today",
+  "/portals/student/subjects",
+  "/portals/student/timetable",
+  "/portals/student/results",
+  "/portals/student/attendance",
+  "/portals/student/calendar",
+  "/portals/student/notifications",
+  "/portals/student/sync",
 ];
 
 /**
@@ -369,7 +390,7 @@ export function ModuleWorkspace({
       {children}
 
       {/* The teacher's phone puts the segments first and the screen's name under them, as its mockup does. */}
-      {kind !== null && pathname.replace(/\/$/, "") !== "/command-center/today" ? <PhoneHead eyebrow={phoneEyebrow ?? eyebrow} title={phoneTitle ?? title} description={phoneDesc ?? description} /> : null}
+      {kind !== null && !PHONE_NO_HEAD.includes(pathname.replace(/\/$/, "")) ? <PhoneHead eyebrow={phoneEyebrow ?? eyebrow} title={phoneTitle ?? title} description={phoneDesc ?? description} /> : null}
 
       {body}
 

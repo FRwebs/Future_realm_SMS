@@ -14,6 +14,12 @@ import { formatDay } from "@/lib/date-format";
 
 /* ───────────────────────── profile ───────────────────────── */
 
+/** A student names a teacher the way they would in class: the title and the surname, never the middle name. */
+const shortName = (name: string) => {
+  const parts = name.trim().split(/\s+/);
+  return /^(Mrs|Mr|Miss|Ms|Dr|Prof|Alhaji|Hajia)\.?$/i.test(parts[0] ?? "") && parts.length > 2 ? `${parts[0]} ${parts[parts.length - 1]}` : parts.join(" ");
+};
+
 export async function profilePage(): Promise<StudentContent> {
   const [me, askable] = await Promise.all([loadMe(), loadAskable()]);
   const correct = askDrawer(askable.people, { to: me.formMaster?.id, topic: "Something else", text: "Something on my record needs correcting: ", fmReads: askable.formMasterReads });
@@ -24,7 +30,8 @@ export async function profilePage(): Promise<StudentContent> {
     : ["Nobody is on the list yet", "Your parent can add one through the school office"];
   return {
     eyebrow: `${me.level} · ${me.admissionNumber}`, title: me.name, desc: place,
-    launchers: me.formMaster && askable.people.length ? [{ label: "Something wrong? Tell your form master", drawer: correct }] : [],
+    // The one thing a student can do about their own record is say it is wrong, so the phone floats it, naming whoever will read it.
+    ...(me.formMaster && askable.people.length ? { primary: { label: `Something wrong? Tell ${shortName(me.formMaster.name)}`, drawer: correct } } : {}),
     rows: [
       row("1fr", [{
         type: "facts", title: "Your record", sub: "Held by the school registry. Only the school can change it.", per: 3,

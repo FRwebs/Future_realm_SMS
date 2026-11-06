@@ -11,7 +11,7 @@ import { getStudentBadges, getStudentChrome } from "@/lib/api/student-workspace"
 import { getTeacherBadges, getTeacherWorkspace } from "@/lib/api/teacher-workspace";
 import { getParentChrome, getParentRail } from "@/lib/api/parent-workspace";
 import { PARENT_PHONE_TABS, parentHref, parentNavigation, parentPages, parentPhoneTabLabel, visibleParentPages } from "@/lib/modules/parent-workspace";
-import { studentNavigation } from "@/lib/modules/student-workspace";
+import { STUDENT_PHONE_TABS, studentHref, studentNavigation, studentPages, studentPhoneTabLabel } from "@/lib/modules/student-workspace";
 import { teacherNavigation, teacherPhoneTabLabelFor, teacherPhoneTabOrder } from "@/lib/modules/teacher-workspace";
 import { getServerPermissions } from "@/lib/auth/server-access";
 import { getServerSession } from "@/lib/auth/session";
@@ -63,9 +63,20 @@ export default async function AppLayout({
       : session.role === "PARENT" && parentRail
         ? parentNavigation(parentRail.sees)
         : null;
-  // The bottom bar on a phone. Only the two portals whose mockups draw one get
-  // it; which four tabs is each portal's own rule.
+  // The bottom bar on a phone. Only the portals whose mockups draw one get it;
+  // which four tabs is each portal's own rule.
   const phoneTabs = (() => {
+    if (session.role === "STUDENT" && studentChrome) {
+      // Everything in the rail, plus the phone's own Sync page, which the desktop has no use for.
+      const left = new Set(studentBadges.hidden);
+      // The rail has already worked out what this school shows its students and what the Back Office has switched off.
+      const rail = studentNavigation(platformSync?.switchedOff.map((module) => module.slug) ?? [], studentBadges.hidden);
+      const reachable = new Set((rail.groups ?? []).flatMap((group) => group.items.map((item) => item.id)));
+      const items = studentPages
+        .filter((page) => page.slug === "sync" || (reachable.has(`s_${page.slug}`) && !left.has(page.slug)))
+        .map((page) => ({ id: `s_${page.slug}`, label: page.label, short: studentPhoneTabLabel[page.slug] ?? page.label, icon: page.icon, href: studentHref(page.slug) }));
+      return { items, primaryIds: STUDENT_PHONE_TABS.map((slug) => `s_${slug}`).filter((id) => items.some((item) => item.id === id)), label: "Student portal" };
+    }
     if (session.role === "PARENT" && parentRail) {
       const visible = visibleParentPages(parentRail.sees);
       const items = parentPages
