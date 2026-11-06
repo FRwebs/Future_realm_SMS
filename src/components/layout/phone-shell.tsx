@@ -21,7 +21,7 @@ export const useHasPhoneBar = () => useContext(PhoneShellContext);
  * The mobile mockups share a skin but not a layout: the parent's page head is a dark card on a ledge, the teacher's and the student's are
  * plain type under a curved bar. Anything that has to draw one or the other asks here.
  */
-export type PhoneKind = "teacher" | "parent" | "student" | null;
+export type PhoneKind = "teacher" | "parent" | "student" | "admin" | null;
 const PhoneKindContext = createContext<PhoneKind>(null);
 export const PhoneKindProvider = PhoneKindContext.Provider;
 export const usePhoneKind = () => useContext(PhoneKindContext);

@@ -6,6 +6,7 @@ import type { Route } from "next";
 import { usePathname, useSearchParams } from "next/navigation";
 
 import { ParentMoreSheet } from "@/components/layout/phone-parent-more";
+import { AdminMoreSheet } from "@/components/layout/phone-admin-more";
 import { StudentMoreSheet } from "@/components/layout/phone-student-more";
 import { TeacherMoreSheet } from "@/components/layout/phone-teacher-more";
 import { usePhoneKind } from "@/components/layout/phone-shell";
@@ -44,6 +45,7 @@ export function PortalTabBar({
   urgent,
   label,
   account,
+  sections,
 }: {
   items: TabBarItem[];
   /** The ids that get their own tab, in the order they should appear. */
@@ -52,7 +54,9 @@ export function PortalTabBar({
   urgent: Record<string, boolean>;
   label: string;
   /** Who is signed in. A teacher's More sheet opens on their own card and ends in sign-out. */
-  account?: { session: SessionUser; schoolName?: string; kids?: number; schools?: number; /** A student's class and admission number, for their own card. */ line?: string };
+  account?: { session: SessionUser; schoolName?: string; kids?: number; schools?: number; /** A student's class, or an administrator's role, for their own card. */ line?: string };
+  /** The rail's own sections, kept in its order, for a portal whose More sheet is the rail. */
+  sections?: Array<{ title: string; ids: string[] }>;
 }) {
   const kind = usePhoneKind();
   const pathname = usePathname();
@@ -112,7 +116,17 @@ export function PortalTabBar({
 
   return (
     <>
-      {moreOpen && kind === "teacher" && account ? (
+      {moreOpen && kind === "admin" && account ? (
+        <AdminMoreSheet
+          groups={(sections ?? []).map((section) => ({ title: section.title, items: section.ids.map((id) => items.find((item) => item.id === id)).filter((item): item is TabBarItem => Boolean(item) && !primaryIds.includes(item!.id)) })).filter((section) => section.items.length)}
+          counts={counts}
+          urgent={urgent}
+          session={account.session}
+          schoolName={account.schoolName}
+          role={account.line ?? ""}
+          onClose={() => setMoreOpen(false)}
+        />
+      ) : moreOpen && kind === "teacher" && account ? (
         <TeacherMoreSheet items={items} primaryIds={primaryIds} counts={counts} urgent={urgent} pathname={pathname} session={account.session} schoolName={account.schoolName} onClose={() => setMoreOpen(false)} />
       ) : moreOpen && kind === "student" && account ? (
         <StudentMoreSheet items={items} primaryIds={primaryIds} counts={counts} urgent={urgent} session={account.session} school={account.schoolName} line={account.line} onClose={() => setMoreOpen(false)} />
