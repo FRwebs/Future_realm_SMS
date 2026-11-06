@@ -3,7 +3,7 @@
 import Link from "next/link";
 import type { Route } from "next";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 
 import { ModuleDrawer } from "@/components/modules/lazy-drawer";
@@ -347,6 +347,33 @@ export function ModuleWorkspace({
     window.addEventListener("fr:bar-main", run);
     return () => window.removeEventListener("fr:bar-main", run);
   }, [mainAction, router]);
+
+  /**
+   * What this page can do, offered in the phone's More sheet as well as its own header.
+   *
+   * The sheet is a sibling of the page, not a child, so it cannot reach a launcher's drawer
+   * directly: the page publishes the labels and runs whichever one comes back by index. The
+   * action itself stays here, where it was declared.
+   */
+  const shortcuts = useMemo(() => launchers ?? [], [launchers]);
+  useEffect(() => {
+    const announce = () => window.dispatchEvent(new CustomEvent("fr:page-acts", { detail: shortcuts.map((act) => act.label) }));
+    const run = (event: Event) => {
+      const act = shortcuts[(event as CustomEvent<number>).detail];
+      if (!act) return;
+      if (act.drawer) setDrawer(act.drawer);
+      else if (act.href) router.push(act.href as Route);
+    };
+    announce();
+    window.addEventListener("fr:page-acts-ask", announce);
+    window.addEventListener("fr:page-act", run);
+    return () => {
+      window.removeEventListener("fr:page-acts-ask", announce);
+      window.removeEventListener("fr:page-act", run);
+      window.dispatchEvent(new CustomEvent("fr:page-acts", { detail: [] }));
+    };
+    // The labels are what the sheet shows; a change of page replaces them.
+  }, [shortcuts, router]);
 
   return (
     <div className={cn("grid min-w-0 gap-[14px]", hasPhoneBar && floats && (phonePrimary ?? primary) && "max-md:flex max-md:min-h-full max-md:flex-col")}>

@@ -303,7 +303,10 @@ function cardDrawer(card: Card, me: Me): DrawerSpec {
       ["Average", num(card.average), card.position ? `${ord(card.position)} of ${card.size} in ${card.arm}` : "Not ranked"], ["Grade", card.grade || "—", ""],
       ["Attendance", `${card.attendance.present} of ${card.attendance.days} days`, ""],
       ...card.subjects.map((subject): PanelFact => [subject.name, `${num(subject.total)} · ${subject.grade}`, head.map((part, index) => `${part.name} ${num(subject.parts[index]?.score ?? 0)}`).join(" · ")]),
-      ["Class teacher’s remark", card.teacherComment || "No remark was written.", ""], ["Principal’s remark", card.principalComment || "No remark was written.", ""],
+      // The ratings beside the marks, where the school published them: an earlier card opened from
+      // the list is the whole card, not a shorter version of the one on the page.
+      ...(card.traits ?? []).flatMap((group) => group.items.map((item): PanelFact => [item.label, item.value, group.title])),
+      ["Class teacher’s remark", card.teacherComment || "No remark was written.", card.teacherBy ?? ""], ["Principal’s remark", card.principalComment || "No remark was written.", card.principalBy ?? ""],
     ],
   };
 }
@@ -401,8 +404,16 @@ export async function resultsPage(query: Record<string, string | undefined>): Pr
         })),
         foot: "Each total is the parts added together, exactly as the school stored them. Grades follow your school’s grading scale.",
       }]),
+      // The half of a report card that is not a number: what the form master rated you on. It is
+      // drawn only where the school published it, rather than an empty frame suggesting it is coming.
+      ...((latest.traits ?? []).length
+        ? [row("1fr", [{
+            type: "facts" as const, title: "Conduct and skills", sub: `Rated by your ${latest.formMaster ? "form master" : "school"}.`, per: 3,
+            facts: (latest.traits ?? []).flatMap((group) => group.items.map((item): PanelFact => [item.label, item.value, group.title])),
+          }])]
+        : []),
       row("minmax(0,1.2fr) minmax(0,1fr)", [
-        { type: "list", title: "What the teachers wrote", items: [{ label: latest.teacherComment || "No remark was written.", sub: me.formMaster ? `Form master · ${me.formMaster.name}` : "Form master" }, { label: latest.principalComment || "No remark was written.", sub: "Principal" }] },
+        { type: "list", title: "What the teachers wrote", items: [{ label: latest.teacherComment || "No remark was written.", sub: latest.teacherBy ? `Form master · ${latest.teacherBy}` : latest.formMaster ? `Form master · ${latest.formMaster}` : me.formMaster ? `Form master · ${me.formMaster.name}` : "Form master" }, { label: latest.principalComment || "No remark was written.", sub: latest.principalBy ? `Principal · ${latest.principalBy}` : "Principal" }] },
         { type: "list", title: "Earlier report cards", acts: [{ label: "All of them", href: "/portals/student/results?tab=Progress+over+time" }], empty: "This is your first report card.", items: cards.slice(1, 4).map((card): ListItem => ({ label: `${card.term} ${card.session}`, sub: `${card.arm} · average ${num(card.average)} · published ${dShort(card.published)}`, pill: "Open", tone: "progress", drawer: cardDrawer(card, me) })) },
       ]),
     ],

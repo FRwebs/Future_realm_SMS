@@ -2,6 +2,7 @@ import { row } from "@/lib/modules/panels";
 import type { ListItem, Panel, PanelRow } from "@/lib/modules/panels";
 import { loadCalendar, item as eventItem } from "@/lib/modules/live/parent/calendar";
 import { liveLesson, loadLearning } from "@/lib/modules/live/parent/learning";
+import { loadInbox } from "@/lib/modules/live/parent/messages";
 import { loadRequests, requestItem } from "@/lib/modules/live/parent/requests";
 import { clocksOf, dDow, greeting, loadMe, loadNeeds } from "@/lib/modules/live/parent/shared";
 import type { NeedItem, ParentContent, ParentMe } from "@/lib/modules/live/parent/shared";
@@ -19,23 +20,25 @@ export async function overviewPage(child: string): Promise<ParentContent> {
   const me = await loadMe();
   // What the phone's Home adds below the needs: where each child is in class right now, what is coming up, and what is still open with the
   // school. Each is read where the page for it reads it, and a read that fails leaves its block out rather than the page.
-  const [needs, learning, calendar, requests] = await Promise.all([
+  const [needs, learning, calendar, requests, inbox] = await Promise.all([
     loadNeeds(child),
     me.sees.includes("Timetable") ? loadLearning(child).catch(() => null) : Promise.resolve(null),
     loadCalendar(child).catch(() => null),
     loadRequests(child).catch(() => null),
+    loadInbox(child).catch(() => null),
   ]);
   const one = child === "all" ? null : me.children.find((entry) => entry.id === child) ?? null;
-  const more = homeBlocks(me, child, learning, calendar, requests);
+  const more = homeBlocks(me, child, learning, calendar, requests, inbox);
   return one ? childOverview(me, one, needs.items, more) : familyOverview(me, needs.items, more);
 }
 
 type Learning = Awaited<ReturnType<typeof loadLearning>>;
 type Calendar = Awaited<ReturnType<typeof loadCalendar>>;
 type Requests = Awaited<ReturnType<typeof loadRequests>>;
+type Inbox = Awaited<ReturnType<typeof loadInbox>>;
 
 /** The blocks under the needs on a phone: in class now, coming up, still open with the school, and the three things a parent does most. */
-function homeBlocks(me: ParentMe, child: string, learning: Learning | null, calendar: Calendar | null, requests: Requests | null): PanelRow[] {
+function homeBlocks(me: ParentMe, child: string, learning: Learning | null, calendar: Calendar | null, requests: Requests | null, inbox: Inbox | null): PanelRow[] {
   const blocks: PanelRow[] = [];
   const inClass = (learning?.children ?? []).map((kid) => ({ kid, live: liveLesson(kid, me) })).filter((entry) => entry.live.now);
   if (inClass.length) {
@@ -50,6 +53,21 @@ function homeBlocks(me: ParentMe, child: string, learning: Learning | null, cale
   }
   const ahead = (calendar?.events ?? []).filter((event) => event.end >= calendar!.today).slice(0, 4);
   if (ahead.length) blocks.push(phoneOnly({ type: "list", noFind: true, title: "Coming up", sub: "From the school calendar.", items: ahead.map((event) => eventItem(event, child === "all")), foot: "The whole term is under Calendar." }));
+  // What the schools have been saying, newest first. A parent who has read everything still gets
+  // the last few, because the question this answers is "what have I missed", not "what is unread".
+  const latest = (inbox?.items ?? []).slice(0, 4);
+  if (latest.length) {
+    blocks.push(phoneOnly({
+      type: "list", noFind: true, title: "From the schools", sub: inbox?.unread ? `${inbox.unread} not opened yet.` : "Everything opened.",
+      acts: [{ label: "All", href: "/portals/parent/messages" }],
+      items: latest.map((message): ListItem => ({
+        label: message.title,
+        sub: [message.children.map((entry) => entry.first).join(" and "), new Date(message.at).toLocaleDateString("en-GB", { day: "numeric", month: "short" })].filter(Boolean).join(" · "),
+        href: "/portals/parent/messages",
+        ...(message.read ? {} : { pill: "New", tone: "progress" as const }),
+      })),
+    }));
+  }
   const open = (requests?.items ?? []).filter((entry) => entry.open).slice(0, 3);
   if (requests && open.length) {
     blocks.push(phoneOnly({ type: "list", noFind: true, title: "Your requests", tag: `${requests.items.filter((entry) => entry.open).length} open`, tagTone: "attention", items: open.map((entry) => requestItem(entry, child === "all", requests)) }));
