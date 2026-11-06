@@ -58,7 +58,9 @@ function Chevron() {
 /** A block's heading sits above its card, as the mockup draws it: the name, a small tag beside it, one line under. */
 export function BlockHead({ title, sub, tag, tagTone, acts, openDrawer }: { title?: string; sub?: string; tag?: string; tagTone?: PanelTone; acts?: PanelAction[]; openDrawer: OpenDrawer }) {
   const ui = useUiText();
-  if (!title && !sub) return null;
+  // The phone's copy rule, same as a panel's sub-heading on a laptop.
+  const line = tightFor(true, "bsub", sub);
+  if (!title && !line) return null;
   return (
     <div className="mb-[10px] px-[2px]">
       <div className="flex items-center justify-between gap-[10px]">
@@ -74,9 +76,15 @@ export function BlockHead({ title, sub, tag, tagTone, acts, openDrawer }: { titl
           ) : null,
         )}
       </div>
-      {sub ? <p className="mt-[4px] text-pretty text-[13px] leading-[1.45] text-[#5F6E65]">{sub}</p> : null}
+      {line ? <p className="mt-[4px] text-pretty text-[13px] leading-[1.45] text-[#5F6E65]">{line}</p> : null}
     </div>
   );
+}
+
+/** A panel's footnote on a phone: it keeps the figure it carries, or it is not drawn. */
+function PhoneFoot({ foot }: { foot?: string }) {
+  const line = tightFor(true, "foot", foot);
+  return line ? <p className="mt-[10px] px-[4px] text-pretty text-[12.5px] leading-[1.5] text-[#5C6B62]">{line}</p> : null;
 }
 
 /* ───────────────────────── stat cards ───────────────────────── */
@@ -271,7 +279,7 @@ export function PhoneTable({ panel, openDrawer }: { panel: Extract<Panel, { type
     <section className="min-w-0">
       <BlockHead title={panel.title} sub={panel.sub} tag={panel.tag} tagTone={panel.tagTone} acts={panel.acts} openDrawer={openDrawer} />
       <RowsCard rows={rows} empty={panel.empty ?? "Nothing here yet."} per={panel.per === 0 ? 0 : Math.min(panel.per ?? 10, 10)} />
-      {panel.foot ? <p className="mt-[10px] px-[4px] text-pretty text-[12.5px] leading-[1.5] text-[#5C6B62]">{panel.foot}</p> : null}
+      <PhoneFoot foot={panel.foot} />
     </section>
   );
 }
@@ -306,7 +314,7 @@ export function PhoneList({ panel, openDrawer }: { panel: Extract<Panel, { type:
       ) : null}
       <BlockHead title={panel.title} sub={panel.sub} tag={panel.tag} tagTone={panel.tagTone} acts={panel.acts} openDrawer={openDrawer} />
       <RowsCard rows={shown} empty={needle ? "Nothing matches that." : panel.empty ?? "Nothing here yet."} per={shown.length > 8 && !panel.noFind ? 6 : 0} />
-      {panel.foot ? <p className="mt-[10px] px-[4px] text-pretty text-[12.5px] leading-[1.5] text-[#5C6B62]">{panel.foot}</p> : null}
+      <PhoneFoot foot={panel.foot} />
     </section>
   );
 }
@@ -430,7 +438,7 @@ export function PhoneSteps({ panel }: { panel: Extract<Panel, { type: "steps" }>
           );
         })}
       </ol>
-      {panel.foot ? <p className="mt-[10px] px-[4px] text-pretty text-[12.5px] leading-[1.5] text-[#5C6B62]">{panel.foot}</p> : null}
+      <PhoneFoot foot={panel.foot} />
     </section>
   );
 }
