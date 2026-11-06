@@ -30,6 +30,7 @@
       "newHere": "New to FutureRealm?",
       "createAccount": "Create an account",
       "accountsFromSchool": "Parents and students receive their accounts from their school.",
+      "accountsFromSchoolShort": "Accounts are issued by your school.",
       "backToWebsite": "← Back to website",
       "gaps": "{count, plural, =1 {One thing is} =2 {Two things are} other {# things are}} needed to sign in",
       "gapsHelp": "Fill in the highlighted fields, then sign in.",

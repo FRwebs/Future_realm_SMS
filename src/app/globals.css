@@ -1404,7 +1404,7 @@ summary:focus-visible,
 
   /* Read at arm's length: the mockup's own sizes for a panel's own words. */
   [data-phone-skin="on"] .panel-card .panel-title {
-    font-size: 15.5px;
+    font-size: 14.5px;
     letter-spacing: -0.01em;
   }
 

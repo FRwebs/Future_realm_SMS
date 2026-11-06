@@ -258,7 +258,12 @@ export async function assignmentsPage(query: Record<string, string | undefined>)
   }
   return {
     eyebrow: `${me.arm}${me.term ? ` · Week ${me.term.week}` : ""}`, title: "Assignments", desc: "Homework from all your subjects, in one place. Homework is practice — it is not part of your CA.", tabs, tab,
-    launchers: askable.people.length ? [{ label: "Ask for more time", drawer: askDrawer(askable.people, { topic: "More time for an assignment", fmReads: askable.formMasterReads }) }] : [],
+    // The phone's floating button hands in the most urgent piece (late work first) when the school lets homework be handed in here.
+    ...(tab === "To do" && todo.length && me.policy?.homework !== false ? { phonePrimary: { label: "Hand in work", drawer: handInDrawer(todo[0]!) } } : {}),
+    launchers: askable.people.length ? [
+      { label: "Ask for more time", drawer: askDrawer(askable.people, { topic: "More time for an assignment", fmReads: askable.formMasterReads }) },
+      { label: "Ask about the work", drawer: askDrawer(askable.people, { topic: "A question about work", fmReads: askable.formMasterReads }) },
+    ] : [],
     rows: [
       row("1fr", [{
         type: "kpi", bare: true, per: 4,

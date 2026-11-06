@@ -33,7 +33,7 @@ function useLink() {
 function Wordmark() {
   return (
     <span className="flex min-w-0 flex-1 items-center gap-[10px]">
-      <span className="flex h-[34px] flex-none items-center rounded-[10px] bg-[#0D2315] px-[10px] text-[15px] font-black tracking-[-0.02em] text-white">Nooria</span>
+      <span className="flex h-[34px] flex-none items-center rounded-[10px] bg-[#0D2315] px-[10px] text-[14px] font-black tracking-[-0.02em] text-white">Nooria</span>
       <span aria-hidden className="h-[22px] w-px flex-none" style={{ background: "#CAD6CE" }} />
       <span className="truncate text-[11px] font-extrabold uppercase tracking-[0.16em] text-[#12796A]">Parents</span>
     </span>
@@ -88,7 +88,7 @@ export function PhoneParentBar({
         <div className="sticky top-0 z-40 flex h-[62px] items-center gap-[10px] pl-[20px] pr-[12px]" style={{ background: "rgba(244,247,245,0.92)", backdropFilter: "blur(14px)" }}>
           <Wordmark />
           <NotificationBell session={session} portalType={portalType} phone="light" />
-          <Link href={"/portals/parent/account" as Route} aria-label={`${initials(session.name)}, your account`} className="flex h-[42px] w-[42px] flex-none items-center justify-center rounded-full text-[13.5px] font-extrabold text-[#0D2315]" style={{ background: "#E3F1EA" }}>{initials(session.name)}</Link>
+          <Link href={"/portals/parent/account" as Route} aria-label={`${initials(session.name)}, your account`} className="flex h-[42px] w-[42px] flex-none items-center justify-center rounded-full text-[13px] font-extrabold text-[#0D2315]" style={{ background: "#E3F1EA" }}>{initials(session.name)}</Link>
         </div>
       </div>
     );
@@ -179,7 +179,7 @@ export function PhoneParentChips({ chrome }: { chrome: ParentChrome }) {
           ) : null}
         </span>
         <span className="min-w-0 text-left">
-          <span className="block whitespace-nowrap text-[15px] font-extrabold leading-[1.2]" style={{ color: on ? "#fff" : "#0D2315" }}>{name}</span>
+          <span className="block whitespace-nowrap text-[14px] font-extrabold leading-[1.2]" style={{ color: on ? "#fff" : "#0D2315" }}>{name}</span>
           {line ? <span className="block whitespace-nowrap text-[12.5px] font-semibold leading-[1.3]" style={{ color: on ? "rgba(255,255,255,0.78)" : INK[tone] ?? "#5C6B62" }}>{line}</span> : null}
         </span>
       </Link>

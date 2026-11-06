@@ -154,7 +154,7 @@ function RowView({ row, last }: { row: Row; last: boolean }) {
   const content = (
     <>
       {row.lead?.round ? (
-        <span className="flex h-[44px] w-[44px] flex-none items-center justify-center rounded-full text-[13.5px] font-extrabold tracking-[0.02em]" style={{ background: row.lead.tone && row.lead.tone !== "neutral" ? toneOf(row.lead.tone).bg : "#EEF4F0", color: row.lead.tone && row.lead.tone !== "neutral" ? toneOf(row.lead.tone).fg : "#0D2315" }} aria-hidden>{row.lead.value}</span>
+        <span className="flex h-[44px] w-[44px] flex-none items-center justify-center rounded-full text-[13px] font-extrabold tracking-[0.02em]" style={{ background: row.lead.tone && row.lead.tone !== "neutral" ? toneOf(row.lead.tone).bg : "#EEF4F0", color: row.lead.tone && row.lead.tone !== "neutral" ? toneOf(row.lead.tone).fg : "#0D2315" }} aria-hidden>{row.lead.value}</span>
       ) : row.lead?.icon ? (
         <span className="flex h-[44px] w-[44px] flex-none items-center justify-center rounded-full" style={{ background: row.lead.tone && row.lead.tone !== "neutral" ? toneOf(row.lead.tone).bg : "#EEF4F0", color: row.lead.tone && row.lead.tone !== "neutral" ? toneOf(row.lead.tone).fg : "#17604F" }} aria-hidden>
           <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><path d={row.lead.icon} /></svg>
@@ -170,7 +170,7 @@ function RowView({ row, last }: { row: Row; last: boolean }) {
         </span>
       ) : null}
       <span className="min-w-0 flex-1">
-        <span className="block text-pretty text-[14px] font-bold leading-[1.35] text-[#0D2315]">{row.title}</span>
+        <span className="block text-pretty text-[13.5px] font-bold leading-[1.35] text-[#0D2315]">{row.title}</span>
         {row.sub ? <span className="mt-[3px] block text-pretty text-[12.5px] font-medium leading-[1.45] text-[#5C6B62]">{row.sub}</span> : null}
         {row.quote ? <span className="mt-[10px] block rounded-[14px] px-[14px] py-[11px] text-pretty text-[13px] font-medium italic leading-[1.5]" style={{ background: "#FDF3F3", color: "#B23B3B" }}>{row.quote}</span> : null}
         {row.bar ? (
@@ -300,7 +300,7 @@ export function PhoneList({ panel, openDrawer }: { panel: Extract<Panel, { type:
       {searchable ? (
         <label className="mb-[14px] flex h-[48px] items-center gap-[10px] rounded-[16px] bg-white px-[14px]" style={{ boxShadow: RAISED }}>
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#8C9A92" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden><circle cx="11" cy="11" r="6.5" /><path d="m16 16 4 4" /></svg>
-          <input value={q} onChange={(event) => setQ(event.target.value)} placeholder="Find by name" aria-label="Find in this list" className="min-w-0 flex-1 bg-transparent text-[14px] font-medium text-[#0D2315] outline-none placeholder:text-[#8C9A92]" />
+          <input value={q} onChange={(event) => setQ(event.target.value)} placeholder="Find by name" aria-label="Find in this list" className="min-w-0 flex-1 bg-transparent text-[13.5px] font-medium text-[#0D2315] outline-none placeholder:text-[#8C9A92]" />
         </label>
       ) : null}
       <BlockHead title={panel.title} sub={panel.sub} tag={panel.tag} tagTone={panel.tagTone} acts={panel.acts} openDrawer={openDrawer} />
@@ -321,7 +321,7 @@ export function PhoneNote({ panel, openDrawer }: { panel: Extract<Panel, { type:
         <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round"><path d={panel.icon ?? "M12 8.2v4.6M12 16h.02M12 3.6 21 19.4H3z"} /></svg>
       </span>
       <div className="min-w-0 flex-1 pt-[2px]">
-        {panel.title ? <p className="text-pretty text-[14px] font-extrabold leading-[1.3]" style={{ color: tinted ? swatch.fg : "#0D2315" }}>{panel.title}</p> : null}
+        {panel.title ? <p className="text-pretty text-[13.5px] font-extrabold leading-[1.3]" style={{ color: tinted ? swatch.fg : "#0D2315" }}>{panel.title}</p> : null}
         <p className="mt-[4px] text-pretty text-[12.5px] font-medium leading-[1.55] text-[#435048]">{panel.body}</p>
         {panel.acts?.length ? (
           <div className="mt-[12px] flex flex-wrap gap-[8px]">
@@ -353,7 +353,7 @@ export function PhoneFacts({ panel, openDrawer }: { panel: Extract<Panel, { type
     <>
       <span className="min-w-0 flex-1">
         <span className="flex flex-wrap items-center gap-[8px]">
-          <span className="text-[15.5px] font-extrabold leading-[1.3] tracking-[-0.01em] text-[#0D2315]">{panel.title}</span>
+          <span className="text-[14.5px] font-extrabold leading-[1.3] tracking-[-0.01em] text-[#0D2315]">{panel.title}</span>
           {panel.tag ? <Pill label={panel.tag} tone={panel.tagTone ?? "attention"} /> : null}
         </span>
         {panel.sub ? <span className="mt-[3px] block text-pretty text-[12.5px] leading-[1.45] text-[#5C6B62]">{panel.sub}</span> : null}
@@ -377,7 +377,7 @@ export function PhoneFacts({ panel, openDrawer }: { panel: Extract<Panel, { type
           {panel.facts.map(([label, value, hint], index) => (
             <div key={`${index}-${label}`} className="mx-[16px] border-t py-[11px]" style={{ borderColor: "#EEF2F0" }}>
               <p className="text-[12px] font-semibold leading-[1.4] text-[#5C6B62]">{label}</p>
-              <p className="mt-[2px] text-pretty text-[14px] font-bold leading-[1.4] text-[#0D2315]">{value || "—"}</p>
+              <p className="mt-[2px] text-pretty text-[13.5px] font-bold leading-[1.4] text-[#0D2315]">{value || "—"}</p>
               {hint ? <p className="mt-[2px] text-pretty text-[12px] leading-[1.45] text-[#5C6B62]">{hint}</p> : null}
             </div>
           ))}
@@ -419,7 +419,7 @@ export function PhoneSteps({ panel }: { panel: Extract<Panel, { type: "steps" }>
                 </span>
               </span>
               <span className="min-w-0 flex-1 pt-[4px]">
-                <span className="block text-pretty text-[14.5px] font-extrabold leading-[1.3]" style={{ color: now || done ? "#0D2315" : "#5C6B62" }}>{step.label}</span>
+                <span className="block text-pretty text-[13.5px] font-extrabold leading-[1.3]" style={{ color: now || done ? "#0D2315" : "#5C6B62" }}>{step.label}</span>
                 {step.sub ? <span className="mt-[3px] block text-pretty text-[12.5px] font-medium leading-[1.45] text-[#5C6B62]">{step.sub}</span> : null}
               </span>
             </li>

@@ -18,7 +18,7 @@ export function PhoneChips({ chips }: { chips: Chip[] }) {
           href={chip.href as Route}
           role="tab"
           aria-selected={Boolean(chip.on)}
-          className="flex min-h-[42px] flex-none items-center whitespace-nowrap rounded-full border px-[18px] text-[14px] font-bold"
+          className="flex min-h-[42px] flex-none items-center whitespace-nowrap rounded-full border px-[18px] text-[13.5px] font-bold"
           style={chip.on ? { background: "#E3F1EA", borderColor: "#5FBF9F", color: "#0D2315" } : { background: "#fff", borderColor: "#E4EDE8", color: "#435048" }}
         >
           {chip.label}

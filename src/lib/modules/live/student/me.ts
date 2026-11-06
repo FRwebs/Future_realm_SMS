@@ -172,3 +172,45 @@ export async function accountPage(): Promise<StudentContent> {
     ],
   };
 }
+
+/* ───────────────────────── sync and this phone ───────────────────────── */
+
+/**
+ * What the portal keeps on this phone, said as it is: every page asks the school when it opens and a send goes the moment it is sent,
+ * so there is no queue to show. It says when the page was read, which phone this is, and which other devices are signed in.
+ */
+export async function syncPage(): Promise<StudentContent> {
+  type Device = { id: string; device: string; where: string; lastActiveAt: string; startedAt: string; current: boolean };
+  const when = (iso: string) => formatDay(new Date(iso), { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "Africa/Lagos" });
+  const [me, devices] = await Promise.all([
+    loadMe(),
+    apiGet(`${SW}/sessions`, observe<Device[]>(localContracts["src/lib/modules/live/student/me.ts#ea64d417"])).catch(() => [] as Device[]),
+  ]);
+  const here = devices.find((device) => device.current) ?? null;
+  const facts: PanelFact[] = [
+    ["What you are looking at", `Read from ${me.school} at ${me.now}`, "Every page asks the school when it opens, so it is as current as that time", "positive"],
+    ["Waiting to send", "Nothing", "Homework, a question or a message goes the moment you send it", "positive"],
+    ["This phone", here ? here.device : "Not recognised", here ? `Signed in since ${when(here.startedAt)}` : "Sign in again if this looks wrong"],
+    ["Times", "West Africa Time (GMT+1)", "The school’s times, as the school writes them"],
+  ];
+  const sign = (device: Device): DrawerSpec => ({
+    mode: "commit", tone: "attention" as PanelTone, kicker: "Sync and this phone", title: "Sign out of this device?",
+    sub: `${device.device} is signed out straight away and will need your password to sign in again.`,
+    commitLabel: "Sign out", commitDone: "Signed out", commitDoneBody: `${device.device} is no longer signed in.`,
+    submit: { endpoint: `${SW}/sessions/${device.id}/revoke`, method: "POST" },
+  });
+  return {
+    eyebrow: "Me", title: "Sync and this phone", desc: "What this phone shows, and what it is waiting to send.",
+    rows: [
+      row("1fr", [{ type: "facts", title: "Up to date", sub: `Read at ${me.now}.`, per: 2, facts }]),
+      row("1fr", [{ type: "note", tone: "neutral", title: "You need a connection to send", body: "The portal does not save work for later. If you are offline when you press send, the page says it could not send — try again when you are back online." }]),
+      row("1fr", [{
+        type: "list", title: "Signed in on", sub: "Sign out anything you do not recognise.", empty: "No other device is signed in.",
+        items: devices.map((device) => ({
+          label: device.device, sub: `${device.where || "Place not known"} · last used ${when(device.lastActiveAt)}`,
+          ...(device.current ? { pill: "This phone", tone: "positive" as PanelTone } : { viewLabel: "Sign out", drawer: sign(device) }),
+        })),
+      }]),
+    ],
+  };
+}

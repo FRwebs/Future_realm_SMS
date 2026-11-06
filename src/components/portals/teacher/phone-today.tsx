@@ -89,7 +89,7 @@ export function PhoneToday({ greeting, dateline, deck, nextLine, tiles, returned
   return (
     <div className="grid min-w-0 gap-[22px]">
       <div className="-mt-[4px] px-[2px]">
-        <h1 className="text-pretty text-[24px] font-extrabold leading-[1.15] tracking-[-0.02em] text-[#0D2315]">{greeting}</h1>
+        <h1 className="text-pretty text-[21px] font-extrabold leading-[1.15] tracking-[-0.02em] text-[#0D2315]">{greeting}</h1>
         <div className="mt-[9px] flex flex-wrap items-center justify-between gap-x-[10px] gap-y-[8px]">
           <span className="text-[13px] font-semibold text-[#5C6B62]">{dateline}</span>
           <PhoneSyncChip />
@@ -130,7 +130,7 @@ export function PhoneToday({ greeting, dateline, deck, nextLine, tiles, returned
               <span className="min-h-[14px] flex-1" />
               <div className="relative flex items-center gap-[12px]">
                 {current.cta ? (
-                  <Link data-slide="" href={current.cta.href as Route} className="inline-flex h-[46px] min-w-0 items-center gap-[8px] rounded-[14px] bg-white px-[18px] text-[14px] font-extrabold text-[#0D2315] active:scale-[0.97]">
+                  <Link data-slide="" href={current.cta.href as Route} className="inline-flex h-[46px] min-w-0 items-center gap-[8px] rounded-[14px] bg-white px-[18px] text-[13.5px] font-extrabold text-[#0D2315] active:scale-[0.97]">
                     <span className="truncate">{current.cta.label}</span>
                     <Icon path={ARROW} size={16} stroke={2.4} />
                   </Link>
@@ -186,7 +186,7 @@ export function PhoneToday({ greeting, dateline, deck, nextLine, tiles, returned
                   <span className="flex items-start gap-[9px]">
                     <span className="flex h-[38px] w-[38px] flex-none items-center justify-center rounded-full bg-white" style={{ color: swatch ? swatch.fg : "#17604F", boxShadow: swatch ? undefined : "inset 0 0 0 1px #E3ECE6" }}><Icon path={tile.icon} /></span>
                     <span className="min-w-0 pt-[1px]">
-                      <span className="block text-pretty text-[14px] font-extrabold leading-[1.25] text-[#0D2315]">{tile.label}</span>
+                      <span className="block text-pretty text-[13.5px] font-extrabold leading-[1.25] text-[#0D2315]">{tile.label}</span>
                       <span className="mt-[3px] block text-pretty text-[12px] font-medium leading-[1.4] text-[#5C6B62]">{tile.sub}</span>
                     </span>
                   </span>
@@ -204,11 +204,11 @@ export function PhoneToday({ greeting, dateline, deck, nextLine, tiles, returned
             {returned.map((item) => (
               <Link key={item.title} href={item.href as Route} className="block rounded-[20px] bg-white p-[16px]" style={{ boxShadow: RAISED }}>
                 <span className="flex items-start justify-between gap-[10px]">
-                  <span className="text-pretty text-[15px] font-extrabold leading-[1.3] text-[#0D2315]">{item.title}</span>
+                  <span className="text-pretty text-[14px] font-extrabold leading-[1.3] text-[#0D2315]">{item.title}</span>
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#9AA8A0" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden className="mt-[2px] flex-none"><path d="M9 6l6 6-6 6" /></svg>
                 </span>
                 <span className="mt-[3px] block text-[12.5px] font-medium text-[#5C6B62]">{item.by}{item.when ? ` · ${item.when}` : ""}</span>
-                <span className="mt-[10px] block rounded-[14px] px-[14px] py-[11px] text-pretty text-[13.5px] font-medium italic leading-[1.5]" style={{ background: "#FDF3F3", color: "#B23B3B" }}>“{item.note}”</span>
+                <span className="mt-[10px] block rounded-[14px] px-[14px] py-[11px] text-pretty text-[13px] font-medium italic leading-[1.5]" style={{ background: "#FDF3F3", color: "#B23B3B" }}>“{item.note}”</span>
                 <span className="mt-[10px] block text-[12.5px] leading-[1.45] text-[#5C6B62]">{item.fix}</span>
               </Link>
             ))}
@@ -232,7 +232,7 @@ export function PhoneToday({ greeting, dateline, deck, nextLine, tiles, returned
                 return (
                   <li key={`${period.from}-${index}`} className="relative flex gap-[12px] pb-[18px] last:pb-0">
                     <span className="w-[48px] flex-none tabular-nums leading-[1.2]">
-                      <span className="block text-[13.5px] font-extrabold" style={{ color: period.state === "done" ? "#8C9A92" : "#0D2315" }}>{period.from}</span>
+                      <span className="block text-[13px] font-extrabold" style={{ color: period.state === "done" ? "#8C9A92" : "#0D2315" }}>{period.from}</span>
                       <span className="block text-[11.5px] font-semibold text-[#8C9A92]">{period.to}</span>
                     </span>
                     <span className="relative flex w-[14px] flex-none justify-center">
@@ -241,7 +241,7 @@ export function PhoneToday({ greeting, dateline, deck, nextLine, tiles, returned
                     </span>
                     <span className="min-w-0 flex-1">
                       <span className="flex items-start justify-between gap-[8px]">
-                        <span className="text-pretty text-[14.5px] font-extrabold leading-[1.3]" style={{ color: period.state === "done" ? "#5C6B62" : "#0D2315" }}>{period.title}</span>
+                        <span className="text-pretty text-[13.5px] font-extrabold leading-[1.3]" style={{ color: period.state === "done" ? "#5C6B62" : "#0D2315" }}>{period.title}</span>
                         {period.state === "next" ? <Pill label="Next" tone="progress" /> : period.state === "now" ? <Pill label="Now" tone="submitted" /> : null}
                       </span>
                       {period.sub ? <span className="mt-[2px] block text-pretty text-[12.5px] font-medium leading-[1.4] text-[#5C6B62]">{period.sub}</span> : null}
@@ -266,7 +266,7 @@ export function PhoneToday({ greeting, dateline, deck, nextLine, tiles, returned
         {lastSync ? (
           <div className="mt-[12px] border-t pt-[12px]" style={{ borderColor: "#EDF3EF" }}>
             <p className="text-[12.5px] font-semibold text-[#5C6B62]">Last successful sync</p>
-            <p className="mt-[2px] text-[15px] font-extrabold text-[#0D2315]">{lastSync}</p>
+            <p className="mt-[2px] text-[14px] font-extrabold text-[#0D2315]">{lastSync}</p>
           </div>
         ) : null}
       </section>

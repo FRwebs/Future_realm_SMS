@@ -43,7 +43,7 @@ export function FactRows({ facts }: { facts: PanelFact[] }) {
             ) : null}
           </div>
           <p
-            className="min-w-0 max-w-full flex-1 break-words text-pretty text-right text-[11.5px] font-semibold leading-[1.45] max-md:order-1 max-md:text-left max-md:text-[14px]"
+            className="min-w-0 max-w-full flex-1 break-words text-pretty text-right text-[11.5px] font-semibold leading-[1.45] max-md:order-1 max-md:text-left max-md:text-[13.5px]"
             style={{ color: INK }}
           >
             {value}
@@ -482,7 +482,8 @@ function DrawerPanel({
   const panel = useFocusTrap<HTMLDivElement>();
   const ui = useUiText();
   // A portal with a phone skin opens its forms as a page of their own on a phone — back arrow, title, steps, a bar of buttons — as its mockups do.
-  const phone = usePhoneKind() !== null;
+  const phoneKind = usePhoneKind();
+  const phone = phoneKind !== null;
   const [committed, setCommitted] = useState(false);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -842,7 +843,8 @@ function DrawerPanel({
 
             {spec.readOnly ? (
               <div
-                className="rounded-[12px] border px-[13px] py-[10px]"
+                // The student's phone does not open a subject or a result with a line about records and audit: only a note the page wrote itself.
+                className={`rounded-[12px] border px-[13px] py-[10px]${!spec.readOnlyNote && phoneKind === "student" ? " max-md:hidden" : ""}`}
                 style={{ background: "#F7FAF8", borderColor: "#E6EEE9" }}
               >
                 <p className="text-[10.5px] leading-normal" style={{ color: MUTED }}>

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import type { Route } from "next";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 
@@ -103,7 +104,7 @@ export function ParentInbox({ school, you, messages, showChildren, empty }: Inbo
   return (
     <section className="min-w-0 overflow-hidden rounded-[14px] border bg-(--color-bg-surface) max-md:overflow-visible max-md:rounded-none max-md:border-0 max-md:bg-transparent" style={{ borderColor: "#DEE8E2" }}>
       <div className={`flex flex-wrap items-center gap-[10px] border-b px-[16px] py-[10px] max-md:border-0 max-md:px-0 max-md:pt-0${readingOnPhone ? " max-md:hidden" : ""}`} style={{ borderColor: "#EDF3EF" }}>
-        <input type="search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search messages" aria-label="Search messages" className="min-w-[160px] flex-1 rounded-[9px] border px-[11px] py-[7px] text-[12px] max-md:h-[48px] max-md:rounded-[16px] max-md:border-0 max-md:bg-white max-md:px-[16px] max-md:text-[14px] max-md:shadow-[0_1px_2px_rgba(13,35,21,0.05),0_8px_22px_-16px_rgba(13,35,21,0.22)]" style={{ borderColor: "#CFDDD5" }} />
+        <input type="search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search messages" aria-label="Search messages" className="min-w-[160px] flex-1 rounded-[9px] border px-[11px] py-[7px] text-[12px] max-md:h-[48px] max-md:rounded-[16px] max-md:border-0 max-md:bg-white max-md:px-[16px] max-md:text-[13.5px] max-md:shadow-[0_1px_2px_rgba(13,35,21,0.05),0_8px_22px_-16px_rgba(13,35,21,0.22)]" style={{ borderColor: "#CFDDD5" }} />
         <span className="text-[11px] max-md:hidden" style={{ color: "#5E6D64" }}>{list.length} {list.length === 1 ? "message" : "messages"}</span>
         <button type="button" disabled={busy || !unread} onClick={() => void readAll()} className="rounded-[9px] border bg-white px-[12px] py-[6px] text-[11.5px] font-semibold disabled:opacity-50 max-md:hidden" style={{ borderColor: "#CFDDD5", color: "#435048" }}>Mark all as read</button>
       </div>
@@ -194,7 +195,7 @@ export function ParentInbox({ school, you, messages, showChildren, empty }: Inbo
                     {open.acknowledgeAsked && !open.acknowledgedAt ? (
                       <button type="button" disabled={busy} onClick={() => void call(open.id, "acknowledge")} className="h-[52px] min-w-0 flex-1 rounded-[16px] text-[15px] font-extrabold text-white disabled:opacity-60" style={{ background: "#0D2315" }}>I have read this</button>
                     ) : (
-                      <Link href="/portals/parent/requests?new=1" className="flex h-[52px] min-w-0 flex-1 items-center justify-center rounded-[16px] text-[15px] font-extrabold text-white" style={{ background: "#0D2315" }}>Ask about this</Link>
+                      <Link href={"/portals/parent/requests?new=1" as Route} className="flex h-[52px] min-w-0 flex-1 items-center justify-center rounded-[16px] text-[15px] font-extrabold text-white" style={{ background: "#0D2315" }}>Ask about this</Link>
                     )}
                   </div>
                 </div>
@@ -214,7 +215,7 @@ export function ParentInbox({ school, you, messages, showChildren, empty }: Inbo
               <div className="mt-[14px] flex flex-wrap items-center gap-[8px]">
                 {open.acknowledgeAsked && !open.acknowledgedAt ? <button type="button" disabled={busy} onClick={() => void call(open.id, "acknowledge")} className="rounded-[9px] px-[14px] py-[8px] text-[12px] font-semibold text-white disabled:opacity-50" style={{ background: "#0D2315" }}>I have read this</button> : null}
                 {open.acknowledgedAt ? <span className="rounded-full px-[9px] py-[3px] text-[10.5px] font-bold" style={{ background: "#EAF6F0", color: "#17714F" }}>You acknowledged it · {when(open.acknowledgedAt)}</span> : null}
-                <Link href="/portals/parent/requests" className="rounded-[9px] border bg-white px-[14px] py-[8px] text-[12px] font-semibold" style={{ borderColor: "#CFDDD5", color: "#435048" }}>Ask about this</Link>
+                <Link href={"/portals/parent/requests" as Route} className="rounded-[9px] border bg-white px-[14px] py-[8px] text-[12px] font-semibold" style={{ borderColor: "#CFDDD5", color: "#435048" }}>Ask about this</Link>
               </div>
               {open.replies.length ? (
                 <ul className="mt-[14px] grid gap-[8px]">
