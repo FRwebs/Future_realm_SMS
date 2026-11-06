@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 
 import { usePhoneKind } from "@/components/layout/phone-shell";
+import { tightFor } from "@/lib/ui/tight-copy";
 import { Field, initialValue } from "@/components/modules/field";
 import { PhoneFacts, PhoneList, PhoneNote, PhoneStats, PhoneSteps, PhoneTable } from "@/components/modules/phone-teacher-panels";
 import { ModuleDrawer } from "@/components/modules/lazy-drawer";
@@ -271,6 +272,9 @@ export function PanelHeader({
   joined?: boolean;
 }) {
   const swatch = toneOf(tagTone);
+  // The phone's copy rule: a panel heading that restates itself underneath loses the restatement rather than wrapping.
+  const phone = usePhoneKind() !== null;
+  const line = tightFor(phone, "bsub", sub);
 
   return (
     <div
@@ -301,12 +305,12 @@ export function PanelHeader({
             </span>
           ) : null}
         </div>
-        {sub ? (
+        {line ? (
           <p
             className="panel-sub mt-[3.5px] text-pretty text-[10.5px] leading-normal"
             style={{ color: MUTED }}
           >
-            {sub}
+            {line}
           </p>
         ) : null}
       </div>
