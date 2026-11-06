@@ -9,6 +9,7 @@ import { createPortal } from "react-dom";
 import { ModuleDrawer } from "@/components/modules/lazy-drawer";
 import { PanelRowsWithDrawer } from "@/components/modules/panel-renderer";
 import { useHasPhoneBar, usePhoneKind } from "@/components/layout/phone-shell";
+import { tightFor } from "@/lib/ui/tight-copy";
 import { useUiText } from "@/hooks/use-ui-text";
 import type { DrawerSpec, PanelAction, PanelRow } from "@/lib/modules/panels";
 import { cn } from "@/lib/utils/cn";
@@ -176,11 +177,13 @@ const PHONE_NO_FAB = [
  */
 function PhoneHead({ eyebrow, title, description }: { eyebrow: string; title: string; description: string }) {
   const ui = useUiText();
+  // The phone's copy rule: a description that only restates the title above it is dropped rather than wrapped onto three lines.
+  const desc = tightFor(true, "head", description);
   return (
     <div className="px-[4px] pt-[6px] md:hidden">
       {eyebrow ? <p className="mb-[6px] text-[11px] font-extrabold uppercase tracking-[0.08em] text-[#12796A]">{ui(eyebrow)}</p> : null}
       <h1 className="text-pretty text-[23px] font-extrabold leading-[1.15] tracking-[-0.02em] text-[#0D2315]">{ui(title)}</h1>
-      {description ? <p className="mt-[6px] text-pretty text-[13.5px] leading-[1.5] text-[#5F6E65]">{description}</p> : null}
+      {desc ? <p className="mt-[6px] text-pretty text-[13.5px] leading-[1.5] text-[#5F6E65]">{desc}</p> : null}
     </div>
   );
 }

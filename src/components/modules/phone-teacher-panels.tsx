@@ -8,6 +8,7 @@ import { useState } from "react";
 import { cardIcon } from "@/lib/modules/card-icons";
 import type { DrawerSpec, KpiCard, Panel, PanelAction, PanelTone, TableCellKind, TableRow } from "@/lib/modules/panels";
 import { toneOf } from "@/lib/modules/tones";
+import { tightFor } from "@/lib/ui/tight-copy";
 import { useUiText } from "@/hooks/use-ui-text";
 import { cn } from "@/lib/utils/cn";
 
@@ -315,14 +316,17 @@ export function PhoneList({ panel, openDrawer }: { panel: Extract<Panel, { type:
 export function PhoneNote({ panel, openDrawer }: { panel: Extract<Panel, { type: "note" }>; openDrawer: OpenDrawer }) {
   const swatch = toneOf(panel.tone ?? "neutral");
   const tinted = panel.tone && panel.tone !== "neutral";
+  // The phone's copy rule: a note's heading keeps its first thought and its body keeps whole sentences up to a phone's worth.
+  const title = tightFor(true, "title", panel.title);
+  const body = tightFor(true, "body", panel.body);
   return (
     <div className="flex items-start gap-[12px] rounded-[20px] px-[16px] py-[15px]" style={{ background: tinted ? swatch.bg : "#fff", boxShadow: tinted ? undefined : RAISED, border: tinted ? `1px solid ${swatch.bd}` : undefined }}>
       <span className="flex h-[36px] w-[36px] flex-none items-center justify-center rounded-full bg-white" style={{ color: swatch.fg }} aria-hidden>
         <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round"><path d={panel.icon ?? "M12 8.2v4.6M12 16h.02M12 3.6 21 19.4H3z"} /></svg>
       </span>
       <div className="min-w-0 flex-1 pt-[2px]">
-        {panel.title ? <p className="text-pretty text-[14px] font-extrabold leading-[1.3]" style={{ color: tinted ? swatch.fg : "#0D2315" }}>{panel.title}</p> : null}
-        <p className="mt-[4px] text-pretty text-[12.5px] font-medium leading-[1.55] text-[#435048]">{panel.body}</p>
+        {title ? <p className="text-pretty text-[14px] font-extrabold leading-[1.3]" style={{ color: tinted ? swatch.fg : "#0D2315" }}>{title}</p> : null}
+        {body ? <p className="mt-[4px] text-pretty text-[12.5px] font-medium leading-[1.55] text-[#435048]">{body}</p> : null}
         {panel.acts?.length ? (
           <div className="mt-[12px] flex flex-wrap gap-[8px]">
             {panel.acts.map((act) => {
