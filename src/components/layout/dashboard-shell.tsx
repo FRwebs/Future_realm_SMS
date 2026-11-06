@@ -11,7 +11,8 @@ import { PermissionProvider } from "@/components/auth/permission-provider";
 import { ImpersonationBanner } from "@/components/layout/impersonation-banner";
 import { PhoneKindProvider, PhoneShellProvider } from "@/components/layout/phone-shell";
 import { PhoneParentBar, PhoneParentChips } from "@/components/layout/phone-parent-bar";
-import { PhoneStudentBar } from "@/components/layout/phone-student-bar";
+import { PhonePortalBar } from "@/components/layout/phone-portal-bar";
+import { roleLabels } from "@/lib/auth/roles";
 import { PhoneTeacherBar } from "@/components/layout/phone-teacher-bar";
 import { PortalTabBar } from "@/components/layout/portal-tab-bar";
 import type { TabBarItem } from "@/components/layout/portal-tab-bar";
@@ -43,6 +44,7 @@ export function DashboardShell({
   studentChrome,
   parentChrome,
   phoneTabs,
+  adminPhone,
   hiddenNavIds,
   platformSync,
   teacherRail,
@@ -67,7 +69,9 @@ export function DashboardShell({
   parentChrome?: ParentChrome | null;
   /** Which parent pages this school shows, for the phone's bottom bar. */
   /** The bottom bar on a phone: which items, and which four get their own tab. */
-  phoneTabs?: { items: TabBarItem[]; primaryIds: string[]; label: string } | null;
+  phoneTabs?: { items: TabBarItem[]; primaryIds: string[]; label: string; sections?: Array<{ title: string; ids: string[] }> } | null;
+  /** True when this is an administrator's own portal, which has its own phone design. */
+  adminPhone?: boolean;
   hiddenNavIds?: string[];
   /** What the Back Office has decided for this school: read-only state, modules switched off, announcements, maintenance. */
   platformSync?: PlatformSyncView | null;
@@ -119,7 +123,7 @@ export function DashboardShell({
     <PortalProvider value={portalType}>
     <PermissionProvider permissions={permissions}>
     <PhoneShellProvider value={Boolean(phoneTabs?.items.length)}>
-    <PhoneKindProvider value={phoneTabs?.items.length ? (parentChrome ? "parent" : studentChrome ? "student" : teacherRail ? "teacher" : null) : null}>
+    <PhoneKindProvider value={phoneTabs?.items.length ? (parentChrome ? "parent" : studentChrome ? "student" : adminPhone ? "admin" : teacherRail ? "teacher" : null) : null}>
       <div
         data-shell-theme={theme}
         data-phone-skin={phoneTabs?.items.length ? "on" : undefined}
@@ -153,10 +157,43 @@ export function DashboardShell({
 
         <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
           {parentChrome && phoneTabs?.items.length ? <PhoneParentBar session={session} portalType={portalType} kids={Object.fromEntries(parentChrome.children.map((child) => [child.id, child.first]))} schools={parentChrome.family.schools} pages={Object.fromEntries(phoneTabs.items.map((item) => [item.id.replace(/^p_/, ""), item.label]))} /> : null}
-          {studentChrome && phoneTabs?.items.length ? <PhoneStudentBar session={session} portalType={portalType} chrome={studentChrome} pages={Object.fromEntries(phoneTabs.items.map((item) => [item.id.replace(/^s_/, ""), item.label]))} /> : null}
+          {studentChrome && phoneTabs?.items.length ? (
+            <PhonePortalBar
+              session={session}
+              portalType={portalType}
+              eyebrow="Students"
+              home={["/portals/student", "/portals/student/today"]}
+              accountHref="/portals/student/account"
+              syncHref="/portals/student/sync"
+              school={studentChrome.school.name}
+              pages={Object.fromEntries(phoneTabs.items.map((item) => [item.href.split("?")[0]!, item.label]))}
+              subtitle={studentChrome.who.line}
+              greetingName={studentChrome.who.name.split(" ")[0] ?? session.name}
+              dateLine={[new Date().toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" }), studentChrome.school.term.split("·").pop()?.trim()].filter(Boolean).join(" · ")}
+              ownDepth={3}
+              leftAction={null}
+            />
+          ) : null}
+          {adminPhone && phoneTabs?.items.length ? (
+            <PhonePortalBar
+              session={session}
+              portalType={portalType}
+              eyebrow="School Admin"
+              home={["/command-center", "/command-center/today"]}
+              accountHref="/account"
+              syncHref="/sync-support"
+              school={schoolName ?? ""}
+              pages={Object.fromEntries(phoneTabs.items.map((item) => [item.href.split("?")[0]!, item.label]))}
+              subtitle={[currentTermName, currentSessionName].filter(Boolean).join(" · ")}
+              greetingName={session.name.split(" ")[0] ?? session.name}
+              dateLine={[new Date().toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" }), currentTermName].filter(Boolean).join(" · ")}
+              ownDepth={2}
+              leftAction={null}
+            />
+          ) : null}
           {teacherRail && !parentChrome && !studentChrome && phoneTabs?.items.length ? <PhoneTeacherBar session={session} schoolName={schoolName} portalType={portalType} rail={teacherRail} /> : null}
           <Topbar
-            hideOnPhone={Boolean((teacherRail || parentChrome || studentChrome) && phoneTabs?.items.length)}
+            hideOnPhone={Boolean((teacherRail || parentChrome || studentChrome || adminPhone) && phoneTabs?.items.length)}
             session={session}
             onOpenMobileSidebar={() => setMobileSidebarOpen(true)}
             permissions={permissions}
@@ -175,7 +212,7 @@ export function DashboardShell({
           <ImpersonationBanner session={session} />
           {portalType === "school" && platformSync ? (
             // On a teacher's phone the notices scroll away with the page they sit on, instead of staying pinned under the bar; the laptop keeps them where they were.
-            <div className={(teacherRail || parentChrome || studentChrome) && phoneTabs?.items.length ? "max-md:hidden" : undefined}>
+            <div className={(teacherRail || parentChrome || studentChrome || adminPhone) && phoneTabs?.items.length ? "max-md:hidden" : undefined}>
               <PlatformNotices sync={platformSync} operational={session.role !== "STUDENT" && session.role !== "PARENT"} />
             </div>
           ) : null}
@@ -204,7 +241,7 @@ export function DashboardShell({
                 incoming content is still a freshly-inserted child each time, so it still gets
                 its own page-shell-enter entrance below. */}
             <div className="page-shell-enter mx-auto w-full max-w-[1480px]">
-              {portalType === "school" && platformSync && (teacherRail || parentChrome || studentChrome) && phoneTabs?.items.length ? (
+              {portalType === "school" && platformSync && (teacherRail || parentChrome || studentChrome || adminPhone) && phoneTabs?.items.length ? (
                 <div className="md:hidden"><PlatformNotices sync={platformSync} operational inline /></div>
               ) : null}
               {parentChrome && phoneTabs?.items.length ? <PhoneParentChips chrome={parentChrome} /> : null}
@@ -220,7 +257,8 @@ export function DashboardShell({
               items={phoneTabs.items}
               primaryIds={phoneTabs.primaryIds}
               label={phoneTabs.label}
-              account={{ session, schoolName: studentChrome?.school.name ?? schoolName, kids: parentChrome?.children.length, schools: parentChrome?.family.schools, line: studentChrome?.who.line }}
+              sections={phoneTabs.sections}
+              account={{ session, schoolName: studentChrome?.school.name ?? schoolName, kids: parentChrome?.children.length, schools: parentChrome?.family.schools, line: studentChrome?.who.line ?? (adminPhone ? roleLabels[session.role] : undefined) }}
               counts={Object.fromEntries(Object.entries(navBadges ?? {}).map(([key, value]) => [key, value ?? 0]))}
               urgent={Object.fromEntries(Object.entries(navBadgeTones ?? {}).map(([key, tone]) => [key, tone === "danger"]))}
             />

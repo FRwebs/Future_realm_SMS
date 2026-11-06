@@ -13,9 +13,11 @@ import { getParentChrome, getParentRail } from "@/lib/api/parent-workspace";
 import { PARENT_PHONE_TABS, parentHref, parentNavigation, parentPages, parentPhoneTabLabel, visibleParentPages } from "@/lib/modules/parent-workspace";
 import { STUDENT_PHONE_TABS, studentHref, studentNavigation, studentPages, studentPhoneTabLabel } from "@/lib/modules/student-workspace";
 import { teacherNavigation, teacherPhoneTabLabelFor, teacherPhoneTabOrder } from "@/lib/modules/teacher-workspace";
+import { SCHOOL_MODULE_SLUG, SCHOOL_PHONE_ICON, SCHOOL_PHONE_LABEL, schoolPhoneTabs } from "@/lib/modules/school-phone";
+import { getVisibleWorkflowNavGroups } from "@/lib/navigation/workflows";
 import { getServerPermissions } from "@/lib/auth/server-access";
 import { getServerSession } from "@/lib/auth/session";
-import { getDefaultPermissionsForRole } from "@/lib/navigation/registry";
+import { getDefaultPermissionsForRole, isPlatformRole } from "@/lib/navigation/registry";
 
 export const metadata: Metadata = {
   title: "FutureRealm SMS",
@@ -65,7 +67,30 @@ export default async function AppLayout({
         : null;
   // The bottom bar on a phone. Only the portals whose mockups draw one get it;
   // which four tabs is each portal's own rule.
+  // The School Admin rail, in its own sections: the phone's More sheet is this, and the bar is four of it.
+  // The Back Office is its own portal with its own design; this is only the school's own administrators.
+  const adminGroups = !teacher && !parentRail && session.role !== "STUDENT" && !isPlatformRole(session.role)
+    ? getVisibleWorkflowNavGroups(session.role, permissions, "school")
+    : [];
   const phoneTabs = (() => {
+    if (adminGroups.length) {
+      // A module is its own first path segment, so the rail's items map back to the mockup's m1–m16 by that.
+      const codeOf = (href: string) => Object.entries(SCHOOL_MODULE_SLUG).find(([, slug]) => href.split("?")[0]!.split("/").filter(Boolean)[0] === slug)?.[0] ?? null;
+      const sections = adminGroups.map((group) => ({
+        title: group.title,
+        ids: group.items.map((item) => codeOf(item.href)).filter((code): code is string => Boolean(code)).map((code) => `a_${code}`),
+      }));
+      const reachable = sections.flatMap((section) => section.ids).map((id) => id.replace(/^a_/, ""));
+      const items = reachable.map((code) => ({
+        id: `a_${code}`,
+        label: adminGroups.flatMap((group) => group.items).find((item) => item.href.split("/").filter(Boolean)[0] === SCHOOL_MODULE_SLUG[code])?.label ?? SCHOOL_PHONE_LABEL[code] ?? code,
+        short: SCHOOL_PHONE_LABEL[code] ?? code,
+        icon: SCHOOL_PHONE_ICON[code] ?? "",
+        href: `/${SCHOOL_MODULE_SLUG[code]}`,
+      }));
+      if (!items.length) return null;
+      return { items, primaryIds: schoolPhoneTabs(session.role, reachable).map((code) => `a_${code}`), label: "School admin", sections };
+    }
     if (session.role === "STUDENT" && studentChrome) {
       // Everything in the rail, plus the phone's own Sync page, which the desktop has no use for.
       const left = new Set(studentBadges.hidden);
@@ -116,6 +141,7 @@ export default async function AppLayout({
       studentChrome={studentChrome}
       parentChrome={parentChrome}
       phoneTabs={phoneTabs}
+      adminPhone={adminGroups.length > 0}
     >
       {children}
     </DashboardShell>
