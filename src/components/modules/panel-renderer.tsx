@@ -54,7 +54,6 @@ const AttendanceGrid = dynamic(() => import("@/components/modules/attendance-gri
 const DayStrip = dynamic(() => import("@/components/modules/day-strip").then((loaded) => loaded.DayStrip));
 const SheetEntry = dynamic(() => import("@/components/modules/sheet-entry").then((loaded) => loaded.SheetEntry));
 const RegisterMarker = dynamic(() => import("@/components/modules/register-marker").then((loaded) => loaded.RegisterMarker));
-const ScoreGrid = dynamic(() => import("@/components/modules/score-grid").then((loaded) => loaded.ScoreGrid));
 
 const TierChange = dynamic(() => import("@/components/modules/tier-change").then((loaded) => loaded.TierChange));
 
@@ -2656,10 +2655,6 @@ function FormPanel({
 
   if (panel.type === "tierChange") {
     return <TierChange panel={panel} />;
-  }
-
-  if (panel.type === "scores") {
-    return <ScoreGrid panel={panel} />;
   }
 
   if (panel.type === "embed") return <EmbeddedPanel component={panel.component} props={panel.props} openDrawer={openDrawer} />;
