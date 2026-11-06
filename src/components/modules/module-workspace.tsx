@@ -5,12 +5,14 @@ import type { Route } from "next";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
+import { Clock, MessageCircle } from "lucide-react";
 
 import { ModuleDrawer } from "@/components/modules/lazy-drawer";
 import { PanelRowsWithDrawer } from "@/components/modules/panel-renderer";
 import { useHasPhoneBar, usePhoneKind } from "@/components/layout/phone-shell";
 import { useUiText } from "@/hooks/use-ui-text";
 import type { DrawerSpec, PanelAction, PanelRow } from "@/lib/modules/panels";
+import { tightCopy } from "@/lib/ui/phone-copy";
 import { cn } from "@/lib/utils/cn";
 
 /** The mockup's default glyph for a header's primary action: a plus. */
@@ -155,11 +157,12 @@ const PHONE_NO_FAB = [
  */
 function PhoneHead({ eyebrow, title, description }: { eyebrow: string; title: string; description: string }) {
   const ui = useUiText();
+  const tight = description ? tightCopy("bsub", description) : "";
   return (
     <div className="px-[4px] pt-[6px] md:hidden">
       {eyebrow ? <p className="mb-[6px] text-[11px] font-extrabold uppercase tracking-[0.08em] text-[#12796A]">{ui(eyebrow)}</p> : null}
-      <h1 className="text-pretty text-[23px] font-extrabold leading-[1.15] tracking-[-0.02em] text-[#0D2315]">{ui(title)}</h1>
-      {description ? <p className="mt-[6px] text-pretty text-[13.5px] leading-[1.5] text-[#5F6E65]">{description}</p> : null}
+      <h1 className="text-pretty text-[20px] font-extrabold leading-[1.15] tracking-[-0.02em] text-[#0D2315]">{ui(title)}</h1>
+      {tight ? <p className="mt-[6px] text-pretty text-[13px] leading-[1.5] text-[#5F6E65]">{tight}</p> : null}
     </div>
   );
 }
@@ -232,7 +235,7 @@ function ModuleHead({
           <h1
             className={cn(
               "text-pretty font-(family-name:--font-heading) text-[19px] font-extrabold leading-[1.15] tracking-[-0.024em] text-white",
-              hasPhoneBar && "max-md:text-[20px] max-md:tracking-[-0.015em]",
+              hasPhoneBar && "max-md:text-[18px] max-md:tracking-[-0.015em]",
             )}
           >
             {ui(title)}
@@ -263,6 +266,34 @@ function ModuleHead({
       </div>
     </section>
     </>
+  );
+}
+
+/** What each "ask" says under its name on the student's phone. */
+const ASK_SUB: Record<string, string> = { "Ask for more time": "Your teacher decides", "Ask about the work": "A question for a teacher", "Ask a teacher": "The answer comes in Messages" };
+
+/**
+ * The student's phone has no page header, so its shortcuts are tiles at the foot of the page, as the student mockup draws them: a round icon,
+ * what it does, and one line on what happens next.
+ */
+function PhoneAsks({ launchers, openDrawer }: { launchers: PanelAction[]; openDrawer: (spec: DrawerSpec) => void }) {
+  return (
+    <ul className="grid grid-cols-2 gap-[10px] md:hidden">
+      {launchers.slice(0, 4).map((act) => {
+        const Icon = /time/i.test(act.label) ? Clock : MessageCircle;
+        return (
+          <li key={act.label} className="min-w-0 [&:last-child:nth-child(odd)]:col-span-2">
+            <button type="button" onClick={() => (act.drawer ? openDrawer(act.drawer) : undefined)} className="flex min-h-[86px] w-full items-start gap-[11px] rounded-[18px] bg-white p-[14px] text-left" style={{ boxShadow: "0 1px 2px rgba(13,35,21,0.05), 0 8px 22px -16px rgba(13,35,21,0.22)" }}>
+              <span className="flex h-[40px] w-[40px] flex-none items-center justify-center rounded-full bg-[#EEF4F0] text-[#17604F]"><Icon className="h-[19px] w-[19px]" strokeWidth={2} /></span>
+              <span className="min-w-0">
+                <span className="block text-pretty text-[14px] font-bold leading-[1.3] text-[#0D2315]">{act.label}</span>
+                {ASK_SUB[act.label] ? <span className="mt-[2px] block text-pretty text-[12.5px] leading-[1.4] text-[#6E7C74]">{ASK_SUB[act.label]}</span> : null}
+              </span>
+            </button>
+          </li>
+        );
+      })}
+    </ul>
   );
 }
 
@@ -369,11 +400,14 @@ export function ModuleWorkspace({
       {children}
 
       {/* The teacher's phone puts the segments first and the screen's name under them, as its mockup does. */}
-      {kind !== null && pathname.replace(/\/$/, "") !== "/command-center/today" ? <PhoneHead eyebrow={phoneEyebrow ?? eyebrow} title={phoneTitle ?? title} description={phoneDesc ?? description} /> : null}
+      {/* The student's bar already says hello and gives the date on its home page, so the page does not say it again. */}
+      {kind !== null && pathname.replace(/\/$/, "") !== "/command-center/today" && !(kind === "student" && pathname.replace(/\/$/, "") === "/portals/student") ? <PhoneHead eyebrow={phoneEyebrow ?? eyebrow} title={phoneTitle ?? title} description={phoneDesc ?? description} /> : null}
 
       {body}
 
       <PanelRowsWithDrawer rows={rows} openDrawer={setDrawer} />
+
+      {kind === "student" && launchers?.some((act) => act.drawer) ? <PhoneAsks launchers={launchers.filter((act) => act.drawer)} openDrawer={setDrawer} /> : null}
 
       {hasPhoneBar && floats && (phonePrimary ?? primary) ? <MobileFab act={(phonePrimary ?? primary)!} openDrawer={setDrawer} /> : null}
     </div>

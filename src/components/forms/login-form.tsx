@@ -6,7 +6,7 @@ import { useMemo, useState } from "react";
 import { useForm, type FieldErrors } from "react-hook-form";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Eye, EyeOff, Lock, ShieldCheck, UserRound } from "lucide-react";
+import { ArrowRight, ChevronLeft, Eye, EyeOff, Lock, ShieldCheck, UserRound } from "lucide-react";
 
 import { AuthField } from "@/components/forms/auth-field";
 import { InlineNotice, useNotice } from "@/components/ui/inline-notice";
@@ -137,9 +137,10 @@ export function LoginForm() {
         <button
           type="submit"
           disabled={pending}
-          className="flex h-[46px] w-full items-center justify-center rounded-[11px] bg-[#0d2315] text-[14px] font-semibold text-white shadow-[0_10px_22px_-10px_rgba(13,35,21,0.55)] transition hover:bg-[#12796a] disabled:cursor-not-allowed disabled:opacity-70"
+          className="flex h-[46px] w-full items-center justify-center gap-[9px] rounded-[11px] bg-[#0d2315] text-[14px] font-semibold text-white shadow-[0_10px_22px_-10px_rgba(13,35,21,0.55)] transition hover:bg-[#12796a] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-70 max-md:h-[54px] max-md:rounded-2xl max-md:text-[14.5px] max-md:font-extrabold max-md:shadow-[0_14px_26px_-14px_rgba(13,35,21,0.8)]"
         >
           {pending ? t("code.submitting") : t("code.submit")}
+          <ArrowRight aria-hidden className="h-[18px] w-[18px] text-[#5FD6B4] md:hidden" strokeWidth={2.4} />
         </button>
 
         {codeSentTo ? (
@@ -192,7 +193,7 @@ export function LoginForm() {
         label={t("signIn.passwordLabel")}
         icon={<Lock className="h-4 w-4" strokeWidth={1.8} />}
         aside={
-          <Link href="/forgot-password" className="text-[11.5px] font-semibold text-[#12796a] hover:underline">
+          <Link href="/forgot-password" className="text-[11.5px] font-semibold text-[#12796a] hover:underline max-md:-my-3 max-md:py-3 max-md:text-[13px] max-md:font-extrabold">
             {t("signIn.forgotPassword")}
           </Link>
         }
@@ -204,7 +205,7 @@ export function LoginForm() {
           <button
             type="button"
             onClick={() => setShowPassword((current) => !current)}
-            className="shrink-0 text-[#5c6a62] transition hover:text-[#0d2315]"
+            className="shrink-0 text-[#5c6a62] transition hover:text-[#0d2315] max-md:-mr-3 max-md:flex max-md:h-11 max-md:w-11 max-md:items-center max-md:justify-center max-md:rounded-full"
             aria-label={showPassword ? t("signIn.hidePassword") : t("signIn.showPassword")}
           >
             {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
@@ -213,14 +214,14 @@ export function LoginForm() {
         {...form.register("password")}
       />
 
-      <label className="mb-[22px] flex cursor-pointer items-center gap-2">
+      <label className="mb-[22px] flex cursor-pointer items-center gap-2 max-md:mb-3 max-md:mt-2 max-md:min-h-12 max-md:gap-[11px]">
         <input type="checkbox" {...form.register("trustDevice")} className="peer sr-only" />
-        <span className="flex h-[17px] w-[17px] shrink-0 items-center justify-center rounded-[5px] border border-[#b9c9c0] bg-white transition peer-checked:border-[#0d2315] peer-checked:bg-[#0d2315] peer-checked:*:opacity-100 peer-focus-visible:ring-2 peer-focus-visible:ring-[#12796a]/40">
+        <span className="flex h-[17px] w-[17px] max-md:h-[22px] max-md:w-[22px] max-md:rounded-[7px] shrink-0 items-center justify-center rounded-[5px] border border-[#b9c9c0] bg-white transition peer-checked:border-[#0d2315] peer-checked:bg-[#0d2315] peer-checked:*:opacity-100 peer-focus-visible:ring-2 peer-focus-visible:ring-[#12796a]/40">
           <svg className="opacity-0 transition" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3.6" strokeLinecap="round" strokeLinejoin="round">
             <path d="m5 12 5 5 9-10" />
           </svg>
         </span>
-        <span className="text-[12.5px] text-[#435048]">{t("signIn.trustDevice")}</span>
+        <span className="text-[12.5px] text-[#435048] max-md:min-w-0 max-md:flex-1 max-md:text-[13.5px] max-md:font-semibold">{t("signIn.trustDevice")}</span>
       </label>
 
       {apiState === "waking" || apiState === "unreachable" ? (
@@ -234,19 +235,20 @@ export function LoginForm() {
       <button
         type="submit"
         disabled={pending}
-        className="flex h-[46px] w-full items-center justify-center rounded-[11px] bg-[#0d2315] text-[14px] font-semibold text-white shadow-[0_10px_22px_-10px_rgba(13,35,21,0.55)] transition hover:bg-[#12796a] disabled:cursor-not-allowed disabled:opacity-70"
+        className="flex h-[46px] w-full items-center justify-center gap-[9px] rounded-[11px] bg-[#0d2315] text-[14px] font-semibold text-white shadow-[0_10px_22px_-10px_rgba(13,35,21,0.55)] transition hover:bg-[#12796a] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-70 max-md:h-[54px] max-md:rounded-2xl max-md:text-[14.5px] max-md:font-extrabold max-md:shadow-[0_14px_26px_-14px_rgba(13,35,21,0.8)]"
       >
         {pending ? (apiState === "waking" ? t("signIn.waitingForServer") : t("signIn.submitting")) : t("signIn.submit")}
+        <ArrowRight aria-hidden className="h-[18px] w-[18px] text-[#5FD6B4] md:hidden" strokeWidth={2.4} />
       </button>
 
-      <div className="my-[22px] flex items-center gap-[10px]">
+      <div className="my-[22px] flex items-center gap-[10px] max-md:hidden">
         <div className="h-px flex-1 bg-[#edf3ef]" />
         <span className="text-[11px] font-semibold text-[#5c6a62]">{t("signIn.secureAccess")}</span>
         <div className="h-px flex-1 bg-[#edf3ef]" />
       </div>
 
       <div
-        className="flex items-start gap-[10px] rounded-[11px] border px-[14px] py-[13px]"
+        className="flex items-start gap-[10px] rounded-[11px] border px-[14px] py-[13px] max-md:hidden"
         style={{ borderColor: "var(--color-gold-dim)", background: "var(--color-gold-dim)" }}
       >
         <ShieldCheck className="mt-px h-4 w-4 shrink-0" style={{ color: "#8a6410" }} strokeWidth={1.8} />
@@ -255,18 +257,21 @@ export function LoginForm() {
         </p>
       </div>
 
-      <p className="mt-[22px] text-center text-[12.5px] text-[#435048]">
+      <p className="mt-[22px] text-center text-[12.5px] text-[#435048] max-md:text-[13px]">
         {t("signIn.newHere")}{" "}
-        <Link href="/onboarding" className="font-semibold text-[#12796a] hover:underline">
+        <Link href="/onboarding" className="font-semibold text-[#12796a] hover:underline max-md:inline-block max-md:px-0.5 max-md:py-2.5 max-md:font-extrabold">
           {t("signIn.createAccount")}
         </Link>
       </p>
-      <p className="mt-[10px] text-center text-xs text-[#5c6a62]">
-        {t("signIn.accountsFromSchool")}
+      <p className="mt-[10px] text-center text-xs text-[#5c6a62] max-md:mt-1 max-md:leading-normal">
+        <span className="max-md:hidden">{t("signIn.accountsFromSchool")}</span>
+        <span className="md:hidden">{t("signIn.accountsFromSchoolShort")}</span>
       </p>
-      <p className="mt-[18px] text-center">
-        <Link href="/" className="text-[11px] font-semibold text-[#12796a] hover:underline">
-          {t("signIn.backToWebsite")}
+      <p className="mt-[18px] text-center max-md:mt-3">
+        <Link href="/" className="text-[11px] font-semibold text-[#12796a] hover:underline max-md:inline-flex max-md:min-h-[46px] max-md:items-center max-md:gap-1.5 max-md:text-[13px] max-md:font-extrabold">
+          <ChevronLeft aria-hidden className="hidden h-[15px] w-[15px] max-md:block" strokeWidth={2.4} />
+          <span className="max-md:hidden">{t("signIn.backToWebsite")}</span>
+          <span className="md:hidden">{t("signIn.backToWebsite").replace(/^←\s*/, "")}</span>
         </Link>
       </p>
     </form>

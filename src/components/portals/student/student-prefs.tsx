@@ -48,7 +48,7 @@ export function StudentPrefs({ base, categories, channels, matrix, defaults, qui
     <div className="grid min-w-0 gap-[14px]">
       <section className="min-w-0 rounded-[14px] border bg-(--color-bg-surface) px-[18px] pb-[14px] pt-[14px] max-md:border-0 max-md:bg-transparent max-md:px-0 max-md:pt-0" style={{ borderColor: "#DEE8E2" }}>
         <h2 className="text-[12.5px] font-semibold max-md:text-[17px] max-md:font-extrabold" style={{ color: "#0D2315" }}>{copy?.lead ?? "What reaches you, and where"}</h2>
-        <p className="mt-[3.5px] text-[10.5px] max-md:text-[13.5px] max-md:leading-[1.5]" style={{ color: "#5E6D64" }}>{copy?.sub ?? "In-app notifications cannot be turned off — they are your record."}</p>
+        <p className="mt-[3.5px] text-[10.5px] max-md:text-[13px] max-md:leading-[1.5]" style={{ color: "#5E6D64" }}>{copy?.sub ?? "In-app notifications cannot be turned off — they are your record."}</p>
         {/* A phone reads this a kind at a time. The matrix below is four
             columns wide at its narrowest, so on a 375px screen it either
             scrolls sideways — hiding whole channels behind an edge — or

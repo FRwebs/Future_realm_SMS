@@ -136,12 +136,12 @@ export function PhoneTeacherBar({
           <div className="sticky top-0 z-40 flex h-[62px] items-center gap-[10px] pl-[20px] pr-[12px]" style={{ background: "rgba(244,247,245,0.92)", backdropFilter: "blur(14px)" }}>
             <span className="flex h-[38px] w-[38px] flex-none items-center justify-center rounded-[12px] bg-[#0D2315] text-[11px] font-black tracking-[0.05em] text-white">{crest.mark}</span>
             <span className="min-w-0 flex-1 leading-[1.2]">
-              <span className="block truncate text-[13.5px] font-extrabold text-[#0D2315]">{crest.first}</span>
+              <span className="block truncate text-[13px] font-extrabold text-[#0D2315]">{crest.first}</span>
               {crest.second ? <span className="block truncate text-[10.5px] font-extrabold uppercase tracking-[0.1em] text-[#12796A]">{crest.second}</span> : null}
             </span>
             <NotificationBell session={session} portalType={portalType} phone="light" />
             {/* The mockup's avatar opens the account page itself, not a menu over the page. */}
-            <Link href={accountPath as Route} aria-label={`${who}, your account`} className="flex h-[42px] w-[42px] flex-none items-center justify-center rounded-full text-[13.5px] font-extrabold text-[#0D2315]" style={{ background: "#E3F1EA" }}>{who}</Link>
+            <Link href={accountPath as Route} aria-label={`${who}, your account`} className="flex h-[42px] w-[42px] flex-none items-center justify-center rounded-full text-[13px] font-extrabold text-[#0D2315]" style={{ background: "#E3F1EA" }}>{who}</Link>
           </div>
         </>
       ) : (

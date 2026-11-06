@@ -9,7 +9,7 @@ import { FlowPanelView, GridPanelView, QuotesPanelView } from "@/components/modu
 import Link from "next/link";
 import type { Route } from "next";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   ArrowRight,
   ChevronDown,
@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 
 import { usePhoneKind } from "@/components/layout/phone-shell";
+import { tightPanel } from "@/lib/ui/phone-copy";
 import { Field, initialValue } from "@/components/modules/field";
 import { PhoneFacts, PhoneList, PhoneNote, PhoneStats, PhoneSteps, PhoneTable } from "@/components/modules/phone-teacher-panels";
 import { ModuleDrawer } from "@/components/modules/lazy-drawer";
@@ -1401,18 +1402,26 @@ export function PanelView({ panel, openDrawer }: { panel: Panel; openDrawer: Ope
   if (!phone) return <PanelViewDesktop panel={panel} openDrawer={openDrawer} />;
   return (
     <>
-      {only === "desktop" ? null : <div className="md:hidden">
-        {panel.type === "kpi" ? <PhoneStats panel={panel} openDrawer={openDrawer} /> : null}
-        {panel.type === "table" ? <PhoneTable panel={panel} openDrawer={openDrawer} /> : null}
-        {panel.type === "list" ? <PhoneList panel={panel} openDrawer={openDrawer} /> : null}
-        {panel.type === "note" ? <PhoneNote panel={panel} openDrawer={openDrawer} /> : null}
-        {panel.type === "facts" ? <PhoneFacts panel={panel} openDrawer={openDrawer} /> : null}
-        {panel.type === "steps" ? <PhoneSteps panel={panel} /> : null}
-      </div>}
+      {only === "desktop" ? null : <PhonePanel panel={panel} openDrawer={openDrawer} />}
       {only === "phone" ? null : <div className="max-md:hidden">
         <PanelViewDesktop panel={panel} openDrawer={openDrawer} />
       </div>}
     </>
+  );
+}
+
+/** What a phone draws of a panel — with the mockups' tight copy: the lines under a title say less than they do on a laptop. */
+function PhonePanel({ panel: full, openDrawer }: { panel: Panel; openDrawer: OpenDrawer }) {
+  const panel = useMemo(() => tightPanel(full), [full]);
+  return (
+    <div className="md:hidden">
+      {panel.type === "kpi" ? <PhoneStats panel={panel} openDrawer={openDrawer} /> : null}
+      {panel.type === "table" ? <PhoneTable panel={panel} openDrawer={openDrawer} /> : null}
+      {panel.type === "list" ? <PhoneList panel={panel} openDrawer={openDrawer} /> : null}
+      {panel.type === "note" ? <PhoneNote panel={panel} openDrawer={openDrawer} /> : null}
+      {panel.type === "facts" ? <PhoneFacts panel={panel} openDrawer={openDrawer} /> : null}
+      {panel.type === "steps" ? <PhoneSteps panel={panel} /> : null}
+    </div>
   );
 }
 
@@ -1908,9 +1917,25 @@ function PanelViewDesktop({
           {entry.label}
         </Link>
       );
+    /* A phone gets one scrolling row of chips, as the student mockup draws it: the term names, the session only when there is more than one. */
+    const phoneChip = (entry: PanelChip) => {
+      const base = "flex min-h-[40px] flex-none items-center whitespace-nowrap rounded-full border-[1.5px] px-[15px] text-[13px] font-extrabold";
+      if (entry.disabled || !entry.href) return <span key={entry.label} className={base} style={{ background: "#F4F6F5", color: "#8C9A92", borderColor: "#E1E8E4" }}>{entry.label}</span>;
+      return (
+        <Link key={entry.label} href={entry.href as Route} className={base} style={entry.on ? { background: "#DDF0E7", color: INK, borderColor: INK } : { background: "#fff", color: "#5F6E65", borderColor: "#E1E8E4" }}>
+          {entry.label}
+        </Link>
+      );
+    };
     return (
+      <>
+      <nav aria-label="Pick a term" className="flex min-w-0 gap-[8px] overflow-x-auto pb-[2px] md:hidden" style={{ scrollbarWidth: "none" }}>
+        {panel.sessions.length > 1 ? panel.sessions.map(phoneChip) : null}
+        {panel.terms.map(phoneChip)}
+        {panel.back ? <Link href={panel.back.href as Route} className="flex min-h-[40px] flex-none items-center whitespace-nowrap rounded-full px-[15px] text-[13px] font-extrabold" style={{ background: "#EEF4F0", color: INK }}>{panel.back.label}</Link> : null}
+      </nav>
       <section
-        className="flex min-w-0 flex-wrap items-center gap-x-[18px] gap-y-[10px] rounded-[13px] border bg-(--color-bg-surface) px-[14px] py-[11px]"
+        className="flex min-w-0 flex-wrap items-center gap-x-[18px] gap-y-[10px] rounded-[13px] border bg-(--color-bg-surface) px-[14px] py-[11px] max-md:hidden"
         style={{ borderColor: CARD_BORDER }}
         aria-label="Pick a term"
       >
@@ -1943,6 +1968,7 @@ function PanelViewDesktop({
           ) : null}
         </div>
       </section>
+      </>
     );
   }
 

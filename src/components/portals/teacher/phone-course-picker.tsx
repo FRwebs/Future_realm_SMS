@@ -43,7 +43,7 @@ export function PhoneCoursePicker({ title, tag, sub, items, template, openDrawer
                   <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><path d={item.icon} /></svg>
                 </span>
                 <span className="min-w-0 flex-1">
-                  <span className="block text-pretty text-[14px] font-bold leading-[1.35] text-[#0D2315]">{item.title}</span>
+                  <span className="block text-pretty text-[13.5px] font-bold leading-[1.35] text-[#0D2315]">{item.title}</span>
                   <span className="mt-[3px] block text-pretty text-[12.5px] font-medium leading-[1.45] text-[#5C6B62]">{item.sub}</span>
                   {item.bar ? (
                     <span className="mt-[8px] flex items-center gap-[10px]">
@@ -53,7 +53,7 @@ export function PhoneCoursePicker({ title, tag, sub, items, template, openDrawer
                   ) : null}
                 </span>
                 <span className="flex max-w-[40%] flex-none flex-col items-end gap-[5px] text-right">
-                  {item.price ? <span className="text-[14px] font-extrabold text-[#0D2315]">{item.price}</span> : null}
+                  {item.price ? <span className="text-[13.5px] font-extrabold text-[#0D2315]">{item.price}</span> : null}
                   <Pill label={item.pill} tone={item.tone} />
                 </span>
               </Link>
@@ -64,7 +64,7 @@ export function PhoneCoursePicker({ title, tag, sub, items, template, openDrawer
       {chosen.length ? (
         <div className="sticky bottom-0 z-[30] -mx-4 -mb-4 mt-[14px] flex items-center gap-[12px] rounded-t-[22px] bg-white px-[14px] pb-[12px] pt-[10px]" style={{ boxShadow: "0 -12px 30px -22px rgba(13,35,21,0.45)" }}>
           <span className="min-w-0 flex-1 text-[13px] font-bold text-[#435048]">{chosen.length} selected{total ? ` · ₦${(total / 100).toLocaleString("en-NG", { maximumFractionDigits: 0 })}` : ""}</span>
-          <button type="button" onClick={() => openDrawer?.({ ...template, submit: { ...template.submit!, body: { courseIds: chosen.map((item) => item.id) } } })} className="h-[52px] flex-none rounded-[16px] bg-[#0D2315] px-[22px] text-[15px] font-extrabold text-white">Add to basket</button>
+          <button type="button" onClick={() => openDrawer?.({ ...template, submit: { ...template.submit!, body: { courseIds: chosen.map((item) => item.id) } } })} className="h-[52px] flex-none rounded-[16px] bg-[#0D2315] px-[22px] text-[14px] font-extrabold text-white">Add to basket</button>
         </div>
       ) : null}
     </section>

@@ -38,7 +38,7 @@ export async function StudentView({ page, query }: { page: string; query: Record
   const content = await built;
   const active = content.tab ?? content.tabs?.[0]?.label ?? "";
   return (
-    <ModuleWorkspace eyebrow={content.eyebrow ?? "Your school"} title={content.title ?? ""} description={content.desc ?? ""} primary={content.primary} launchers={content.launchers} rows={content.rows ?? []} back={undefined}>
+    <ModuleWorkspace eyebrow={content.eyebrow ?? "Your school"} title={content.title ?? ""} description={content.desc ?? ""} primary={content.primary} phonePrimary={content.phonePrimary} launchers={content.launchers} rows={content.rows ?? []} back={undefined}>
       {content.tabs?.length ? <StudentTabs tabs={content.tabs} active={active} ariaLabel={`${content.title} tabs`} /> : null}
     </ModuleWorkspace>
   );

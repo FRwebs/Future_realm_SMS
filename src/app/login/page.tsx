@@ -1,10 +1,12 @@
 import { LoginForm } from "@/components/forms/login-form";
+import { LoginPhoneHero } from "@/components/forms/login-phone-hero";
 import { LanguagePicker } from "@/components/layout/language-picker";
 
 export default async function LoginPage({ searchParams }: { searchParams: Promise<{ verified?: string }> }) {
   const { verified } = await searchParams;
   return (
-    <main className="flex min-h-screen text-[#0d2315]">
+    <main className="flex min-h-screen text-[#0d2315] max-md:flex-col max-md:bg-[#F4F7F5] max-md:[font-family:Nunito,system-ui,-apple-system,sans-serif]">
+      <LoginPhoneHero />
       <div
         className="relative hidden min-w-0 flex-col justify-between overflow-hidden px-10 py-12 md:flex md:flex-[1.05] lg:px-14"
         style={{ background: "#0d2315" }}
@@ -65,32 +67,29 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
         </div>
       </div>
 
-      <div className="flex min-w-0 flex-1 items-center justify-center bg-[#ffffff] px-6 py-10 sm:px-10">
-        <div className="w-full max-w-[380px]">
-          <span className="mb-9 inline-flex items-center gap-2 rounded-full border border-[#dee8e2] bg-[#f4f8f6] px-3 py-1.5 md:hidden">
-            <span className="h-2 w-2 rounded-full" style={{ background: "var(--color-gold)" }} />
-            <span className="text-xs font-bold tracking-[0.08em] text-[#0d2315]">FUTUREREALM SMS</span>
-          </span>
+      <div className="flex min-w-0 flex-1 items-center justify-center bg-[#ffffff] px-6 py-10 sm:px-10 max-md:items-stretch max-md:justify-start max-md:bg-transparent max-md:px-5 max-md:pb-[calc(30px+env(safe-area-inset-bottom))] max-md:pt-[22px]">
+        <div className="w-full max-w-[380px] max-md:max-w-none">
           <div className="mb-9 hidden md:block">
             <span className="font-(--font-heading) text-lg font-extrabold text-[#0d2315]">FutureRealm SMS</span>
           </div>
 
           {verified ? (
-            <div className="mb-6 flex items-start gap-[9px] rounded-[11px] border border-[#cfe4db] bg-[#edf7f1] px-3 py-[11px]">
+            <div className="mb-6 flex items-start gap-[9px] rounded-[11px] border border-[#cfe4db] bg-[#edf7f1] px-3 py-[11px] max-md:mb-[18px] max-md:gap-[11px] max-md:rounded-2xl max-md:border-0 max-md:bg-[#E3F1EA] max-md:px-3.5 max-md:py-3">
               <svg width="14.5" height="14.5" viewBox="0 0 24 24" fill="none" stroke="#12796a" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" className="mt-px shrink-0">
                 <circle cx="12" cy="12" r="9" />
                 <path d="m8 12.4 2.6 2.6L16 9.6" />
               </svg>
-              <div className="text-[11px] leading-normal text-[#17604f]">
+              <div className="text-[11px] leading-normal text-[#17604f] max-md:text-[13px] max-md:font-semibold max-md:leading-[1.5]">
                 <b>Email verified.</b> Sign in with the email address or the User ID we sent you.
               </div>
             </div>
           ) : null}
-          <h2 className="font-(--font-heading) text-[26px] font-bold tracking-[-0.01em] text-[#0d2315]">
+          <h2 className="font-(--font-heading) text-[26px] font-bold tracking-[-0.01em] text-[#0d2315] max-md:font-[inherit] max-md:text-[21px] max-md:font-extrabold max-md:leading-[1.15] max-md:tracking-[-0.02em]">
             Welcome back
           </h2>
-          <p className="mb-[30px] mt-1.5 text-[13.5px] text-[#5f6e65]">
-            Sign in with your email address or User ID
+          <p className="mb-[30px] mt-1.5 text-[13.5px] text-[#5f6e65] max-md:mb-[22px] max-md:text-[13.5px] max-md:leading-normal">
+            <span className="max-md:hidden">Sign in with your email address or User ID</span>
+            <span className="md:hidden">One sign-in · online or off</span>
           </p>
 
           <LoginForm />

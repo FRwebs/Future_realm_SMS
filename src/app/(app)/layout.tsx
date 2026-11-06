@@ -11,7 +11,7 @@ import { getStudentBadges, getStudentChrome } from "@/lib/api/student-workspace"
 import { getTeacherBadges, getTeacherWorkspace } from "@/lib/api/teacher-workspace";
 import { getParentChrome, getParentRail } from "@/lib/api/parent-workspace";
 import { PARENT_PHONE_TABS, parentHref, parentNavigation, parentPages, parentPhoneTabLabel, visibleParentPages } from "@/lib/modules/parent-workspace";
-import { studentNavigation } from "@/lib/modules/student-workspace";
+import { STUDENT_PHONE_TABS, studentNavigation, studentPhoneTabLabel } from "@/lib/modules/student-workspace";
 import { teacherNavigation, teacherPhoneTabLabelFor, teacherPhoneTabOrder } from "@/lib/modules/teacher-workspace";
 import { getServerPermissions } from "@/lib/auth/server-access";
 import { getServerSession } from "@/lib/auth/session";
@@ -63,7 +63,7 @@ export default async function AppLayout({
       : session.role === "PARENT" && parentRail
         ? parentNavigation(parentRail.sees)
         : null;
-  // The bottom bar on a phone. Only the two portals whose mockups draw one get
+  // The bottom bar on a phone. Only the three portals whose mockups draw one get
   // it; which four tabs is each portal's own rule.
   const phoneTabs = (() => {
     if (session.role === "PARENT" && parentRail) {
@@ -72,6 +72,13 @@ export default async function AppLayout({
         .filter((page) => visible.includes(page.slug))
         .map((page) => ({ id: `p_${page.slug}`, label: page.label, short: parentPhoneTabLabel[page.slug] ?? page.label, icon: page.icon, href: parentHref(page.slug) }));
       return { items, primaryIds: PARENT_PHONE_TABS.map((slug) => `p_${slug}`).filter((id) => items.some((item) => item.id === id)), label: "Parent portal" };
+    }
+    if (session.role === "STUDENT" && teacherRail && "groups" in teacherRail && teacherRail.groups) {
+      const items = teacherRail.groups.flatMap((group) => group.items).map((item) => {
+        const slug = item.id.replace(/^s_/, "");
+        return { id: item.id, label: item.label, short: studentPhoneTabLabel[slug as keyof typeof studentPhoneTabLabel] ?? item.label, icon: item.iconPath, href: item.href };
+      });
+      return { items, primaryIds: STUDENT_PHONE_TABS.map((slug) => `s_${slug}`).filter((id) => items.some((item) => item.id === id)), label: "Student portal" };
     }
     if (teacher && teacherRail && "items" in teacherRail) {
       const items = teacherRail.items.map((item) => ({

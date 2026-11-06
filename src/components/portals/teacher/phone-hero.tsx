@@ -44,7 +44,7 @@ export function PhoneHero({ eyebrow, title, sub, icon, chips, cta }: HeroProps) 
           </div>
         ) : null}
         {cta ? (
-          <Link href={cta.href as Route} className="relative mt-[16px] flex h-[48px] items-center justify-center gap-[8px] rounded-[14px] bg-white px-[18px] text-[14px] font-extrabold text-[#0D2315] active:scale-[0.98]">
+          <Link href={cta.href as Route} className="relative mt-[16px] flex h-[48px] items-center justify-center gap-[8px] rounded-[14px] bg-white px-[18px] text-[13.5px] font-extrabold text-[#0D2315] active:scale-[0.98]">
             <span className="truncate">{cta.label}</span>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d={ARROW} /></svg>
           </Link>

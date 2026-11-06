@@ -97,12 +97,12 @@ export function ParentMoreSheet({ items, primaryIds, counts, urgent, session, ki
 
         <Link href={"/portals/parent/account" as Route} className="relative mt-[16px] flex items-center gap-[12px] overflow-hidden rounded-[20px] px-[14px] py-[14px]" style={{ background: INK }}>
           <span aria-hidden className="absolute -right-[40px] -top-[60px] h-[150px] w-[150px] rounded-full border-[1.5px]" style={{ borderColor: "rgba(95,214,180,0.14)" }} />
-          <span className="relative flex h-[46px] w-[46px] flex-none items-center justify-center rounded-full bg-[#E3F1EA] text-[15px] font-extrabold" style={{ color: INK }}>{initials(session.name)}</span>
+          <span className="relative flex h-[46px] w-[46px] flex-none items-center justify-center rounded-full bg-[#E3F1EA] text-[14px] font-extrabold" style={{ color: INK }}>{initials(session.name)}</span>
           <span className="relative min-w-0 flex-1">
             <span className="block truncate text-[16px] font-extrabold text-white">{session.name}</span>
             <span className="mt-[1px] block truncate text-[12.5px] font-medium" style={{ color: "rgba(255,255,255,0.7)" }}>Parent · {kids} {kids === 1 ? "child" : "children"}{schools > 1 ? ` · ${schools} schools` : school ? ` · ${school}` : ""}</span>
           </span>
-          <span className="relative flex flex-none items-center gap-[3px] text-[13.5px] font-extrabold" style={{ color: "#5FD6B4" }}>Account <Glyph path={CHEVRON} size={15} stroke={2.2} /></span>
+          <span className="relative flex flex-none items-center gap-[3px] text-[13px] font-extrabold" style={{ color: "#5FD6B4" }}>Account <Glyph path={CHEVRON} size={15} stroke={2.2} /></span>
         </Link>
 
         {[...groups, ...(loose.length ? [{ title: "Also for you", items: loose }] : [])].map((group) => (
@@ -117,7 +117,7 @@ export function ParentMoreSheet({ items, primaryIds, counts, urgent, session, ki
                 <Link key={entry.label} href={entry.href as Route} className="flex min-h-[60px] items-center gap-[12px] px-[14px] py-[10px]" style={index === quick.length - 1 ? undefined : { borderBottom: "1px solid #EDF3EF" }}>
                   <span className="flex h-[40px] w-[40px] flex-none items-center justify-center rounded-full" style={{ background: "#EEF4F0", color: "#17604F" }}><Glyph path={entry.icon} size={18} /></span>
                   <span className="min-w-0 flex-1">
-                    <span className="block text-[14.5px] font-bold leading-[1.3]" style={{ color: INK }}>{entry.label}</span>
+                    <span className="block text-[13.5px] font-bold leading-[1.3]" style={{ color: INK }}>{entry.label}</span>
                     <span className="mt-[2px] block text-[12.5px] font-medium leading-[1.4]" style={{ color: MUTED }}>{entry.sub}</span>
                   </span>
                   <span style={{ color: "#A5B2AA" }}><Glyph path={CHEVRON} size={17} stroke={2} /></span>
@@ -127,7 +127,7 @@ export function ParentMoreSheet({ items, primaryIds, counts, urgent, session, ki
           </>
         ) : null}
 
-        <button type="button" onClick={() => void signOut()} className="mt-[22px] flex min-h-[54px] w-full items-center justify-center gap-[9px] rounded-[16px] text-[15px] font-extrabold" style={{ ...CARD, color: "#B23B3B" }}>
+        <button type="button" onClick={() => void signOut()} className="mt-[22px] flex min-h-[54px] w-full items-center justify-center gap-[9px] rounded-[16px] text-[14px] font-extrabold" style={{ ...CARD, color: "#B23B3B" }}>
           <Glyph path={OUT} size={18} stroke={2} />Sign out
         </button>
         <p className="mt-[10px] px-[10px] text-center text-[12.5px] font-medium leading-[1.45]" style={{ color: MUTED }}>Anything not yet synced stays saved on this device.</p>
