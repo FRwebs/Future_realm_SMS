@@ -171,7 +171,7 @@ export function completionArmPage(a: CompletionArmPage, school: string): { conte
       {
         type: "list", title: "How these cards go out", sub: "Publishing is in-app. Anything else is a separate send.",
         items: [
-          { label: "Publish to the student and guardian portal", sub: "Free · instant · both portals at once. The family is notified in-app.", pill: sum.ready ? `${sum.ready} ready` : "Nothing ready", tone: sum.ready ? "positive" : "neutral", viewLabel: "Publish", drawer: sum.ready ? publish : undefined },
+          { label: "Publish to the student and guardian portal", sub: "Free · instant · both portals · the family is notified in-app", pill: sum.ready ? `${sum.ready} ready` : "Nothing ready", tone: sum.ready ? "positive" : "neutral", viewLabel: "Publish", drawer: sum.ready ? publish : undefined },
           { label: "Send by SMS with a portal link", sub: `1 credit per guardian · ${plural(a.guardians, "guardian")} · the card is not attached, only linked.`, pill: "Costed", tone: "attention", viewLabel: "Send", drawer: send },
           { label: "Email a link to the card", sub: `Free · ${plural(a.emails, "guardian")} with an email on file.`, pill: "Free", tone: "positive", viewLabel: "Send", drawer: send },
           { label: "Print for collection", sub: `One run, ${sum.roll - sum.blocked} pages, in roll order, with the school stamp block.`, pill: "Print", tone: "neutral", viewLabel: "Print", drawer: print },

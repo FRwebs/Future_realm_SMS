@@ -86,7 +86,7 @@ export function structuresTab(data: Structures, terms: string[]): TabContent {
             per: 10,
             emptyTitle: "No fee structure yet",
             emptyBody: "Create the first one: the classes it charges and every item on it. Nothing is billed until you publish it.",
-            foot: "A class sits on one structure of each kind at a time. A boarding student is billed their class structure plus the boarding supplement.",
+            foot: "One of each kind per class · a boarder is billed class plus boarding",
           },
         ],
       },

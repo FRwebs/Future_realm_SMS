@@ -966,7 +966,7 @@ const curriculumTab: TabContent = {
             ],
           }),
         ),
-        foot: "Absent handling: excluded from the average, never scored zero.",
+        foot: "Absent · excluded from the average · never scored zero",
       },
       {
         type: "table" as const,

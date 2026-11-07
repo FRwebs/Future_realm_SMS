@@ -33,7 +33,7 @@ export function markTab(o: Overview): TabContent {
     desc: "Choose the class arm first.",
     primary: { label: "Open the whole-school view", icon: "M5 12h13M13 6.5l5.5 5.5L13 17.5", href: "/attendance/register" },
     rows: [
-      { cols: "1fr", panels: [{ type: "note", tone: "progress", icon: WARN, title: "Marking is normally the form master's job", body: "This is here for the days you have to do it yourself — a teacher is away, a phone has died, a register was never opened. Everything you mark here is logged under your name.", acts: [{ label: "See who has not marked", href: "/attendance/compliance" }] }] },
+      { cols: "1fr", panels: [{ type: "note", tone: "progress", icon: WARN, title: "Marking is normally the form master's job", body: "Everything you mark here is logged under your name. This is here for the days you have to do it yourself — a teacher is away, a phone has died, a register was never opened.", acts: [{ label: "See who has not marked", href: "/attendance/compliance" }] }] },
       ...(o.note ? [{ cols: "1fr", panels: [{ type: "note" as const, tone: "progress" as const, icon: WARN, title: "Showing an earlier day", body: `${o.note} Choosing an arm below opens that day's register.` }] }] : []),
       {
         cols: "1fr",

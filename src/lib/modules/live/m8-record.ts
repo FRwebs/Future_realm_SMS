@@ -404,7 +404,7 @@ function wellbeing({ d, wrap }: Body): RecordPage {
             title: "Health and welfare",
             tag: "Sensitive",
             tagTone: "sensitive",
-            sub: "Summary only. Opening the full record writes your name and the time to the audit log — at the moment you continue.",
+            sub: "Opening the full record writes your name to the audit log. Summary only until then.",
             per: 1,
             acts: [{ label: "Reveal the full record", primary: true, drawer: sensitiveDrawer(d) }],
             facts: [["Known conditions", health?.conditions ?? "None recorded"], ["Allergies", health?.allergies ?? "None recorded"], ["Emergency contact", d.family.guardians[0] ? `${d.family.guardians[0].name} · ${d.family.guardians[0].phone}` : "No guardian on file"], ["Second emergency contact", d.family.guardians[1] ? `${d.family.guardians[1].name} · ${d.family.guardians[1].phone}` : "None on file"], ["Behind the reveal", "Blood group, genotype, counselling notes, disciplinary file"]],

@@ -34,7 +34,7 @@ export function absenceReasonDrawer(o: { classId: string; arm: string; date: str
       select("Reason", ABSENCE_REASONS, { required: true, span: 2, hint: "Optional by policy for a late, required in practice for an absence" }),
       area("In their own words", { span: 2, optional: true, placeholder: "What the child or guardian actually said. Left blank, only the reason above is recorded." }),
       toggle("Evidence provided", false, "Evidence seen and noted", "No evidence", { span: 2 }),
-      toggle("Treat as excused rather than absent", false, "Excused · excluded from the average", "Absent · counts against attendance", { span: 2, hint: "Excusing changes the child's term percentage, so it is logged with your name — and on an earlier day it needs an approver." }),
+      toggle("Treat as excused rather than absent", false, "Excused · excluded from the average", "Absent · counts against attendance", { span: 2, hint: "Logged with your name, and an earlier day needs an approver. Excusing changes the child's term percentage." }),
     ],
     submit: { endpoint: `${AT}/reasons`, method: "POST", body: { classId: o.classId, date: o.date }, map: { Children: "students", Reason: "reason", "In their own words": "explanation", "Evidence provided": "evidence", "Treat as excused rather than absent": "excuse" } },
   };

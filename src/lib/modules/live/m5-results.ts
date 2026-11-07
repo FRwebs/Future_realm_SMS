@@ -136,7 +136,7 @@ export function armResultPage(a: ArmBroadsheet, corrections: Correction[], optio
               [text("Subject average", { strong: true }), ...subjects.map((subject) => text(num(subject.mean), { mono: true })), text(""), text(num(s.average), { mono: true, strong: true }), text(""), text("")],
               [text("Pass rate", { strong: true }), ...passRates.map((value) => text(value, { mono: true })), text(""), text(s.pass === null ? "—" : `${s.pass}%`, { mono: true, strong: true }), text(""), text("")],
             ],
-            foot: "A blocked row is a child with a score still missing or unapproved — they are excluded from positions until it arrives, never given a zero.",
+            foot: "Blocked · excluded from positions until it arrives · never a zero",
           }],
         },
         {
@@ -190,7 +190,7 @@ export function studentResultPage(p: StudentPage, from: "review" | "results", op
           { kind: "action" as const, label: "Trace", drawer: { mode: "view", kicker: "Score trace", title: `${subject.name} · ${p.student.name}`, readOnly: true, load: `/score-entry-results/drawers/subject/${p.arm.id}/${p.student.id}/${subject.subjectId}` } },
         ],
       })),
-      foot: "A blank is not a zero and an absence is not a zero — both are excluded from the average, and the report card says which.",
+      foot: "Blank and absence are never zeros · both excluded from the average",
     }],
   });
   rows.push({

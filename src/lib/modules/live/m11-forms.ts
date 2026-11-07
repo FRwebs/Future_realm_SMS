@@ -68,7 +68,7 @@ export function switchDrawer(p: Plan): DrawerSpec {
       choice("Switch to", options, { span: 2, required: true, value: TIER_LABEL(target.name, target.rate) }),
       ...p.comparison.tiers.filter((tier) => tier.key !== p.tier).map((tier) => ({ ...fixed(`What ${tier.name} costs you`, `${naira(tier.term)} a term`, { hint: tier.term < p.thisTerm.amount ? `Saves ${naira(p.thisTerm.amount - tier.term)} a term at your current roll` : `${naira(tier.term - p.thisTerm.amount)} more a term at your current roll` }), when: { field: "Switch to", includes: tier.name } })),
       choice("Takes effect", ["Start of next term", "Start of next session"], { span: 2, value: "Start of next term" }),
-      select("Reason for the switch", ["Cost", "We do not use the extra features", "Roll is falling", "Roll is growing", "Moving to a higher tier", "Other"], { span: 2, value: "Cost", hint: "Used only to improve the product — it never changes what you are charged." }),
+      select("Reason for the switch", ["Cost", "We do not use the extra features", "Roll is falling", "Roll is growing", "Moving to a higher tier", "Other"], { span: 2, value: "Cost", hint: "It never changes what you are charged — used only to improve the product." }),
       toggle("Keep the credits already bought", true, "Kept · credits never expire with a plan change", "Refund them to the account", { span: 2 }),
     ],
     submit: { endpoint: `${SB}/plan/switch`, method: "POST", map: { "Switch to": "to", "Takes effect": "effective", "Reason for the switch": "reason", "Keep the credits already bought": "keepCredits" } },

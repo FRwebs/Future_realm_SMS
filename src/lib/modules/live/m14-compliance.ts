@@ -57,7 +57,7 @@ export function complianceTab(c: Compliance): TabContent {
         keywords: `${item.name} ${item.body} body:${item.body} state:${item.status} owner:${item.ownerRole ?? ""} ${item.days <= 14 ? "due:14" : ""} ${item.days <= 35 ? "due:35" : ""}`,
         cells: [nameCell(item.name, item.covers), text(item.body), text(dayLong(item.dueOn), { strong: true, tone: item.status === "FILED" ? "positive" : item.days <= 14 ? "negative" : item.days <= 35 ? "attention" : undefined }), item.status === "FILED" ? text("—") : text(String(item.days), { mono: true }), text(item.period), item.ownerRole ? nameCell(item.ownerRole, "Responsible", { avatar: false }) : text("Not named"), pill(STATE_LABEL[item.status] ?? item.status, STATE_TONE[item.status] ?? "neutral"), item.status === "FILED" ? { kind: "action" as const, label: "Download", href: archiveFor(c, item) } : item.ready ? { kind: "action" as const, label: "Generate", drawer: returnDrawer(item) } : { kind: "action" as const, label: "See what is missing", href: "/student-records/registry" }],
       })),
-      foot: "A return is built from live data at the moment you generate it, never from a cached figure — and every generated copy is archived with who produced it.",
+      foot: "From live data, never a cache · every copy archived with who produced it",
     }],
   });
   rows.push({

@@ -791,7 +791,7 @@ const complianceTab: TabContent = {
             keywords: `${entry.body} ${entry.owner}`,
           };
         }),
-        foot: "A return is built from live data at the moment you generate it, never from a cached figure — and every generated copy is archived with who produced it.",
+        foot: "From live data, never a cache · every copy archived with who produced it",
       },
     ]),
     row("1.1fr 1fr", [

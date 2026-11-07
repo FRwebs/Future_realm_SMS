@@ -135,7 +135,7 @@ export function routePage(p: RoutePage): RoutePageView {
           { label: "1 · Someone raises it", sub: `In ${r.module}. They are told who it went to.`, pill: "Automatic", tone: "neutral" },
           { label: `2 · ${r.approver} decides`, sub: "They see the request, the reason, the evidence and what it blocks. They can approve, return it with a comment, or decline it with a reason.", pill: r.open ? `${r.open} here now` : "Clear", tone: r.open ? ("attention" as const) : ("positive" as const) },
           ...(r.second ? [{ label: `3 · ${r.second} confirms`, sub: "A second pair of eyes. Both must agree; either can return it.", pill: "Required", tone: "submitted" as const }] : []),
-          { label: `${r.second ? "4" : "3"} · It is applied`, sub: "The module that holds it applies the change, the requester is told, and the whole path is written to the audit log.", pill: "Automatic", tone: "neutral" },
+          { label: `${r.second ? "4" : "3"} · It is applied`, sub: "The requester is told and the whole path is written to the audit log. The module that holds it applies the change.", pill: "Automatic", tone: "neutral" },
           { label: `If nobody decides within ${dayText(r.escalateDays)}`, sub: `It escalates to ${p.config.escalateTo.replace(/^The /, "the ")}, who is told, and the thread says so.`, pill: "Escalation", tone: "negative" },
         ],
         readOnly: true,

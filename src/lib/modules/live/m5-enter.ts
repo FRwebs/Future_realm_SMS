@@ -29,7 +29,7 @@ export const when = (iso: string | null | undefined) => (iso ? formatDay(new Dat
 
 export function enterTab(c: Chooser): TabContent {
   const rows: PanelRow[] = [];
-  rows.push({ cols: "1fr", panels: [{ type: "note", tone: "progress", icon: WARN, title: "Entering scores is normally the subject teacher's job", body: "This is here for when you have to do it yourself. Everything you enter is logged under your name — and because you entered it, you will not be allowed to approve it.", acts: [{ label: "See who has not submitted", href: "/score-entry-results/review" }] }] });
+  rows.push({ cols: "1fr", panels: [{ type: "note", tone: "progress", icon: WARN, title: "Entering scores is normally the subject teacher's job", body: "Everything you enter is logged under your name, and you cannot approve what you entered. This is here for when you have to do it yourself.", acts: [{ label: "See who has not submitted", href: "/score-entry-results/review" }] }] });
   if (c.unavailable) {
     rows.push({ cols: "1fr", panels: [{ type: "note", tone: "attention", icon: WARN, title: "No arm has subjects to enter scores for yet", body: "A sheet is a subject in an arm. Offer subjects to an arm and name a teacher for each on Class & Timetable, and its sheets appear here.", acts: [{ label: "Open Class & Timetable", href: "/class-timetable/teaching" }] }] });
     return { title: "Enter scores", desc: "Choose the class, the arm, then the subject.", rows };
@@ -97,7 +97,7 @@ export function enterTab(c: Chooser): TabContent {
         type: "table", title: "Sheets outstanding across the school", sub: "Or choose an arm above to enter by class instead.", meta: `${c.outstanding.length} of ${k.expected} sheets not yet approved`, search: "Find by subject, arm or teacher",
         filters: [{ label: "Arm", value: "All", options: ["All", ...arms], column: 1 }, { label: "State", value: "All", options: ["All", "Not started", "In progress", "Submitted", "Returned", "Unassigned"], match: Object.fromEntries(["Not started", "In progress", "Submitted", "Returned", "Unassigned"].map((state) => [state, `state:${state}`])) }],
         head: ["Subject", "Arm", "Teacher", "Entered", "State", ""], noun: "sheet", nounPlural: "sheets", per: 10, rows: c.outstanding.map((sheet) => subjectRow(sheet, true)),
-        empty: "Every sheet is approved.", foot: "A sheet with no teacher cannot be entered by anyone until someone is named for it.",
+        empty: "Every sheet is approved.", foot: "No teacher named · the sheet cannot be entered by anyone",
       }],
     });
   }
@@ -182,7 +182,7 @@ export function previewPage(g: Grid): { content: TabContent & Crumb } {
         ],
       })),
       summaryRows: [[text(""), text("Subject average", { strong: true }), text(`${s.scored} scored`), ...g.columns.map(() => text("")), text(num(s.mean), { mono: true, strong: true }), text(""), text(""), text(s.armMean === null ? "" : `Arm average ${s.armMean}`), text("")]],
-      foot: "This is the sheet as it will be submitted. After submission you can no longer edit it — a change needs a correction request with a reason.",
+      foot: "Once submitted · a change needs a correction request with a reason",
     }],
   });
   rows.push({
@@ -272,7 +272,7 @@ export function broadsheetPage(b: BroadsheetEnter): { content: TabContent & Crum
             rows: subjects.map((subject) => ({
               cells: [text(subject.name, { strong: true }), text(subject.code, { mono: true }), subject.teacher ? nameCell(subject.teacher, "Subject teacher") : text("Unassigned", { tone: "negative", strong: true }), text(String(subject.scored), { mono: true }), text(num(subject.mean), { mono: true }), pill(subject.state as State, stateTone(subject.state)), subject.teacher ? { kind: "action" as const, label: "Open", href: gridHref(b.arm.id, subject.subjectId) } : { kind: "action" as const, label: "Assign", href: "/class-timetable/teaching" }],
             })),
-            foot: "A subject with no teacher named cannot be entered by anyone — assign one on Class & Timetable first.",
+            foot: "No teacher named · nobody can enter it · assign one on Class & Timetable",
           }],
         },
       ],

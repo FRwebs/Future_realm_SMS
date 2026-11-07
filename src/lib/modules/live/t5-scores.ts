@@ -669,7 +669,7 @@ export function studentWorkingPage(st: StudentResult): Content {
       ] as TableCellKind[],
     })),
     summaryRows: [[{ kind: "name", name: "Total", sub: st.ranked ? `Grade ${st.grade} · position ${st.pos} of ${st.of}` : "Not ranked", avatar: false }, st.complete && st.total !== null ? text(`${st.total} of ${maxTotal}`, { mono: true, strong: true }) : text("—", { tone: "neutral" }), text(""), st.classMean === null ? text("—", { tone: "neutral" }) : text(String(st.classMean), { mono: true })]],
-    foot: "An absence is excluded from the average and from positions.",
+    foot: "Absence · excluded from the average and from positions",
   };
   void cell;
   const from = Math.max(0, Math.min(at - 4, st.peers.length - 10));
