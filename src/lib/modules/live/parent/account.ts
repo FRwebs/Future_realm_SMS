@@ -153,7 +153,7 @@ async function securityTab(head: Head, account: Account): Promise<ParentContent>
         empty: "No other device is signed in.", items: deviceItems,
       }]),
       row("1fr", [{
-        type: "table", title: "Recent sign-ins", sub: "If one is not you, change your password and tell the school office.",
+        type: "table", title: "Recent sign-ins", sub: "Not you? Change your password and tell the school office.",
         noun: "sign-in", nounPlural: "sign-ins", head: ["When", "Device", "Result"], rows: signIns, per: 12, dense: true, noRowOpen: true,
         empty: "No sign-ins are on record yet.",
       }]),
