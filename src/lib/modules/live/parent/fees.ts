@@ -502,7 +502,7 @@ function childFees(entry: FeeChild, data: Fees, query: Record<string, string | u
   if (owedNow && !reports.length) {
     rows.push(row("1fr", [{
       type: "note", tone: "neutral", title: "Three ways to pay",
-      body: "Pay now by card, bank transfer or USSD. Or pay into the school’s account or at the bursary, then tell the bursar here so it can be matched and receipted. Or ask for a payment plan if the whole bill at once is difficult.",
+      body: "Pay now by card, transfer or USSD. Paid another way? Tell the bursar so it is matched. Or ask for a payment plan if the whole bill at once is difficult.",
       acts: [
         ...(pay ? [{ label: `Pay ${money(entry.payAmount)}`, primary: true, drawer: pay }] : []),
         { label: "I have paid", drawer: reportPaid([entry], entry) },

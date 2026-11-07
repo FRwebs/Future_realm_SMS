@@ -175,7 +175,7 @@ export async function accountPage(): Promise<StudentContent> {
         },
         { type: "embed", component: "student-two-step", props: { enabled: sec.mfaEnabled, since: sec.mfaEnrolledAt } },
       ]),
-      row("1fr", [{ type: "table", title: "Recent sign-ins", sub: "The last times this account was signed in to. If one is not you, change your password and tell your form master.", noun: "sign-in", nounPlural: "sign-ins", head: ["Device", "When", "Result"], rows, per: 12, dense: true, noRowOpen: true, empty: "No sign-ins are on record yet." }]),
+      row("1fr", [{ type: "table", title: "Recent sign-ins", sub: "Not you? Change your password and tell your form master.", noun: "sign-in", nounPlural: "sign-ins", head: ["Device", "When", "Result"], rows, per: 12, dense: true, noRowOpen: true, empty: "No sign-ins are on record yet." }]),
     ],
   };
 }

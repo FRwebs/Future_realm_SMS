@@ -105,7 +105,7 @@ const KINDS: Array<{ type: string; label: string; sub: string; need: "child" | "
   { type: "Absence explanation", label: "Explain an absence", sub: "Tell the school why your child was away, or will be.", need: "child" },
   { type: "Record correction", label: "Update your child’s record", sub: "Fix a wrong detail, or add a collection person.", need: "child" },
   { type: "Result query", label: "Ask about a result", sub: "A score or grade that looks wrong to you.", need: "child" },
-  { type: "Fee query", label: "Fees: a question or a payment", sub: "Tell the bursar about a payment, question a line, or ask for a plan.", need: "any" },
+  { type: "Fee query", label: "Fees: a question or a payment", sub: "A payment, a line you question, or a plan.", need: "any" },
   { type: "Meeting request", label: "Request a meeting", sub: "With the form master, a teacher or the Principal.", need: "any" },
 ];
 
