@@ -22,7 +22,7 @@ import {
 } from "lucide-react";
 
 import { usePhoneKind } from "@/components/layout/phone-shell";
-import { tightFor } from "@/lib/ui/tight-copy";
+import { useTightLine } from "@/components/modules/tight-line";
 import { Field, initialValue } from "@/components/modules/field";
 import { PhoneFacts, PhoneList, PhoneNote, PhoneStats, PhoneSteps, PhoneTable } from "@/components/modules/phone-teacher-panels";
 import { ModuleDrawer } from "@/components/modules/lazy-drawer";
@@ -273,8 +273,7 @@ export function PanelHeader({
 }) {
   const swatch = toneOf(tagTone);
   // The phone's copy rule: a panel heading that restates itself underneath loses the restatement rather than wrapping.
-  const phone = usePhoneKind() !== null;
-  const line = tightFor(phone, "bsub", sub);
+  const { node: line, hidePhone: subOffPhone } = useTightLine("bsub", sub);
 
   return (
     <div
@@ -307,7 +306,10 @@ export function PanelHeader({
         </div>
         {line ? (
           <p
-            className="panel-sub mt-[3.5px] text-pretty text-[10.5px] leading-normal"
+            className={cn(
+              "panel-sub mt-[3.5px] text-pretty text-[10.5px] leading-normal",
+              subOffPhone && "max-md:hidden",
+            )}
             style={{ color: MUTED }}
           >
             {line}
@@ -1511,6 +1513,20 @@ export function PanelView({ panel, openDrawer }: { panel: Panel; openDrawer: Ope
   );
 }
 
+/** A tile's second line, which the phone's copy rule may shorten or take away entirely. */
+function TileSub({ sub }: { sub?: string }) {
+  const { node, hidePhone } = useTightLine("tile", sub);
+  if (!node) return null;
+  return (
+    <span
+      className={cn("mt-[2.5px] block text-pretty text-[10px] leading-[1.45]", hidePhone && "max-md:hidden")}
+      style={{ color: MUTED }}
+    >
+      {node}
+    </span>
+  );
+}
+
 function PanelViewDesktop({
   panel,
   openDrawer,
@@ -1519,7 +1535,6 @@ function PanelViewDesktop({
   openDrawer: OpenDrawer;
 }) {
   // Whether a phone is reading this, for the slots whose copy shortens there.
-  const tilePhone = usePhoneKind() !== null;
   if (panel.type === "kpi") {
     // ONE card, everywhere in the product: same box, same 1px border, same label
     // scale, same numeral scale, same link affordance, same height. The state a
@@ -2151,14 +2166,7 @@ function PanelViewDesktop({
                     {tile.label}
                   </span>
                   {/* The phone's copy rule: a tile is a button with a label, and its second line earns its place or goes. */}
-                  {tightFor(tilePhone, "tile", tile.sub) ? (
-                    <span
-                      className="mt-[2.5px] block text-pretty text-[10px] leading-[1.45]"
-                      style={{ color: MUTED }}
-                    >
-                      {tightFor(tilePhone, "tile", tile.sub)}
-                    </span>
-                  ) : null}
+                  <TileSub sub={tile.sub} />
                 </span>
               </TriggerControl>
             );
