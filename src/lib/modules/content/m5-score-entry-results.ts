@@ -413,7 +413,7 @@ export const scoreEntryResultsContent: ModuleContent = {
             "",
           ],
           rows: byArmRows,
-          foot: "Blocked means a sheet cannot exist yet — nobody teaches that subject in that arm.",
+          foot: "Blocked · nobody teaches that subject in that arm, so no sheet exists",
         },
       ]),
       row("1fr", [
@@ -479,7 +479,7 @@ export const scoreEntryResultsContent: ModuleContent = {
           type: "note",
           tone: "progress",
           title: "Entering scores is normally the subject teacher's job",
-          body: "This is here for the days you have to do it yourself — a teacher is away, a sheet was never opened, a deadline has passed. Everything you enter here is logged under your name, and you cannot approve a sheet you entered.",
+          body: "Everything you enter here is logged under your name, and you cannot approve a sheet you entered. This is here for the days you have to do it yourself — a teacher is away, a sheet was never opened, a deadline has passed.",
         },
       ]),
       row("1fr", [
@@ -581,7 +581,7 @@ export const scoreEntryResultsContent: ModuleContent = {
             ],
             keywords: `${sheet.teacher} ${sheet.department}`,
           })),
-          foot: "A sheet cannot be entered for a subject nobody teaches — those read Blocked, and the fix is to map a teacher, not to type a score.",
+          foot: "Blocked · nobody teaches that subject · map a teacher, not a score",
         },
       ]),
     ],
@@ -689,7 +689,7 @@ export const scoreEntryResultsContent: ModuleContent = {
           ],
           head: ["Arm", "Form master", "Roll", "Computed", "Average", "Pass", "Top", "State", ""],
           rows: everyArmRows,
-          foot: "A student blocked on a missing score is excluded from positions until the score arrives — never given a zero, and never quietly ranked last.",
+          foot: "Blocked · excluded from positions until the score arrives · never a zero",
         },
       ]),
       row("1fr 1fr", [

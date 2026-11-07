@@ -71,7 +71,7 @@ function remarksTab(o: RemarksOverview, me: TeacherWorkspaceView, to: string | n
   }));
   const submit: DrawerSpec = {
     mode: "commit", kicker: "Report cards", title: `Submit the ${own.name} remarks`,
-    sub: "They go to the Principal together. After submission you cannot edit them without a correction request.",
+    sub: "After submission a change needs a correction request. They go to the Principal together.",
     facts: [["Class", own.name, `${n} children`], ["Submitted already", `${done} of ${n}`, ""], ["Drafts ready to submit", String(drafts), drafts ? "Each at least a sentence" : "Nothing to submit yet"], ["A blank remark", "Is published as one", "A card with no remark goes out with an empty box"], ["Goes to", to ?? "The Principal", o.publishDate ? `Publication is ${shortDate(o.publishDate.iso)}` : "No publication date is set"], ["Needs a connection", "Yes", "Drafts can be written offline; submission cannot"]],
     commitLabel: `Submit ${drafts} remark${drafts === 1 ? "" : "s"}`, commitDone: "Remarks submitted", commitDoneBody: `${to ?? "The Principal"} has them. You will be told if any come back.`,
     submit: { endpoint: `${API}/remarks/submit`, method: "POST", body: { classId: own.id } },

@@ -406,7 +406,7 @@ export function sensitiveGroupDrawer(overview: AccessOverview, group?: AccessOve
     commitDoneBody: "Every reveal any holder makes is written to the audit log before the record opens.",
     reviewNote: "Logging is not optional on a sensitive group: the audit entry is written at the moment somebody continues past the warning, not when they close the record.",
     fields: [
-      text("What this group is called", { required: true, span: 2, value: group?.name ?? "", placeholder: "Boarding house incident records", hint: "It appears at every grant, on every recertification and in the audit log" }),
+      text("What this group is called", { required: true, span: 2, value: group?.name ?? "", placeholder: "Boarding house incident records", hint: "In the audit log, at every grant and on every recertification" }),
       area("Why this school holds these separately", { required: true, span: 2, value: "", placeholder: "One or two sentences. This is what the next administrator reads before granting it to anybody." }),
       checks("Records inside this group", RECORD_TYPES, group?.covers ?? [], { required: true, span: 2, addable: true, addPlaceholder: "A record type this school holds that is not listed", addLabel: "Add this record type", hint: "Anything ticked here is closed to everybody in the school except a holder of this group." }),
       checks("Which roles may ever be given it", overview.templates.map((template) => template.name), ["Proprietor", "Principal"], { span: 2, hint: "A guard rail, not a grant: nobody is given it by their role." }),
@@ -954,7 +954,7 @@ export function addStaffDrawer(o: {
           select("Fee amounts", FEES, { value: FEES[0], required: true, hint: "The single most common mistake in a school system is showing a class teacher what a family owes." }),
           select("Can approve", APPROVES, { required: true, hint: "Nobody can approve their own submission, whatever is set here." }),
           o.groups.length
-            ? checks("Sensitive groups", o.groups, [], { span: 2, hint: "Granted individually, never inherited from a role. Every reveal is written to the audit log with their name." })
+            ? checks("Sensitive groups", o.groups, [], { span: 2, hint: "Every reveal is written to the audit log with their name. Granted individually, never inherited from a role." })
             : fixed("Sensitive groups", "None exist yet", { span: 2, hint: "Create one in Permissions, then grant it person by person. Nothing is closed off until you do." }),
           checks("Can send messages to", MESSAGING, [], { span: 2 }),
           toggle("Can export data to Excel or PDF", false, "Exports allowed · every export is logged", "No exports", { span: 2 }),

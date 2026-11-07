@@ -21,7 +21,7 @@ const startDrawer = (days: number): DrawerSpec => ({
   mode: "commit",
   kicker: "Free trial",
   title: `Start your ${days}-day free trial`,
-  sub: "Every feature is unlocked for the whole trial. No card is asked for, and nothing is charged at the end.",
+  sub: "No card is asked for, and nothing is charged at the end. Every feature is unlocked for the whole trial.",
   facts: [
     ["Length", `${days} days`, "Counted from today"],
     ["What is unlocked", "Every feature", "Nothing is held back for the trial"],

@@ -280,7 +280,7 @@ export function dayPage(d: Day, options: Options, correction: CorrectionOptions)
           { label: "Export selected", primary: true, export: true },
         ],
         rows: studentRows,
-        foot: "An excused day is excluded from the child's percentage; a late day is not. A child with an open attendance case is marked under their name.",
+        foot: "Excused · excluded from the percentage · late · still counted",
       }],
     });
   }

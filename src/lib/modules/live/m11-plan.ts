@@ -103,14 +103,14 @@ export function planTab(p: Plan, credits: Credits, ledger?: BillingLedger): TabC
       ...(p.pending ? [{ cols: "1fr", panels: [{ type: "note" as const, tone: "progress" as PanelTone, title: `A switch to ${p.pending.tier} is scheduled`, body: `It takes effect from ${dayLong(p.pending.from)}${p.pending.reason ? ` — you gave “${p.pending.reason.toLowerCase()}” as the reason` : ""}. Nothing changes for the rest of this term.`, acts: [{ label: "Change it", drawer: switchDrawer(p) }, { label: "Withdraw it", drawer: cancelSwitchDrawer(p) }] }] }] : []),
       ...(open.some((invoice) => invoice.state === "Overdue") ? [{ cols: "1fr", panels: [{ type: "note" as const, tone: "negative" as PanelTone, title: "An invoice is overdue", body: `${plural(open.filter((invoice) => invoice.state === "Overdue").length, "invoice")} past its due date. Pay it to keep the account current.`, acts: payNow ? [{ label: "Pay by card", drawer: payNow }] : [] }] }] : []),
       { cols: "1fr", panels: [{ type: "kpi", title: p.term?.label ?? "This term", per: 6, cards }] },
-      { cols: "1fr", panels: [{ type: "table", title: "What is running on this account", tag: `${p.running.filter((item) => item.state === "Active").length} active`, tagTone: "positive", sub: "Everything currently billed to this school, and when each of them renews.", meta: `${p.tierName} · per student per term${p.next ? ` · next renewal ${dayLong(p.next.start)}` : ""}`, acts: [{ label: "Switch plan", drawer: switchDrawer(p) }, { label: renewLabel, primary: true, drawer: renew }], head: ["What is running", "Basis", "Units", "Rate", "This term", "Renews", "State", ""], noun: "item", nounPlural: "items", noRowOpen: true, rows: running, foot: "A plan is billed per student per term, counted at term start. A child who joins mid-term is billed at the next renewal, never retrospectively." }] },
+      { cols: "1fr", panels: [{ type: "table", title: "What is running on this account", tag: `${p.running.filter((item) => item.state === "Active").length} active`, tagTone: "positive", sub: "Everything currently billed to this school, and when each of them renews.", meta: `${p.tierName} · per student per term${p.next ? ` · next renewal ${dayLong(p.next.start)}` : ""}`, acts: [{ label: "Switch plan", drawer: switchDrawer(p) }, { label: renewLabel, primary: true, drawer: renew }], head: ["What is running", "Basis", "Units", "Rate", "This term", "Renews", "State", ""], noun: "item", nounPlural: "items", noRowOpen: true, rows: running, foot: "Billed per student per term · counted at term start · joiners at renewal" }] },
       {
         cols: "1fr",
         panels: [
           {
             type: "tierChange" as const,
             title: "Change plan",
-            sub: "Moving up takes effect at once and is charged only for the rest of this term. Moving down waits for next term, because this one is paid for.",
+            sub: "Moving up: charged for the rest of this term, in effect at once. Moving down waits for next term, because this one is paid for.",
             currentTier: { key: p.tier, name: p.tierName, rate: p.rate },
             tiers: p.comparison.tiers.map((tier) => ({ key: tier.key, name: tier.name, rate: tier.rate })),
             previewEndpoint: `${SB}/plan/midterm/preview`,
@@ -149,7 +149,7 @@ export function planTab(p: Plan, credits: Credits, ledger?: BillingLedger): TabC
                     ],
                     keywords: `${entry.description} ${entry.type}`,
                   })),
-                  foot: "A mid-term upgrade is charged only for the part of the term that was left. The figures here are the ones used at the time.",
+                  foot: "Mid-term upgrade · charged only for the part of the term that was left",
                 },
               ],
             },

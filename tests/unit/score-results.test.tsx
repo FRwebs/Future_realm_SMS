@@ -202,7 +202,7 @@ describe("M5 results", () => {
     };
     const html = markup(armResultPage(sheetData, [], options).content);
     expect(html).toContain("Blocked");
-    expect(html).toContain("never given a zero");
+    expect(html).toContain("never a zero");
   });
 
   it("explains a child's result — what was left out and why — from the page itself", () => {

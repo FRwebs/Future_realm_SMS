@@ -35,7 +35,7 @@ export function reportsTab(o: ReportsOverview): TabContent {
     panels: [{
       type: "note", tone: "positive", icon: DOWNLOAD,
       title: "This school owns its data. You can export all of it, at any time, without asking anyone's permission.",
-      body: "Every dataset in this workspace exports as CSV, which Excel opens — students, staff, guardians, scores, attendance, payments, messages, consents and the full audit log. Each export keeps a copy with your name and the time against it.",
+      body: "Each export keeps a copy with your name and the time against it. Every dataset in this workspace exports as CSV, which Excel opens — students, staff, guardians, scores, attendance, payments, messages, consents and the full audit log.",
       acts: [{ label: "Export a dataset", drawer: generate }],
     }],
   });

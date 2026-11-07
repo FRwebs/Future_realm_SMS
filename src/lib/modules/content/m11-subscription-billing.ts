@@ -212,7 +212,7 @@ const planTab: TabContent = {
             keywords: item.basis,
           }),
         ),
-        foot: "A plan is billed per student per term, counted at term start. A child who joins mid-term is billed pro rata at the next renewal, never retrospectively.",
+        foot: "Billed per student per term · counted at term start · joiners at renewal",
       },
     ]),
     row("1fr", [

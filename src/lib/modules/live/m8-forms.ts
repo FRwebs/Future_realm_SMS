@@ -264,7 +264,7 @@ export function documentDrawer(d: Pick<Dossier, "id" | "name">, type?: string): 
     mode: "form",
     kicker: d.name,
     title: type ? `Record · ${type}` : "Upload a document",
-    sub: "The document's details go on the record; the audit log carries your name.",
+    sub: "The audit log carries your name; the document's details go on the record.",
     commitLabel: "Record it",
     commitDone: "Document recorded",
     commitDoneBody: "It is on the student's record and in the audit log under your name.",
@@ -627,7 +627,7 @@ export function supportPlanDrawer(d: Pick<Dossier, "id" | "name" | "support">): 
       area("Strategies — one per line", { span: 2, required: true, value: (plan?.strategies ?? []).map((entry) => `${entry.area}: ${entry.strategy}`).join("\n"), placeholder: "Seating: Front of the room, away from the window\nWritten work: Allow 25% additional time in class assessments\nInstructions: Give one at a time, and check back", hint: "Write each as “Area: what the teacher must do”. Say what to do, not what the child cannot." }),
       text("Last reviewed", { type: "date", required: true, value: plan?.reviewedOn.slice(0, 10) ?? today }),
       text("Next review", { type: "date", required: true, value: plan?.nextReviewOn.slice(0, 10) ?? inThreeMonths }),
-      area("Background — held by the plan’s writers only", { span: 2, optional: true, value: plan?.confidentialNote ?? "", hint: "The reasons, and any assessment or diagnosis. It is never sent to a teacher, and it is never printed." }),
+      area("Background — held by the plan’s writers only", { span: 2, optional: true, value: plan?.confidentialNote ?? "", hint: "Never sent to a teacher and never printed. The reasons, and any assessment or diagnosis." }),
     ],
     submit: { endpoint: `${SR}/students/${d.id}/support-plan`, method: "POST", map: { "Strategies — one per line": "strategies", "Last reviewed": "reviewedOn", "Next review": "nextReviewOn", "Background — held by the plan’s writers only": "confidentialNote" } },
   };

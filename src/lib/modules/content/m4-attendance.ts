@@ -295,7 +295,7 @@ export const attendanceContent: ModuleContent = {
           type: "note",
           tone: "progress",
           title: "Marking is normally the form master's job",
-          body: "This is here for the days you have to do it yourself — a teacher is away, a phone has died, a register was never opened. Everything you mark here is logged under your name.",
+          body: "Everything you mark here is logged under your name. This is here for the days you have to do it yourself — a teacher is away, a phone has died, a register was never opened.",
         },
       ]),
       row("1fr", [

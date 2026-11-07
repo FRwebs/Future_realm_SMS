@@ -78,7 +78,7 @@ export function reviewTab(o: ReviewOverview): TabContent {
         { label: "Approve everything ready", drawer: approveArmsDrawer(), selection: { key: "arms", noun: "arm" } },
         { label: "Export selected", primary: true, export: true },
       ],
-      rows: armRows, empty: "No arm has sheets yet.", foot: "Blocked means a sheet cannot exist yet — nobody teaches that subject in that arm.",
+      rows: armRows, empty: "No arm has sheets yet.", foot: "Blocked · nobody teaches that subject in that arm, so no sheet exists",
     }],
   });
   if (k.returned) {

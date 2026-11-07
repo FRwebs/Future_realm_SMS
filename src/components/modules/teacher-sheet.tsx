@@ -344,7 +344,7 @@ export function TeacherSheet(props: TeacherSheetProps) {
           footActs: locked ? [] : [...(props.remove ? [{ label: "Delete the entry", drawer: props.remove }] : []), saveDraft, { ...previewAct, label: "Preview, then submit for approval" }],
           head: ["Student", ...cols.map((column) => `${column.short} /${column.max}`), `Total /${maxTotal}`, "Grade", "State"],
           rows: tableRows, noun: "student", nounPlural: "students", noRowOpen: true, per: 40,
-          foot: "A = absent, excluded from the average. Blank is not zero.",
+          foot: "A = absent · excluded from the average · blank is not a zero",
         }}
       />
       </div>

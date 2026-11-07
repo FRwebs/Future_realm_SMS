@@ -132,7 +132,7 @@ export function exportDrawer(options: {
     mode: "commit",
     kicker: "Export",
     title: options.title,
-    sub: "Producing a file changes nothing. The export itself is written to the audit log.",
+    sub: "The export itself is written to the audit log. Producing a file changes nothing.",
     facts: [
       ["What is exported", options.what],
       ["Scope", options.scope, "Only what your access already lets you see"],
