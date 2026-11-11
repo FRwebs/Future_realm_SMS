@@ -9,7 +9,7 @@ import { FlowPanelView, GridPanelView, QuotesPanelView } from "@/components/modu
 import Link from "next/link";
 import type { Route } from "next";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useTransition } from "react";
 import {
   ArrowRight,
   ChevronDown,
@@ -36,6 +36,7 @@ import type {
   PanelRow,
   PanelTone,
   TableCellKind,
+  TableFilter,
   TableRow,
   Trigger,
 } from "@/lib/modules/panels";
@@ -708,12 +709,31 @@ function ServedTablePanel({ panel, openDrawer }: { panel: Extract<Panel, { type:
 
 function TableView({ panel, openDrawer, engine }: { panel: Extract<Panel, { type: "table" }>; openDrawer: OpenDrawer; engine: TableEngine }) {
   const router = useRouter();
+  const [switching, startSwitching] = useTransition();
+
+  /**
+   * A filter whose choices are other pages — the sheet switchers, which swap the arm or the subject
+   * rather than narrow what is on screen.
+   *
+   * It is still a filter to the person using it, so it must not behave like leaving the page. Inside
+   * a transition React keeps the current table on screen while the next one is fetched, instead of
+   * dropping to the route's loading screen; `scroll: false` leaves the page where they were reading.
+   */
+  const applyFilter = (filter: TableFilter, value: string) => {
+    const target = filter.go?.[value];
+    if (target) {
+      startSwitching(() => router.push(target as Route, { scroll: false }));
+      return;
+    }
+    engine.setFilter(filter, value);
+  };
   const ui = useUiText();
   const noun = panel.noun ?? "row";
   const nounPlural = panel.nounPlural ?? `${noun}s`;
   const { query, filterValues, visible, filteredRows, perPage, pageCount, shownTotal, everyRow, turnTo } = engine;
   const safePage = engine.pageIndex;
-  const navigating = engine.busy;
+  // Narrowing the rows and switching to another sheet both leave the table waiting, and both dim it.
+  const navigating = engine.busy || switching;
   const allVisibleSelected = engine.allVisibleSelected;
   const served = panel.window ? { exportUrl: engine.exportUrl ?? panel.window.exportUrl } : null;
   const toggleRow = engine.toggleRow;
@@ -898,14 +918,7 @@ function TableView({ panel, openDrawer, engine }: { panel: Extract<Panel, { type
               <span style={{ color: MUTED }}>{filter.label}</span>
               <select
                 value={filterValues[filter.label] ?? filter.value}
-                onChange={(event) => {
-                  const target = filter.go?.[event.target.value];
-                  if (target) {
-                    router.push(target as Route);
-                    return;
-                  }
-                  engine.setFilter(filter, event.target.value);
-                }}
+                onChange={(event) => applyFilter(filter, event.target.value)}
                 className="cursor-pointer appearance-none border-none bg-transparent font-semibold outline-hidden"
               >
                 {filter.options.map((option) => (
@@ -950,11 +963,7 @@ function TableView({ panel, openDrawer, engine }: { panel: Extract<Panel, { type
                   {filter.options.length > 8 ? (
                     <select
                       value={current}
-                      onChange={(event) => {
-                        const target = filter.go?.[event.target.value];
-                        if (target) { router.push(target as Route); return; }
-                        engine.setFilter(filter, event.target.value);
-                      }}
+                      onChange={(event) => applyFilter(filter, event.target.value)}
                       aria-label={filter.label}
                       className="h-[46px] w-full rounded-[11px] border bg-white px-[12px] text-[14px] font-semibold outline-hidden"
                       style={{ borderColor: "#DEE8E2", color: INK }}
@@ -970,11 +979,7 @@ function TableView({ panel, openDrawer, engine }: { panel: Extract<Panel, { type
                             key={option}
                             type="button"
                             aria-pressed={on}
-                            onClick={() => {
-                              const target = filter.go?.[option];
-                              if (target) { router.push(target as Route); return; }
-                              engine.setFilter(filter, option);
-                            }}
+                            onClick={() => applyFilter(filter, option)}
                             className="min-h-[40px] rounded-full border px-[14px] text-[13px] font-bold"
                             style={on ? { background: "#0D2315", borderColor: "#0D2315", color: "#fff" } : { background: "#fff", borderColor: "#DEE8E2", color: "#435048" }}
                           >
