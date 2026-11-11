@@ -538,6 +538,23 @@ export function SchoolBulkTable({ schools, filterBar, paginationFooter }: { scho
                                 <ActionMenuLink href={`/super-admin/schools/${school.id}`}>Open school profile</ActionMenuLink>
                                 <ActionMenuButton onClick={() => { selectOnly(school.id);                                     setNotifyDialogOpen(true); }}>Send notification</ActionMenuButton>
                                 <ActionMenuButton onClick={() => { selectOnly(school.id);                                     setManagerDialogOpen(true); }}>Assign account manager</ActionMenuButton>
+                                {/* Only where there is a trial to extend: the endpoint moves the school onto
+                                    TRIAL, so offering it on a paying school would be offering to undo the sale. */}
+                                {school.status === "TRIAL" || school.status === "GRACE_PERIOD" ? (
+                                  <ResourceActionDialog
+                                    triggerLabel="Extend trial"
+                                    title={`Extend trial — ${school.name}`}
+                                    description="Adds days to the trial and moves the billing date with it. The reason and who approved it are written to the audit trail."
+                                    endpoint={`/api/super-admin/billing/${school.id}/extend-trial`}
+                                    method="POST"
+                                    variant="menu"
+                                    submitLabel="Extend trial"
+                                    fields={[
+                                      { name: "days", label: "Days to add", type: "number", defaultValue: 14, min: 1, max: 365 },
+                                      { name: "reason", label: "Why the trial is being extended", type: "textarea", required: true, placeholder: "e.g. Migration from their old system slipped two weeks" }
+                                    ]}
+                                  />
+                                ) : null}
                                 <ResourceActionDialog
                                   triggerLabel={school.status === "SUSPENDED" ? "Reactivate account" : "Suspend account"}
                                   title={`${school.status === "SUSPENDED" ? "Reactivate" : "Suspend"} — ${school.name}`}

@@ -199,18 +199,31 @@ function systemHealthTone(key: string, value: number): { tone: HealthTone; label
   return { tone: "danger", label: "Critical" };
 }
 
+/** The obligations the command centre always shows, due or not — the ones a regulator asks about first. */
+const WATCHED_OBLIGATIONS = new Set(["REGISTRATION", "DPO", "DPIA", "ANNUAL_AUDIT"]);
+
+/** The part of the compliance register the command centre's watch reads. */
+type ComplianceWatchFeed = {
+  obligations: Array<{ id: string; code: string; title: string; state: string; dueAt: string | null; daysToDue: number | null; reference: string | null; ownerRole: string }>;
+  nextFiling: { title: string; dueAt: string | null; days: number | null } | null;
+};
+
 const tierColors = ["#12796A", "#3F9C86", "#7FBBA8", "#B7D6C9", "#DEE8E2", "#0D2315"];
 
 export default async function SuperAdminDashboardPage() {
   const session = await getServerSession();
-  const [overview, revenue, revenueReport, commissionEnvelope, securityData] = await Promise.all([
+  const [overview, revenue, revenueReport, commissionEnvelope, securityData, complianceEnvelope] = await Promise.all([
     apiGet("/api/super-admin/analytics/overview", observe<SuperAdminAnalyticsOverview>(SuperAdminAnalyticsOverviewSchema)),
     apiGet("/api/super-admin/analytics/revenue", observe<SuperAdminRevenueView>(SuperAdminRevenueViewSchema)),
     apiGet("/api/super-admin/analytics/revenue-report", observe<SuperAdminRevenueReport>(SuperAdminRevenueReportSchema)),
     apiGetEnvelope<SuperAdminPartnerCommissionSummaryRow[]>("/api/super-admin/partners/commission-summary"),
-    apiGet("/api/super-admin/security", observe<DashboardSecurityView>(localContracts["src/app/super-admin/page.tsx#96259927"]))
+    apiGet("/api/super-admin/security", observe<DashboardSecurityView>(localContracts["src/app/super-admin/page.tsx#96259927"])),
+    // The obligations register, which is where the regulator's own artefacts live — registration,
+    // the DPO, the DPIA and what is filed next. Only the few fields the watch draws are read.
+    apiGetEnvelope<ComplianceWatchFeed>("/api/super-admin/compliance").catch(() => ({ data: null }))
   ]);
   const commissionSummary = commissionEnvelope.data ?? [];
+  const obligations = complianceEnvelope.data?.obligations ?? [];
 
   const profile = platformProfile(session?.role ?? "PLATFORM_OWNER");
   const commandCenter = overview.commandCenter ?? {
@@ -354,7 +367,8 @@ export default async function SuperAdminDashboardPage() {
           id: request.id,
           label: `${request.type.replaceAll("_", " ")} request — ${request.subject}`,
           detail: `${request.school?.name ?? "Platform-wide"} · opened ${formatDate(request.createdAt)} · NDPA 30-day response window`,
-          ...countdown
+          ...countdown,
+          fixed: false
         };
       }),
     ...securityData.incidents
@@ -366,10 +380,34 @@ export default async function SuperAdminDashboardPage() {
           id: incident.id,
           label: `${incident.type} incident containment`,
           detail: `${incident.severity} severity · detected ${formatDate(incident.detectedAt)} · 72h containment window`,
-          ...countdown
+          ...countdown,
+          // A breach nobody has closed is red from the moment it is known, however much of the
+          // 72 hours is left. The clock running is not the same as the duty being met, and this
+          // is the one row on the page that cannot be put aside.
+          tone: "danger" as HealthTone,
+          fixed: true
+        };
+      }),
+    // The regulator's own artefacts: whether registration stands, whether a DPO is named and
+    // registered, whether the impact assessment is current, and what is due next.
+    ...obligations
+      .filter((row) => WATCHED_OBLIGATIONS.has(row.code) || row.state === "OVERDUE")
+      .map((row) => {
+        const deadline = row.dueAt ? new Date(row.dueAt) : null;
+        const countdown = deadline
+          ? complianceCountdown(deadline)
+          : { countdown: row.state === "COMPLIANT" ? "In order" : "No date set", tone: (row.state === "COMPLIANT" ? "good" : "warn") as HealthTone, deadline: new Date(8640000000000000) };
+        return {
+          id: `obligation-${row.id}`,
+          label: row.title,
+          detail: `${row.ownerRole} · ${row.reference ? `${row.reference} · ` : ""}${row.state.toLowerCase().replaceAll("_", " ")}`,
+          ...countdown,
+          tone: row.state === "OVERDUE" ? ("danger" as HealthTone) : countdown.tone,
+          fixed: false
         };
       })
-  ].sort((left, right) => left.deadline.getTime() - right.deadline.getTime()).slice(0, 7);
+  ].sort((left, right) => left.deadline.getTime() - right.deadline.getTime()).slice(0, 8);
+  const nextFiling = complianceEnvelope.data?.nextFiling ?? null;
 
   const commissionWatchItems = [...commissionSummary]
     .sort((left, right) => right.totalCommissionOwed - left.totalCommissionOwed)
@@ -570,8 +608,14 @@ export default async function SuperAdminDashboardPage() {
           <CardHeader
             title="Regulatory obligations watch"
             meta="Module 10 · NDPA 2023 & GAID 2025"
-            sub="Every open data-subject request and unresolved security incident, counted down against its response window. Nothing here is dismissible."
+            sub="Registration, the DPO, the impact assessment, every open data-subject request and every unresolved security incident, counted down against its own window. Nothing here is dismissible."
           />
+          {nextFiling ? (
+            <p className="mt-2.5 rounded-[9px] px-[11px] py-[7px] text-[10.5px] font-semibold" style={{ background: "var(--color-bg-subtle)", color: "var(--color-text-secondary)" }}>
+              Next filing: {nextFiling.title}
+              {typeof nextFiling.days === "number" ? ` · ${nextFiling.days < 0 ? `${Math.abs(nextFiling.days)}d overdue` : `${nextFiling.days}d left`}` : ""}
+            </p>
+          ) : null}
           <div className="mt-3.5 grid gap-0">
             {complianceWatchItems.map((item) => {
               const colors = toneColors[item.tone];
@@ -582,6 +626,11 @@ export default async function SuperAdminDashboardPage() {
                     <p className="text-[11.5px] leading-5 text-(--color-text-primary)">{item.label}</p>
                     <p className="mt-0.5 text-[10px] text-(--color-text-muted)">{item.detail}</p>
                   </div>
+                  {item.fixed ? (
+                    <span className="shrink-0 self-center rounded-full border px-[7px] py-[2px] text-[9px] font-bold uppercase tracking-[0.04em]" style={{ borderColor: toneColors.danger.fg, color: toneColors.danger.fg }}>
+                      Cannot be set aside
+                    </span>
+                  ) : null}
                   <span className="shrink-0 rounded-full px-[9px] py-[3px] text-[11px] font-bold" style={{ background: colors.bg, color: colors.fg }}>{item.countdown}</span>
                 </div>
               );

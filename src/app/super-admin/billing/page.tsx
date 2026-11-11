@@ -781,7 +781,10 @@ async function TrialsTab({ trialBilling, trialPolicy }: { trialBilling: SuperAdm
                 method="POST"
                 variant="textAction"
                 submitLabel="Extend trial"
-                fields={[{ name: "days", label: "Days", type: "number", defaultValue: 14, min: 1, max: 365 }]}
+                fields={[
+                  { name: "days", label: "Days", type: "number", defaultValue: 14, min: 1, max: 365 },
+                  { name: "reason", label: "Why the trial is being extended", type: "textarea", required: true, placeholder: "e.g. Migration from their old system slipped two weeks" }
+                ]}
               />
             )
           }

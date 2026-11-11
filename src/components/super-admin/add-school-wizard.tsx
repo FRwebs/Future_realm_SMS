@@ -21,8 +21,13 @@ const STEPS = [
   { n: 3, label: "Commercial & assignment" },
 ];
 
+/**
+ * The refusals that need no round trip: the shape of the thing, and the handful of names nobody may
+ * ever have. Whether an address is already somebody's is deliberately absent — only the registry
+ * knows that, and a list of taken names kept in the browser is how a name that plainly belongs to
+ * a school came back "Available".
+ */
 const BLOCKED_SLUGS = ["admin", "api", "app", "www", "mail", "support", "waec", "neco", "jamb", "futurerealm"];
-const TAKEN_SLUGS = ["greenfield-college", "sunrise", "crestwood"];
 
 const TONE_COLORS: Record<Tone, { bg: string; fg: string }> = {
   idle: { bg: "var(--color-bg-subtle)", fg: "var(--color-text-muted)" },
@@ -88,13 +93,74 @@ function getCookie(name: string) {
     ?.split("=")[1];
 }
 
-function slugState(slug: string): { tone: Tone; badge: string; note: string } {
+type SlugCheck = { tone: Tone; badge: string; note: string; ok: boolean };
+
+/** What can be judged here and now. `null` means only the registry can answer. */
+function slugShape(slug: string): SlugCheck | null {
   const v = slug.trim().toLowerCase();
-  if (!v) return { tone: "idle", badge: "Type to check", note: "Lowercase letters and numbers only, 3–30 characters. Permanent from day one." };
-  if (BLOCKED_SLUGS.includes(v)) return { tone: "bad", badge: "Not allowed", note: "Reserved name — choose another. Never append numbers." };
-  if (v.length < 3) return { tone: "bad", badge: "Too short", note: "At least 3 characters." };
-  if (TAKEN_SLUGS.includes(v)) return { tone: "warn", badge: "Already taken", note: `Suggest a city qualifier, e.g. ${v}-lagos.` };
-  return { tone: "good", badge: "Available", note: `Permanent address: ${v}.futurerealm.sms — changing it later is Super Admin only.` };
+  if (!v) return { tone: "idle", badge: "Type to check", note: "Lowercase letters, numbers and hyphens, 3–30 characters. Permanent from day one.", ok: false };
+  if (BLOCKED_SLUGS.includes(v)) return { tone: "bad", badge: "Not allowed", note: "Reserved name — choose another. Never append numbers.", ok: false };
+  if (v.length < 3) return { tone: "bad", badge: "Too short", note: "At least 3 characters.", ok: false };
+  if (v.length > 30) return { tone: "bad", badge: "Too long", note: "At most 30 characters.", ok: false };
+  if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(v)) return { tone: "bad", badge: "Not allowed", note: "Letters and numbers, with single hyphens between them.", ok: false };
+  return null;
+}
+
+/**
+ * The registry's answer for an address, asked as it is typed.
+ *
+ * Debounced so a word being typed is not eight questions, and stamped with the address it was
+ * asked about so a slow answer for an older address can never overwrite a newer one.
+ */
+function useAddressCheck(slug: string): { state: SlugCheck; checking: boolean; suggestions: string[] } {
+  const shape = slugShape(slug);
+  // Only whether the shape refused matters to the effect; its wording changes nothing about when
+  // the registry is worth asking.
+  const shapeRefused = shape !== null;
+  const [answer, setAnswer] = useState<{ address: string; available: boolean; reason: string | null; suggestions: string[] } | null>(null);
+  const [checking, setChecking] = useState(false);
+  const address = slug.trim().toLowerCase();
+
+  useEffect(() => {
+    if (shapeRefused) { setAnswer(null); setChecking(false); return undefined; }
+    let live = true;
+    setChecking(true);
+    const timer = setTimeout(async () => {
+      try {
+        const response = await fetch(`/api/super-admin/web-address-registry/availability?address=${encodeURIComponent(address)}`, { credentials: "include" });
+        const body = (await response.json().catch(() => ({}))) as { data?: { available: boolean; reason: string | null; suggestions?: string[] } };
+        if (!live) return;
+        setAnswer(body.data ? { address, available: body.data.available, reason: body.data.reason, suggestions: body.data.suggestions ?? [] } : null);
+      } catch {
+        if (live) setAnswer(null);
+      } finally {
+        if (live) setChecking(false);
+      }
+    }, 400);
+    return () => { live = false; clearTimeout(timer); };
+  }, [address, shapeRefused]);
+
+  if (shape) return { state: shape, checking: false, suggestions: [] };
+  if (checking || answer?.address !== address) {
+    return { state: { tone: "idle", badge: "Checking…", note: "Asking the registry whether this address is free.", ok: false }, checking: true, suggestions: [] };
+  }
+  if (!answer) {
+    // The registry could not be reached. Saying "Available" here is the one answer that must never
+    // be guessed, so the step stays shut rather than issuing an address on an assumption.
+    return { state: { tone: "bad", badge: "Not checked", note: "The address registry could not be reached. Try again before creating the school.", ok: false }, checking: false, suggestions: [] };
+  }
+  if (!answer.available) {
+    return {
+      state: { tone: "bad", badge: "Already taken", note: answer.reason ?? "This address is not free.", ok: false },
+      checking: false,
+      suggestions: answer.suggestions
+    };
+  }
+  return {
+    state: { tone: "good", badge: "Available", note: `Permanent address: ${address}.futurerealm.sms — changing it later is Super Admin only.`, ok: true },
+    checking: false,
+    suggestions: []
+  };
 }
 
 function categoryFromLevels(levels: Record<string, boolean>): string {
@@ -168,6 +234,7 @@ export function AddSchoolWizard({ plans }: { plans: SuperAdminPlanRow[] }) {
   const form = useForm<WizardValues>({ resolver: zodResolver(wizardSchema), defaultValues: defaults });
   const { schoolName, slug, levels, email, phone, firstName, lastName, sendChannels, tier, accountType, trialEndDate, accountManager, internalNote, address, city, state, country } = form.watch();
   const panel = useFocusTrap<HTMLDivElement>(open);
+  const { state: sl, suggestions: slugSuggestions } = useAddressCheck(slug);
   useEffect(() => {
     if (!open) return;
     const onKey = (event: KeyboardEvent) => {
@@ -225,7 +292,10 @@ export function AddSchoolWizard({ plans }: { plans: SuperAdminPlanRow[] }) {
           plan: tier || "BASIC",
           trialEndDate: accountType === "Trial" && trialEndDate ? trialEndDate : undefined,
           notes: internalNote.trim() || undefined,
-          sendWelcomeEmail: sendChannels.Email,
+          slug: slug.trim().toLowerCase() || undefined,
+          sendWelcomeEmail: Boolean(sendChannels.Email),
+          sendWhatsApp: Boolean(sendChannels.WhatsApp),
+          sendSms: Boolean(sendChannels.SMS),
         }),
       });
 
@@ -258,6 +328,12 @@ export function AddSchoolWizard({ plans }: { plans: SuperAdminPlanRow[] }) {
       notice.warning(step === 1 ? "The school needs a name" : "The administrator's details are needed", String(first ?? "Check the highlighted fields."));
       return;
     }
+    // The address is permanent from the moment the school exists, so a step that has not been told
+    // it is free does not close. A badge nobody has to read is not a check.
+    if (step === 1 && !sl.ok) {
+      notice.warning("This web address cannot be used", sl.note);
+      return;
+    }
     notice.clear();
     if (step >= 3) {
       void handleCreate();
@@ -274,7 +350,6 @@ export function AddSchoolWizard({ plans }: { plans: SuperAdminPlanRow[] }) {
     setStep(step - 1);
   }
 
-  const sl = slugState(slug);
   const slColors = TONE_COLORS[sl.tone];
   const footNote = [
     "Step 1 of 3 — the address is permanent once created",
@@ -378,7 +453,22 @@ export function AddSchoolWizard({ plans }: { plans: SuperAdminPlanRow[] }) {
                         </span>
                       </div>
                     </Field>
-                    <p className="mt-[5.5px] text-[10px] text-[#5f6e65]">{sl.note}</p>
+                    <p className="mt-[5.5px] text-[10px] text-[#5f6e65]" aria-live="polite">{sl.note}</p>
+                    {slugSuggestions.length ? (
+                      <div className="mt-[7px] flex flex-wrap items-center gap-[6px]">
+                        <span className="text-[10px] text-[#5f6e65]">Free instead:</span>
+                        {slugSuggestions.map((candidate) => (
+                          <button
+                            key={candidate}
+                            type="button"
+                            onClick={() => form.setValue("slug", candidate)}
+                            className="rounded-full border border-[#cfe4db] bg-[#f1f8f4] px-[9px] py-[3px] text-[10px] font-semibold text-[#17604f]"
+                          >
+                            {candidate}
+                          </button>
+                        ))}
+                      </div>
+                    ) : null}
                   </div>
                   <Field label="Country">
                     <select {...field("country")} className={inputClass}>

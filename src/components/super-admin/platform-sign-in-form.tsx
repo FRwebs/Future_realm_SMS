@@ -28,6 +28,8 @@ export function PlatformSignInForm({ access }: { access: AccessControl }) {
   const [showPassword, setShowPassword] = useState(false);
   const [remember, setRemember] = useState(true);
   const [stage, setStage] = useState<"credentials" | "verify">("credentials");
+  /** Where the code went, in the API's own words, so the page does not claim an app that was never used. */
+  const [sentTo, setSentTo] = useState<{ channel: string; address: string | null } | null>(null);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -54,18 +56,24 @@ export function PlatformSignInForm({ access }: { access: AccessControl }) {
         ok?: boolean;
         error?: string;
         message?: string;
+        code?: string;
+        channel?: string;
+        sentTo?: string;
         data?: { mfaRequired?: boolean };
       };
 
-      // The API asks for the second factor by refusing the first leg; that is
-      // the signal to show the code box rather than an error.
+      // The API asks for the second factor by refusing the first leg, and says so in `code`.
+      // Reading the sentence instead was how a reworded message turned a challenge into an error
+      // and left the person on a form with nowhere to type the code.
       const needsCode =
+        result.code === "MFA_REQUIRED" ||
         result.data?.mfaRequired ||
-        /multi-factor|mfa|verification code|six-digit/i.test(result.error ?? result.message ?? "");
+        /multi-factor|mfa|verification code|\d-digit|six-digit/i.test(result.error ?? result.message ?? "");
 
       if (!response.ok || result.ok === false) {
         if (needsCode && stage === "credentials") {
           setStage("verify");
+          setSentTo({ channel: result.channel ?? "APP", address: result.sentTo ?? null });
           setError(null);
           return;
         }
@@ -107,7 +115,9 @@ export function PlatformSignInForm({ access }: { access: AccessControl }) {
       <p className="mb-[27px] text-[12px] text-[#5f6e65]">
         {stage === "credentials"
           ? "FutureRealm team accounts only. Schools sign in at their own workspace."
-          : "Enter the six-digit code from your authenticator."}
+          : sentTo?.channel === "EMAIL"
+            ? `Enter the six-digit code sent to ${sentTo.address ?? "your work email"}.`
+            : "Enter the six-digit code from your authenticator."}
       </p>
 
       <form onSubmit={submit} noValidate>
