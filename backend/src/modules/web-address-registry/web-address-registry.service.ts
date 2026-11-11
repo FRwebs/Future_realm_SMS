@@ -31,8 +31,12 @@ function assertSuperAdminOnly(session: SessionPayload) {
   }
 }
 
-// M2.10.1 — lowercase, letters and numbers only, 3 to 30 characters, never auto-numbered.
-const ADDRESS_PATTERN = /^[a-z0-9]{3,30}$/;
+// M2.10.1 — lowercase, letters, numbers and single inner hyphens, 3 to 30 characters, never
+// auto-numbered. Hyphens are here because the addresses already issued use them — a school
+// distinguishes itself by its town, "queens-ibadan", not by a digit on the end.
+const ADDRESS_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+const ADDRESS_MIN = 3;
+const ADDRESS_MAX = 30;
 
 // M2.10.1 — reserved/blocked words. Platform reserved words, regulatory-body names and
 // obviously offensive terms. Scoped globally for now; per-country scoping can be layered
@@ -63,9 +67,21 @@ const addressSchema = z
   .trim()
   .toLowerCase();
 
+/** Whether an address is the right shape to be issued at all. */
+export function addressFormatOk(address: string) {
+  return address.length >= ADDRESS_MIN && address.length <= ADDRESS_MAX && ADDRESS_PATTERN.test(address);
+}
+
+/** Whether an address is, or contains, a term nobody may hold. */
+export function addressIsReserved(address: string) {
+  return BLOCKED_TERMS.some((term) => address === term || address.includes(term));
+}
+
 function validateAddressFormat(address: string) {
-  if (!ADDRESS_PATTERN.test(address)) {
-    throw new BadRequestException("Address must be lowercase letters and numbers only, 3 to 30 characters.");
+  if (!addressFormatOk(address)) {
+    throw new BadRequestException(
+      `Address must be ${ADDRESS_MIN} to ${ADDRESS_MAX} characters: lowercase letters, numbers and single hyphens between them.`
+    );
   }
 }
 
@@ -212,28 +228,64 @@ export class WebAddressRegistryService {
     return { ok: true, data: records.map(mapRecord) };
   }
 
+  /**
+   * Whether an address can be issued, and what to try instead when it cannot.
+   *
+   * The registry table is not the only place an address lives: a row is written there the first
+   * time a school's address is touched, so a school that has never been edited holds its address
+   * through `School.slug` alone. Asking only the registry is how a name that is plainly taken comes
+   * back free, so both are asked.
+   */
   async checkAvailability(session: SessionPayload, rawAddress: string) {
     assertPlatformRole(session);
     const address = addressSchema.parse(rawAddress ?? "");
     validateAddressFormat(address);
 
-    if (BLOCKED_TERMS.some((term) => address === term || address.includes(term))) {
-      return { ok: true, data: { address, available: false, reason: "Reserved or blocked term." } };
-    }
+    const taken = async (reason: string) => ({
+      ok: true,
+      data: { address, available: false, reason, suggestions: await this.suggestionsFor(address) }
+    });
+
+    if (addressIsReserved(address)) return taken("Reserved or blocked term.");
 
     const existing = await prisma.webAddressRecord.findUnique({ where: { address } });
-    if (!existing) {
-      return { ok: true, data: { address, available: true, reason: null } };
-    }
+    const released = existing?.state === "RETIRED" && existing.releaseEligibleAt && existing.releaseEligibleAt <= new Date();
+    if (existing && !released) return taken(`Address is ${existing.state.toLowerCase()}.`);
 
-    if (existing.state === "RETIRED" && existing.releaseEligibleAt && existing.releaseEligibleAt <= new Date()) {
-      return { ok: true, data: { address, available: true, reason: null } };
-    }
+    const school = await prisma.school.findFirst({
+      where: { deletedAt: null, OR: [{ slug: address }, { subdomain: address }] },
+      select: { id: true }
+    });
+    if (school) return taken("A school already holds this address.");
 
-    return {
-      ok: true,
-      data: { address, available: false, reason: `Address is ${existing.state.toLowerCase()}.` }
-    };
+    return { ok: true, data: { address, available: true, reason: null, suggestions: [] as string[] } };
+  }
+
+  /**
+   * Three addresses near the one that was refused, and free.
+   *
+   * Never the asked-for name with a number after it: two schools called Queens separated by a `2`
+   * is how a parent ends up at the wrong school's gate. A place name is what actually tells them
+   * apart, so that is what is offered.
+   */
+  private async suggestionsFor(address: string): Promise<string[]> {
+    const QUALIFIERS = ["lagos", "abuja", "ibadan", "kano", "ph", "enugu", "school", "academy"];
+    const candidates = QUALIFIERS.map((qualifier) => `${address}-${qualifier}`).filter(
+      (candidate) => candidate.length <= ADDRESS_MAX && !addressIsReserved(candidate)
+    );
+    if (candidates.length === 0) return [];
+    const [records, schools] = await Promise.all([
+      prisma.webAddressRecord.findMany({ where: { address: { in: candidates } }, select: { address: true } }),
+      prisma.school.findMany({
+        where: { deletedAt: null, OR: [{ slug: { in: candidates } }, { subdomain: { in: candidates } }] },
+        select: { slug: true, subdomain: true }
+      })
+    ]);
+    const used = new Set([
+      ...records.map((record) => record.address),
+      ...schools.flatMap((school) => [school.slug, school.subdomain].filter(Boolean) as string[])
+    ]);
+    return candidates.filter((candidate) => !used.has(candidate)).slice(0, 3);
   }
 
   async changeAddress(session: SessionPayload, payload: unknown) {

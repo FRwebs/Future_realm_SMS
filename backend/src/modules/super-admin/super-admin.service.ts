@@ -10,7 +10,7 @@ import { analytics } from "../analytics-bi/analytics.service";
 import { templates } from "../config-library/templates.service";
 import { supportDesk } from "../support-desk/support-desk.service";
 import { plansFeatures } from "../plans-features/plans-features.service";
-import { createHash } from "crypto";
+import { createHash, randomBytes } from "crypto";
 import { alignTierToPlan } from "../platform-sync/plan-sync";
 import { forgetAvailability } from "../platform-sync/availability";
 import { forgetReadOnly } from "../platform-policy/read-only.interceptor";
@@ -62,6 +62,9 @@ const zBool = (defaultValue: boolean) => z.preprocess((value) => value === true 
 const zOptionalPlan = () => z.preprocess((value) => (value === "" ? undefined : value), planSchema.optional());
 const zOptionalId = () => z.string().trim().optional().transform((value) => (value === "" ? undefined : value));
 
+/** The page tells the new administrator their link is good for 24 hours, so it is good for 24 hours. */
+const FOUNDING_INVITE_HOURS = 24;
+
 const schoolCreateSchema = z.object({
   name: z.string().trim().min(2),
   adminName: z.string().trim().min(2).optional(),
@@ -77,7 +80,13 @@ const schoolCreateSchema = z.object({
   plan: planSchema.default("BASIC"),
   trialEndDate: z.coerce.date().optional(),
   notes: z.string().optional(),
-  sendWelcomeEmail: z.coerce.boolean().default(true)
+  // The address the Back Office chose and checked. Left out, the school's name still decides one.
+  slug: z.string().trim().toLowerCase().optional(),
+  sendWelcomeEmail: z.coerce.boolean().default(true),
+  // Which ways the invitation goes out. The page offers all three and only email ever left, so the
+  // other two are carried here rather than implied.
+  sendWhatsApp: z.coerce.boolean().default(false),
+  sendSms: z.coerce.boolean().default(false)
 });
 
 const schoolUpdateSchema = z.object({
@@ -213,7 +222,10 @@ const billingUpdateSchema = z.object({
 });
 
 const trialSchema = z.object({
-  days: z.coerce.number().int().min(1).max(365)
+  days: z.coerce.number().int().min(1).max(365),
+  // Extending a trial is giving a school the product for longer without charging for it, which is
+  // one of the consequential acts the back office promises never to take on nobody's word.
+  reason: z.string().trim().min(5, "Say why the trial is being extended — the reason goes in the audit log.")
 });
 
 const settingsSchema = z.object({
@@ -976,11 +988,38 @@ export class SuperAdminService {
     });
   }
 
+  /**
+   * The administrator's invitation: one link, theirs alone, good for a day.
+   *
+   * An account that opens a whole school is the most valuable one the platform issues, so it is
+   * never created with a password anybody could know. The link is stored as a hash — a readable
+   * table of these would be a list of ways into schools — and only the plaintext that goes out on
+   * the wire is ever returned.
+   */
+  private async inviteFoundingAdmin(user: { id: string; schoolId: string }) {
+    const token = randomBytes(32).toString("base64url");
+    await prisma.passwordResetToken.create({
+      data: {
+        userId: user.id,
+        schoolId: user.schoolId,
+        tokenHash: createHash("sha256").update(token).digest("hex"),
+        expiresAt: new Date(Date.now() + FOUNDING_INVITE_HOURS * 60 * 60 * 1000)
+      }
+    });
+    return `${process.env.APP_URL ?? "http://localhost:3000"}/reset-password?token=${token}`;
+  }
+
   async createSchool(session: SessionPayload, payload: unknown) {
     assertSuperAdmin(session);
     const parsed = schoolCreateSchema.parse(payload);
-    const baseSlug = slugify(parsed.name);
-    const slug = `${baseSlug}-${Date.now().toString(36)}`;
+    // The address the Back Office checked is the one issued. Only when none was chosen does the
+    // name decide it, and then a suffix keeps it unique rather than failing on a clash.
+    const slug = parsed.slug ?? `${slugify(parsed.name)}-${Date.now().toString(36)}`;
+    const clash = await prisma.school.findFirst({
+      where: { deletedAt: null, OR: [{ slug }, { subdomain: slug }] },
+      select: { id: true }
+    });
+    if (clash) throw new BadRequestException(`The web address ${slug} already belongs to another school.`);
     const adminName = splitName(parsed.adminName ?? parsed.ownerName);
     const adminEmail = (parsed.adminEmail ?? parsed.ownerEmail).toLowerCase();
     const schoolCode = `SCH-${Date.now().toString(36).toUpperCase()}`;
@@ -1011,15 +1050,47 @@ export class SuperAdminService {
             email: adminEmail,
             firstName: adminName.firstName,
             lastName: adminName.lastName,
-            passwordHash: hashPassword("FutureRealm123!"),
+            // No password is set here. The only way into this account is the invitation below, so
+            // there is nothing to guess and nothing shared between two schools.
+            passwordHash: hashPassword(randomBytes(32).toString("base64url")),
             role: "ADMINISTRATOR",
             passwordResetRequired: true
           }
         }
-      }
+      },
+      include: { users: { select: { id: true }, take: 1 } }
     });
-    await this.audit(session, "CREATE", "School", school.id, { name: parsed.name, plan: parsed.plan, sendWelcomeEmail: parsed.sendWelcomeEmail, notes: parsed.notes }, school.id);
-    return this.response({ id: school.id, slug: school.slug }, "School tenant created");
+
+    const founder = school.users[0];
+    const link = founder ? await this.inviteFoundingAdmin({ id: founder.id, schoolId: school.id }) : null;
+    const greeting = `Hello ${adminName.firstName}, your ${parsed.name} workspace on ${platformIdentity().platformName} is ready.`;
+    const body = `${greeting} Use this link to set your password and open it. It works once and stops working in ${FOUNDING_INVITE_HOURS} hours.\n\n${link}`;
+    // Each channel the Back Office ticked is attempted on its own, and one carrier refusing is not
+    // allowed to swallow the others. What actually left is recorded, so "we sent it" can be checked.
+    const channels: Array<{ channel: "EMAIL" | "SMS"; recipient: string; label: string }> = [];
+    if (link && parsed.sendWelcomeEmail) channels.push({ channel: "EMAIL", recipient: adminEmail, label: "email" });
+    if (link && parsed.ownerPhone && parsed.sendSms) channels.push({ channel: "SMS", recipient: parsed.ownerPhone, label: "sms" });
+    if (link && parsed.ownerPhone && parsed.sendWhatsApp) channels.push({ channel: "SMS", recipient: parsed.ownerPhone, label: "whatsapp" });
+    const delivery: Record<string, boolean> = {};
+    for (const target of channels) {
+      const sent = await sendNotification({
+        channel: target.channel,
+        recipient: target.recipient,
+        title: `Your ${parsed.name} invitation`,
+        body
+      }).catch(() => ({ delivered: false }));
+      delivery[target.label] = Boolean(sent.delivered);
+    }
+
+    await this.audit(
+      session,
+      "CREATE",
+      "School",
+      school.id,
+      { name: parsed.name, slug: school.slug, plan: parsed.plan, notes: parsed.notes, invitationHours: FOUNDING_INVITE_HOURS, invitationSentOn: delivery },
+      school.id
+    );
+    return this.response({ id: school.id, slug: school.slug, invitationHours: FOUNDING_INVITE_HOURS, invitationSentOn: delivery }, "School tenant created");
   }
 
   async updateSchool(session: SessionPayload, schoolId: string, payload: unknown) {
@@ -1875,11 +1946,16 @@ export class SuperAdminService {
     const parsed = trialSchema.parse(payload);
     const school = await prisma.school.findUnique({ where: { id: schoolId } });
     if (!school) throw new NotFoundException("School not found.");
+    // This moves the school onto TRIAL, so on a school that is paying it would quietly undo the
+    // sale. Extending something that is not running is not an extension.
+    if (school.status !== "TRIAL" && school.status !== "GRACE_PERIOD") {
+      throw new BadRequestException(`${school.name} is not on a trial, so there is nothing to extend.`);
+    }
     const baseDate = school.trialEndsAt && school.trialEndsAt > new Date() ? school.trialEndsAt : new Date();
     const nextTrialEnd = new Date(baseDate);
     nextTrialEnd.setDate(nextTrialEnd.getDate() + parsed.days);
     const updated = await prisma.school.update({ where: { id: schoolId }, data: { trialEndsAt: nextTrialEnd, nextBillingAt: nextTrialEnd, billingStatus: "TRIAL", status: "TRIAL" } });
-    await this.audit(session, "BILLING_UPDATE", "School", updated.id, { trialExtendedDays: parsed.days }, updated.id);
+    await this.audit(session, "BILLING_UPDATE", "School", updated.id, { trialExtendedDays: parsed.days, reason: parsed.reason, trialEndsAt: nextTrialEnd.toISOString() }, updated.id);
     return this.response({ schoolId: updated.id, trialEndsAt: nextTrialEnd.toISOString() }, "Trial extended");
   }
 
@@ -2367,6 +2443,11 @@ export class SuperAdminService {
     monthStart.setDate(1);
     monthStart.setHours(0, 0, 0, 0);
     const nextSevenDays = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+    const fourteenDaysAgo = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000);
+    const twoDaysAgo = new Date(Date.now() - 48 * 60 * 60 * 1000);
+    const sevenDaysAgoForAlerts = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+    /** The NDPA answers a data subject within thirty days, so a request opened before this has a week left. */
+    const dsrWarningFrom = new Date(Date.now() - 23 * 24 * 60 * 60 * 1000);
     const previousMonthStart = new Date(monthStart);
     previousMonthStart.setMonth(previousMonthStart.getMonth() - 1);
     const previousMonthEnd = new Date(monthStart.getTime() - 1);
@@ -2413,7 +2494,11 @@ export class SuperAdminService {
       notificationLogs,
       geographySchools,
       auditLogs,
-      priceMap
+      priceMap,
+      zeroLoginSchools,
+      blockedMigrations,
+      failedBackups,
+      dsrDueSoon
     ] = await Promise.all([
       prisma.school.groupBy({ by: ["status"], where: { deletedAt: null }, _count: true }),
       prisma.user.groupBy({ by: ["role"], where: { deletedAt: null }, _count: true }),
@@ -2466,7 +2551,27 @@ export class SuperAdminService {
       prisma.notificationLog.findMany({ where: { sentAt: { gte: thirtyDays } }, select: { status: true } }),
       prisma.school.findMany({ where: { deletedAt: null }, select: { state: true, plan: true, status: true } }),
       prisma.auditLog.findMany({ include: { actor: true, school: true }, orderBy: { createdAt: "desc" }, take: 10 }),
-      getPlanPriceMap()
+      getPlanPriceMap(),
+      // A live school nobody has signed in to for a fortnight. A school that has only just been
+      // created has not had the chance yet, so it is not counted against itself.
+      prisma.school.count({
+        where: {
+          deletedAt: null,
+          status: { in: ["ACTIVE", "TRIAL"] },
+          createdAt: { lt: fourteenDaysAgo },
+          users: { none: { deletedAt: null, lastLoginAt: { gte: fourteenDaysAgo } } }
+        }
+      }),
+      // The same rule the migration workspace draws its own "Blocked over 48 hours" tile from:
+      // a job that should be moving and has not moved in two days.
+      prisma.migrationJob.count({
+        where: { status: { in: ["FILES_AWAITED", "IN_PROGRESS"] }, updatedAt: { lt: twoDaysAgo } }
+      }),
+      prisma.backupRecord.count({ where: { status: "FAILED", startedAt: { gte: sevenDaysAgoForAlerts } } }),
+      // A data subject request inside the last week of the NDPA's thirty-day answer window.
+      prisma.dataPrivacyRequest.count({
+        where: { status: { in: ["OPEN", "IN_REVIEW"] }, createdAt: { lt: dsrWarningFrom } }
+      })
     ]);
     const overdueTotal = overdueInvoices.reduce((sum, invoice) => sum + Number(invoice.amount), 0);
     const overdueAgingBuckets = {
@@ -2571,6 +2676,18 @@ export class SuperAdminService {
               : `${riskFlaggedPending} flagged school(s) must clear review within 7 days, before trial end.`,
             actionHref: "/super-admin/schools?tab=approval-queue"
           }
+        : null,
+      zeroLoginSchools
+        ? { id: "zero-logins", severity: "warning", title: "Schools with no sign-in", detail: `${zeroLoginSchools} live school(s) have had no sign-in for 14 days.`, actionHref: "/super-admin/schools?status=ACTIVE" }
+        : null,
+      blockedMigrations
+        ? { id: "migration-blocked", severity: "danger", title: "Migration blocked", detail: `${blockedMigrations} migration job(s) have not moved in 48 hours.`, actionHref: "/super-admin/migration" }
+        : null,
+      failedBackups
+        ? { id: "backup-failed", severity: "danger", title: "Backup failed", detail: `${failedBackups} backup run(s) failed in the last 7 days.`, actionHref: "/super-admin/system" }
+        : null,
+      dsrDueSoon
+        ? { id: "dsr-deadline", severity: "danger", title: "Data subject request deadline", detail: `${dsrDueSoon} request(s) are inside the last week of the 30-day answer window.`, actionHref: "/super-admin/security" }
         : null
     ].filter(Boolean);
 
