@@ -2,6 +2,9 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useEffect, useMemo, useState } from "react";
+
+import { COUNTRY_NAMES, geoFor } from "@/lib/onboarding/geo";
+import { lgasFor } from "@/lib/onboarding/nigeria-lgas";
 import { useForm } from "react-hook-form";
 import { useRouter } from "next/navigation";
 import { createPortal } from "react-dom";
@@ -232,9 +235,11 @@ export function AddSchoolWizard({ plans }: { plans: SuperAdminPlanRow[] }) {
     [defaultPlan?.plan],
   );
   const form = useForm<WizardValues>({ resolver: zodResolver(wizardSchema), defaultValues: defaults });
-  const { schoolName, slug, levels, email, phone, firstName, lastName, sendChannels, tier, accountType, trialEndDate, accountManager, internalNote, address, city, state, country } = form.watch();
+  const { schoolName, slug, levels, email, phone, firstName, lastName, sendChannels, tier, accountType, trialEndDate, accountManager, internalNote, address, city, state, lga, country } = form.watch();
   const panel = useFocusTrap<HTMLDivElement>(open);
   const { state: sl, suggestions: slugSuggestions } = useAddressCheck(slug);
+  const geo = geoFor(country);
+  const lgaOptions = lgasFor(country, state);
   useEffect(() => {
     if (!open) return;
     const onKey = (event: KeyboardEvent) => {
@@ -287,6 +292,7 @@ export function AddSchoolWizard({ plans }: { plans: SuperAdminPlanRow[] }) {
           address: address.trim() || undefined,
           city: city.trim() || undefined,
           state: state.trim() || undefined,
+          lga: lga.trim() || undefined,
           country: country.trim() || "Nigeria",
           category: categoryFromLevels(levels),
           plan: tier || "BASIC",
@@ -471,25 +477,46 @@ export function AddSchoolWizard({ plans }: { plans: SuperAdminPlanRow[] }) {
                     ) : null}
                   </div>
                   <Field label="Country">
-                    <select {...field("country")} className={inputClass}>
-                      <option>Nigeria</option>
-                      <option>Ghana</option>
-                      <option>Kenya</option>
+                    <select
+                      {...form.register("country", {
+                        // A state belongs to one country and an LGA to one state, so moving up the
+                        // chain clears what hung below it rather than leaving Ikeja sitting under Kano.
+                        onChange: (event) => {
+                          const next = event.target.value;
+                          form.setValue("country", next);
+                          form.setValue("state", geoFor(next).divisions[0] ?? "");
+                          form.setValue("lga", "");
+                        },
+                      })}
+                      className={inputClass}
+                    >
+                      {COUNTRY_NAMES.map((name) => <option key={name}>{name}</option>)}
                     </select>
                   </Field>
-                  <Field label="State">
-                    <select {...field("state")} className={inputClass}>
-                      <option>Lagos</option>
-                      <option>FCT Abuja</option>
-                      <option>Kano</option>
-                      <option>Rivers</option>
+                  <Field label={geo.level1Label}>
+                    <select
+                      {...form.register("state", {
+                        onChange: (event) => { form.setValue("state", event.target.value); form.setValue("lga", ""); },
+                      })}
+                      className={inputClass}
+                    >
+                      {geo.divisions.map((name) => <option key={name}>{name}</option>)}
                     </select>
                   </Field>
                   <Field label="City">
                     <input {...field("city")} placeholder="Ikeja" className={inputClass} />
                   </Field>
-                  <Field label="LGA">
-                    <input {...field("lga")} placeholder="Ikeja" className={inputClass} />
+                  {/* A dropdown where the country has a list of its own, and free text where it does
+                      not — the label follows the country, so Kenya is asked for a Sub-county. */}
+                  <Field label={geo.level2Label}>
+                    {lgaOptions.length ? (
+                      <select {...field("lga")} className={inputClass}>
+                        <option value="">{`Choose an ${geo.level2Label}`}</option>
+                        {lgaOptions.map((name) => <option key={name}>{name}</option>)}
+                      </select>
+                    ) : (
+                      <input {...field("lga")} placeholder={geo.level2Label} className={inputClass} />
+                    )}
                   </Field>
                   <div className="col-span-2">
                     <Field label="Registered address">
