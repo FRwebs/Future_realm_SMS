@@ -10,7 +10,6 @@ export const metadata: Metadata = {
 
 type AccessControl = {
   idleMinutes: number;
-  trustDays: number;
   ipAllowListEnforced: boolean;
   levels: Array<{ level: string; role: string; scope: string }>;
 };
@@ -18,7 +17,6 @@ type AccessControl = {
 /** The product's own default, used when the API cannot be reached. */
 const FALLBACK: AccessControl = {
   idleMinutes: 30,
-  trustDays: 30,
   ipAllowListEnforced: false,
   levels: [
     { level: "1", role: "Super Admin", scope: "Every module, every function · Global data scope" },
