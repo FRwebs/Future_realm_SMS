@@ -1,5 +1,5 @@
 import { getServerSession } from "@/lib/auth/session";
-import { apiGet, apiGetEnvelope, observe } from "@/lib/api/server";
+import { apiGet, apiGetEnvelope, isRefusal, observe } from "@/lib/api/server";
 import { localContracts } from "@/lib/api/local-contracts.zod";
 import { SuperAdminAnalyticsOverviewSchema, SuperAdminRevenueReportSchema, SuperAdminRevenueViewSchema } from "@/lib/domain/types.zod";
 import { roleLabels } from "@/lib/auth/roles";
@@ -208,21 +208,36 @@ type ComplianceWatchFeed = {
   nextFiling: { title: string; dueAt: string | null; days: number | null } | null;
 };
 
+/** A read whose refusal the page can live without. Only a refusal: everything else is still thrown. */
+async function orRefused<T>(reading: Promise<T>): Promise<T | null> {
+  try {
+    return await reading;
+  } catch (error) {
+    if (isRefusal(error)) return null;
+    throw error;
+  }
+}
+
 const tierColors = ["#12796A", "#3F9C86", "#7FBBA8", "#B7D6C9", "#DEE8E2", "#0D2315"];
 
 export default async function SuperAdminDashboardPage() {
   const session = await getServerSession();
-  const [overview, revenue, revenueReport, commissionEnvelope, securityData, complianceEnvelope] = await Promise.all([
+  const [overview, revenue, revenueReport, commissionSummary, securityData, complianceEnvelope] = await Promise.all([
     apiGet("/api/super-admin/analytics/overview", observe<SuperAdminAnalyticsOverview>(SuperAdminAnalyticsOverviewSchema)),
-    apiGet("/api/super-admin/analytics/revenue", observe<SuperAdminRevenueView>(SuperAdminRevenueViewSchema)),
-    apiGet("/api/super-admin/analytics/revenue-report", observe<SuperAdminRevenueReport>(SuperAdminRevenueReportSchema)),
-    apiGetEnvelope<SuperAdminPartnerCommissionSummaryRow[]>("/api/super-admin/partners/commission-summary"),
-    apiGet("/api/super-admin/security", observe<DashboardSecurityView>(localContracts["src/app/super-admin/page.tsx#96259927"])),
+    // What this cockpit costs and earns is not every internal role's to see: a Support Agent and a
+    // Developer are refused the money reads by the API, as they should be. Losing the whole page
+    // over that was wrong — the refusal costs its own panel and nothing else. Anything other than
+    // a refusal still throws, so a real failure is still loud.
+    orRefused(apiGet("/api/super-admin/analytics/revenue", observe<SuperAdminRevenueView>(SuperAdminRevenueViewSchema))),
+    orRefused(apiGet("/api/super-admin/analytics/revenue-report", observe<SuperAdminRevenueReport>(SuperAdminRevenueReportSchema))),
+    orRefused(apiGetEnvelope<SuperAdminPartnerCommissionSummaryRow[]>("/api/super-admin/partners/commission-summary").then((envelope) => envelope.data ?? [])),
+    // Security is another read that is not every role's — a Finance Lead is refused it. Losing the
+    // incidents and requests costs those rows of the watch; the obligations beside them stay.
+    orRefused(apiGet("/api/super-admin/security", observe<DashboardSecurityView>(localContracts["src/app/super-admin/page.tsx#96259927"]))),
     // The obligations register, which is where the regulator's own artefacts live — registration,
     // the DPO, the DPIA and what is filed next. Only the few fields the watch draws are read.
     apiGetEnvelope<ComplianceWatchFeed>("/api/super-admin/compliance").catch(() => ({ data: null }))
   ]);
-  const commissionSummary = commissionEnvelope.data ?? [];
   const obligations = complianceEnvelope.data?.obligations ?? [];
 
   const profile = platformProfile(session?.role ?? "PLATFORM_OWNER");
@@ -298,7 +313,7 @@ export default async function SuperAdminDashboardPage() {
     { label: "Last backup", value: commandCenter.pulse.lastSuccessfulBackupAt ? formatDate(commandCenter.pulse.lastSuccessfulBackupAt) : "Not logged", sub: "Successful run", tone: commandCenter.pulse.lastSuccessfulBackupAt ? "good" : "danger" }
   ];
 
-  const revenueSparkline = revenue.monthlyRevenue.slice(-8).map((item) => item.amount);
+  const revenueSparkline = (revenue?.monthlyRevenue ?? []).slice(-8).map((item) => item.amount);
 
   const collectedPct = commandCenter.revenueSnapshot.currentTermInvoiced > 0
     ? Math.min(100, Math.round((commandCenter.revenueSnapshot.currentTermCollected / commandCenter.revenueSnapshot.currentTermInvoiced) * 1000) / 10)
@@ -339,7 +354,7 @@ export default async function SuperAdminDashboardPage() {
     {
       label: "Notification credit revenue",
       value: formatCurrency(commandCenter.revenueSnapshot.notificationCreditRevenue),
-      secondary: `${formatPercent(revenueReport.creditRevenueSharePct)} of platform revenue`,
+      secondary: revenueReport ? `${formatPercent(revenueReport.creditRevenueSharePct)} of platform revenue` : "Share of platform revenue is not yours to see",
       delta: commandCenter.revenueSnapshot.notificationCreditDeltaPct === null ? "—" : `${commandCenter.revenueSnapshot.notificationCreditDeltaPct >= 0 ? "+" : ""}${commandCenter.revenueSnapshot.notificationCreditDeltaPct}%`,
       since: "vs last month",
       positive: (commandCenter.revenueSnapshot.notificationCreditDeltaPct ?? 0) >= 0,
@@ -347,7 +362,7 @@ export default async function SuperAdminDashboardPage() {
     }
   ];
 
-  const tierTotal = revenue.schoolsByPlan.reduce((sum, item) => sum + item.count, 0) || 1;
+  const tierTotal = (revenue?.schoolsByPlan ?? []).reduce((sum, item) => sum + item.count, 0) || 1;
 
   function complianceCountdown(deadline: Date) {
     const days = Math.ceil((deadline.getTime() - Date.now()) / (24 * 60 * 60 * 1000));
@@ -358,7 +373,7 @@ export default async function SuperAdminDashboardPage() {
   }
 
   const complianceWatchItems = [
-    ...securityData.privacy
+    ...(securityData?.privacy ?? [])
       .filter((request) => request.status === "OPEN" || request.status === "IN_REVIEW")
       .map((request) => {
         const deadline = new Date(new Date(request.createdAt).getTime() + NDPA_RESPONSE_WINDOW_DAYS * 24 * 60 * 60 * 1000);
@@ -371,7 +386,7 @@ export default async function SuperAdminDashboardPage() {
           fixed: false
         };
       }),
-    ...securityData.incidents
+    ...(securityData?.incidents ?? [])
       .filter((incident) => incident.status !== "RESOLVED")
       .map((incident) => {
         const deadline = new Date(new Date(incident.detectedAt).getTime() + BREACH_CONTAINMENT_HOURS * 60 * 60 * 1000);
@@ -409,11 +424,11 @@ export default async function SuperAdminDashboardPage() {
   ].sort((left, right) => left.deadline.getTime() - right.deadline.getTime()).slice(0, 8);
   const nextFiling = complianceEnvelope.data?.nextFiling ?? null;
 
-  const commissionWatchItems = [...commissionSummary]
+  const commissionWatchItems = [...(commissionSummary ?? [])]
     .sort((left, right) => right.totalCommissionOwed - left.totalCommissionOwed)
     .slice(0, 5);
 
-  const geoRevenueByState = new Map(revenueReport.revenueByState.map((item) => [item.state, item.revenue]));
+  const geoRevenueByState = new Map((revenueReport?.revenueByState ?? []).map((item) => [item.state, item.revenue]));
 
   const healthFlags = [
     { label: "Trials expiring 7d", value: commandCenter.subscriptionHealth.trialsExpiringNext7Days, tone: "warn" as HealthTone },
@@ -608,7 +623,9 @@ export default async function SuperAdminDashboardPage() {
           <CardHeader
             title="Regulatory obligations watch"
             meta="Module 10 · NDPA 2023 & GAID 2025"
-            sub="Registration, the DPO, the impact assessment, every open data-subject request and every unresolved security incident, counted down against its own window. Nothing here is dismissible."
+            sub={securityData
+              ? "Registration, the DPO, the impact assessment, every open data-subject request and every unresolved security incident, counted down against its own window. Nothing here is dismissible."
+              : "Registration, the DPO and the impact assessment, counted down against each one's own window. Requests and incidents are not open to your role, so they are not counted here. Nothing shown is dismissible."}
           />
           {nextFiling ? (
             <p className="mt-2.5 rounded-[9px] px-[11px] py-[7px] text-[10.5px] font-semibold" style={{ background: "var(--color-bg-subtle)", color: "var(--color-text-secondary)" }}>
@@ -637,7 +654,7 @@ export default async function SuperAdminDashboardPage() {
             })}
             {complianceWatchItems.length === 0 ? (
               <p className="rounded-[9px] px-4 py-6 text-center text-sm font-semibold" style={{ background: "var(--color-success-dim)", color: "var(--color-success)" }}>
-                No open compliance obligations.
+                {securityData ? "No open compliance obligations." : "No open obligations among the ones your role can see."}
               </p>
             ) : null}
           </div>
@@ -659,15 +676,19 @@ export default async function SuperAdminDashboardPage() {
                 <p className="shrink-0 font-(--font-heading) text-[14.5px] font-bold text-[#5FD6B4]">{formatCurrency(partner.totalCommissionOwed)}</p>
               </div>
             ))}
-            {commissionWatchItems.length === 0 ? <p className="py-4 text-center text-[11px] font-semibold text-white/50">No commission activity recorded.</p> : null}
+            {commissionWatchItems.length === 0 ? (
+              <p className="py-4 text-center text-[11px] font-semibold text-white/50">
+                {commissionSummary ? "No commission activity recorded." : "Commission is not open to your role."}
+              </p>
+            ) : null}
           </div>
         </section>
       </section>
 
       <section className="grid gap-3.5 lg:grid-cols-[1.15fr_1fr_1fr]">
         <section className="surface-card p-5">
-          <CardHeader title="Subscription health" meta={`${tierTotal.toLocaleString()} accounts`} />
-          {revenue.schoolsByPlan.length > 0 ? (
+          <CardHeader title="Subscription health" meta={revenue ? `${tierTotal.toLocaleString()} accounts` : undefined} />
+          {revenue && revenue.schoolsByPlan.length > 0 ? (
             <>
               <div className="mt-4 flex h-2.5 overflow-hidden rounded-full bg-(--color-bg-subtle)">
                 {revenue.schoolsByPlan.map((item, index) => (
@@ -685,7 +706,9 @@ export default async function SuperAdminDashboardPage() {
                 ))}
               </div>
             </>
-          ) : null}
+          ) : revenue ? null : (
+            <p className="mt-4 text-[11px] text-(--color-text-muted)">The plan mix is part of the revenue reads, which your role is not given.</p>
+          )}
           <div className="mt-3.5 flex gap-2 border-t border-(--color-border-muted) pt-3.5">
             {healthFlags.map((flag) => {
               const colors = toneColors[flag.tone];
