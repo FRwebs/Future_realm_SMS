@@ -1283,7 +1283,7 @@ model User {
   createdAt                        DateTime                      @default(now())
   updatedAt                        DateTime                      @updatedAt
   verificationCodes                EmailVerificationCode[]
-  guardians                         Guardian[]
+  guardians                        Guardian[]
   student                          Student?
   staffProfile                     StaffProfile?
   admissionsReviewed               AdmissionReview[]
@@ -4025,6 +4025,8 @@ model LessonPlan {
   sections          Json?
   /// The section the reviewer asked to be changed, when a note is returned.
   returnedSection   String?
+  /// Who sent it back. The teacher's list names them, so a comment is never from nobody.
+  returnedById      String?
   /// What the teacher said they changed, when they resubmit.
   resubmitReply     String?
   /// Each time a signed note is revised and signed again it is a new version.

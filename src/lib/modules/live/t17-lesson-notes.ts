@@ -34,9 +34,9 @@ export const loadReviewNote = (planId: string) => apiGet(`${API}/notes/review/${
 type Landing = {
   persona: string; term: { id: string; name: string; session: string; current: number | null; weeks: number; phase: string }; terms: Array<{ id: string; name: string }>; signer: { name: string } | null;
   kpis: { toWrite: number; drafts: number; withReviewer: number; signed: number; returned: number };
-  rework: Array<{ planId: string; subjectId: string; subject: string; arms: string[]; week: number; topic: string; section: string | null; note: string; at: string }>;
+  rework: Array<{ planId: string; subjectId: string; subject: string; arms: string[]; week: number; topic: string; section: string | null; note: string; at: string; by?: string | null; resubmitted?: boolean }>;
   subjects: Array<{ subjectId: string; subject: string; arms: string[]; readOnly: boolean; earlyYears: boolean; planned: number; due: number; notStarted: number; drafts: number; submitted: number; signed: number; returned: number; thisWeek?: { week: number; topic: string; state: string } | null; next: number | null; state: string }>;
-  history: Array<{ subjectId: string; subject: string; terms: Array<{ termId: string; term: string; session: string; signed: number }> }>;
+  history: Array<{ subjectId: string; subject: string; arms?: string[]; terms: Array<{ termId: string; term: string; session: string; signed: number }> }>;
 };
 type History = { subjectId: string; subject: string; terms: Array<{ termId: string; term: string; session: string; notes: Array<{ planId: string; week: number; topic: string; signedAt: string | null; signedBy: string | null; version: number }> }> };
 type HistoryNote = { letterhead: Letterhead; id: string; subjectId: string; subject: string; topic: string; week: number; arms: string[]; term: string; session: string; version: number; sections: Section[]; text: Record<string, string>; signedBy: string | null; signedAt: string | null; thread: ThreadEntry[] };
@@ -175,14 +175,21 @@ function notesTab(v: Landing, query: Q): TabContent {
   const k = v.kpis;
   const totalPlanned = v.subjects.reduce((sum, entry) => sum + entry.planned, 0);
   const totalWritten = v.subjects.reduce((sum, entry) => sum + entry.drafts + entry.submitted + entry.signed + entry.returned, 0);
-  const rework: TableRow[] = v.rework.map((entry) => ({
-    keywords: `${entry.subject} ${entry.topic}`, href: `/lesson-notes/notes/${entry.subjectId}/${entry.week}?term=${v.term.id}`,
-    cells: [
-      { kind: "name", name: entry.topic, sub: `${entry.subject} · ${entry.arms.join(", ")} · week ${entry.week}`, avatar: false },
-      cell(entry.note || "No comment left", { tone: "negative" }), cell(stamp(entry.at)),
-      { kind: "action", label: "Rework it", href: `/lesson-notes/notes/${entry.subjectId}/${entry.week}?term=${v.term.id}` },
-    ] as TableCellKind[],
-  }));
+  const rework: TableRow[] = v.rework.map((entry) => {
+    const back = entry.resubmitted ? "Resubmitted" : "Returned";
+    const href = `/lesson-notes/notes/${entry.subjectId}/${entry.week}?term=${v.term.id}`;
+    return {
+      keywords: `${entry.subject} ${entry.topic} ${back} ${entry.by ?? ""}`, href,
+      cells: [
+        { kind: "name", name: entry.subject, sub: entry.arms.join(", "), avatar: false },
+        { kind: "name", name: `Week ${entry.week} · ${entry.topic}`, sub: stamp(entry.at), avatar: false },
+        cell(entry.by ?? "Not recorded", entry.by ? undefined : { tone: "neutral" }),
+        cell(entry.note ? `“${entry.note}”` : "No comment left"),
+        pill(back, entry.resubmitted ? "submitted" : "negative"),
+        { kind: "action", label: entry.resubmitted ? "Read" : "Correct it", href },
+      ] as TableCellKind[],
+    };
+  });
   const subjects: TableRow[] = v.subjects.map((entry) => {
     // What this subject still wants from the teacher, said once rather than spread
     // across four count columns they would have to add up themselves.
@@ -214,11 +221,38 @@ function notesTab(v: Landing, query: Q): TabContent {
       ] as TableCellKind[],
     };
   });
-  const history: TableRow[] = v.history.flatMap((entry) => entry.terms.map((t) => ({
-    keywords: `${entry.subject} ${t.term}`, href: `/lesson-notes/notes/history/${entry.subjectId}`,
-    cells: [{ kind: "name", name: entry.subject, sub: `${t.term}${t.session ? `, ${t.session}` : ""}`, avatar: false }, cell(`${t.signed} signed note${t.signed === 1 ? "" : "s"}`, { mono: true }), { kind: "action", label: "Read them", href: `/lesson-notes/notes/history/${entry.subjectId}` }] as TableCellKind[],
-  })));
+  // One row per subject, not per term: a teacher who has taught Chemistry for four terms wants
+  // the subject once, with the terms behind it, exactly as the mockup draws it.
+  const historyNotes = (entry: Landing["history"][number]) => entry.terms.reduce((sum, t) => sum + t.signed, 0);
+  const history: TableRow[] = v.history.map((entry) => {
+    const href = `/lesson-notes/notes/history/${entry.subjectId}`;
+    const recent = entry.terms[0];
+    return {
+      keywords: `${entry.subject} ${(entry.arms ?? []).join(" ")}`, href,
+      cells: [
+        { kind: "name", name: entry.subject, sub: `${entry.terms.length} ${entry.terms.length === 1 ? "term" : "terms"} · ${historyNotes(entry)} ${historyNotes(entry) === 1 ? "note" : "notes"}`, avatar: false },
+        cell((entry.arms ?? []).join(", ") || "Not recorded", (entry.arms ?? []).length ? undefined : { tone: "neutral" }),
+        cell(String(entry.terms.length), { mono: true }),
+        cell(String(historyNotes(entry)), { mono: true }),
+        cell(recent ? `${recent.term}${recent.session ? `, ${recent.session}` : ""}` : "—"),
+        pill("All signed", "positive"),
+        { kind: "action", label: "Open", href },
+      ] as TableCellKind[],
+    };
+  });
   const other = v.terms.filter((t) => t.id !== v.term.id);
+  const totalHistory = v.history.reduce((sum, entry) => sum + historyNotes(entry), 0);
+  const readOnly = v.subjects.length > 0 && v.subjects.every((entry) => entry.readOnly);
+  const resubmitted = v.rework.filter((entry) => entry.resubmitted).length;
+  const returnedNow = v.rework.filter((entry) => !entry.resubmitted);
+  // This week's note, preferring one that still wants work over one already signed.
+  const thisWeek = v.subjects.find((entry) => entry.thisWeek && !entry.readOnly && ["Not started", "Draft", "Returned"].includes(entry.thisWeek.state))
+    ?? v.subjects.find((entry) => entry.thisWeek) ?? null;
+  const thisWeekVerb = !thisWeek ? "Write"
+    : thisWeek.readOnly ? "Read"
+    : thisWeek.thisWeek!.state === "Not started" ? "Write"
+    : thisWeek.thisWeek!.state === "Draft" ? "Finish"
+    : thisWeek.thisWeek!.state === "Returned" ? "Correct" : "Open";
   const next = v.subjects.find((entry) => entry.next && !entry.readOnly);
   // The phone's blocks, in the mockup's order: what this week asks for, what came back, two figures, and every subject with where it stands.
   const open = v.subjects.find((entry) => entry.thisWeek && !entry.readOnly && entry.thisWeek.state !== "Approved" && entry.thisWeek.state !== "Submitted") ?? v.subjects.find((entry) => entry.thisWeek) ?? null;
@@ -283,9 +317,20 @@ function notesTab(v: Landing, query: Q): TabContent {
   return {
     title: "Notes", phoneTitle: "Your notes this term", phoneDesc: "Plan the term once and teach from it weekly. One note serves every arm that takes the subject.",
     phoneEyebrow: `Lesson Notes${v.term.current ? ` · Week ${v.term.current} of ${v.term.weeks}` : ` · ${v.term.name}`}`,
-    desc: `${v.term.name}, ${v.term.session}${v.term.current ? ` · week ${v.term.current} of ${v.term.weeks}` : ""}. ${v.signer ? `${v.signer.name} signs your notes.` : "No one is named to sign your notes yet."}`,
-    primary: next ? { label: `Write week ${next.next}`, phoneLabel: "Write note", icon: PEN, href: `/lesson-notes/notes/${next.subjectId}/${next.next}?term=${v.term.id}` } : undefined,
-    launchers: other.map((t) => ({ label: `Notes for ${t.name}`, href: `/lesson-notes/notes?term=${t.id}` })),
+    desc: readOnly
+      ? "Read only. The notes for the arms you cover, subject by subject."
+      : "Every note you are writing this term, subject by subject — and every note you have written before.",
+    // The mockup's primary is always this week's note, and its word changes with where that note
+    // stands: a teacher who has started one is not asked to write it again.
+    primary: thisWeek
+      ? { label: `${thisWeekVerb} this week’s note`, phoneLabel: "Write note", icon: PEN, href: `/lesson-notes/notes/${thisWeek.subjectId}/${thisWeek.thisWeek!.week}?term=${v.term.id}` }
+      : next
+        ? { label: `Write week ${next.next}`, phoneLabel: "Write note", icon: PEN, href: `/lesson-notes/notes/${next.subjectId}/${next.next}?term=${v.term.id}` }
+        : undefined,
+    launchers: [
+      { label: "Open the scheme of work", href: `/lesson-notes/curriculum?term=${v.term.id}` },
+      ...other.map((t) => ({ label: `Notes for ${t.name}`, href: `/lesson-notes/notes?term=${t.id}` })),
+    ],
     rows: [
       ...phoneRows.filter((entry): entry is PanelRow => Boolean(entry)),
       ...desktopOnly([
@@ -293,29 +338,52 @@ function notesTab(v: Landing, query: Q): TabContent {
         type: "kpi", per: 5, sub: query.term ? undefined : "Counted from your own notes — nothing here is typed in twice.",
         cards: [
           { label: "Subjects", value: String(v.subjects.length), sub: v.subjects.map((entry) => entry.subject).join(" · ") || "None yet" },
-          { label: "Notes written", value: String(totalWritten), unit: `of ${totalPlanned}`, sub: k.toWrite ? `${k.toWrite} not written for weeks already reached` : "Up to date for every week reached", tone: k.toWrite ? "attention" : "positive" },
+          { label: "Notes written", value: String(totalWritten), unit: `of ${totalPlanned}`, sub: k.toWrite ? `${k.toWrite} still to write` : "Up to date", tone: k.toWrite ? "attention" : "positive" },
           { label: "Signed this term", value: String(k.signed), unit: `of ${totalPlanned}`, sub: v.signer ? `By ${v.signer.name}` : "No one is named to sign them yet", tone: "positive" },
-          { label: "With the reviewer", value: String(k.withReviewer), sub: k.withReviewer ? "Waiting to be signed" : "Nothing waiting", tone: k.withReviewer ? "submitted" : "neutral" },
-          { label: "Returned for rework", value: String(k.returned), sub: k.returned ? `${v.rework[0]?.topic ?? "A note"} · read the comment` : "Nothing sent back", tone: k.returned ? "negative" : "positive" },
+          { label: "With the reviewer", value: String(k.withReviewer), sub: k.withReviewer ? (resubmitted ? `${resubmitted} resubmitted after rework` : "Waiting to be signed") : "Nothing waiting", tone: k.withReviewer ? "submitted" : "neutral" },
+          readOnly
+            ? { label: "Weeks ahead", value: String(v.subjects.reduce((sum, entry) => sum + Math.max(0, entry.planned - entry.due), 0)), sub: "Topics still to come" }
+            : {
+                label: "Returned for rework", value: String(k.returned),
+                sub: k.returned ? `${returnedNow[0]?.topic ?? "A note"} · read the comment` : "Nothing sent back", tone: k.returned ? "negative" : "positive",
+                ...(returnedNow[0] ? { link: "Correct it", href: `/lesson-notes/notes/${returnedNow[0].subjectId}/${returnedNow[0].week}?term=${v.term.id}` } : {}),
+              },
         ],
       }]),
+      // The mockup draws this only when something is in rework: an empty "sent back" table reads as
+      // a standing accusation on a page where nothing is wrong.
+      ...(rework.length ? [row("1fr", [{
+        type: "table" as const, title: "Sent back for rework",
+        tag: returnedNow.length ? `${returnedNow.length} to correct` : "All resubmitted", tagTone: (returnedNow.length ? "negative" : "submitted") as PanelTone,
+        sub: "Read the comment, change the section it names, then resubmit with what you changed.",
+        meta: `${rework.length} ${rework.length === 1 ? "note" : "notes"}`, noun: "note", nounPlural: "notes",
+        filters: [{ label: "State", value: "All", options: ["All", "Returned", "Resubmitted"] }],
+        head: ["Subject", "Week · topic", "Returned by", "Comment", "State", ""], rows: rework,
+        foot: "Resubmitted notes stay here until they are signed.",
+      }])] : []),
       row("1fr", [{
-        type: "table", title: "Sent back for rework", sub: "A reviewer returned these with what to change. Open one, change it, and say what you changed.", meta: `${v.rework.length} returned`, noun: "note", nounPlural: "notes",
-        head: ["Note", "What to change", "Returned", ""], rows: rework, noRowOpen: false, empty: "Nothing has been sent back.",
-        emptyTitle: "Nothing has been sent back", emptyBody: "When a reviewer returns a note, it lands here with their comment beside the section to change.",
-      }]),
-      row("1fr", [{
-        type: "table", title: "Every note this term", sub: "One row per subject. Open one to see its topics week by week, and write the note for any of them.",
+        type: "table", title: readOnly ? "Notes this term" : "Every note this term",
+        tag: `${v.subjects.length} ${v.subjects.length === 1 ? "subject" : "subjects"}`, tagTone: "neutral",
+        sub: "One row per subject. Open one to see its topics week by week, and write the note for any of them.",
         meta: `${v.subjects.length} subject${v.subjects.length === 1 ? "" : "s"} · ${totalPlanned} note${totalPlanned === 1 ? "" : "s"} · ${v.term.name}`, noun: "subject", nounPlural: "subjects",
         search: "Find a subject, a class or this week’s topic",
         filters: [{ label: "State", value: "All", options: ["All", "Returned", "Behind", "Draft open", "On track"] }],
         head: ["Subject", "Classes", "This week", "Written", "Signed", "Needs you", "State", ""], rows: subjects, empty: "You are not named on a subject.",
         emptyTitle: "No subjects to write for", emptyBody: "Your subjects come from the school admin, or from Add a subject in Curriculum.",
+        foot: readOnly ? "Notes stay with their author." : "A note is your own work.",
       }]),
       row("1fr", [{
-        type: "table", title: "Note history", sub: "Signed notes from earlier terms stay here to teach from again.", meta: `${history.length} term${history.length === 1 ? "" : "s"}`, noun: "term", nounPlural: "terms",
-        head: ["Subject and term", "Signed notes", ""], rows: history, empty: "No signed note from an earlier term yet.",
-        emptyTitle: "Nothing from earlier terms yet", emptyBody: "Once a note is signed and the term has passed, it is kept here. When the topic comes round again you can start from it.",
+        type: "table", title: "Note history",
+        tag: `${totalHistory} signed ${totalHistory === 1 ? "note" : "notes"}`, tagTone: "positive",
+        sub: "Every subject you have written notes for in earlier terms. Open one to see its topics, then read any note exactly as it was signed.",
+        meta: `${history.length} ${history.length === 1 ? "subject" : "subjects"} · ${v.history.reduce((sum, entry) => sum + entry.terms.length, 0)} ${v.history.reduce((sum, entry) => sum + entry.terms.length, 0) === 1 ? "term" : "terms"} on file`,
+        noun: "subject", nounPlural: "subjects", search: "Find a subject or a class",
+        head: ["Subject", "Classes taught", "Terms", "Notes", "Most recent", "Signed", ""], rows: history, empty: "No signed note from an earlier term yet.",
+        emptyTitle: readOnly ? "No notes of your own on file here" : "No earlier notes yet",
+        emptyBody: readOnly
+          ? "You teach from someone else’s notes for the arms you cover. Notes you write here start your own history."
+          : "When this term ends, every note you wrote moves here, signed and readable.",
+        foot: "Read only. A signed note is never edited.",
       }]),
       ]),
     ],

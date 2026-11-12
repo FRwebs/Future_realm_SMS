@@ -93,19 +93,45 @@ export class TeacherNotesService {
       subjects.push(entry);
       if (group.readOnly) continue;
       drafts += entry.drafts; reviewer += entry.submitted; signed += entry.signed; toWrite += entry.notStarted; returned += entry.returned;
-      for (const plan of plans.filter((candidate) => candidate.status === "RETURNED")) {
+      // Rework is not only what is sitting returned: a note the teacher has already corrected and
+      // sent back stays here until it is signed, or they would watch it disappear and have no way
+      // to tell whether anyone has read it.
+      for (const plan of plans.filter((candidate) => candidate.status === "RETURNED" || (candidate.status === "SUBMITTED" && candidate.resubmitReply))) {
         const week = weeks.find((candidate) => candidate.week === plan.weekNumber);
-        rework.push({ planId: plan.id, subjectId: group.subjectId, subject: group.subject, arms: entry.arms, week: plan.weekNumber, topic: week?.topic || plan.topic, section: plan.returnedSection, note: plan.reviewNote ?? "", at: (plan.rejectedAt ?? plan.updatedAt).toISOString() });
+        rework.push({
+          planId: plan.id, subjectId: group.subjectId, subject: group.subject, arms: entry.arms, week: plan.weekNumber, topic: week?.topic || plan.topic,
+          section: plan.returnedSection, note: plan.reviewNote ?? "", at: (plan.rejectedAt ?? plan.updatedAt).toISOString(),
+          by: plan.returnedById ?? null, resubmitted: plan.status === "SUBMITTED",
+        });
       }
     }
+    // Who sent each returned note back, resolved once rather than per row.
+    const returners = await prisma.user.findMany({ where: { id: { in: [...new Set(rework.map((item) => item.by).filter((id): id is string => Boolean(id)))] } }, select: { id: true, firstName: true, lastName: true } });
+    const reworkRows = rework.map((item) => {
+      const who = returners.find((candidate) => candidate.id === item.by);
+      return { ...item, by: who ? fullName(who) : null };
+    });
+
     const past = await prisma.lessonPlan.groupBy({ by: ["subjectId", "termId"], where: { schoolId: session.schoolId, teacherId: session.userId, deletedAt: null, status: "APPROVED" }, _count: { _all: true } });
     const subjectsNamed = await prisma.subject.findMany({ where: { id: { in: [...new Set(past.map((row) => row.subjectId))] } }, select: { id: true, name: true } });
     const termsNamed = await prisma.term.findMany({ where: { id: { in: [...new Set(past.map((row) => row.termId).filter((id): id is string => Boolean(id)))] } }, select: { id: true, name: true, startDate: true, academicSessionId: true } });
     const sessionsNamed = await prisma.academicSession.findMany({ where: { id: { in: termsNamed.map((entry) => entry.academicSessionId) } }, select: { id: true, name: true } });
-    const history = subjectsNamed.map((subject) => ({ subjectId: subject.id, subject: subject.name, terms: past.filter((row) => row.subjectId === subject.id).map((row) => { const t = termsNamed.find((entry) => entry.id === row.termId); return { termId: row.termId, term: t?.name ?? "A term", session: sessionsNamed.find((entry) => entry.id === t?.academicSessionId)?.name ?? "", at: t?.startDate.getTime() ?? 0, signed: row._count._all }; }).sort((a, b) => b.at - a.at) })).sort((a, b) => a.subject.localeCompare(b.subject));
+    // The arms each subject was taught to in those terms. A note serves every arm that takes the
+    // topic, so the classes live on the note, not on the term.
+    const pastPlans = await prisma.lessonPlan.findMany({ where: { schoolId: session.schoolId, teacherId: session.userId, deletedAt: null, status: "APPROVED" }, select: { subjectId: true, classIds: true, classId: true } });
+    const armIds = [...new Set(pastPlans.flatMap((plan) => [...plan.classIds, plan.classId]).filter((id): id is string => Boolean(id)))];
+    const armsNamed = await prisma.classRoom.findMany({ where: { id: { in: armIds } }, select: { id: true, name: true, arm: true } });
+    const armsOf = (subjectId: string) => [...new Set(
+      pastPlans.filter((plan) => plan.subjectId === subjectId)
+        .flatMap((plan) => [...plan.classIds, plan.classId])
+        .map((id) => { const room = armsNamed.find((candidate) => candidate.id === id); return room ? armName(room) : undefined; })
+        .filter((name): name is string => Boolean(name)),
+    )].sort();
+
+    const history = subjectsNamed.map((subject) => ({ subjectId: subject.id, subject: subject.name, arms: armsOf(subject.id), terms: past.filter((row) => row.subjectId === subject.id).map((row) => { const t = termsNamed.find((entry) => entry.id === row.termId); return { termId: row.termId, term: t?.name ?? "A term", session: sessionsNamed.find((entry) => entry.id === t?.academicSessionId)?.name ?? "", at: t?.startDate.getTime() ?? 0, signed: row._count._all }; }).sort((a, b) => b.at - a.at) })).sort((a, b) => a.subject.localeCompare(b.subject));
     return {
       persona: me.persona, term: this.scheme.termView(term), terms: [this.scheme.termView(terms.current), ...(terms.next ? [this.scheme.termView(terms.next)] : [])],
-      signer: signer ? { name: fullName(signer) } : null, kpis: { toWrite, drafts, withReviewer: reviewer, signed, returned }, rework, subjects, history,
+      signer: signer ? { name: fullName(signer) } : null, kpis: { toWrite, drafts, withReviewer: reviewer, signed, returned }, rework: reworkRows, subjects, history,
     };
   }
 
@@ -351,7 +377,7 @@ export class TeacherNotesService {
     if (plan.status !== "SUBMITTED") throw new BadRequestException("Only a note that has been submitted can be signed or returned.");
     if (input.decision === "return" && !(input.note ?? "").trim()) throw new BadRequestException("Say what to change — a return without a comment cannot be acted on.");
     const stamp = new Date();
-    await prisma.lessonPlan.update({ where: { id: plan.id }, data: input.decision === "sign" ? { status: "APPROVED", approvedAt: stamp, approvedById: session.userId, reviewNote: null, returnedSection: null } : { status: "RETURNED", rejectedAt: stamp, reviewNote: input.note ?? null, returnedSection: input.section || null } });
+    await prisma.lessonPlan.update({ where: { id: plan.id }, data: input.decision === "sign" ? { status: "APPROVED", approvedAt: stamp, approvedById: session.userId, reviewNote: null, returnedSection: null } : { status: "RETURNED", rejectedAt: stamp, reviewNote: input.note ?? null, returnedSection: input.section || null, returnedById: session.userId } });
     await prisma.lessonNoteComment.create({ data: { schoolId: session.schoolId, planId: plan.id, authorId: session.userId, kind: input.decision === "sign" ? "SIGN" : "RETURN", section: input.section || null, body: input.note?.trim() || "Signed." } });
     await prisma.notificationLog.create({ data: { schoolId: session.schoolId, userId: plan.teacherId, channel: "IN_APP", title: input.decision === "sign" ? "Your lesson note was signed" : "Your lesson note was returned", body: `${plan.subject.name} · week ${plan.weekNumber} · ${plan.topic}${input.note ? ` — ${input.note}` : ""}`, status: "QUEUED", sentAt: stamp } });
     await prisma.auditLog.create({ data: { schoolId: session.schoolId, actorId: session.userId, action: input.decision === "sign" ? AuditAction.APPROVE : AuditAction.UPDATE, entityType: "LessonPlan", entityId: plan.id, metadata: { summary: `Lesson note ${input.decision === "sign" ? "signed" : "returned"} · week ${plan.weekNumber} · ${plan.topic}` } } });
