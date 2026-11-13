@@ -38,7 +38,7 @@ export default async function AllocationDetailPage({ params }: PageProps) {
     <ModuleWorkspace
       eyebrow="School Configuration"
       title={content.title ?? "Allocation"}
-      description={content.desc ?? ""}
+      description={content.desc ?? ""} tag={content.tag} tagTone={content.tagTone}
       primary={content.primary}
       launchers={content.launchers}
       rows={content.rows}

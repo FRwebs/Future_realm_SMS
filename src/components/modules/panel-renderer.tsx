@@ -24,6 +24,7 @@ import {
 import { usePhoneKind } from "@/components/layout/phone-shell";
 import { useTightLine } from "@/components/modules/tight-line";
 import { Field, initialValue } from "@/components/modules/field";
+import { buildBody } from "@/components/modules/module-drawer";
 import { PhoneFacts, PhoneList, PhoneNote, PhoneStats, PhoneSteps, PhoneTable } from "@/components/modules/phone-teacher-panels";
 import { ModuleDrawer } from "@/components/modules/lazy-drawer";
 import type {
@@ -47,6 +48,7 @@ import { cardIcon } from "@/lib/modules/card-icons";
 import { CARD_BORDER, INK, MUTED, toneOf } from "@/lib/modules/tones";
 import { useUiText } from "@/hooks/use-ui-text";
 import { cn } from "@/lib/utils/cn";
+import { onDevice, useHeldCounts } from "@/lib/offline/use-held";
 import { columnWidths, planColumns } from "@/lib/ui/table-columns";
 import { slimSub } from "@/lib/ui/card-sub";
 
@@ -1529,6 +1531,8 @@ function PanelViewDesktop({
   panel: Panel;
   openDrawer: OpenDrawer;
 }) {
+  // A figure that belongs to this device rather than to the school — what is still waiting here.
+  const held = useHeldCounts(panel.type === "kpi" && panel.cards.some((card) => card.device));
   // Whether a phone is reading this, for the slots whose copy shortens there.
   if (panel.type === "kpi") {
     // ONE card, everywhere in the product: same box, same 1px border, same label
@@ -1578,7 +1582,7 @@ function PanelViewDesktop({
           className="grid grid-cols-2 items-stretch gap-[10px] md:[grid-template-columns:var(--kpi-cols)]"
           style={{ "--kpi-cols": `repeat(auto-fit, minmax(${minCol}px, 1fr))` } as React.CSSProperties}
         >
-          {panel.cards.map((card) => {
+          {onDevice(panel.cards, held).map((card) => {
             const swatch = card.tone ? toneOf(card.tone) : null;
             // A card that offers a link always goes somewhere: with no page or form of its own it
             // opens a plain reading of the figure, so the link is never a dead end.
@@ -2416,18 +2420,10 @@ function FormPanel({
     if (!submit) return;
     setState({ kind: "saving" });
 
-    const payload: Record<string, unknown> = {};
-    for (const [label, key] of Object.entries(submit.map)) {
-      const value = values[label];
-      // An emptied box is sent as "" so a field can be cleared; the API turns
-      // that into null. Only a field with no value at all is left out.
-      if (value === undefined) continue;
-      // A key written "preferences.density" lands inside a nested object, for settings the API keeps together.
-      const path = key.split(".");
-      let into = payload;
-      for (const step of path.slice(0, -1)) into = (into[step] ??= {}) as Record<string, unknown>;
-      into[path[path.length - 1]!] = value;
-    }
+    // The same rule a drawer's form follows, so a form on the page and the same form in a drawer
+    // post the same thing: an emptied box travels as "" to clear the value, a field with no value
+    // at all is left out, a hidden field never travels, and `encode`/`nest` mean what they mean there.
+    const payload = buildBody(submit, panel.fields, values, "");
 
     try {
       const response = await fetch(submit.endpoint, {

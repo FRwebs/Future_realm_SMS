@@ -75,13 +75,15 @@ export function readableError(raw: string | undefined): string {
  * With no connection, a register or a score sheet is held on the device instead of lost (see lib/offline/outbox). Anything
  * else needs a connection, and the error says so in words rather than "Failed to fetch".
  */
+const LABELS = { ATTENDANCE: "A register", SCORE_ENTRY: "Scores", OBSERVATION: "An observation" } as const;
+
 function heldOffline(endpoint: string, method: string, payload: unknown, cause: unknown): boolean {
   if (!noConnection(cause)) return false;
   const target = offlineTarget(endpoint, method);
   if (!target || !payload || typeof payload !== "object") return false;
   // Holding work on the device is the person's choice (Preferences); declined, an offline write is refused so nothing is left behind.
   if (!readDevicePreferences().keepOffline) return false;
-  return Boolean(enqueue(target, payload as Record<string, unknown>, target.kind === "ATTENDANCE" ? "A register" : "Scores"));
+  return Boolean(enqueue(target, payload as Record<string, unknown>, LABELS[target.kind]));
 }
 
 const NO_CONNECTION = "There is no connection, and this needs one. Nothing was saved.";

@@ -38,7 +38,7 @@ function Shell({ content, back, children }: { content: PageContent; back: { labe
     <ModuleWorkspace
       eyebrow={EYEBROW}
       title={content.title ?? "Staff & Access"}
-      description={content.desc ?? ""}
+      description={content.desc ?? ""} tag={content.tag} tagTone={content.tagTone}
       primary={content.primary}
       launchers={content.launchers}
       rows={content.rows}

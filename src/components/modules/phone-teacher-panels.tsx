@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 import { cardIcon } from "@/lib/modules/card-icons";
+import { onDevice, useHeldCounts } from "@/lib/offline/use-held";
 import type { DrawerSpec, KpiCard, Panel, PanelAction, PanelTone, TableCellKind, TableRow } from "@/lib/modules/panels";
 import { toneOf } from "@/lib/modules/tones";
 import { tightFor } from "@/lib/ui/tight-copy";
@@ -92,7 +93,8 @@ function PhoneFoot({ foot }: { foot?: string }) {
 
 export function PhoneStats({ panel, openDrawer }: { panel: Extract<Panel, { type: "kpi" }>; openDrawer: OpenDrawer }) {
   const router = useRouter();
-  const cards = panel.cards;
+  const held = useHeldCounts(panel.cards.some((card) => card.device));
+  const cards = onDevice(panel.cards, held);
   return (
     <section className="min-w-0">
       <div className="grid grid-cols-2 gap-[10px]">

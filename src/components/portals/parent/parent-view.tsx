@@ -67,7 +67,7 @@ export async function ParentView({ page, query }: { page: string; query: Record<
       phoneDesc={content.phoneDesc}
       phonePrimary={content.phonePrimary}
       title={content.title ?? ""}
-      description={content.desc ?? ""}
+      description={content.desc ?? ""} tag={content.tag} tagTone={content.tagTone}
       primary={content.primary}
       launchers={content.launchers}
       rows={content.rows ?? []}

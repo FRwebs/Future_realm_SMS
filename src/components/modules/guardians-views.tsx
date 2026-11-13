@@ -20,7 +20,7 @@ export async function FamilyView({ id }: { id: string }) {
   const [family, options, all] = await Promise.all([loadFamily(id).catch(() => null), loadGuardianOptions(), loadFamilies()]);
   if (!family) notFound();
   const { content } = familyPage(family, options, all.rows);
-  return <ModuleWorkspace eyebrow="Parents & Guardians" title={content.title ?? "Family"} description={content.desc ?? ""} primary={content.primary} launchers={content.launchers} rows={content.rows} back={content.crumb} />;
+  return <ModuleWorkspace eyebrow="Parents & Guardians" title={content.title ?? "Family"} description={content.desc ?? ""} tag={content.tag} tagTone={content.tagTone} primary={content.primary} launchers={content.launchers} rows={content.rows} back={content.crumb} />;
 }
 
 /** Adding a guardian is a page of its own, as the mockup has it: Guardian, Children, Review. */

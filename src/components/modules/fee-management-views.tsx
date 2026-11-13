@@ -19,7 +19,7 @@ async function allowed() {
 }
 
 function Shell({ content }: { content: FeePage }) {
-  return <ModuleWorkspace eyebrow="Fee Management" title={content.title ?? "Fee Management"} description={content.desc ?? ""} primary={content.primary} launchers={content.launchers} rows={content.rows} back={content.crumb} />;
+  return <ModuleWorkspace eyebrow="Fee Management" title={content.title ?? "Fee Management"} description={content.desc ?? ""} tag={content.tag} tagTone={content.tagTone} primary={content.primary} launchers={content.launchers} rows={content.rows} back={content.crumb} />;
 }
 
 export async function FamilyView({ id }: { id: string }) {

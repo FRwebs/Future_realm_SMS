@@ -266,6 +266,12 @@ export type KpiCard = {
   link?: string;
   /** A name from the card icon set; left out, the label (then the shape of the figure) picks one. */
   icon?: string;
+  /**
+   * A figure that belongs to the device, not the school: how much work of this kind is still
+   * waiting here. The page is drawn on the server, which cannot know, so the authored value stands
+   * until the device has been read and then the real count replaces it.
+   */
+  device?: "ATTENDANCE" | "SCORE_ENTRY" | "OBSERVATION";
 } & Trigger;
 
 export type TableCellKind =
@@ -561,8 +567,18 @@ export type FormField = {
 export type FormSubmit = {
   endpoint: string;
   method?: "PATCH" | "POST";
+  /** Sent as-is, beside whatever the fields contribute. */
+  body?: Record<string, unknown>;
   /** Field label → payload key. A field not listed here is never sent. */
   map: Record<string, string>;
+  /**
+   * Field label → (what the person picked → what the endpoint stores), and field label →
+   * [record key, entry key] for an endpoint that takes many fields as one object. Both mean exactly
+   * what they mean on a drawer: a form written on the page and the same form in a drawer post the
+   * same thing.
+   */
+  encode?: Record<string, Record<string, string>>;
+  nest?: Record<string, [key: string, entry: string]>;
   /** What to say once it has saved. */
   done: string;
   /** Clear these fields after a successful save, e.g. password boxes. */
@@ -1179,6 +1195,14 @@ export type TabContent = {
   /** Overrides the module heading for this tab, as the mockup does on Today. */
   title?: string;
   desc?: string;
+  /**
+   * A short state beside the title — "Observed this half-term", "3 of 10 ready".
+   *
+   * The mockup gives its per-record pages one: where this one record stands, said once at the top
+   * instead of being worked out from the panels below.
+   */
+  tag?: string;
+  tagTone?: PanelTone;
   /** The tab's single most important action, shown in the header. */
   primary?: PanelAction;
   /** Secondary jumps out of this tab, beside the primary action. */

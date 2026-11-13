@@ -8,6 +8,7 @@ import { Access, armName, dayOf, iso, longDay } from "../attendance-management/a
 import { RegisterService } from "../attendance-management/register.service";
 import { SheetsService } from "../score-results/sheets.service";
 import { LEADERS } from "../student-records/records.shared";
+import { TeacherObservationsService } from "../teacher-workspace/observations.service";
 
 /**
  * What happens when work captured on a device with no connection reaches the school's record.
@@ -23,9 +24,10 @@ const MAX_AGE_DAYS = 14;
 
 const entrySchema = z.object({
   clientId: z.string().min(8).max(80),
-  kind: z.enum(["ATTENDANCE", "SCORE_ENTRY"]),
-  classId: z.string().min(1),
+  kind: z.enum(["ATTENDANCE", "SCORE_ENTRY", "OBSERVATION"]),
+  classId: z.string().min(1).optional(),
   subjectId: z.string().optional(),
+  studentId: z.string().min(1).optional(),
   capturedAt: z.string(),
   deviceLabel: z.string().max(80).optional(),
   body: z.record(z.string(), z.unknown()),
@@ -45,7 +47,7 @@ const person = (user: { firstName: string; lastName: string } | null | undefined
 
 @Injectable()
 export class SyncReplayService {
-  constructor(private readonly access: Access, private readonly register: RegisterService, private readonly sheets: SheetsService) {}
+  constructor(private readonly access: Access, private readonly register: RegisterService, private readonly sheets: SheetsService, private readonly observations: TeacherObservationsService) {}
 
   async replay(session: SessionPayload, body: unknown): Promise<ReplayResult[]> {
     const { entries } = replaySchema.parse(body);
@@ -68,10 +70,16 @@ export class SyncReplayService {
 
     if (Number.isNaN(capturedAt.getTime()) || capturedAt.getTime() > now + 5 * 60_000) return finish("REJECTED", "The device's clock said this was captured in the future, so it was not trusted.");
     if (now - capturedAt.getTime() > MAX_AGE_DAYS * 86_400_000) return finish("REJECTED", `It was captured more than ${MAX_AGE_DAYS} days ago. Enter it again, or ask a school administrator to.`);
-    const key = entry.kind === "ATTENDANCE" ? "attendance.mark.create" : "score-entry-results.enter.create";
-    if (!(await this.access.can(session, key))) return finish("REJECTED", "You no longer have permission to enter this.");
+    /*
+     * An observation carries no permission key: the observations service itself refuses a child who
+     * is not in an early-years class this teacher still teaches, which is the same check the live
+     * route makes, so there is nothing weaker about arriving late.
+     */
+    const key = entry.kind === "ATTENDANCE" ? "attendance.mark.create" : entry.kind === "SCORE_ENTRY" ? "score-entry-results.enter.create" : null;
+    if (key && !(await this.access.can(session, key))) return finish("REJECTED", "You no longer have permission to enter this.");
 
     try {
+      if (entry.kind === "OBSERVATION") return await this.observation(session, entry, capturedAt, finish);
       return entry.kind === "ATTENDANCE" ? await this.attendance(session, entry, capturedAt, finish) : await this.scores(session, entry, capturedAt, finish);
     } catch (error) {
       const message = error instanceof Error ? error.message : "The record refused it.";
@@ -80,17 +88,19 @@ export class SyncReplayService {
   }
 
   private async attendance(session: SessionPayload, entry: z.infer<typeof entrySchema>, capturedAt: Date, finish: (state: ReplayResult["state"], message: string, conflict?: Prisma.InputJsonValue) => Promise<ReplayResult>) {
+    const classId = entry.classId;
+    if (!classId) return finish("REJECTED", "Which arm this register is for was not recorded.");
     const date = dayOf(String(entry.body.date ?? ""));
     const device = (Array.isArray(entry.body.entries) ? entry.body.entries : []) as Array<{ studentId: string; status: string }>;
-    const room = await prisma.classRoom.findFirst({ where: { id: entry.classId, schoolId: session.schoolId, deletedAt: null }, select: { name: true, arm: true } });
+    const room = await prisma.classRoom.findFirst({ where: { id: classId, schoolId: session.schoolId, deletedAt: null }, select: { name: true, arm: true } });
     if (!room) return finish("REJECTED", "That arm is no longer in this school.");
     const [rows, register] = await Promise.all([
-      prisma.studentAttendance.findMany({ where: { schoolId: session.schoolId, classId: entry.classId, date, subjectId: null }, select: { studentId: true, status: true, markedById: true, markedAt: true } }),
-      prisma.attendanceRegister.findUnique({ where: { classId_date: { classId: entry.classId, date } } }),
+      prisma.studentAttendance.findMany({ where: { schoolId: session.schoolId, classId, date, subjectId: null }, select: { studentId: true, status: true, markedById: true, markedAt: true } }),
+      prisma.attendanceRegister.findUnique({ where: { classId_date: { classId, date } } }),
     ]);
     const taken = register?.status === "SUBMITTED" || rows.length > 0;
     if (!taken) {
-      await this.register.submit(session, entry.classId, entry.body, { capturedAt });
+      await this.register.submit(session, classId, entry.body, { capturedAt });
       return finish("APPLIED", `Register for ${armName(room)} on ${longDay(date)} reached the record.`);
     }
     const onRecord = new Map(rows.map((row) => [row.studentId, row.status]));
@@ -109,7 +119,7 @@ export class SyncReplayService {
   }
 
   private async scores(session: SessionPayload, entry: z.infer<typeof entrySchema>, capturedAt: Date, finish: (state: ReplayResult["state"], message: string, conflict?: Prisma.InputJsonValue) => Promise<ReplayResult>) {
-    if (!entry.subjectId) return finish("REJECTED", "Which subject these scores are for was not recorded.");
+    if (!entry.classId || !entry.subjectId) return finish("REJECTED", "Which subject and arm these scores are for was not recorded.");
     const outcome = await this.sheets.replay(session, entry.classId, entry.subjectId, entry.body, capturedAt);
     if (!outcome.conflicts.length) return finish("APPLIED", `${outcome.applied} ${outcome.applied === 1 ? "mark" : "marks"} reached ${outcome.subject} · ${outcome.arm}.`);
     const me = await prisma.user.findUnique({ where: { id: session.userId }, select: { firstName: true, lastName: true } });
@@ -124,6 +134,19 @@ export class SyncReplayService {
     return finish("CONFLICT", `${outcome.applied} ${outcome.applied === 1 ? "mark" : "marks"} applied; ${outcome.conflicts.length} ${outcome.conflicts.length === 1 ? "differs" : "differ"} from what somebody entered since.`, conflict as unknown as Prisma.InputJsonValue);
   }
 
+  /**
+   * An observation written with no connection.
+   *
+   * Nothing can disagree with it: an observation is added to a child's record and never replaces
+   * one, so there is no "changed since" to weigh. It is applied dated the day it was written, not
+   * the day it reached the school, because that is when the teacher saw it.
+   */
+  private async observation(session: SessionPayload, entry: z.infer<typeof entrySchema>, capturedAt: Date, finish: (state: ReplayResult["state"], message: string, conflict?: Prisma.InputJsonValue) => Promise<ReplayResult>) {
+    if (!entry.studentId) return finish("REJECTED", "Which child this observation is of was not recorded.");
+    const outcome = await this.observations.save(session, entry.studentId, entry.body, { capturedAt });
+    return finish("APPLIED", `The observation of ${outcome.child} reached the record, dated ${longDay(capturedAt)}.`);
+  }
+
   /** A leader chooses which version stands. Both are kept in the audit trail either way. */
   async resolve(session: SessionPayload, id: string, body: unknown) {
     const input = resolveSchema.parse(body);
@@ -135,11 +158,14 @@ export class SyncReplayService {
     const record = String((draft.conflict as { record?: string } | null)?.record ?? "a record");
 
     if (input.choice === "device") {
-      if (entry.kind === "ATTENDANCE") {
+      if (entry.kind === "OBSERVATION") {
+        throw new BadRequestException("An observation is only ever added, so it never has two versions to choose between.");
+      } else if (entry.kind === "ATTENDANCE") {
+        if (!entry.classId) throw new BadRequestException("Which arm this register is for was not recorded.");
         await this.register.submit(session, entry.classId, entry.body, { capturedAt });
       } else {
         const items = ((draft.conflict as { items?: Array<{ studentId: string; key: string; text: string }> } | null)?.items ?? []);
-        if (!items.length || !entry.subjectId) throw new BadRequestException("This conflict has nothing left to apply.");
+        if (!items.length || !entry.subjectId || !entry.classId) throw new BadRequestException("This conflict has nothing left to apply.");
         const rows = Array.from(items.reduce((map, item) => map.set(item.studentId, { ...(map.get(item.studentId) ?? {}), [item.key]: item.text }), new Map<string, Record<string, string>>()).entries()).map(([studentId, cells]) => ({ studentId, cells }));
         await this.sheets.save(session, entry.classId, entry.subjectId, { rows, note: input.note });
       }

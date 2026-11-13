@@ -486,6 +486,7 @@ enum NotificationChannel {
 enum SyncDraftType {
   ATTENDANCE
   SCORE_ENTRY
+  OBSERVATION
 }
 
 enum IntegrationProvider {
