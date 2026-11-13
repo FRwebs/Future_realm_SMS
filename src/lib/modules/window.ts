@@ -1,3 +1,4 @@
+import { TABLE_PAGE_SIZE } from "@/components/modules/use-table-engine";
 import type { PanelRow, TableRow, TableWindow } from "@/lib/modules/panels";
 import { narrowRows } from "@/lib/modules/table-query";
 
@@ -12,7 +13,7 @@ import { narrowRows } from "@/lib/modules/table-query";
  * share a search box. Short tables are untouched.
  */
 export const WINDOW_OVER = 60;
-export const WINDOW_SIZE = 25;
+export const WINDOW_SIZE = TABLE_PAGE_SIZE;
 
 export type WindowTarget = { module: string; tab: string; query: Record<string, string | undefined> };
 
