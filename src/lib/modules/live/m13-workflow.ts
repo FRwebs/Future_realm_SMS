@@ -56,7 +56,7 @@ export function workflowTab(d: WorkflowData): TabContent {
       head: ["Approval type", "Module", "Approver", "Second approver", "Escalates", "Open", "Source", ""], noun: "route", nounPlural: "routes", per: 12, selectable: true,
       bulkActs: [{ label: "Change the approver", drawer: changeApproverDrawer(d.options), selection: { key: "types", noun: "route" } }, { label: "Change the escalation period", drawer: changeEscalationDrawer(d.options), selection: { key: "types", noun: "route" } }, { label: "Reset to the default", drawer: resetManyDrawer(), selection: { key: "types", noun: "route" } }, { label: "Export selected", primary: true, export: true }],
       rows: routeRows,
-      foot: "A route decides who may decide. Nobody can approve their own submission, whatever any route says — that rule sits above routing and cannot be switched off.",
+      foot: "A route decides who may decide. Nobody approves their own submission, whatever the route says.",
     }],
   });
   const ruleRows: TableRow[] = d.rules.map((rule) => ({

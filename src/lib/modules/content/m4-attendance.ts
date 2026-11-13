@@ -344,7 +344,7 @@ export const attendanceContent: ModuleContent = {
           nounPlural: "arms",
           head: ["Arm", "Form master", "Students", "State", "Marked at", ""],
           rows: chooseAnArm,
-          foot: "Tap Mark on an unmarked arm, or Open on a marked one to review and correct it. Nobody is present until you say so — an unmarked student is not the same as a present one, and a register will not submit until every row is set.",
+          foot: "Nobody is present until you say so, and a register will not submit until every row is set.",
         },
       ]),
     ],

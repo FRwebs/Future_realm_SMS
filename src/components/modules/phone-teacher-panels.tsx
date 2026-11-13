@@ -9,6 +9,7 @@ import { cardIcon } from "@/lib/modules/card-icons";
 import type { DrawerSpec, KpiCard, Panel, PanelAction, PanelTone, TableCellKind, TableRow } from "@/lib/modules/panels";
 import { toneOf } from "@/lib/modules/tones";
 import { tightFor } from "@/lib/ui/tight-copy";
+import { slimSub } from "@/lib/ui/card-sub";
 import { useUiText } from "@/hooks/use-ui-text";
 import { cn } from "@/lib/utils/cn";
 
@@ -134,7 +135,9 @@ export function PhoneStats({ panel, openDrawer }: { panel: Extract<Panel, { type
                 </span>
                 {card.unit ? <span className="whitespace-nowrap text-[12px] font-bold" style={{ color: dark ? "rgba(255,255,255,0.62)" : "#5C6B62" }}>{card.unit}</span> : null}
               </div>
-              {card.sub ? <span className="relative mt-[6px] text-pretty text-[12px] font-medium leading-[1.4]" style={{ color: dark ? "rgba(255,255,255,0.72)" : "#5C6B62" }}>{card.sub}</span> : null}
+              {/* The same line the laptop's card carries, cut by the same rule: a phone has least room
+                  of all for a sentence that repeats the label above it. */}
+              {slimSub(card.sub ?? "", card.label) ? <span className="relative mt-[6px] text-pretty text-[12px] font-medium leading-[1.4]" style={{ color: dark ? "rgba(255,255,255,0.72)" : "#5C6B62" }}>{slimSub(card.sub ?? "", card.label)}</span> : null}
             </div>
           );
         })}

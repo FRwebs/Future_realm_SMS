@@ -3924,7 +3924,7 @@ function policiesTab(saved: PolicyItem[], country: string | null): TabContent {
             noun: "setting",
             nounPlural: "settings",
             rows: familyRows,
-            foot: "A value in regular weight is the product's default \u2014 nobody here has chosen it yet. These settings are recorded for the school; each module applies the ones it enforces.",
+            foot: "A value in regular weight is the product's default \u2014 nobody here has chosen it yet.",
           },
         ],
       },

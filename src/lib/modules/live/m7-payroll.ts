@@ -468,7 +468,7 @@ export function bandPage(detail: BandDetail) {
               cells: [{ value: "", placeholder: "Allowance name" }, { value: "Everyone on the band", static: true }, { value: "Flat monthly", static: true }, { value: "", num: true, placeholder: "Rate" }, { value: "", static: true }, { value: String(people.length), static: true, num: true }, { value: "", static: true }, { value: "Taxable", static: true }] as GridCell[],
               add: { endpoint: `${API}/payroll/bands/${band.id}/allowances`, method: "POST" as const, keys: ["name", "_w", "_b", "rate"] },
             },
-            foot: "A flat rate is naira a month; a percentage is measured against the rung the person is on. Open the band structure to change who draws it, on what basis, and how it is taxed.",
+            foot: "A flat rate is naira a month; a percentage is measured against the rung the person is on.",
           },
         ],
       },

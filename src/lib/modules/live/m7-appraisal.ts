@@ -158,7 +158,7 @@ export function appraisalTab(data: AppraisalOverview, moderation: Moderation): T
             head: ["Role", "KPI set", "KPIs", "Weight", "Where the numbers come from", "People", "State", ""],
             rows: roleRows,
             per: 11,
-            foot: "A KPI a school cannot measure is not a KPI — it is a hope. Every KPI here either reads a figure the product already holds, or is rated by a named person against stated evidence.",
+            foot: "Every KPI here reads a figure the product already holds, or is rated by a named person against stated evidence.",
           },
         ],
       },

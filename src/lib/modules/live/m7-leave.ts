@@ -175,7 +175,7 @@ export function leaveTab(data: LeaveOverview): TabContent {
             emptyTitle: "No leave on record",
             emptyBody: "Requests made in the staff portal, and leave recorded here, appear in this register.",
             empty: "No request matches.",
-            foot: "A request is never deleted. Declined, cancelled and withdrawn requests stay in the register with their reason — that history is what makes the next decision defensible.",
+            foot: "A request is never deleted. Declined, cancelled and withdrawn ones stay in the register with their reason.",
           },
         ],
       },

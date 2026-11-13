@@ -382,13 +382,16 @@ export function ModuleWorkspace({
     <div className={cn("grid min-w-0 gap-[14px]", hasPhoneBar && floats && (phonePrimary ?? primary) && "max-md:flex max-md:min-h-full max-md:flex-col")}>
       <ModuleDrawer spec={drawer} onClose={() => setDrawer(null)} />
 
+      {/* The way back, as the mockup draws it: a pill above the page head, not a line of link text.
+          It is the one control on a record page that is pressed without reading, so it is given
+          the shape of a button and a target a thumb can hit. */}
       {back ? (
         <Link
           href={back.href as Route}
-          className="inline-flex w-fit items-center gap-[6px] text-[11.5px] font-semibold text-[#12796A] hover:underline"
+          className="inline-flex w-fit items-center gap-[7px] rounded-full border border-[#DEE8E2] bg-white py-[7px] pl-[11px] pr-[13px] text-[11.5px] font-semibold text-[#2A3B31] transition-colors hover:border-[#C6DCD0] hover:bg-[#EAF3EE] max-md:min-h-[40px]"
         >
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-            <path d="M19 12H6M11 6.5 5.5 12l5.5 5.5" />
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M15 5l-7 7 7 7" />
           </svg>
           {back.label}
         </Link>
