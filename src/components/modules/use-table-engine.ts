@@ -133,13 +133,19 @@ export type TableEngine = ReturnType<typeof useRowsTable> & {
 };
 
 /** A table whose rows are all here. */
+/** Rows per page, for every table. The mockup pages at twelve and so does this. */
+export const TABLE_PAGE_SIZE = 12;
+
 export function useLocalTable(rows: TableRow[], filters: TableFilter[] | undefined, per: number | undefined, selectable: boolean): TableEngine {
   const [query, setQuery] = useState("");
   const [filterValues, setFilterValues] = useState<Record<string, string>>(() => Object.fromEntries((filters ?? []).map((filter) => [filter.label, filter.value])));
   const [pageIndex, setPageIndex] = useState(0);
   const narrowing = useMemo<Narrowing>(() => ({ filters, needle: query, values: filterValues }), [filters, query, filterValues]);
-  // Any list long enough to need it is paged, without each page asking for it; `per: 0` is "show every row".
-  const pageSize = per === 0 ? Math.max(rows.length, 1) : per ?? 12;
+  // Twelve rows, on every table in the product, exactly as the mockup pages them: a page that
+  // chose its own number made two tables side by side end at different depths for no reason a
+  // reader could see. A panel's `per` is still honoured as `0`, which means "show every row" —
+  // a sheet being typed into must not hide half its class behind a page control.
+  const pageSize = per === 0 ? Math.max(rows.length, 1) : TABLE_PAGE_SIZE;
   const table = useRowsTable(rows, filters, selectable, narrowing, { kind: "local", pageSize }, pageIndex, setPageIndex);
   const pageCount = Math.max(1, table.pageCount);
 

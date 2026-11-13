@@ -47,6 +47,7 @@ import { cardIcon } from "@/lib/modules/card-icons";
 import { CARD_BORDER, INK, MUTED, toneOf } from "@/lib/modules/tones";
 import { useUiText } from "@/hooks/use-ui-text";
 import { cn } from "@/lib/utils/cn";
+import { columnWidths, planColumns } from "@/lib/ui/table-columns";
 
 /*
  * The large interactive panels only some tabs draw are fetched when a tab draws one, not with every page: a register marker or a score grid is not part of
@@ -810,6 +811,12 @@ function TableView({ panel, openDrawer, engine }: { panel: Extract<Panel, { type
   const lastIndex = panel.head.length - 1;
   // A dense table fits its panel: cells sit closer, headings wrap, and nothing asks for a slider.
   const dense = Boolean(panel.dense);
+  // Column widths, by the one rule every table in the product shares: a column holding chips,
+  // ticks or figures is given its own content, and the rest divide what is left in proportion to
+  // what they actually hold. Measured from every row on the page, not only the ones in view, so
+  // turning a page never shifts the columns under the reader.
+  const plan = planColumns(panel.head, filteredRows, { authored: panel.cols, align: aligns, selectable: panel.selectable });
+  const widths = columnWidths(plan);
   // A dense table is one asked to fit its panel, so it gives the outer edges back some of
   // their padding on a narrow screen — 18px on each end of a four-column table is a tenth
   // of a phone's width, and spending it on margin is what pushes the table into a slider.
@@ -1105,7 +1112,14 @@ function TableView({ panel, openDrawer, engine }: { panel: Extract<Panel, { type
         {/* Wide tables scroll sideways; a keyboard has to be able to reach the scrolling region to move it (axe: scrollable-region-focusable). */}
         {/* eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex */}
         <div className="mx-[-18px] hidden min-w-0 overflow-x-auto md:block" tabIndex={0} role="region" aria-label={panel.title ? `${panel.title} — scrolls sideways` : "Table — scrolls sideways"}>
-          <table className={cn("w-full border-collapse", dense ? "min-w-0" : "min-w-[640px]")}>
+          <table
+            className={cn("w-full border-collapse", dense && "min-w-0")}
+            style={dense ? { tableLayout: "fixed" } : { tableLayout: "fixed", minWidth: plan.minWidth }}
+          >
+            <colgroup>
+              {panel.selectable ? <col style={{ width: "42px" }} /> : null}
+              {widths.map((width, index) => <col key={panel.head[index] ?? index} style={{ width }} />)}
+            </colgroup>
             <thead>
               <tr
                 style={{

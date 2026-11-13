@@ -911,6 +911,14 @@ export type Panel =
       tag?: string;
       tagTone?: PanelTone;
       head: string[];
+      /**
+       * A hand-written weight per column, e.g. "1.25fr 0.95fr 1.5fr".
+       *
+       * An opinion, not a rule: it is averaged with what the column actually holds, so a template
+       * written before the data grew cannot squeeze a column of long names. Left out, the content
+       * decides on its own.
+       */
+      cols?: string;
       rows: TableRow[];
       acts?: PanelAction[];
       foot?: string;
