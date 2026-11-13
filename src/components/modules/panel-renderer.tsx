@@ -48,6 +48,7 @@ import { CARD_BORDER, INK, MUTED, toneOf } from "@/lib/modules/tones";
 import { useUiText } from "@/hooks/use-ui-text";
 import { cn } from "@/lib/utils/cn";
 import { columnWidths, planColumns } from "@/lib/ui/table-columns";
+import { slimSub } from "@/lib/ui/card-sub";
 
 /*
  * The large interactive panels only some tabs draw are fetched when a tab draws one, not with every page: a register marker or a score grid is not part of
@@ -65,31 +66,6 @@ type OpenDrawer = (spec: DrawerSpec) => void;
 
 /** The mockup's default note icon: the warning triangle. */
 const NOTE_ICON = "M12 8.2v4.6M12 16h.02M12 3.6 21 19.4H3z";
-
-/**
- * The supporting line under a figure earns its place by adding something the
- * label and the number do not already say. Anything longer than a glance is cut
- * back to the clauses that do — the rest belongs on the list the card links to.
- */
-function slimSub(value: string, label?: string): string {
-  const text = value.replace(/\s+/g, " ").trim().replace(/\.$/, "");
-  // A line that only says what the label already says is not carried at all.
-  if (!text || (label && text.toLowerCase() === label.toLowerCase())) return "";
-  if (text.length <= 40) return text;
-
-  for (const separator of [" · ", " — ", "; ", ", "]) {
-    const parts = text.split(separator);
-    if (parts.length > 1 && parts[0]!.length <= 40) {
-      let out = parts[0]!;
-      for (const part of parts.slice(1)) {
-        if (`${out}${separator}${part}`.length > 40) break;
-        out += `${separator}${part}`;
-      }
-      return out;
-    }
-  }
-  return text;
-}
 
 /** Two letters, as the mockup's avatars carry. */
 function initialsOf(value: string): string {

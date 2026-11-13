@@ -262,7 +262,7 @@ const directoryTab: TabContent = {
             keywords: `${staff.id} ${staff.dept} ${staff.role}`,
           }),
         ),
-        foot: "Open tasks counts everything outstanding against a person across every module — registers, sheets, remarks and approvals. Periods a week is their timetabled teaching load.",
+        foot: "Open tasks counts registers, sheets, remarks and approvals outstanding against a person.",
       },
     ]),
     row("1fr 1.1fr", [
@@ -766,7 +766,7 @@ const permissionsTab: TabContent = {
             keywords: entry.kind,
           }),
         ),
-        foot: "An account that looks configured but has never been activated is the single most dangerous state in a school system — work routes to it and silently stops.",
+        foot: "An account configured but never activated is the dangerous one: work routes to it and stops.",
       },
     ]),
   ],
@@ -1111,7 +1111,7 @@ const payrollTab: TabContent = {
             keywords: `${entry.band.code} ${entry.band.name} ${entry.person.role}`,
           }),
         ),
-        foot: "Deductions are never entered by hand. They come from the statutory profile for the school's country, so the same structure is correct in Lagos, Accra, Nairobi or Dubai.",
+        foot: "Deductions are never entered by hand: they come from the statutory profile for the school's country.",
       },
     ]),
   ],
@@ -1349,7 +1349,7 @@ const leaveTab: TabContent = {
             keywords: `${request.role} ${request.cover}`,
           }),
         ),
-        foot: "A request is never deleted. Declined, cancelled and withdrawn requests stay in the register with their reason — that history is what makes the next decision defensible.",
+        foot: "A request is never deleted. Declined, cancelled and withdrawn ones stay in the register with their reason.",
       },
     ]),
     row("1fr", [
@@ -1447,7 +1447,7 @@ const leaveTab: TabContent = {
             keywords: `${entry.pay} ${entry.evidence}`,
           };
         }),
-        foot: "Unpaid leave is the only type that reaches payroll by itself — prorated by working day on the next run. Everything else is already inside what the person is paid.",
+        foot: "Unpaid leave is the only type that reaches payroll by itself, prorated by working day.",
       },
     ]),
     row("1fr", [
@@ -1837,7 +1837,7 @@ const appraisalTab: TabContent = {
             keywords: setName,
           };
         }),
-        foot: "A KPI a school cannot measure is not a KPI — it is a hope. Every KPI here either reads a figure the product already holds, or is rated by a named person against stated evidence.",
+        foot: "Every KPI here reads a figure the product already holds, or is rated by a named person against stated evidence.",
       },
     ]),
     row("1fr", [
@@ -1905,7 +1905,7 @@ const appraisalTab: TabContent = {
             keywords: `${entry.person.dept} ${entry.set}`,
           }),
         ),
-        foot: "A self-assessment far above the manager's rating is not a problem to hide — it is the most useful conversation in the cycle, and it is surfaced as its own view.",
+        foot: "A self-assessment far above the manager's rating is surfaced as its own view, not hidden.",
       },
     ]),
   ],

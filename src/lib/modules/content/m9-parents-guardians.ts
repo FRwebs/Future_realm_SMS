@@ -224,7 +224,7 @@ export const parentsGuardiansContent: ModuleContent = {
           ],
           head: ["Family", "Children", "Arms", "Phone", "Portal", "Second contact", "Fees", ""],
           rows: familyRows,
-          foot: "A household is identified by the guardian's full name. A child who does not fit one is re-homed into another, never dropped — dropping one leaves a real debtor billed in the headline and absent from the debtor list.",
+          foot: "A household is identified by the guardian's full name. A child who fits none is re-homed, never dropped.",
         },
       ]),
     ],
@@ -514,7 +514,7 @@ export const parentsGuardiansContent: ModuleContent = {
               ],
             },
           ],
-          foot: "Consent is evidenced by who gave it, when, and through which channel. A family may withdraw any of it at any time, and the withdrawal is logged the same way.",
+          foot: "Consent is evidenced by who gave it, when and through which channel. A withdrawal is logged the same way.",
         },
       ]),
       row("1fr", [

@@ -173,7 +173,7 @@ const auditLogTab: TabContent = {
             keywords: session.why,
           }),
         ),
-        foot: "Future Realm's access to this workspace is logged exactly as the school's is — and elevated access never proceeds without the school's recorded confirmation.",
+        foot: "Elevated access never proceeds without the school's recorded confirmation.",
       },
     ]),
     row("1fr", [

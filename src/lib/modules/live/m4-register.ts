@@ -147,7 +147,7 @@ export function registerTab(o: Overview, options: Options): TabContent {
           { label: "Export selected", primary: true, export: true },
         ],
         rows: armRows,
-        foot: "Rate is present (and late) against everyone counted that day; excused children are left out. An unmarked arm is not 0% — it is unknown, and counted as unknown.",
+        foot: "Rate counts present and late; excused children are left out. An unmarked arm is unknown, not 0%.",
       },
     ],
   });

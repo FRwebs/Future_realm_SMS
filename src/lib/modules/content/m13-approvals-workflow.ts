@@ -482,7 +482,7 @@ export const approvalsWorkflowContent: ModuleContent = {
             "",
           ],
           rows: routeRows,
-          foot: "A route decides who may decide. Nobody can approve their own submission, whatever any route says — that rule sits above routing and cannot be switched off.",
+          foot: "A route decides who may decide. Nobody approves their own submission, whatever the route says.",
         },
       ]),
       row("1.05fr 1fr", [

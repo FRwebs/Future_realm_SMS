@@ -88,7 +88,7 @@ export function syncTab(o: SyncOverview): TabContent {
       sub: "Eleven things the product is built to do with no connection, and eleven that always need one.",
       head: ["Works offline", "", "Requires a connection", ""], noun: "capability", nounPlural: "capabilities", noRowOpen: true, per: 11,
       rows: OFFLINE.map(([works, needs]) => ({ cells: [text(works), mark(true), text(needs), mark(false)] })),
-      foot: "Registers and score sheets are held on the device when there is no connection and sent by themselves when it returns. A page has to be open already: the browser does not yet keep pages for use after a reload with no connection. Other work — payments, messages, edits to a record — needs a connection and says so.",
+      foot: "Registers and score sheets are held on the device and sent when the connection returns. Other work needs a connection and says so.",
     }],
   });
   return { title: "Sync", desc: "Is everything saved, what is waiting, and what does this device hold?", primary: { label: "Sync now", icon: REFRESH, href: "/sync-support/sync" }, launchers: [{ label: "Help & support", href: "/sync-support/help-support" }, { label: "Raise a sync ticket", drawer: raiseTicketDrawer({ category: "SYNC_OFFLINE_ISSUE", subject: "My work is not syncing" }) }], rows };

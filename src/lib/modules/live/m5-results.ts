@@ -70,7 +70,7 @@ export function resultsTab(r: ResultsOverview, corrections: Correction[], option
       acts: [{ label: "Export the school broadsheet", primary: true, href: "/score-entry-results/results/export" }],
       head: ["Arm", "Form master", "Roll", "Computed", "Average", "Pass", "Top", "State", ""], noun: "arm", nounPlural: "arms", per: 10, selectable: true,
       bulkActs: [{ label: "Export selected", primary: true, export: true }], rows: armRows,
-      foot: "Computed counts the students whose every subject is in and approved. An arm is Incomplete while any sheet is outstanding — its average is still true for the students who are complete.",
+      foot: "Computed counts students whose every subject is in and approved. An arm is Incomplete while any sheet is out.",
     }],
   });
   rows.push({

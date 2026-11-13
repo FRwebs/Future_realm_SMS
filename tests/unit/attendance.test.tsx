@@ -35,7 +35,7 @@ describe("M4 Register", () => {
 
   it("calls an unmarked arm unknown, not zero", () => {
     const html = markup(registerTab(overview(), options));
-    expect(html).toContain("An unmarked arm is not 0%");
+    expect(html).toContain("An unmarked arm is unknown, not 0%");
     expect(html).toContain("Unmarked");
   });
 
