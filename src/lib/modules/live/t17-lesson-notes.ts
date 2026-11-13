@@ -88,16 +88,29 @@ async function curriculumTab(query: Q): Promise<TabContent> {
   // A week that has been opened is the editor on every screen. Until then the phone reads the scheme as a list: one row for each week.
   const phone = opened ? [] : phoneScheme(overview, scheme, chosen, Boolean(query.subject));
   const thisWeek = scheme && !scheme.readOnly && scheme.term.current ? scheme.weeks.find((entry) => entry.week === scheme.term.current && entry.kind !== "free" && entry.kind !== "pre") : undefined;
+  // The mockup's Curriculum opens on this week's note, as Notes does, and its word follows where
+  // that note stands. "Add a subject" is a launcher beside it, not the thing the page is for.
+  const verb = !thisWeek ? "Write"
+    : scheme?.readOnly ? "Read"
+    : thisWeek.note.state === "Not started" ? "Write"
+    : thisWeek.note.state === "Draft" ? "Finish"
+    : thisWeek.note.state === "Returned" ? "Correct" : "Open";
   return {
     title: "Curriculum",
-    desc: scheme
-      ? `${scheme.term.name}, ${scheme.term.session}. Plan the term once, then teach from it every week.`
-      : `${overview.term.name}, ${overview.term.session}. One scheme of work for each subject you teach.`,
+    desc: scheme?.readOnly
+      ? "The scheme for the arms you cover. Read it to know where each class is, then teach from the note for the week."
+      : "Every subject you teach, planned week by week. Change the plan here and your notes, coverage and the week ahead follow it.",
     phoneTitle: "Scheme of work",
     phoneDesc: scheme && (overview.subjects.length === 1 || query.subject)
       ? [scheme.curriculum, scheme.subject, scheme.per ? `${scheme.per} periods a week` : null, scheme.term.current ? `Week ${scheme.term.current} of ${scheme.term.weeks}` : null].filter(Boolean).join(" · ")
       : `${overview.term.name}, ${overview.term.session}. One scheme of work for each subject you teach.`,
-    primary: overview.canAdd ? { label: "Add a subject", href: "/lesson-notes/curriculum/add" } : undefined,
+    primary: thisWeek && scheme
+      ? { label: `${verb} this week’s note`, icon: PEN, href: `/lesson-notes/notes/${scheme.subjectId}/${thisWeek.week}?term=${scheme.term.id}` }
+      : overview.canAdd ? { label: "Add a subject", href: "/lesson-notes/curriculum/add" } : undefined,
+    launchers: [
+      { label: "Every note this term", href: `/lesson-notes/notes${scheme ? `?term=${scheme.term.id}` : ""}` },
+      ...(overview.canAdd && thisWeek ? [{ label: "Add a subject", href: "/lesson-notes/curriculum/add" }] : []),
+    ],
     phonePrimary: scheme && thisWeek ? { label: "This week’s note", icon: PEN, href: `/lesson-notes/notes/${scheme.subjectId}/${thisWeek.week}?term=${scheme.term.id}` } : undefined,
     rows: phone.length ? [...phone, { ...workspace, show: "desktop" as const }] : [workspace],
   };

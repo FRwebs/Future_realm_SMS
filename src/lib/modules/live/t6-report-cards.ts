@@ -186,13 +186,29 @@ function archiveTab(o: ArchiveOverview, me: TeacherWorkspaceView, armId?: string
   if (!arms.length) return noArm("Archive", "Published report cards for the arms you answer for.", "Published cards appear here for the arms you are form master of.");
   const revised = o.rows.filter((entry) => entry.state === "Revised").length;
   const latest = o.rows.map((entry) => entry.published).filter((value): value is string => Boolean(value)).sort().pop() ?? null;
+  // The average and the grade are the ones the card was published with, read back from its own
+  // snapshot — what the family was told, not what the marks would say if they were added up today.
+  const gradeTone = (grade: string | null | undefined): PanelTone =>
+    !grade ? "neutral" : /^[AB]/.test(grade) ? "positive" : /^C/.test(grade) ? "submitted" : "attention";
   const rows: TableRow[] = o.rows.map((entry) => ({
-    keywords: `${entry.name} ${entry.adm} ${entry.term} ${entry.state}`,
+    id: `${entry.studentId}|${entry.termId}`,
+    keywords: `${entry.name} ${entry.adm} ${entry.arm} ${entry.term} ${entry.state} ${entry.grade ?? ""}`,
     cells: [
-      { kind: "name", name: entry.name, sub: entry.arm }, text(entry.adm, { mono: true }), text(entry.arm), text(entry.term), text(entry.published ? shortDate(entry.published) : "—"), pill(entry.state, entry.state === "Revised" ? "attention" : "positive"),
+      { kind: "name", name: entry.name, sub: entry.arm }, text(entry.adm, { mono: true }), text(entry.arm), text(entry.term),
+      text(typeof entry.avg === "number" ? entry.avg.toFixed(1) : "—", { mono: true }),
+      entry.grade ? pill(entry.grade, gradeTone(entry.grade)) : text("—"),
+      text(entry.published ? shortDate(entry.published) : "—"), pill(entry.state, entry.state === "Revised" ? "attention" : "positive"),
       { kind: "action", label: "Open", drawer: cardDrawer(entry.studentId, entry.termId, entry.name) },
     ] as TableCellKind[],
   }));
+  const grades = [...new Set(o.rows.map((entry) => entry.grade).filter((grade): grade is string => Boolean(grade)))].sort();
+  /* Printing is the Principal's, so what a form master takes from here is a copy for their own
+     file. The drawer says so rather than letting the button imply otherwise. */
+  const printSelected: DrawerSpec = {
+    mode: "output", title: "Print the selected report cards", kicker: "Archive",
+    sub: "One page each, exactly as published. An archived copy is not a replacement for the family’s own.",
+    facts: [["Marked", "Archived copy", "Not the family’s original"], ["Publishing", "The Principal’s", "Nothing here reaches a family"]],
+  };
   const terms = (id: string) => new Set(o.rows.filter((entry) => entry.classId === id).map((entry) => entry.termId)).size;
   const picked = arms.find((arm) => arm.id === armId) ?? (arms.length === 1 ? arms[0] : undefined);
   const phone: PanelRow[] = picked
@@ -238,8 +254,16 @@ function archiveTab(o: ArchiveOverview, me: TeacherWorkspaceView, armId?: string
       }]),
       row("1fr", [{
         type: "table", title: "Published report cards", tag: `${o.rows.length} card${o.rows.length === 1 ? "" : "s"}`, tagTone: "neutral", sub: "Open a card to read it as the family did.", meta: `${o.rows.length} card${o.rows.length === 1 ? "" : "s"}`, noun: "card", nounPlural: "cards",
-        search: "Find a child by name or admission number", filters: [{ label: "State", value: "All", options: ["All", "Published", "Revised"] }],
-        head: ["Student", "Admission no", "Arm", "Term", "Published", "State", ""], rows, per: 10, noRowOpen: true, empty: "No card has been published for your arms yet.", foot: "Read only. Retrievals are logged.",
+        search: "Find a child by name or admission number",
+        filters: [
+          ...(arms.length > 1 ? [{ label: "Arm", value: "All", options: ["All", ...arms.map((arm) => arm.name)], column: 2 }] : []),
+          ...(o.terms.length > 1 ? [{ label: "Term", value: "All", options: ["All", ...[...new Set(o.rows.map((entry) => entry.term))]], column: 3 }] : []),
+          ...(grades.length ? [{ label: "Grade", value: "All", options: ["All", ...grades], column: 5 }] : []),
+          { label: "State", value: "All", options: ["All", "Published", "Revised"] },
+        ],
+        selectable: true,
+        bulkActs: [{ label: "Print the selected", primary: true, drawer: printSelected }],
+        head: ["Student", "Admission no", "Arm", "Term", "Avg", "Grade", "Published", "State", ""], rows, noRowOpen: true, empty: "No card has been published for your arms yet.", foot: "Read only. Retrievals are logged.",
       }]),
   ];
   return {

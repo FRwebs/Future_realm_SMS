@@ -110,7 +110,7 @@ export type ArchiveOverview = {
   terms: Array<{ id: string; name: string; session: string; current: boolean }>;
   arms: Array<{ id: string; name: string }>;
   kpis: { issued: number; sessions: number; revisions: number; undelivered: number; withheld: number };
-  rows: Array<{ studentId: string; name: string; adm: string; classId: string | null; arm: string; termId: string; term: string; revision: number; state: string; delivery: string; reference: string | null; published: string | null }>;
+  rows: Array<{ studentId: string; name: string; adm: string; classId: string | null; arm: string; termId: string; term: string; revision: number; state: string; delivery: string; reference: string | null; published: string | null; avg?: number | null; grade?: string | null }>;
   revisions: Array<{ id: string; name: string; studentId: string; termId: string; term: string; revision: number; kind: string; reason: string; at: string; notified: boolean }>;
   batches: Array<{ id: string; kind: string; scope: string; cards: number; by: string; at: string; channels: string[]; reversible: boolean; termId: string; term: string }>;
   policy: { reversibleMinutes: number };
