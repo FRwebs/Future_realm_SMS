@@ -177,7 +177,7 @@ export class MyDayService {
         ? prisma.user.findMany({ where: { schoolId, id: { not: session.userId }, staffProfile: { departmentId: me.department.id } }, select: { id: true } }).then((people) => prisma.staffAbsence.findMany({ where: { schoolId, day: date, userId: { in: people.map((person) => person.id) } }, select: { userId: true } }))
         : Promise.resolve([])
     ]);
-    const requiredCourses = await prisma.trainingCourse.findMany({ where: { schoolId, publishedAt: { not: null }, archivedAt: null, requiredFor: { hasSome: ["all", me.persona] } }, select: { id: true, title: true, requiredBy: true, hours: true } });
+    const requiredCourses = await prisma.trainingCourse.findMany({ where: { OR: [{ schoolId }, { schoolId: null }], publishedAt: { not: null }, archivedAt: null, requiredFor: { hasSome: ["all", me.persona] } }, select: { id: true, title: true, requiredBy: true, hours: true } });
     if (requiredCourses.length) {
       const finished = await prisma.trainingEnrolment.findMany({ where: { schoolId, userId: session.userId, courseId: { in: requiredCourses.map((course) => course.id) }, completedAt: { not: null } }, select: { courseId: true } });
       for (const course of requiredCourses.filter((entry) => !finished.some((done) => done.courseId === entry.id))) {

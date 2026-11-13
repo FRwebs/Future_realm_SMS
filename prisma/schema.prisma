@@ -7209,7 +7209,11 @@ model CoverAssignment {
 /// A self-paced course: lessons with a question each, ending in a certificate the school recognises.
 model TrainingCourse {
   id              String              @id @default(cuid())
-  schoolId        String
+  /// The school that wrote it. Empty means it is not any one school's: a course the platform
+  /// publishes, or one an accredited body offers, which every school is given.
+  schoolId        String?
+  /// Where it came from: SCHOOL, PLATFORM or PARTNER. A school may only edit its own.
+  origin          String              @default("SCHOOL")
   title           String
   summary         String?
   /// The catalogue section it sits under.
@@ -7243,7 +7247,7 @@ model TrainingCourse {
   createdById     String?
   createdAt       DateTime            @default(now())
   updatedAt       DateTime            @updatedAt
-  school          School              @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  school          School?             @relation(fields: [schoolId], references: [id], onDelete: Cascade)
   lessons         TrainingLesson[]
   enrolments      TrainingEnrolment[]
   purchases       TrainingPurchase[]
