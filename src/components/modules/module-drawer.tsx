@@ -7,7 +7,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
 import { DocumentModal } from "@/components/modules/document-modal";
-import type { DrawerSpec, FormField, PanelFact } from "@/lib/modules/panels";
+import type { DrawerSpec, FormField, FormSubmit, PanelFact } from "@/lib/modules/panels";
 import { Field, assetSummary, fieldVisible, initialValue } from "@/components/modules/field";
 import { sendJson, sendJsonForData } from "@/lib/modules/submit";
 import { INK, MUTED } from "@/lib/modules/tones";
@@ -282,11 +282,14 @@ export function describe(field: FormField, value: unknown): string {
 }
 
 /**
- * What a form sends: only the fields named in `map` travel, exactly as a form panel does, so a
- * drawer can show a value the endpoint would reject beside ones it takes.
+ * What a form sends: only the fields named in `map` travel, so a drawer or a form panel can show a
+ * value the endpoint would reject beside the ones it takes.
+ *
+ * One rule for both, because a form on a page and the same form in a drawer must post the same
+ * thing: a descriptor chosen on the page cannot mean one payload here and another there.
  */
 export function buildBody(
-  submit: NonNullable<DrawerSpec["submit"]>,
+  submit: NonNullable<DrawerSpec["submit"]> | FormSubmit,
   allFields: FormField[],
   values: Record<string, unknown>,
   reason: string,
@@ -318,11 +321,17 @@ export function buildBody(
     // A select shows a label and the endpoint stores a code; `encode` is
     // the pairing, so what travels is what the column actually holds.
     const table = submit.encode?.[label];
-    edited[key] = Array.isArray(value) && table
+    const encoded = Array.isArray(value) && table
       ? value.map((item) => (typeof item === "string" && item in table ? table[item] : item))
       : table && typeof value === "string" && value in table
         ? table[value]
         : value;
+    // A key written "preferences.density" lands inside a nested object, for an endpoint that keeps
+    // a group of settings together.
+    const path = key.split(".");
+    let into = edited;
+    for (const step of path.slice(0, -1)) into = (into[step] ??= {}) as Record<string, unknown>;
+    into[path[path.length - 1]!] = encoded;
   }
 
   for (const [label, [key, entry]] of Object.entries(submit.nest ?? {})) {
@@ -338,7 +347,7 @@ export function buildBody(
   return {
     ...(submit.body ?? {}),
     ...edited,
-    ...(reason.trim() ? { [submit.reasonKey ?? "reason"]: reason.trim() } : {}),
+    ...(reason.trim() ? { ["reasonKey" in submit && submit.reasonKey ? submit.reasonKey : "reason"]: reason.trim() } : {}),
   };
 }
 

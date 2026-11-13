@@ -20,7 +20,7 @@ async function gate() {
 type Page = TabContent & { crumb: { label: string; href: string } };
 
 function Workspace({ content }: { content: Page }) {
-  return <ModuleWorkspace eyebrow="Training" title={content.title ?? "Training"} description={content.desc ?? ""} primary={content.primary} launchers={content.launchers} rows={content.rows} back={content.crumb} />;
+  return <ModuleWorkspace eyebrow="Training" title={content.title ?? "Training"} description={content.desc ?? ""} tag={content.tag} tagTone={content.tagTone} primary={content.primary} launchers={content.launchers} rows={content.rows} back={content.crumb} />;
 }
 
 export async function CourseView({ courseId }: { courseId: string }) {
@@ -58,5 +58,5 @@ export async function CourseEditorView({ courseId }: { courseId: string }) {
   const course = await loadManagedCourse(courseId).catch(() => null);
   if (!course) notFound();
   const content = courseEditorPage(course);
-  return <ModuleWorkspace eyebrow="Staff & Access" title={content.title ?? "Course"} description={content.desc ?? ""} primary={content.primary} launchers={content.launchers} rows={content.rows} back={content.crumb} />;
+  return <ModuleWorkspace eyebrow="Staff & Access" title={content.title ?? "Course"} description={content.desc ?? ""} tag={content.tag} tagTone={content.tagTone} primary={content.primary} launchers={content.launchers} rows={content.rows} back={content.crumb} />;
 }

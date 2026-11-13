@@ -1,36 +1,45 @@
 /**
  * Work captured on this device while it had no connection.
  *
- * Only two kinds of write are held, because they are the two the product promises to take offline: a register
- * submitted, and scores typed. Everything else needs a connection and says so. Each held write carries the moment it was
+ * Only three kinds of write are held, because they are the three the product promises to take offline: a register
+ * submitted, scores typed, and an early-years observation written. Everything else needs a connection and says so.
+ * An observation is only ever added to a child's record, never changed, so a held one cannot disagree with the school:
+ * it is simply applied when the connection returns, dated the day it was written. Each held write carries the moment it was
  * captured and an id the device made up, so the school's record can tell "changed since" from "changed by me" and a
  * retry never applies one twice.
  */
 
 export type OutboxEntry = {
   clientId: string;
-  kind: "ATTENDANCE" | "SCORE_ENTRY";
-  classId: string;
+  kind: "ATTENDANCE" | "SCORE_ENTRY" | "OBSERVATION";
+  /** The arm a register or a sheet belongs to. An observation is held against a child instead. */
+  classId?: string;
   subjectId?: string;
+  studentId?: string;
   capturedAt: string;
   label: string;
   deviceLabel?: string;
   body: Record<string, unknown>;
 };
 
-export const OUTBOX_KEYS = { ATTENDANCE: "offline:attendance", SCORE_ENTRY: "offline:scores" } as const;
+export const OUTBOX_KEYS = { ATTENDANCE: "offline:attendance", SCORE_ENTRY: "offline:scores", OBSERVATION: "offline:observations" } as const;
+export const OUTBOX_KINDS = ["ATTENDANCE", "SCORE_ENTRY", "OBSERVATION"] as const;
 export const REPLAY_ENDPOINT = "/api/v1/sync/replay";
 
 const ATTENDANCE = /^\/api\/v1\/attendance-management\/mark\/([^/]+)\/submit$/;
 const SCORES = /^\/api\/v1\/score-results\/enter\/([^/]+)\/([^/]+)\/save$/;
+/** One child's observation. `group` and `summary` are not children, so they are not held. */
+const OBSERVATION = /^\/api\/v1\/teacher-workspace\/observations\/([^/]+)$/;
 
 /** Is this write one the device may hold? Returns what the server needs to judge it later. */
-export function offlineTarget(endpoint: string, method: string): Pick<OutboxEntry, "kind" | "classId" | "subjectId"> | null {
+export function offlineTarget(endpoint: string, method: string): Pick<OutboxEntry, "kind" | "classId" | "subjectId" | "studentId"> | null {
   if (method.toUpperCase() !== "POST") return null;
   const register = ATTENDANCE.exec(endpoint);
   if (register) return { kind: "ATTENDANCE", classId: register[1] };
   const scores = SCORES.exec(endpoint);
   if (scores) return { kind: "SCORE_ENTRY", classId: scores[1], subjectId: scores[2] };
+  const observation = OBSERVATION.exec(endpoint);
+  if (observation && observation[1] !== "group" && observation[1] !== "summary") return { kind: "OBSERVATION", studentId: observation[1] };
   return null;
 }
 
@@ -59,7 +68,12 @@ function write(kind: OutboxEntry["kind"], entries: OutboxEntry[]) {
 }
 
 export function readOutbox(): OutboxEntry[] {
-  return [...read("ATTENDANCE"), ...read("SCORE_ENTRY")];
+  return OUTBOX_KINDS.flatMap((kind) => read(kind));
+}
+
+/** How many of one kind this device is holding — for a figure that names what is waiting. */
+export function outboxCount(kind: OutboxEntry["kind"]): number {
+  return read(kind).length;
 }
 
 const newId = () => (typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : `c-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`);
@@ -95,7 +109,7 @@ export async function flushOutbox(): Promise<FlushResult> {
       break;
     }
     const done = new Set(answers.map((answer) => answer.clientId));
-    for (const kind of ["ATTENDANCE", "SCORE_ENTRY"] as const) write(kind, read(kind).filter((entry) => !done.has(entry.clientId)));
+    for (const kind of OUTBOX_KINDS) write(kind, read(kind).filter((entry) => !done.has(entry.clientId)));
     for (const answer of answers) {
       result.sent += 1;
       if (answer.state === "APPLIED") result.applied += 1;

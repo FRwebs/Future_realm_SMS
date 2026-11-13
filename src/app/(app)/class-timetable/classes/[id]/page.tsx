@@ -38,7 +38,7 @@ export default async function ArmPage({ params }: PageProps) {
     <ModuleWorkspace
       eyebrow="Class & Timetable"
       title={content.title ?? "Class arm"}
-      description={content.desc ?? ""}
+      description={content.desc ?? ""} tag={content.tag} tagTone={content.tagTone}
       primary={content.primary}
       launchers={content.launchers}
       rows={content.rows}

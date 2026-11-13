@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { OUTBOX_KEYS, enqueue, flushOutbox, noConnection, offlineTarget, readOutbox } from "../../src/lib/offline/outbox";
+import { OUTBOX_KEYS, enqueue, flushOutbox, noConnection, offlineTarget, outboxCount, readOutbox } from "../../src/lib/offline/outbox";
 
 /** No browser in this runner: the three globals the outbox reads, as a plain in-memory device. */
 function device() {
@@ -11,12 +11,34 @@ function device() {
 }
 
 describe("what a device may hold", () => {
-  it("holds a submitted register and a score save, and nothing else", () => {
+  it("holds a submitted register, a score save and an observation, and nothing else", () => {
     expect(offlineTarget("/api/v1/attendance-management/mark/c1/submit", "POST")).toEqual({ kind: "ATTENDANCE", classId: "c1" });
     expect(offlineTarget("/api/v1/score-results/enter/c1/s9/save", "POST")).toEqual({ kind: "SCORE_ENTRY", classId: "c1", subjectId: "s9" });
+    expect(offlineTarget("/api/v1/teacher-workspace/observations/st7", "POST")).toEqual({ kind: "OBSERVATION", studentId: "st7" });
     expect(offlineTarget("/api/v1/score-results/enter/c1/s9/submit", "POST")).toBeNull();
     expect(offlineTarget("/api/v1/fee-management/payments", "POST")).toBeNull();
     expect(offlineTarget("/api/v1/attendance-management/mark/c1/submit", "DELETE")).toBeNull();
+  });
+
+  /*
+   * Neither of these is a child, so neither may be held against one: a group write has to reach
+   * several records at once, and the summary is a read.
+   */
+  it("does not mistake the group write or the summary for a child", () => {
+    expect(offlineTarget("/api/v1/teacher-workspace/observations/group", "POST")).toBeNull();
+    expect(offlineTarget("/api/v1/teacher-workspace/observations/summary", "POST")).toBeNull();
+  });
+
+  it("holds an observation of its own, counted apart from registers and scores", () => {
+    device();
+    enqueue({ kind: "OBSERVATION", studentId: "st7" }, { areas: { Literacy: "Secure" }, note: "Counted six shells aloud and recounted them unprompted." }, "An observation");
+    enqueue({ kind: "OBSERVATION", studentId: "st8" }, { areas: { Mathematics: "Emerging" }, note: "Sorted the bricks by colour before building with them." }, "An observation");
+    enqueue({ kind: "ATTENDANCE", classId: "c1" }, { date: "2026-10-19", entries: [] }, "A register");
+    expect(outboxCount("OBSERVATION")).toBe(2);
+    expect(outboxCount("SCORE_ENTRY")).toBe(0);
+    expect(readOutbox()).toHaveLength(3);
+    // each child's own record, never one row shared between them
+    expect(new Set(readOutbox().filter((entry) => entry.kind === "OBSERVATION").map((entry) => entry.studentId)).size).toBe(2);
   });
 
   it("tells a missing connection from a server that said no", () => {

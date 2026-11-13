@@ -11,7 +11,8 @@ import { PanelRowsWithDrawer } from "@/components/modules/panel-renderer";
 import { useHasPhoneBar, usePhoneKind } from "@/components/layout/phone-shell";
 import { tightFor } from "@/lib/ui/tight-copy";
 import { useUiText } from "@/hooks/use-ui-text";
-import type { DrawerSpec, PanelAction, PanelRow } from "@/lib/modules/panels";
+import type { DrawerSpec, PanelAction, PanelRow, PanelTone } from "@/lib/modules/panels";
+import { toneOf } from "@/lib/modules/tones";
 import { cn } from "@/lib/utils/cn";
 
 /** The mockup's default glyph for a header's primary action: a plus. */
@@ -196,6 +197,8 @@ function PhoneHead({ eyebrow, title, description }: { eyebrow: string; title: st
 function ModuleHead({
   eyebrow,
   title,
+  tag,
+  tagTone,
   description,
   primary,
   launchers,
@@ -204,6 +207,9 @@ function ModuleHead({
 }: {
   eyebrow: string;
   title: string;
+  /** Where this one record stands, said beside its name as the mockup says it. */
+  tag?: string;
+  tagTone?: PanelTone;
   description: string;
   primary?: PanelAction;
   launchers?: PanelAction[];
@@ -253,14 +259,24 @@ function ModuleHead({
               {ui(eyebrow)}
             </span>
           </div>
-          <h1
-            className={cn(
-              "text-pretty font-(family-name:--font-heading) text-[19px] font-extrabold leading-[1.15] tracking-[-0.024em] text-white",
-              hasPhoneBar && "max-md:text-[20px] max-md:tracking-[-0.015em]",
-            )}
-          >
-            {ui(title)}
-          </h1>
+          <div className="flex flex-wrap items-center gap-x-[9px] gap-y-[5px]">
+            <h1
+              className={cn(
+                "text-pretty font-(family-name:--font-heading) text-[19px] font-extrabold leading-[1.15] tracking-[-0.024em] text-white",
+                hasPhoneBar && "max-md:text-[20px] max-md:tracking-[-0.015em]",
+              )}
+            >
+              {ui(title)}
+            </h1>
+            {/* The state, on the dark head: the tone carries in the dot, the word stays white, so a
+                pale chip is never dropped onto a near-black card. */}
+            {tag ? (
+              <span className="inline-flex flex-none items-center gap-[5px] rounded-full border border-white/18 bg-white/10 px-[9px] py-[3px] text-[10px] font-bold uppercase tracking-[0.07em] text-white/82">
+                <span aria-hidden className="h-[5px] w-[5px] flex-none rounded-full" style={{ background: toneOf(tagTone).fg }} />
+                {ui(tag)}
+              </span>
+            ) : null}
+          </div>
           <p
             className={cn(
               "mt-1 max-w-[560px] text-pretty text-[11px] leading-[1.45] text-white/60",
@@ -300,6 +316,8 @@ function ModuleHead({
 export function ModuleWorkspace({
   eyebrow,
   title,
+  tag,
+  tagTone,
   description,
   primary,
   launchers,
@@ -321,6 +339,9 @@ export function ModuleWorkspace({
   /** The green line over the title on a teacher's phone, when it says more than the module's name. */
   phoneEyebrow?: string;
   title: string;
+  /** Where this one record stands, beside its name. */
+  tag?: string;
+  tagTone?: PanelTone;
   description: string;
   primary?: PanelAction;
   launchers?: PanelAction[];
@@ -412,6 +433,8 @@ export function ModuleWorkspace({
         <ModuleHead
           eyebrow={eyebrow}
           title={title}
+          tag={tag}
+          tagTone={tagTone}
           description={description}
           primary={primary}
           launchers={launchers}

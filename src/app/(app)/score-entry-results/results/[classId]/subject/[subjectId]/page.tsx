@@ -18,5 +18,5 @@ export default async function SubjectResultPage({ params }: { params: Promise<{ 
   const result = await loadSubjectResult(classId, subjectId).catch(() => null);
   if (!result) notFound();
   const content = subjectResultPage(result);
-  return <ModuleWorkspace eyebrow="Scores" title={content.title ?? "Results"} description={content.desc ?? ""} primary={content.primary} launchers={content.launchers} rows={content.rows} back={content.crumb} />;
+  return <ModuleWorkspace eyebrow="Scores" title={content.title ?? "Results"} description={content.desc ?? ""} tag={content.tag} tagTone={content.tagTone} primary={content.primary} launchers={content.launchers} rows={content.rows} back={content.crumb} />;
 }

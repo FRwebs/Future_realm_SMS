@@ -607,6 +607,12 @@ export class TeacherWorkspaceController {
     response.send(photo.bytes);
   }
 
+  @Post("observations/group")
+  @UseGuards(CsrfGuard)
+  observationsGroup(@CurrentSession() session: SessionPayload, @Body() body: unknown) {
+    return ok(this.observations.saveGroup(session, body));
+  }
+
   @Get("observations/:studentId")
   observationsChild(@CurrentSession() session: SessionPayload, @Param("studentId") studentId: string) {
     return ok(this.observations.child(session, studentId));
