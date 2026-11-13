@@ -35,7 +35,12 @@ function queueTab(o: QueueOverview, me: TeacherWorkspaceView): TabContent {
     ] as TableCellKind[],
   }));
   const raised: TableRow[] = o.raised.map((entry) => ({
-    cells: [text(entry.title, { strong: true }), text(entry.line, { tone: "neutral" }), pill(entry.state, state(entry.state)), { kind: "action", label: "Open", href: itemHref(entry.key) }] as TableCellKind[],
+    cells: [
+      text(entry.title, { strong: true }), text(entry.line, { tone: "neutral" }),
+      // How long it has been with them. A decided item is not waiting, so it shows a dash.
+      text(typeof entry.age === "number" ? `${entry.age} day${entry.age === 1 ? "" : "s"}` : "—"),
+      pill(entry.state, state(entry.state)), { kind: "action", label: "Open", href: itemHref(entry.key) },
+    ] as TableCellKind[],
   }));
   const panels: Array<PanelRow | null> = [
     row("1fr", [{
@@ -52,7 +57,7 @@ function queueTab(o: QueueOverview, me: TeacherWorkspaceView): TabContent {
       head: ["Item", "Raised by", "Waiting", "Escalates", "State", ""], rows: routed, noRowOpen: true, empty: "Nothing is waiting on you.", foot: "Week-by-week lesson notes are signed in Lesson Notes · Review, where the coverage behind them is visible.",
     }]),
     row("1.1fr 1fr", [
-      { type: "table", title: "Raised by you", sub: "What you are waiting on somebody else for.", meta: `${o.raised.length} item${o.raised.length === 1 ? "" : "s"}`, noun: "item", nounPlural: "items", head: ["Item", "With", "State", ""], rows: raised, noRowOpen: true, empty: "You have raised nothing that is still open.", foot: "Your own submissions never appear in your own queue." },
+      { type: "table", title: "Raised by you", sub: "What you are waiting on somebody else for.", meta: `${o.raised.length} item${o.raised.length === 1 ? "" : "s"}`, noun: "item", nounPlural: "items", head: ["Item", "With", "Waiting", "State", ""], rows: raised, noRowOpen: true, empty: "You have raised nothing that is still open.", foot: "Your own submissions never appear in your own queue." },
       { type: "note", tone: "withheld", icon: SHIELD, title: "Where you are the only approver, the item escalates", body: "It never silently self-approves. Segregation of duties is enforced where the decision is made, not by policy." },
     ]),
   ];

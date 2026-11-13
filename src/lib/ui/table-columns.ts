@@ -72,12 +72,20 @@ export function planColumns(
   rows: Array<{ cells: Array<TableCellKind | undefined> }>,
   options: { authored?: string; align?: Array<"left" | "right" | "center" | undefined>; selectable?: boolean } = {},
 ): ColumnPlan {
-  const count = head.length;
+  /*
+   * A table is as wide as its widest row, not as its headings.
+   *
+   * A panel whose rows carry one more cell than it has headings used to be invisible: the browser
+   * sized the extra column itself. Under a fixed layout it would be given no width at all and the
+   * cell would vanish, so the plan covers whichever is longer and the table still reads.
+   */
+  const count = Math.max(head.length, ...rows.map((row) => row.cells.length), 0);
   const authored = (options.authored ?? "").split(/\s+/).filter(Boolean);
   const weights = authored.length === count ? authored : null;
-  const width = head.map((heading, index) => estimateWidth(heading, rows.map((row) => row.cells[index])));
+  const columns = Array.from({ length: count }, (_, index) => head[index] ?? "");
+  const width = columns.map((heading, index) => estimateWidth(heading, rows.map((row) => row.cells[index])));
 
-  const flexible = head.map((_, index) => {
+  const flexible = columns.map((_, index) => {
     const track = weights ? weights[index]! : "1fr";
     if (!/fr$/.test(track)) return false;
     const kinds = rows.map((row) => row.cells[index]).filter(Boolean).map((cell) => cell!.kind);
@@ -86,7 +94,7 @@ export function planColumns(
     return align !== "right" && align !== "center";
   });
 
-  const tracks = head.map((_, index) => {
+  const tracks = columns.map((_, index) => {
     if (!flexible[index]) return { kind: "fixed" as const, px: width[index]! };
     const weight = weights ? Number.parseFloat(weights[index]!) || 1 : 1;
     // The authored weight and the measured content agree on the share, so neither a stale

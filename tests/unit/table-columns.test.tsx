@@ -122,3 +122,11 @@ describe("a rendered table", () => {
     expect((body.match(/<tr/g) ?? []).length).toBe(30);
   });
 });
+
+describe("a table whose rows are wider than its headings", () => {
+  it("still gives the extra cell a column, instead of leaving it nowhere to go", () => {
+    const plan = planColumns(["Item", "With"], rows([text("A note"), text("Mr Obi"), { kind: "pill", label: "Submitted" }]));
+    expect(plan.tracks).toHaveLength(3);
+    expect(columnWidths(plan)).toHaveLength(3);
+  });
+});

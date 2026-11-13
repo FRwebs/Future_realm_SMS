@@ -190,8 +190,8 @@ export class HubService {
       waiting: mine.map((view) => this.present(view)),
       list: shown.map((view) => this.present(view)),
       raised: [
-        ...raised.map((view) => ({ key: view.item.key, title: view.item.title, state: view.escalated ? "Escalated" : view.item.state, line: `Waiting on the ${view.item.step === 2 && view.route.second ? view.route.second : view.route.approver} · ${view.age} ${view.age === 1 ? "day" : "days"}${view.overdue ? " · past its period" : ` · escalates in ${Math.max(view.escalatesIn, 0)}`}` })),
-        ...mineDecided.map((entry) => ({ key: entry.key, title: entry.title, state: entry.outcome, line: `${entry.outcome} by ${entry.decidedByName ?? "the system"}${entry.note ? ` — “${entry.note}”` : ""}` })),
+        ...raised.map((view) => ({ key: view.item.key, title: view.item.title, age: view.age, state: view.escalated ? "Escalated" : view.item.state, line: `Waiting on the ${view.item.step === 2 && view.route.second ? view.route.second : view.route.approver} · ${view.age} ${view.age === 1 ? "day" : "days"}${view.overdue ? " · past its period" : ` · escalates in ${Math.max(view.escalatesIn, 0)}`}` })),
+        ...mineDecided.map((entry) => ({ key: entry.key, title: entry.title, age: null as number | null, state: entry.outcome, line: `${entry.outcome} by ${entry.decidedByName ?? "the system"}${entry.note ? ` — “${entry.note}”` : ""}` })),
       ],
       types: routes.map((route) => ({ type: route.type, name: route.name })),
       counts: Object.fromEntries(routes.map((route) => [route.type, views.filter((view) => view.item.type === route.type).length])),
