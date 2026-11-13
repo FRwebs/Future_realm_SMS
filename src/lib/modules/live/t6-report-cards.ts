@@ -1,9 +1,9 @@
 import { apiGet, observe } from "@/lib/api/server";
 import { localContracts } from "@/lib/api/local-contracts.zod";
 import type { TeacherWorkspaceView } from "@/lib/api/teacher-workspace";
-import { cardDrawer, completionHref, formMasterDrawer, remarkHref } from "@/lib/modules/live/m6-forms";
+import { cardDrawer, completionHref, formMasterForm, remarkHref } from "@/lib/modules/live/m6-forms";
 import type { ArchiveOverview, CardState, CompletionArmPage, CompletionOverview, RemarkPage, RemarksOverview } from "@/lib/modules/live/m6-types";
-import type { DrawerSpec, Panel, PanelFact, PanelRow, PanelTone, TabContent, TableCellKind, TableRow } from "@/lib/modules/panels";
+import type { DrawerSpec, ListItem, Panel, PanelFact, PanelRow, PanelTone, TabContent, TableCellKind, TableRow } from "@/lib/modules/panels";
 import { pill, row, text } from "@/lib/modules/panels";
 import { formatDay } from "@/lib/date-format";
 
@@ -276,7 +276,6 @@ function archiveTab(o: ArchiveOverview, me: TeacherWorkspaceView, armId?: string
 /** One child's remark, written by their form master: the record behind it, the sentence, and what was said before. */
 export function teacherRemarkPage(p: RemarkPage): TabContent & { crumb: { label: string; href: string } } {
   const s = p.summary;
-  const write = formMasterDrawer(p);
   const unlocked = !p.published && p.canWriteFormMaster;
   const peers = p.peers.map((peer) => ({ label: peer.name.split(" ").slice(0, 2).map((part, index) => (index === 0 ? part : `${part[0]}.`)).join(" "), href: remarkHref(p.arm.id, peer.id), state: peer.id === p.student.id ? ("now" as const) : ("plain" as const) }));
   const rows: PanelRow[] = [
@@ -291,10 +290,18 @@ export function teacherRemarkPage(p: RemarkPage): TabContent & { crumb: { label:
       ],
     }]),
     row("1.25fr 1fr", [
-      {
-        type: "quotes", title: "Your remark", sub: unlocked ? "One paragraph, in your own words. It is the sentence a family reads most carefully." : p.published ? "The card is published — a change reaches the family as a correction." : "Only the form master of this class writes it.",
-        quotes: [{ label: "Form master's remark", text: p.teacher.text, by: p.teacher.by ?? "You", role: p.teacher.role, when: p.teacher.when, pill: p.teacher.state, tone: remarkTone(p.teacher.state), emptyText: `You have not written ${p.student.first}'s remark yet.`, ...(unlocked ? { act: p.teacher.text ? "Edit the remark" : "Write the remark", trigger: { drawer: write } } : {}) }],
-      },
+      /*
+       * Written on the page while it can be written; read as it stands once it cannot.
+       *
+       * A published card is a thing a family already has, so it is shown rather than offered for
+       * typing — a correction goes through the Principal, not through this box.
+       */
+      unlocked
+        ? formMasterForm(p)
+        : {
+            type: "quotes", title: "Your remark", sub: p.published ? "The card is published — a change reaches the family as a correction." : "Only the form master of this class writes it.",
+            quotes: [{ label: "Form master's remark", text: p.teacher.text, by: p.teacher.by ?? "You", role: p.teacher.role, when: p.teacher.when, pill: p.teacher.state, tone: remarkTone(p.teacher.state), emptyText: `You have not written ${p.student.first}'s remark yet.` }],
+          },
       {
         type: "facts", title: "What has already been written", sub: "The subject results that will print beneath yours.", per: 1,
         facts: [
@@ -309,9 +316,11 @@ export function teacherRemarkPage(p: RemarkPage): TabContent & { crumb: { label:
   ];
   return {
     crumb: { label: "Back to the remark list", href: "/report-cards/remarks" },
-    title: p.student.name, desc: `${p.arm.name} · ${p.student.adm} · your remark prints above the Principal’s.`,
-    primary: unlocked ? { label: p.teacher.text ? "Edit the remark" : "Write the remark", icon: PEN, drawer: write } : undefined,
-    launchers: [{ label: "Preview the card", drawer: cardDrawer(p.student.id, p.term.id, p.student.name) }, ...(p.next ? [{ label: "Open the next child", href: remarkHref(p.arm.id, p.next.id) }] : [])],
+    title: p.student.name,
+    tag: p.teacher.state === "Submitted" ? "Written" : p.teacher.state, tagTone: p.teacher.state === "Submitted" ? "positive" : p.teacher.state === "Draft" ? "progress" : "attention",
+    desc: `${p.arm.name} · ${p.student.adm} · your remark prints above the Principal’s.`,
+    primary: p.next ? { label: "Open the next child", icon: ARROW, href: remarkHref(p.arm.id, p.next.id) } : undefined,
+    launchers: [{ label: "Preview the card", drawer: cardDrawer(p.student.id, p.term.id, p.student.name) }],
     rows,
   };
 }
@@ -323,7 +332,9 @@ export function teacherArmPage(a: CompletionArmPage, me: TeacherWorkspaceView): 
   const sum = a.sum;
   const first = children.find((child) => child.state === "Remark owed") ?? null;
   const rows: TableRow[] = children.map((child, index) => ({
-    keywords: `${child.name} ${child.adm}`,
+    // "Written" is inside "Not written", so the remark filter looks for a token the row carries
+    // rather than for the word on screen.
+    keywords: `${child.name} ${child.adm} rmk-${child.remark === "Submitted" ? "written" : child.remark === "Draft" ? "draft" : "unwritten"}`,
     cells: [
       { kind: "name", name: child.name, sub: `Roll ${String(index + 1).padStart(2, "0")}` }, text(child.adm, { mono: true }), child.average === null ? text("—") : text(String(child.average), { mono: true }), text(child.pos === null ? "—" : String(child.pos)),
       child.grade ? pill(child.grade, gradeTone(child.grade)) : text("—"), pill(child.scores ? "Approved" : "Blocked", child.scores ? "positive" : "negative"), pill(child.remark === "Submitted" ? "Written" : child.remark, remarkTone(child.remark)),
@@ -332,10 +343,32 @@ export function teacherArmPage(a: CompletionArmPage, me: TeacherWorkspaceView): 
     ] as TableCellKind[],
   }));
   const publish = a.publishDate;
+  const ready = sum.ready + sum.published;
+  const master = a.master?.name ?? "the form master";
+  const readFirst = children[0] ? { label: "Read the first card", icon: EYE, drawer: cardDrawer(children[0].id, a.term.id, children[0].name) } : undefined;
+  const writeRemarks = own && sum.owed ? { label: `Write the ${sum.owed} remarks you owe`, icon: PEN, href: "/report-cards/remarks" as const } : undefined;
+  /*
+   * What is holding this arm, each item naming the children it holds.
+   *
+   * The mockup puts this beside "who writes what" rather than leaving a reader to work it out from
+   * five figures: a blocked sheet, a remark not written and a result not yet checked are three
+   * different waits with three different owners.
+   */
+  const holding: ListItem[] = [
+    ...(sum.blocked ? [{ label: `${sum.blocked} ${sum.blocked === 1 ? "card is" : "cards are"} waiting on a score sheet`, sub: "A subject sheet is not approved yet, so the card cannot be computed. Nobody is given a zero.", pill: "Blocked", tone: "negative" as const }] : []),
+    ...(sum.owed ? [{ label: `${sum.owed} form master ${sum.owed === 1 ? "remark" : "remarks"} still to write`, sub: own ? "Yours." : `By ${master}.`, pill: "Remarks owed", tone: "attention" as const, ...(own ? { viewLabel: "Write them", href: "/report-cards/remarks" as const } : {}) }] : []),
+    ...(sum.inReview ? [{ label: `${sum.inReview} waiting on review`, sub: "The result is checked before the card can go out.", pill: "Awaiting review", tone: "submitted" as const }] : []),
+    ...(sum.withheld ? [{ label: `${sum.withheld} withheld`, sub: a.policy.withholdForDebt ? "An unpaid fee holds the card, by the school’s own rule." : "Held by a school administrator.", pill: "Withheld", tone: "withheld" as const }] : []),
+    ...(!sum.blocked && !sum.owed && !sum.inReview && !sum.withheld ? [{ label: "Nothing is holding this arm", sub: "Every card is ready for the Principal to publish.", pill: "Ready", tone: "positive" as const }] : []),
+  ];
   return {
     crumb: { label: "Back to Completion", href: "/report-cards/completion" },
-    title: `${a.arm.name} · report cards`, desc: `Where each of the ${children.length} children stands. ${own ? "You write the form master’s remark; " : `${a.master?.name ?? "The form master"} writes the remarks; `}the Principal publishes${publish ? ` on ${shortDate(publish.iso)}` : ""}.`,
-    primary: own && sum.owed ? { label: `Write the ${sum.owed} remarks you owe`, icon: PEN, href: "/report-cards/remarks" } : children[0] ? { label: "Read the first card", icon: EYE, drawer: cardDrawer(children[0].id, a.term.id, children[0].name) } : undefined,
+    title: `${a.arm.name} · report cards`,
+    tag: ready === children.length ? "All ready" : `${ready} of ${children.length} ready`,
+    tagTone: ready === children.length ? "positive" : sum.blocked ? "negative" : "attention",
+    desc: `Where each of the ${children.length} children stands. ${own ? "You write the form master’s remark; " : `${a.master?.name ?? "The form master"} writes the remarks; `}the Principal publishes${publish ? ` on ${shortDate(publish.iso)}` : ""}.`,
+    primary: writeRemarks ?? readFirst,
+    launchers: writeRemarks && readFirst ? [readFirst] : [],
     rows: [
       row("1fr", [{
         type: "kpi", title: `${a.arm.name} · ${a.term.name} ${a.term.session}`, per: 5,
@@ -349,9 +382,33 @@ export function teacherArmPage(a: CompletionArmPage, me: TeacherWorkspaceView): 
       }]),
       row("1fr", [{
         type: "table", title: `Every child in ${a.arm.name}`, tag: `${sum.ready + sum.published} ready`, tagTone: sum.ready + sum.published === children.length ? "positive" : "attention", sub: "Open a child to read their card exactly as the family will see it.",
-        meta: `${children.length} children · ${a.subjects.of} subjects`, search: "Find a child by name or admission number", noun: "card", nounPlural: "children",
-        head: ["Student", "Admission no", "Avg", "Pos", "Grade", "Scores", "Remark", "Review", "State", ""], rows, per: 10, noRowOpen: true, foot: "View only. A card is published by the Principal, never from this page.",
+        meta: `${children.length} children · ${a.subjects.of} subjects · ${ready} ready · ${sum.blocked} blocked · ${sum.owed} remarks owed`, search: "Find a child by name or admission number", noun: "card", nounPlural: "children",
+        filters: [
+          { label: "State", value: "All", options: ["All", "Ready", "Blocked", "Remark owed", "Awaiting review", "Published", "Withheld"], column: 8 },
+          { label: "Scores", value: "All", options: ["All", "Approved", "Blocked"], column: 5 },
+          { label: "Remark", value: "All", options: ["All", "Written", "Draft", "Not written"], match: { Written: "rmk-written", Draft: "rmk-draft", "Not written": "rmk-unwritten" } },
+        ],
+        /*
+         * The mockup's bulk action reads the first card ticked. A trigger here is data rather than
+         * a callback, so it cannot name a row chosen after the page was drawn — the ticked rows
+         * come down as a list instead, which is what a teacher chasing an arm actually wants.
+         */
+        selectable: true, bulkActs: [{ label: "Export the selected", export: true }],
+        head: ["Student", "Admission no", "Avg", "Pos", "Grade", "Scores", "Remark", "Review", "State", ""], rows, per: 12, noRowOpen: true, foot: "View only. A card is published by the Principal, never from this page.",
       }]),
+      row("1.1fr 1fr", [
+        {
+          type: "facts", title: "Who writes what on these cards", per: 1,
+          facts: [
+            ["Form master’s remark", own ? "You" : (a.master?.name ?? "Not assigned"), own ? `${a.remarksWritten} of ${children.length} written` : "You read it; you do not write it"],
+            ["Subject comments", `${a.subjects.of} ${a.subjects.of === 1 ? "subject" : "subjects"}`, "Each teacher writes the line beside their own subject"],
+            ["Principal’s remark", a.principalWritten ? `${a.principalWritten} of ${children.length} written` : "Written at publication", "By the Principal, never from this page"],
+            ["Publication", publish ? shortDate(publish.iso) : "Not set yet", "By the Principal — in-app to the student and guardian portals"],
+            ["Card design", a.school, "The same card the school prints"],
+          ] as PanelFact[],
+        },
+        { type: "list", title: "What is holding this arm", sub: "Each item names the children it holds.", items: holding },
+      ]),
       row("1fr", [{ type: "note", tone: "withheld", icon: SHIELD, title: "Publishing, printing and sending stay with the Principal", body: "You read a card exactly as the family will, and you write the form master’s remark. Nothing reaches a family from this page." }]),
     ],
   };
