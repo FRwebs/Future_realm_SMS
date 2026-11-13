@@ -10,6 +10,7 @@ import { notifyGuardian } from "../guardian-management/guardians.shared";
 import { loadStaffNames } from "../score-results/arm";
 import { CardService } from "./card.service";
 import { cardReference, loadPolicy } from "./cards.shared";
+import { readCard } from "./published-card";
 
 /**
  * The archive is every card ever issued, retrievable by child, arm, term and session — and it opens the
@@ -38,7 +39,7 @@ export class ArchiveService {
       orderBy: { publishedAt: "desc" }, take: 400
     });
     const [cards, revisions, batches, withheld] = await Promise.all([
-      prisma.reportCard.findMany({ where: { schoolId, studentId: { in: sheets.map((sheet) => sheet.studentId) } }, select: { studentId: true, termId: true, revision: true, deliveryState: true, reference: true } }),
+      prisma.reportCard.findMany({ where: { schoolId, studentId: { in: sheets.map((sheet) => sheet.studentId) } }, select: { studentId: true, termId: true, revision: true, deliveryState: true, reference: true, data: true } }),
       prisma.reportCardRevision.findMany({ where: { schoolId, kind: { not: "ISSUE" } }, orderBy: { createdAt: "desc" }, take: 30 }),
       prisma.cardBatch.findMany({ where: { schoolId, kind: { in: ["PRINT", "SEND", "PUBLISH", "UNPUBLISH"] } }, orderBy: { createdAt: "desc" }, take: 30 }),
       prisma.reportCard.count({ where: { schoolId, withheldAt: { not: null } } })
@@ -51,7 +52,8 @@ export class ArchiveService {
       const card = cardOf.get(`${sheet.studentId}|${sheet.termId}`);
       const reachable = sheet.student.guardians.some((link) => link.guardian.userId);
       const delivery = card?.deliveryState === "NOT_SENT" ? "Not sent" : card?.deliveryState === "UNDELIVERED" || (!card?.deliveryState && !reachable) ? "Undelivered" : "Delivered";
-      return { studentId: sheet.studentId, name: fullName(sheet.student), adm: sheet.student.admissionNumber, classId: sheet.student.currentClass?.id ?? null, arm: sheet.student.currentClass ? armName(sheet.student.currentClass) : "No arm", termId: sheet.termId, term: termName.get(sheet.termId) ?? "", revision: card?.revision ?? 1, state: (card?.revision ?? 1) > 1 ? "Revised" : "Published", delivery, reference: card?.reference ?? cardReference(sheet.student.admissionNumber, terms.find((term) => term.id === sheet.termId)?.name ?? ""), published: sheet.publishedAt ? iso(sheet.publishedAt) : null };
+      const snapshot = readCard(card?.data ?? null);
+      return { avg: snapshot?.average ?? null, grade: snapshot?.grade ?? null, studentId: sheet.studentId, name: fullName(sheet.student), adm: sheet.student.admissionNumber, classId: sheet.student.currentClass?.id ?? null, arm: sheet.student.currentClass ? armName(sheet.student.currentClass) : "No arm", termId: sheet.termId, term: termName.get(sheet.termId) ?? "", revision: card?.revision ?? 1, state: (card?.revision ?? 1) > 1 ? "Revised" : "Published", delivery, reference: card?.reference ?? cardReference(sheet.student.admissionNumber, terms.find((term) => term.id === sheet.termId)?.name ?? ""), published: sheet.publishedAt ? iso(sheet.publishedAt) : null };
     });
     const people = await loadStaffNames(schoolId, batches.map((batch) => batch.byId));
     const students = await prisma.student.findMany({ where: { id: { in: revisions.map((entry) => entry.studentId) } }, select: { id: true, firstName: true, lastName: true } });
