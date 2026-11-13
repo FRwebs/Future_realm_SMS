@@ -6,6 +6,7 @@ import { z } from "zod";
 
 import type { SessionPayload } from "../../../../src/lib/auth/session-core";
 import { prisma } from "../../../../src/lib/db/prisma";
+import { isPlatformRole } from "../../../../src/lib/auth/role-architecture";
 import { fullName } from "../fee-management/fees.shared";
 import { store } from "../staff-access/staff-access.shared";
 import { personaLabels } from "../../../../src/lib/modules/teacher-workspace";
@@ -63,6 +64,26 @@ const lessonSchema = z.object({
  * anyone can check. The school sees that a course was finished — never the answers. A course is written by the school: this build has
  * no platform course library yet, so nothing in the catalogue is anything but what the school authored.
  */
+/**
+ * The courses a school's staff may take.
+ *
+ * Its own, and every course that belongs to no school — the platform's, and an accredited body's.
+ * A school writes its own and may only edit those; what it is *given* is wider than what it owns,
+ * which is the whole point of a course coming from somewhere else.
+ */
+/** A course with no school behind it says who does stand behind it, and in what capacity. */
+const platformCourseSchema = courseSchema.extend({
+  provider: z.string().trim().min(2, "Name the body that runs it."),
+  origin: z.enum(["PLATFORM", "PARTNER"]).default("PLATFORM"),
+});
+
+/** Only the platform's own people write a course every school will be given. */
+function assertPlatformAuthor(session: SessionPayload) {
+  if (!isPlatformRole(session.role)) throw new ForbiddenException("Only the platform team publishes a course for every school.");
+}
+
+const offeredTo = (schoolId: string) => ({ OR: [{ schoolId }, { schoolId: null }] });
+
 @Injectable()
 export class LearningService {
   constructor(private readonly workspace: TeacherWorkspaceService, private readonly scores: TeacherScoresService, private readonly notes: TeacherNotesService) {}
@@ -84,7 +105,7 @@ export class LearningService {
   private async visible(session: SessionPayload) {
     const { me, subjects } = await this.context(session);
     const [courses, enrolments, certificates, purchases] = await Promise.all([
-      prisma.trainingCourse.findMany({ where: { schoolId: session.schoolId, archivedAt: null, publishedAt: { not: null } }, include: { _count: { select: { lessons: true } } }, orderBy: { createdAt: "desc" } }),
+      prisma.trainingCourse.findMany({ where: { ...offeredTo(session.schoolId), archivedAt: null, publishedAt: { not: null } }, include: { _count: { select: { lessons: true } } }, orderBy: { createdAt: "desc" } }),
       prisma.trainingEnrolment.findMany({ where: { schoolId: session.schoolId, userId: session.userId } }),
       prisma.trainingCertificate.findMany({ where: { schoolId: session.schoolId, userId: session.userId, state: { not: "SUPERSEDED" } }, orderBy: { issuedAt: "desc" } }),
       prisma.trainingPurchase.findMany({ where: { schoolId: session.schoolId, userId: session.userId } })
@@ -102,7 +123,7 @@ export class LearningService {
       const required = course.requiredFor.length > 0 && (course.requiredFor.includes(me.persona) || course.requiredFor.includes("all")) && !completed;
       const dueDays = required && course.requiredBy ? Math.ceil((course.requiredBy.getTime() - now) / DAY) : null;
       return {
-        id: course.id, title: course.title, summary: course.summary, section: course.section, provider: course.provider, hours: course.hours, format: course.format, certificateName: course.certificateName, validMonths: course.validMonths, pathway: course.pathway,
+        id: course.id, title: course.title, summary: course.summary, section: course.section, provider: course.provider, origin: course.origin, hours: course.hours, format: course.format, certificateName: course.certificateName, validMonths: course.validMonths, pathway: course.pathway,
         lessons, done, completed,
         // What it costs and where that stands, said separately from how far through it
         // the person is — an unbought course has no progress to report.
@@ -219,7 +240,7 @@ export class LearningService {
   }
 
   async course(session: SessionPayload, id: string) {
-    const course = await prisma.trainingCourse.findFirst({ where: { id, schoolId: session.schoolId, publishedAt: { not: null }, archivedAt: null }, include: { lessons: { orderBy: { position: "asc" }, select: { position: true, title: true, minutes: true, body: true } } } });
+    const course = await prisma.trainingCourse.findFirst({ where: { id, ...offeredTo(session.schoolId), publishedAt: { not: null }, archivedAt: null }, include: { lessons: { orderBy: { position: "asc" }, select: { position: true, title: true, minutes: true, body: true } } } });
     if (!course) throw new NotFoundException("That course is not open to you.");
     const { me, subjects } = await this.context(session);
     if (!this.fits(course, me.persona, subjects)) throw new ForbiddenException("That course is not written for your work.");
@@ -235,7 +256,7 @@ export class LearningService {
     const required = course.requiredFor.length > 0 && (course.requiredFor.includes(me.persona) || course.requiredFor.includes("all"));
     const signal = owned && (enrolment || required) ? null : (await this.home(session)).recommended.find((entry) => entry.course.id === id)?.why ?? null;
     return {
-      id: course.id, title: course.title, summary: course.summary, provider: course.provider, hours: course.hours, format: course.format, certificateName: course.certificateName, validMonths: course.validMonths, outcomes: course.outcomes, task: course.task,
+      id: course.id, title: course.title, summary: course.summary, provider: course.provider, origin: course.origin, hours: course.hours, format: course.format, certificateName: course.certificateName, validMonths: course.validMonths, outcomes: course.outcomes, task: course.task,
       owned, price: free ? null : course.priceKobo, priceLabel: free ? "Free" : naira(course.priceKobo as number), purchase: purchase ? { state: purchase.state, payer: purchase.payer, decision: purchase.decision } : null, why: signal,
       required: required ? { by: course.requiredBy?.toISOString() ?? null, note: course.requiredNote } : null,
       lessons: course.lessons.map((lesson) => ({ position: lesson.position, title: lesson.title, minutes: lesson.minutes, summary: owned ? lesson.body.split(/(?<=[.!?])\s/)[0] ?? "" : "", done: done.includes(lesson.position) })),
@@ -259,7 +280,7 @@ export class LearningService {
 
   async answer(session: SessionPayload, id: string, position: number, body: unknown) {
     const input = z.object({ choice: z.coerce.number().int().min(0) }).parse(body);
-    const course = await prisma.trainingCourse.findFirst({ where: { id, schoolId: session.schoolId, publishedAt: { not: null }, archivedAt: null }, include: { lessons: { orderBy: { position: "asc" } } } });
+    const course = await prisma.trainingCourse.findFirst({ where: { id, ...offeredTo(session.schoolId), publishedAt: { not: null }, archivedAt: null }, include: { lessons: { orderBy: { position: "asc" } } } });
     if (!course) throw new NotFoundException("That course is not open to you.");
     const lesson = course.lessons.find((entry) => entry.position === position);
     if (!lesson) throw new NotFoundException("That lesson does not exist.");
@@ -291,7 +312,7 @@ export class LearningService {
    * the old certificate stays until the new one is earned, and is then replaced on the record.
    */
   async renew(session: SessionPayload, id: string) {
-    const course = await prisma.trainingCourse.findFirst({ where: { id, schoolId: session.schoolId, publishedAt: { not: null }, archivedAt: null } });
+    const course = await prisma.trainingCourse.findFirst({ where: { id, ...offeredTo(session.schoolId), publishedAt: { not: null }, archivedAt: null } });
     if (!course) throw new NotFoundException("That course is not open to you.");
     await this.assertOwned(session, course);
     const cert = await prisma.trainingCertificate.findFirst({ where: { schoolId: session.schoolId, userId: session.userId, courseId: id, state: "VALID" }, orderBy: { issuedAt: "desc" } });
@@ -343,7 +364,7 @@ export class LearningService {
   }
 
   async addToBasket(session: SessionPayload, courseId: string) {
-    const course = await prisma.trainingCourse.findFirst({ where: { id: courseId, schoolId: session.schoolId, publishedAt: { not: null }, archivedAt: null } });
+    const course = await prisma.trainingCourse.findFirst({ where: { id: courseId, ...offeredTo(session.schoolId), publishedAt: { not: null }, archivedAt: null } });
     if (!course) throw new NotFoundException("That course is not open to you.");
     if (course.priceKobo === null || course.priceKobo === 0) throw new BadRequestException(`${course.title} is free — open it from the catalogue.`);
     const existing = await prisma.trainingPurchase.findUnique({ where: { courseId_userId: { courseId, userId: session.userId } } });
@@ -360,7 +381,7 @@ export class LearningService {
   async addManyToBasket(session: SessionPayload, body: unknown) {
     const input = z.object({ courseIds: z.array(z.string()).min(1, "Choose at least one course.").max(40) }).parse(body);
     const ids = [...new Set(input.courseIds)];
-    const courses = await prisma.trainingCourse.findMany({ where: { id: { in: ids }, schoolId: session.schoolId, publishedAt: { not: null }, archivedAt: null } });
+    const courses = await prisma.trainingCourse.findMany({ where: { id: { in: ids }, ...offeredTo(session.schoolId), publishedAt: { not: null }, archivedAt: null } });
     const paid = courses.filter((course) => course.priceKobo && course.priceKobo > 0);
     if (!paid.length) throw new BadRequestException("None of those needs buying — a free course opens from the catalogue.");
     const existing = await prisma.trainingPurchase.findMany({ where: { userId: session.userId, courseId: { in: paid.map((course) => course.id) } } });
@@ -516,6 +537,55 @@ export class LearningService {
     });
     await prisma.auditLog.create({ data: { schoolId: session.schoolId, actorId: session.userId, action: AuditAction.CREATE, entityType: "TrainingCourse", entityId: created.id, metadata: { summary: `Course created · ${input.title}` } } });
     return { id: created.id };
+  }
+
+  /* ───────────────── courses that belong to no one school ───────────────── */
+
+  /**
+   * A course the platform publishes, or one an accredited body offers through it.
+   *
+   * It has no school, so no school can edit it, and every school is given it. This is how a
+   * teacher's learning stops being only what their own school happened to write: a certificate
+   * from a recognised body is worth more precisely because the school did not set the paper.
+   */
+  async createPlatformCourse(session: SessionPayload, body: unknown) {
+    assertPlatformAuthor(session);
+    const input = platformCourseSchema.parse(body);
+    const created = await prisma.trainingCourse.create({
+      data: {
+        schoolId: null, origin: input.origin, title: input.title, summary: input.summary || null, section: input.section,
+        provider: input.provider, hours: input.hours, format: FORMATS.includes(input.format) ? input.format : "Self-paced",
+        certificateName: input.certificateName, validMonths: input.validMonths, pathway: input.pathway || null,
+        priceKobo: input.price ? Math.round(input.price * 100) : null, outcomes: lines(input.outcomes), task: input.task || null,
+        personas: input.personas, subjects: lines(input.subjects), topics: lines(input.topics),
+        requiredFor: input.requiredFor, requiredBy: input.requiredBy ? new Date(input.requiredBy) : null, requiredNote: input.requiredNote || null,
+        createdById: session.userId,
+      },
+    });
+    await prisma.auditLog.create({ data: { schoolId: session.schoolId, actorId: session.userId, action: AuditAction.CREATE, entityType: "TrainingCourse", entityId: created.id, metadata: { summary: `Platform course created · ${input.title}`, origin: input.origin, provider: input.provider } } });
+    return { id: created.id };
+  }
+
+  /** Every course that belongs to no school, for whoever maintains them. */
+  async platformCourses(session: SessionPayload) {
+    assertPlatformAuthor(session);
+    const courses = await prisma.trainingCourse.findMany({ where: { schoolId: null }, include: { _count: { select: { lessons: true, enrolments: true } } }, orderBy: [{ archivedAt: "asc" }, { createdAt: "desc" }] });
+    return courses.map((course) => ({
+      id: course.id, title: course.title, origin: course.origin, provider: course.provider, section: course.section, hours: course.hours,
+      lessons: course._count.lessons, taken: course._count.enrolments,
+      state: course.archivedAt ? "Archived" : course.publishedAt ? "Published" : "Draft",
+    }));
+  }
+
+  /** Publish one, or take it back. Nothing is deleted: a course a teacher has started stays readable. */
+  async setPlatformCourseState(session: SessionPayload, id: string, state: "publish" | "archive" | "restore") {
+    assertPlatformAuthor(session);
+    const course = await prisma.trainingCourse.findFirst({ where: { id, schoolId: null } });
+    if (!course) throw new NotFoundException("That course does not exist.");
+    const data = state === "publish" ? { publishedAt: new Date(), archivedAt: null } : state === "archive" ? { archivedAt: new Date() } : { archivedAt: null };
+    await prisma.trainingCourse.update({ where: { id }, data });
+    await prisma.auditLog.create({ data: { schoolId: session.schoolId, actorId: session.userId, action: AuditAction.UPDATE, entityType: "TrainingCourse", entityId: id, metadata: { summary: `Platform course ${state}d · ${course.title}` } } });
+    return { id };
   }
 
   async updateCourse(session: SessionPayload, id: string, body: unknown) {

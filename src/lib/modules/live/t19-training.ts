@@ -42,7 +42,7 @@ const SECTION_ICON: Record<string, string> = {
   Leadership: "M12 4 3.5 8 12 12l8.5-4zM6 10.5v4.8c0 1.7 2.7 3.2 6 3.2s6-1.5 6-3.2v-4.8",
 };
 
-export type Course = { id: string; title: string; summary: string | null; section: string; provider: string; hours: number; format: string; certificateName: string; validMonths: number | null; pathway: string | null; lessons: number; done: number; completed: boolean; state: string; price?: number | null; priceLabel?: string; free?: boolean; owned?: boolean; purchase?: { state: string; payer: string; decision: string | null } | null; required: boolean; requiredBy: string | null; requiredNote: string | null; dueDays: number | null; outcomes: string[] };
+export type Course = { id: string; title: string; summary: string | null; section: string; provider: string; origin?: string; hours: number; format: string; certificateName: string; validMonths: number | null; pathway: string | null; lessons: number; done: number; completed: boolean; state: string; price?: number | null; priceLabel?: string; free?: boolean; owned?: boolean; purchase?: { state: string; payer: string; decision: string | null } | null; required: boolean; requiredBy: string | null; requiredNote: string | null; dueDays: number | null; outcomes: string[] };
 type Cert = { id: string; name: string; by: string; issued: string; issuedAt: string; expires: string; expiresAt: string | null; days: number | null; hours: number; code: string; state: string; external: boolean; courseId: string | null; note: string | null };
 type Home = { persona: string; cpd: { hours: number; target: number | null }; required: Course[]; inProgress: Course[]; recommended: Array<{ course: Course; why: string }>; pathways: Array<{ name: string; total: number; done: number; titles: string[] }>; certificates: number; expiring: Cert | null; total: number; completed: number };
 type Catalogue = { sections: string[]; courses: Course[] };
@@ -272,11 +272,21 @@ function catalogueTab(v: Catalogue, b: Basket, query: Record<string, string | un
     };
   });
   const priceBand = (course: Course) => (isFree(course) ? "Free" : "Paid");
+  /**
+   * Where a course came from, under the name of whoever runs it.
+   *
+   * A school's own course, one the platform publishes for every school, and one an accredited
+   * body offers are three different things to a teacher: they decide who stands behind the
+   * certificate, and whether the school can change the course under them.
+   */
+  const sourceOf = (course: Course) =>
+    course.origin === "PLATFORM" ? "Offered to every school" : course.origin === "PARTNER" ? "An accredited body" : "Your school";
   const rows: TableRow[] = list.map((course) => ({
     id: course.id, keywords: `${course.title} ${course.provider} ${course.section} len:${bandOf(course.hours)}| fmt:${course.format}| price:${priceBand(course)}| st:${course.state}|`, href: courseHref(course.id),
     cells: [
       { kind: "name", name: course.title, sub: `${course.certificateName}${course.required && !course.completed ? ` · required${course.requiredBy ? ` by ${day(course.requiredBy)}` : ""}` : ""}`, avatar: false },
-      cell(course.provider), cell(length(course.hours)), cell(course.format),
+      { kind: "name", name: course.provider, sub: sourceOf(course), avatar: false },
+      cell(length(course.hours)), cell(course.format),
       isFree(course) ? pill("Free", "positive") : cell(course.priceLabel ?? "—", { mono: true }),
       pill(course.state, owns(course) ? stateTone(course.state, course.required) : course.purchase?.state === "DECLINED" ? "negative" : course.purchase ? "progress" : "neutral"),
       owns(course)

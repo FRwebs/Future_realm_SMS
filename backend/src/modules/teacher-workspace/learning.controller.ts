@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, ParseIntPipe, Post, Put, Delete, UseGuards } from "@nestjs/common";
+import { BadRequestException, Body, Controller, Get, Param, ParseIntPipe, Post, Put, Delete, UseGuards } from "@nestjs/common";
 import { ApiTags } from "@nestjs/swagger";
 
 import type { SessionPayload } from "../../../../src/lib/auth/session-core";
@@ -19,6 +19,39 @@ export class LearningPublicController {
   @Get("verify/:code")
   verify(@Param("code") code: string) {
     return ok(this.learning.verify(code));
+  }
+}
+
+/**
+ * Courses that belong to no one school.
+ *
+ * The platform's own, and an accredited body's offered through it. They are written here and
+ * every school is given them, which is why only the platform team may touch them.
+ */
+@ApiTags("learning")
+@Controller("v1/learning/platform")
+@UseGuards(SessionGuard)
+export class LearningPlatformController {
+  constructor(private readonly learning: LearningService) {}
+
+  @Get("courses")
+  courses(@CurrentSession() session: SessionPayload) {
+    return ok(this.learning.platformCourses(session));
+  }
+
+  @Post("courses")
+  @UseGuards(CsrfGuard)
+  create(@CurrentSession() session: SessionPayload, @Body() body: unknown) {
+    return ok(this.learning.createPlatformCourse(session, body));
+  }
+
+  @Post("courses/:id/:state")
+  @UseGuards(CsrfGuard)
+  setState(@CurrentSession() session: SessionPayload, @Param("id") id: string, @Param("state") state: string) {
+    const known = ["publish", "archive", "restore"] as const;
+    const chosen = known.find((candidate) => candidate === state);
+    if (!chosen) throw new BadRequestException("A course is published, archived or restored.");
+    return ok(this.learning.setPlatformCourseState(session, id, chosen));
   }
 }
 
