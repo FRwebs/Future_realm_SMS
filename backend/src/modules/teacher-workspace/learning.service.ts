@@ -223,20 +223,30 @@ export class LearningService {
     return { sections: SECTIONS, courses: courses.sort((a, b) => Number(b.required) - Number(a.required) || a.title.localeCompare(b.title)) };
   }
 
-  async certificates(session: SessionPayload) {
-    const { me, certificates } = await this.visible(session);
-    const cpd = await this.cpd(session.schoolId, certificates);
+  /**
+   * Whose certificate it is, and on whose paper.
+   *
+   * A certificate is read in two places — the Certificates tab, and a course that has not been
+   * finished yet, where it is shown as it *would* be issued — so who it names and whose letterhead
+   * it carries is read once here rather than being guessed on the page.
+   */
+  private async paper(session: SessionPayload, persona: string) {
     const [person, school, head] = await Promise.all([
       prisma.user.findUnique({ where: { id: session.userId }, select: { firstName: true, lastName: true } }),
       prisma.school.findUnique({ where: { id: session.schoolId }, select: { name: true, address: true, city: true, mainPhone: true, ownerEmail: true } }),
       prisma.user.findFirst({ where: { schoolId: session.schoolId, isActive: true, deletedAt: null, role: { in: ["PRINCIPAL", "HEAD_TEACHER"] } }, select: { firstName: true, lastName: true, role: true } }),
     ]);
     return {
-      cpd, holder: person ? fullName(person) : "", holderRole: personaLabels[me.persona as keyof typeof personaLabels] ?? "Member of staff", school: school?.name ?? "",
+      holder: person ? fullName(person) : "", holderRole: personaLabels[persona as keyof typeof personaLabels] ?? "Member of staff", school: school?.name ?? "",
       letterhead: { name: school?.name ?? "", place: [school?.address, school?.city].filter(Boolean).join(", "), contact: [school?.mainPhone, school?.ownerEmail].filter(Boolean).join(" · ") },
       signatory: head ? { name: fullName(head), role: `${head.role === "HEAD_TEACHER" ? "Head Teacher" : "Principal"}, ${school?.name ?? ""}` } : null,
-      certificates: certificates.map((cert) => this.certView(cert)),
     };
+  }
+
+  async certificates(session: SessionPayload) {
+    const { me, certificates } = await this.visible(session);
+    const [cpd, paper] = await Promise.all([this.cpd(session.schoolId, certificates), this.paper(session, me.persona)]);
+    return { cpd, ...paper, certificates: certificates.map((cert) => this.certView(cert)) };
   }
 
   async course(session: SessionPayload, id: string) {
@@ -255,7 +265,9 @@ export class LearningService {
     const done = owned ? enrolment?.completedLessons ?? [] : [];
     const required = course.requiredFor.length > 0 && (course.requiredFor.includes(me.persona) || course.requiredFor.includes("all"));
     const signal = owned && (enrolment || required) ? null : (await this.home(session)).recommended.find((entry) => entry.course.id === id)?.why ?? null;
+    const paper = course.certificateName ? await this.paper(session, me.persona) : null;
     return {
+      paper,
       id: course.id, title: course.title, summary: course.summary, provider: course.provider, origin: course.origin, hours: course.hours, format: course.format, certificateName: course.certificateName, validMonths: course.validMonths, outcomes: course.outcomes, task: course.task,
       owned, price: free ? null : course.priceKobo, priceLabel: free ? "Free" : naira(course.priceKobo as number), purchase: purchase ? { state: purchase.state, payer: purchase.payer, decision: purchase.decision } : null, why: signal,
       required: required ? { by: course.requiredBy?.toISOString() ?? null, note: course.requiredNote } : null,

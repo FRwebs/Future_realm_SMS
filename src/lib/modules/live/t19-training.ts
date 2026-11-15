@@ -52,7 +52,10 @@ export type Basket = {
   history: Array<{ id: string; courseId: string; title: string; provider: string; state: string; payer: string; priceLabel: string; decision: string | null; requestedAt: string | null; decidedAt: string | null }>;
 };
 type Certificates = { cpd: { hours: number; target: number | null }; holder: string; holderRole: string; school: string; letterhead: { name: string; place?: string; contact?: string }; signatory: { name: string; role: string } | null; certificates: Cert[] };
+/** Whose certificate it would be, and on whose paper — only sent for a course that awards one. */
+export type CoursePaper = { holder: string; holderRole: string; school: string; letterhead: { name: string; place: string; contact: string }; signatory: { name: string; role: string } | null };
 export type CoursePage = {
+  paper: CoursePaper | null;
   id: string; title: string; summary: string | null; provider: string; hours: number; format: string; certificateName: string; validMonths: number | null; outcomes: string[]; task: string | null;
   owned: boolean; price: number | null; priceLabel: string; purchase: { state: string; payer: string; decision: string | null } | null; why: string | null;
   required: { by: string | null; note: string | null } | null; lessons: Array<{ position: number; title: string; minutes: number; summary: string; done: boolean }>; done: number; completed: boolean; certificate: Cert | null;
@@ -465,6 +468,37 @@ type Certificate = Cert;
 
 /* ───────────────────────── a course, and a lesson in it ───────────────────────── */
 
+/**
+ * The certificate this course awards, as it would be issued.
+ *
+ * The mockup lets a teacher look at it before they start, which is most of why anybody starts: it
+ * is drawn on the school's own paper with their own name on it, marked plainly as not yet earned,
+ * so nothing here could be mistaken for the thing itself.
+ */
+function certificatePreview(c: CoursePage): DrawerSpec | null {
+  const paper = c.paper;
+  if (!paper || !c.certificateName) return null;
+  const by = c.provider || paper.school;
+  return {
+    mode: "document", kicker: "Certificate · not yet earned", title: c.certificateName,
+    doc: {
+      heading: "Certificate", state: { label: "Not yet earned", tone: "neutral" }, meta: `${paper.holder} · ${c.certificateName}`,
+      letterhead: paper.letterhead, kicker: "CERTIFICATE", title: c.certificateName, ref: "No certificate number until it is issued",
+      idents: [
+        ["Would be awarded to", paper.holder],
+        ["Role", `${paper.holderRole}, ${paper.school}`],
+        ["Awarded by", by],
+        ["Issued", "When you finish the course"],
+        ["Valid until", c.validMonths ? `${c.validMonths} months after that` : "Does not expire"],
+        ["CPD", length(c.hours)],
+      ] as Array<[string, string]>,
+      blocks: [{ label: "It will certify that", body: `${paper.holder} has completed ${c.certificateName}, ${length(c.hours)} of professional development awarded by ${by}.`, by: paper.signatory ? `${paper.signatory.name}, ${paper.signatory.role}` : undefined }],
+      footNote: `Nothing is issued yet. Finish all ${c.lessons.length} lessons and answer each check correctly, and the certificate is issued with a code anyone can verify.`,
+    } satisfies DocumentSpec,
+    readOnly: true, readOnlyNote: "A preview. It is not a certificate until the course is finished.",
+  };
+}
+
 export function coursePage(c: CoursePage): TabContent & { crumb: { label: string; href: string } } {
   const nextLesson = c.owned ? c.lessons.find((lesson) => !lesson.done) : undefined;
   const rows: TableRow[] = c.lessons.map((lesson) => ({
@@ -476,6 +510,7 @@ export function coursePage(c: CoursePage): TabContent & { crumb: { label: string
     ] as TableCellKind[],
   }));
   const cert = c.certificate;
+  const preview = certificatePreview(c);
   const renewable = cert && c.completed && (cert.state === "Expiring" || cert.state === "Expired");
   const buy: DrawerSpec = addToBasket({ id: c.id, title: c.title, certificateName: c.certificateName, provider: c.provider, hours: c.hours, priceLabel: c.priceLabel });
   const renew: DrawerSpec | null = renewable ? {
@@ -501,12 +536,16 @@ export function coursePage(c: CoursePage): TabContent & { crumb: { label: string
           c.owned
             ? { label: "Price", value: c.price ? c.priceLabel : "Free", sub: c.price ? "Paid · unlocked for you" : "No charge", tone: "positive" as PanelTone, icon: "bag" }
             : { label: "Price", value: c.priceLabel, sub: c.purchase?.state === "REQUESTED" ? "Waiting on the school’s decision" : c.purchase?.state === "DECLINED" ? "The school did not approve it" : c.purchase?.state === "BASKET" ? "In your basket" : "Lesson 1 is free to try", tone: c.purchase?.state === "DECLINED" ? "negative" as PanelTone : c.purchase?.state === "BASKET" ? "progress" as PanelTone : "attention" as PanelTone, icon: "bag" },
-          { label: "Certificate", value: c.certificateName ? (c.completed ? "Issued" : "Included") : "None", sub: c.certificateName ? `${c.certificateName} · ${c.validMonths ? `valid ${c.validMonths} months` : "does not expire"}` : "Counts as CPD hours only", tone: c.certificateName ? "positive" : undefined, ...(c.completed && c.certificate ? { link: "View it", href: "/training/certificates" } : {}) },
+          { label: "Certificate", value: c.certificateName ? (c.completed ? "Issued" : "Included") : "None", sub: c.certificateName ? `${c.certificateName} · ${c.validMonths ? `valid ${c.validMonths} months` : "does not expire"}` : "Counts as CPD hours only", tone: c.certificateName ? "positive" : undefined, ...(c.completed && c.certificate ? { link: "View it", href: "/training/certificates" } : preview ? { link: "Preview it", drawer: preview } : {}) },
           c.required ? { label: "Required by", value: c.required.by ? day(c.required.by) : "Your school", sub: c.required.note ?? "Set by your school", tone: c.completed ? "positive" : "attention" } : { label: "Offered by", value: c.provider, sub: c.provider ? "Open to staff whose work it is written for" : "Written by your school" },
         ],
       }]),
       !c.owned && c.purchase?.state === "DECLINED" ? row("1fr", [{ type: "note", tone: "negative", icon: WARN, title: "The school did not approve this one", body: c.purchase.decision ?? "No reason was recorded.", acts: [{ label: "Ask again", drawer: buy }] }]) : null,
-      c.certificateName && !(c.completed && cert) ? row("1fr", [{ type: "note", tone: "progress", icon: CHECK, title: `You earn a certificate · ${c.certificateName}`, body: `Finish all ${c.lessons.length} lessons and answer each check correctly. It is awarded by ${c.provider || "your school"}, ${c.validMonths ? `stays valid for ${c.validMonths} months` : "never expires"}, adds ${length(c.hours)} of CPD to your staff record, and carries a code anyone can verify.${c.owned ? "" : " Buying the course unlocks it."}` }]) : null,
+      c.certificateName && !(c.completed && cert)
+        ? row("1fr", [{ type: "note", tone: "progress", icon: CHECK, title: `You earn a certificate · ${c.certificateName}`, body: `Finish all ${c.lessons.length} lessons and answer each check correctly. It is awarded by ${c.provider || "your school"}, ${c.validMonths ? `stays valid for ${c.validMonths} months` : "never expires"}, adds ${length(c.hours)} of CPD to your staff record, and carries a code anyone can verify.${c.owned ? "" : " Buying the course unlocks it."}`, ...(preview ? { acts: [{ label: "Preview the certificate", drawer: preview }] } : {}) }])
+        : null,
+      // A course with no certificate says so, rather than leaving a reader to notice the absence.
+      !c.certificateName ? row("1fr", [{ type: "note", tone: "neutral", icon: EYE, title: "This course has no certificate", body: `Finishing it still adds ${length(c.hours)} of CPD to your staff record.` }]) : null,
       c.why ? row("1fr", [{ type: "note", tone: "progress", icon: EYE, title: "Why this is recommended for you", body: c.why }]) : null,
       c.summary ? row("1fr", [{ type: "note", tone: "neutral", icon: EYE, title: "What it is about", body: c.summary }]) : null,
       renewable ? row("1fr", [{ type: "note", tone: "attention", icon: WARN, title: `${cert!.name} ${cert!.state === "Expired" ? "has expired" : `expires on ${cert!.expires}`}`, body: "Renew it before it lapses and the new certificate replaces this one on your record.", acts: [{ label: "Renew it", drawer: renew! }] }]) : null,
