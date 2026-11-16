@@ -229,7 +229,7 @@ export function forYouTab(v: Home): TabContent {
           ? { type: "list", title: "Pathways your school sets out", sub: "Each level is a set of courses; finish them all and you have completed it.", items: v.pathways.map((pathway) => ({ label: pathway.name, sub: `${pathway.done} of ${pathway.total} courses · ${pathway.titles.join(", ")}`, pill: pathway.done === pathway.total ? "Complete" : pathway.done ? "In progress" : "Not started", tone: (pathway.done === pathway.total ? "positive" : pathway.done ? "progress" : "neutral") as PanelTone, viewLabel: "Open", href: "/training/catalogue" })) }
           : { type: "note", tone: "neutral", icon: EYE, title: "Your school has not set out a pathway", body: "A pathway groups courses into levels a teacher works through. When the school defines one, your progress through it appears here." },
         {
-          type: "facts", title: "Who sees what", per: 1, sub: "Your learning is yours. The school sees what it needs, nothing more.",
+          type: "facts", title: "Who sees what", tuck: "Who sees what", tuckIcon: "M12 6.5C10.5 5 8 4.5 4 4.5v13c4 0 6.5.5 8 2 1.5-1.5 4-2 8-2v-13c-4 0-6.5.5-8 2zM12 6.5v13", tuckKicker: "How this works", per: 1, sub: "Your learning is yours. The school sees what it needs, nothing more.",
           facts: [
             ["Courses finished and certificates", "Your school", "On your staff record · counts in your appraisal"],
             ["Required courses", "Set by your school", "They arrive here and on My Day the moment they are assigned"],

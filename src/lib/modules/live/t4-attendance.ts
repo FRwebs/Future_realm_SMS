@@ -214,7 +214,7 @@ function markTab(v: RegistersView, me: TeacherWorkspaceView, held: Set<string>):
         ? { type: "note", show: "desktop", tone: "neutral", icon: REG, title: "Your daily register is authoritative", body: `${me.formArms.map((arm) => arm.name).join(" and ")} ${me.formArms.length === 1 ? "is" : "are"} yours to mark. Report cards are built from the daily register, so it is the one that has to be right.` }
         : { type: "note", show: "desktop", tone: "neutral", icon: REG, title: "You hold no daily register", body: "Daily registers belong to form masters. Yours are period registers, and each one opens against the daily register already marked for that arm." },
       {
-        type: "facts", title: "How marking behaves", per: 1, phoneFold: true,
+        type: "facts", title: "How marking behaves", tuck: "How marking behaves", tuckIcon: "M12 6.5C10.5 5 8 4.5 4 4.5v13c4 0 6.5.5 8 2 1.5-1.5 4-2 8-2v-13c-4 0-6.5.5-8 2zM12 6.5v13", tuckKicker: "How this works", per: 1, phoneFold: true,
         facts: [
           ["Opens", "With every child unmarked", "Set the exceptions, then mark the rest present in one tap"],
           ["Offline", "Full write", "The queue survives a closed tab and a dead battery"],

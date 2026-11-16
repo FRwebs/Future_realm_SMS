@@ -189,7 +189,7 @@ function submissionsTab(v: SubmissionsView, me: TeacherWorkspaceView): TabConten
         ],
       }]),
       row("1fr", [{ type: "list", title: "From families", tag: `${open.length} waiting`, tagTone: open.length ? "attention" : "positive", sub: "A guardian submits; you decide; the decision is logged.", meta: `${arm.name} · this term`, items: items.length ? items : [{ label: "Nothing has been sent in", sub: "When a family writes to the school about a child in your class, it appears here.", pill: "Clear", tone: "positive" as PanelTone }] }]),
-      row("1fr", [{ type: "note", tone: "progress", icon: WARN, title: "Why this reaches you, not the office", body: `Without it, an explanation stops with an administrator — and the ${me.persona === "early-years" ? "class teacher" : "form master"} rings a parent who already wrote in.` }]),
+      row("1fr", [{ type: "note", tone: "progress", icon: WARN, title: "Why this reaches you, not the office", tuck: "Why this reaches you, not the office", tuckIcon: "M12 6.5C10.5 5 8 4.5 4 4.5v13c4 0 6.5.5 8 2 1.5-1.5 4-2 8-2v-13c-4 0-6.5.5-8 2zM12 6.5v13", tuckKicker: "How this works", body: `Without it, an explanation stops with an administrator — and the ${me.persona === "early-years" ? "class teacher" : "form master"} rings a parent who already wrote in.` }]),
     ],
   };
 }

@@ -257,7 +257,7 @@ function appraisalTab(v: Appraisal): TabContent {
   // reading before one is — so the same panel serves both states rather than appearing
   // only once the cycle it explains has already started.
   const howItWorks: Panel = {
-    type: "facts", title: "How this cycle works", per: 1,
+    type: "facts", title: "How this cycle works", tuck: "How this cycle works", tuckIcon: "M12 6.5C10.5 5 8 4.5 4 4.5v13c4 0 6.5.5 8 2 1.5-1.5 4-2 8-2v-13c-4 0-6.5.5-8 2zM12 6.5v13", tuckKicker: "How this works", per: 1,
     facts: [
       ["Self-assessment", "Yours alone until you submit", "Your reviewer cannot see a draft"],
       ["Manager review", v.reviewer?.name ?? "Your reviewer", v.reviewer?.title ?? ""],
