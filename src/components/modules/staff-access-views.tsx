@@ -5,7 +5,8 @@ import { CreateWizard } from "@/components/modules/create-wizard";
 import { ModuleWorkspace } from "@/components/modules/module-workspace";
 import { TabBar } from "@/components/modules/tab-bar";
 import { getServerSession } from "@/lib/auth/session";
-import { addStaffFor, loadDirectory, loadDirectoryContext } from "@/lib/modules/live/m7-staff-access";
+import { addStaffFor, loadDirectory, loadDirectoryContext, loadOverview } from "@/lib/modules/live/m7-staff-access";
+import { groupsPage, templatesPage } from "@/lib/modules/live/m7-permissions";
 import { appraisalOnePage, loadAppraisal, loadAppraisalOne, roleKpiPage } from "@/lib/modules/live/m7-appraisal";
 import { bandPage, loadBand, loadPayroll, runPage } from "@/lib/modules/live/m7-payroll";
 import {
@@ -87,6 +88,22 @@ export async function RoleTemplateView({ name }: { name: string }) {
   const page = await rolePage(name);
   if (!page) notFound();
   return <Shell content={page.content} back={page.content.crumb ?? { label: "Back to Permissions", href: "/staff-access/permissions" }} />;
+}
+
+/** Every role template, lifted off the Permissions tab so the map of people opens first. */
+export async function RoleTemplatesView() {
+  const ok = await allowed();
+  if (ok === null) return null;
+  if (!ok) return <AccessDenied backHref="/command-center/today" />;
+  return <Shell content={templatesPage(await loadOverview())} back={{ label: "Back to Permissions", href: "/staff-access/permissions" }} />;
+}
+
+/** The sensitive groups, likewise: reference, reached from the tab rather than sitting on it. */
+export async function SensitiveGroupsView() {
+  const ok = await allowed();
+  if (ok === null) return null;
+  if (!ok) return <AccessDenied backHref="/command-center/today" />;
+  return <Shell content={groupsPage(await loadOverview())} back={{ label: "Back to Permissions", href: "/staff-access/permissions" }} />;
 }
 
 export async function OffboardChooserView() {

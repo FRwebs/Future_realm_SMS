@@ -454,7 +454,7 @@ export function ModuleWorkspace({
 
       {body}
 
-      <PanelRowsWithDrawer rows={rows} openDrawer={setDrawer} />
+      <PanelRowsWithDrawer rows={rows} openDrawer={setDrawer} spill={(launchers ?? []).slice(primary ? 1 : 2)} />
 
       {hasPhoneBar && floats && (phonePrimary ?? primary) ? <MobileFab act={(phonePrimary ?? primary)!} openDrawer={setDrawer} /> : null}
     </div>

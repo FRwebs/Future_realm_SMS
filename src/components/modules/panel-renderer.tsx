@@ -2807,9 +2807,18 @@ function FormPanel({
 export function PanelRowsWithDrawer({
   rows,
   openDrawer,
+  spill,
 }: {
   rows: PanelRow[];
   openDrawer: OpenDrawer;
+  /**
+   * Shortcuts the page's head card had no room for.
+   *
+   * A head carries two decisions and no more. The rest are not dropped — they are offered by the
+   * first panel that has a strip of its own acts, which is where they would have taken you anyway:
+   * "Create a band" belongs over the bands, not over the page.
+   */
+  spill?: PanelAction[];
 }) {
   // A panel marked `tuck` is not on the page: it is one line at the foot of it that opens the
   // same content, so the rules a page runs on stay reachable without the page being half rules.
@@ -2829,6 +2838,18 @@ export function PanelRowsWithDrawer({
       return kept;
     })
     .filter((row): row is PanelRow => row !== null);
+
+  // The head's overflow, given to the first panel that can carry it.
+  if (spill?.length) {
+    outer: for (const panelRow of kept) {
+      for (let index = 0; index < panelRow.panels.length; index += 1) {
+        const panel = panelRow.panels[index]!;
+        if (panel.type !== "table" && panel.type !== "list" && panel.type !== "facts") continue;
+        panelRow.panels[index] = { ...panel, acts: [...spill, ...(panel.acts ?? [])] };
+        break outer;
+      }
+    }
+  }
 
   // Every figure card on this screen, in the order it is drawn, so each one can be given an icon
   // nothing else here is already using. A card whose label repeats across two rows — the desktop

@@ -290,7 +290,7 @@ export function directoryTab(directory: Directory): TabContent {
           },
           {
             type: "facts",
-            title: "Account states in use",
+            title: "Account states in use", tuck: "What each account state means", tuckIcon: "M12 6.5C10.5 5 8 4.5 4 4.5v13c4 0 6.5.5 8 2 1.5-1.5 4-2 8-2v-13c-4 0-6.5.5-8 2zM12 6.5v13", tuckKicker: "How this works",
             sub: "Every account is in exactly one of these.",
             per: 1,
             facts: ACCOUNT_STATES.map(([state, meaning]) => {

@@ -260,7 +260,7 @@ export function payrollTab(data: PayrollOverview): TabContent {
         panels: [
           {
             type: "facts",
-            title: "How this school pays",
+            title: "How this school pays", tuck: "How this school pays", tuckIcon: "M12 6.5C10.5 5 8 4.5 4 4.5v13c4 0 6.5.5 8 2 1.5-1.5 4-2 8-2v-13c-4 0-6.5.5-8 2zM12 6.5v13", tuckKicker: "How this works",
             sub: "Set once, and every run follows it.",
             per: 2,
             acts: [{ label: "Edit the payroll setup", primary: true, drawer: payrollSetupDrawer(setup) }],
