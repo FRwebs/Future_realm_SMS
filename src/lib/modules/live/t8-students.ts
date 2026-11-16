@@ -22,6 +22,7 @@ type StudentsView = {
 
 const API = "/api/v1/teacher-workspace";
 const WARN = "M12 8.2v4.6M12 16h.02M12 3.6 21 19.4H3z";
+const MSG = "M4 5.5h16v10.5H9l-5 4zM8 9.5h8M8 12.8h5";
 const EYE = "M2.5 12s3.5-6.5 9.5-6.5S21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12zM12 14.6a2.6 2.6 0 1 0 0-5.2 2.6 2.6 0 0 0 0-5.2";
 const pair = (items: Array<{ value: string; label: string }>) => Object.fromEntries(items.map((item) => [item.label, item.value]));
 
@@ -103,6 +104,23 @@ function studentsTab(v: StudentsView, me: TeacherWorkspaceView, held: Set<string
     ] as TableCellKind[],
   }));
   const incident = incidentDrawer(v.rows);
+  /**
+   * A class list for the children chosen, on paper.
+   *
+   * A list of names is taken out of the building — a trip, a practical, a sports day — so it says
+   * what it may carry and what it may not. A flag is never printed: a medical alert belongs to the
+   * office, and a sheet of paper is the one place it cannot be taken back from.
+   */
+  const printDrawer: DrawerSpec = {
+    mode: "commit", kicker: "My students", title: "Print the children you have chosen",
+    sub: "A plain list of names and admission numbers, for a register you carry rather than one you tap.",
+    facts: [
+      ["What is printed", "Name and admission number", "In the order they are listed here"],
+      ["What is not", "Flags, attendance and guardian details", "A sheet of paper cannot be taken back"],
+      ["Logged", "Under your name", "Taking a copy of a class list is itself an act"],
+    ],
+    commitLabel: "Print", commitDone: "Sent to your printer", commitDoneBody: "Nothing has been shared with anyone else.",
+  };
   const concern = concernDrawer(v.rows);
   const change = changeDrawer(v.rows);
   // The phone leads with the classes the teacher answers for, then the children — the mockup's order. Each class says how much of its record is theirs.
@@ -161,7 +179,16 @@ function studentsTab(v: StudentsView, me: TeacherWorkspaceView, held: Set<string
     { ...row("1fr", [{
       type: "table", title: own && !many ? own.name : "The children you answer for", sub: "Open a child for the record a parent conversation needs.", meta: `${v.rows.length} children`, noun: "child", nounPlural: "children",
       search: "Find a child by name or admission number", filters: [{ label: "Flag", value: "All", options: ["All", "Medical alert", "Learning support", "Chronic absence"], column: 3 }],
-      head: ["Student", "Admission no", "Attend", "Flag", "Guardian", ""], rows: tableRows, per: 10, noRowOpen: true, foot: "A medical alert says contact the office.",
+      head: ["Student", "Admission no", "Attend", "Flag", "Guardian", ""], rows: tableRows, per: 12, noRowOpen: true, foot: "A medical alert says contact the office.",
+      // A form master works on a handful of children at a time — the ones whose families need
+      // telling, the ones going on the trip. Picking them is how every other table in the product
+      // works, and this one had no way to.
+      selectable: true,
+      bulkActs: [
+        ...(held.has("communication-center.compose.view") && own ? [{ label: "Message their families", icon: MSG, href: "/communication-center/compose", selection: { key: "ids", noun: "child" } }] : []),
+        { label: "Print the selection", drawer: printDrawer },
+        { label: "Export selected", primary: true, export: true },
+      ],
     }]), ...(many ? { show: "desktop" as const } : {}) },
     row("1fr 1fr", [
       {

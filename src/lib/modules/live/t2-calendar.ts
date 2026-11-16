@@ -34,6 +34,8 @@ export async function teacherCalendarTab(tabSlug: string): Promise<TabContent | 
   const rows: TableRow[] = c.dates.map((entry) => ({
     cells: [text(span(entry.from, entry.to), { strong: true }), text(entry.what, { strong: entry.kind === "Attention" }), pill(entry.kind, tone(entry.kind)), text(entry.means, { tone: "neutral" })],
     keywords: `${entry.kind} ${entry.from}`,
+    // The day it falls on, so "the next 7 days" can be asked for.
+    at: entry.from,
   }));
 
   const facts: PanelFact[] = [
@@ -95,7 +97,12 @@ export async function teacherCalendarTab(tabSlug: string): Promise<TabContent | 
       { ...row("1.3fr 1fr", [
         {
           type: "table", title: "Key dates", sub: "What each one means for your own work.", meta: `${c.dates.length} dates · yours are included`, noun: "date", nounPlural: "dates",
-          search: "Find a date or an event", filters: [{ label: "Kind", value: "All", options: ["All", "Assessment", "Closed", "Event", "Deadline", "Attention"], column: 2 }],
+          search: "Find a date or an event",
+          filters: [
+            { label: "Kind", value: "All", options: ["All", "Assessment", "Closed", "Event", "Deadline", "Attention"], column: 2 },
+            // A term's calendar is mostly behind you by half-term; this is how you get to what is left.
+            { label: "Date", value: "Any date", options: ["Any date", "Next 7 days", "Next 30 days"], within: { "Next 7 days": 168, "Next 30 days": 720 } },
+          ],
           head: ["Date", "What", "Kind", "What it means for you"], rows, per: 10, noRowOpen: true, empty: "The school has not put any dates on this term’s calendar yet.", foot: "Nothing on this page is editable by any staff role.",
         },
         { type: "facts", phoneFold: true, title: "The rules your deadlines run on", sub: "Set once by the school, visible so you can plan.", per: 1, facts },

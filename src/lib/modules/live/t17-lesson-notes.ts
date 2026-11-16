@@ -53,6 +53,8 @@ type Coverage = {
 };
 type CatalogueRow = { id: string; curriculum: string; subject: string; stage: string; term: number; source: string | null; book: string | null; topics: number; own: boolean };
 
+const DOWNLOAD_ICON = "M12 4v10.5M7.5 10.5 12 15l4.5-4.5M5 19.5h14";
+
 const stamp = (iso: string | null) => (iso ? formatDay(new Date(iso), { day: "numeric", month: "short", timeZone: "Africa/Lagos" }) : "—");
 const embed = (component: string, props: Record<string, unknown>): PanelRow => row("1fr", [{ type: "embed", component, props }]);
 const noTerm = (title: string): TabContent => ({ title, desc: "There is no current term, so nothing can be planned or written.", rows: [row("1fr", [{ type: "note", tone: "neutral", icon: EYE, title: "No term is current", body: "Lesson notes follow the school’s term. When the school office sets the current term in School Configuration, this page fills in." }])] });
@@ -470,7 +472,7 @@ function reviewTab(v: Review): TabContent {
     submit: { endpoint: `${API}/notes/review/sign`, method: "POST", body: { planIds: waiting.map((entry) => entry.planId) } },
   };
   return {
-    title: "Review", desc: `${v.scope === "school" ? "Every department’s" : "Your department’s"} notes, ${v.term.name}${v.term.current ? ` · week ${v.term.current}` : ""}. You never sign your own.`,
+    title: "Review", desc: "Notes submitted to you. The unit of work is a subject-arm-week.",
     primary: waiting.length ? { label: `Sign the ${waiting.length} waiting`, icon: SEND, drawer: signAll } : undefined,
     rows: [
       row("1fr", [{
@@ -484,7 +486,11 @@ function reviewTab(v: Review): TabContent {
         ],
       }]),
       row("1fr", [{
-        type: "tracker", title: "Notes due", sub: "Open a note to read all its sections, then sign it or return it with what to change.", noun: "notes signed",
+        type: "tracker",
+        title: v.term.current ? `Week ${v.term.current} notes · ${v.scope === "school" ? "every department" : "your department"}` : `Notes · ${v.scope === "school" ? "every department" : "your department"}`,
+        sub: "One row per subject-arm-week.",
+        meta: `${v.rows.length} subject-arm${v.rows.length === 1 ? "" : "s"} · ${waiting.length} waiting on you`,
+        noun: "notes signed",
         groups: ["By state", "By teacher", "By subject", "By age"],
         rows: by((a, b) => order.indexOf(a.state) - order.indexOf(b.state)),
         groupRows: {
@@ -533,8 +539,9 @@ function coverageTab(v: Coverage): TabContent {
   const rows: TableRow[] = v.rows.map((entry) => ({
     keywords: `${entry.subject} ${entry.arm} ${entry.teacher} ${entry.state}`,
     cells: [
-      { kind: "name", name: entry.subject, sub: entry.arm, avatar: false }, cell(entry.teacher),
-      cell(entry.planned ? String(entry.planned) : "—", { mono: true }), cell(entry.expected ? String(entry.expected) : "—", { mono: true }), cell(entry.expected ? String(Math.min(entry.reached, entry.expected)) : "—", { mono: true }),
+      cell(entry.subject, { strong: true }), cell(entry.arm), { kind: "name", name: entry.teacher, sub: "Subject teacher", avatar: false },
+      cell(entry.expected ? String(entry.expected) : "—", { mono: true }), cell(entry.expected ? String(Math.min(entry.reached, entry.expected)) : "—", { mono: true }),
+      cell(entry.planned ? String(entry.planned) : "—", { mono: true }),
       pill(entry.state, tone(entry.state)),
     ] as TableCellKind[],
   }));
@@ -543,8 +550,9 @@ function coverageTab(v: Coverage): TabContent {
     return { label: `${entry.subject} · ${entry.arm}`, value: pct, display: `${Math.min(entry.reached, entry.expected)} of ${entry.expected}`, sub: entry.teacher, tone: tone(entry.state) };
   });
   return {
-    title: "Coverage", desc: `${v.scope === "school" ? "Every" : "Your department’s"} subject, against the scheme — ${v.term.name}${v.term.current ? ` · week ${v.term.current}` : v.term.phase === "after" ? " · the term has ended" : ""}.`,
-    launchers: [{ label: "Export the audit (CSV)", href: `${API}/notes/coverage/export` }],
+    title: "Coverage", desc: "What the scheme says should have been taught by now, against what has been.",
+    // Taking the audit away is what this page is for: it is the thing a head is asked for.
+    primary: { label: "Export the coverage audit", icon: DOWNLOAD_ICON, href: `${API}/notes/coverage/export` },
     rows: [
       row("1fr", [{
         type: "kpi", sub: "Expected is the weeks of each scheme due by now; reached is what the teacher has ticked off or marked taught — the calendar’s guess does not count.", per: 4,
@@ -557,9 +565,10 @@ function coverageTab(v: Coverage): TabContent {
       }]),
       row("1.4fr 1fr", [
         {
-          type: "table", title: "Coverage by subject and arm", sub: "Expected against reached, for every subject in your scope.", meta: `${v.rows.length} subject-arm${v.rows.length === 1 ? "" : "s"}`, noun: "subject", nounPlural: "subjects", search: "Find a subject or a teacher",
-          filters: [{ label: "State", value: "All", options: ["All", "On schedule", "Behind", "No scheme on file"], column: 5 }],
-          head: ["Subject", "Teacher", "Planned", "Expected", "Reached", "State"], rows, per: 12, noRowOpen: true, acts: [{ label: "Export these rows", export: true }],
+          type: "table", title: v.scope === "school" ? "Every subject, arm by arm" : "Your department, subject by subject", sub: "Expected unit against the unit actually reached.", meta: v.term.current ? `Week ${v.term.current}` : v.term.name, noun: "subject-arm", nounPlural: "subject-arms", search: "Find a subject or a teacher",
+          filters: [{ label: "State", value: "All", options: ["All", "On schedule", "Behind", "No scheme on file"], column: 6 }],
+          head: ["Subject", "Arm", "Teacher", "Expected", "Reached", "Planned", "State"], rows, per: 12, noRowOpen: true, acts: [{ label: "Export these rows", export: true }],
+          foot: "Behind means the notes on file stop short of the unit the scheme expects by this week.",
           empty: "No class-subject is set up yet.", emptyTitle: "Nothing to measure yet", emptyBody: "Coverage is counted from each subject’s scheme of work. When class subjects are mapped and schemes planned, they appear here.",
         },
         { type: "bars", title: "Furthest behind first", sub: "Share of the weeks due that have been reached.", rows: bars, foot: bars.length ? "Only subjects with weeks due are shown." : "Nothing is due yet, so there is nothing to compare." },

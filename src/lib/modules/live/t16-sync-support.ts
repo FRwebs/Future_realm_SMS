@@ -84,12 +84,23 @@ function syncTab(o: SyncOverview, me: TeacherWorkspaceView): TabContent {
     rows: [...phone, ...desktopOnly(panels)] };
 }
 
-function guides(me: TeacherWorkspaceView): Array<[string, string]> {
-  const base: Array<[string, string]> = [["Mark a register", "One thumb, 60 seconds, online or not"], ["Enter and submit scores", "Keyboard only · what the three states mean"]];
-  if (me.persona === "early-years") return [["Mark the register", "The class list and who may collect"], ["Record an observation", "Descriptive, never a score"], ["Write remarks for young children", "Warm, specific, and about the next step"]];
-  if (me.persona === "teaching-assistant") return [["Mark the register", "The same register the class teacher would mark"], ["What you can and cannot see", "The class list, yes · scores and families, no"], ["Who to ask", "The class teacher first, then the office"]];
-  if (me.persona === "cover") return [["Your first day on cover", "What you can reach, and what you cannot"], ["Enter scores for someone else’s class", "Attributed to you, with the owner named alongside"], ["When your access ends", "Nothing to hand back — it simply stops"]];
-  return [...base, me.formArms.length ? ["Write remarks that publish cleanly", "What the school’s guidance actually asks for"] : ["Ask for an assignment to change", "How to reach the office from Timetable → Teaching"]];
+/** A glyph for each guide, so three tiles read as three different things rather than one repeated. */
+const GUIDE_ICON = {
+  register: "M9 3.5h6v3H9zM9 5H6.5A1.5 1.5 0 0 0 5 6.5v13A1.5 1.5 0 0 0 6.5 21h11a1.5 1.5 0 0 0 1.5-1.5v-13A1.5 1.5 0 0 0 17.5 5H15M8.5 13.5l2.5 2.5 4.5-5",
+  sheet: "M6 3.5h12v17H6zM9.5 8.5h5M9.5 12.5h5M9.5 16.5h3",
+  pen: "M4 20h4l10.5-10.5a2.1 2.1 0 0 0-3-3L5 17zM14 8l3 3",
+  eye: "M2.5 12s3.5-6.5 9.5-6.5S21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12zM12 14.6a2.6 2.6 0 1 0 0-5.2 2.6 2.6 0 0 0 0 5.2z",
+  ask: "M9.5 9.5a2.5 2.5 0 1 1 3.4 2.3c-.6.3-.9.8-.9 1.4M12 16.5h.01M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18z",
+  clock: "M12 20.5a8.5 8.5 0 1 0 0-17 8.5 8.5 0 0 0 0 17M12 7.5V12l3 2",
+  sprout: "M12 20.5v-7M12 13.5C12 9.9 9.1 7 5.5 7c0 3.6 2.9 6.5 6.5 6.5zM12 13.5c0-3 2.4-5.5 5.5-5.5 0 3-2.5 5.5-5.5 5.5z",
+} as const;
+
+function guides(me: TeacherWorkspaceView): Array<[string, string, string]> {
+  const base: Array<[string, string, string]> = [["Mark a register", "One thumb, 60 seconds, online or not", GUIDE_ICON.register], ["Enter and submit scores", "Keyboard only · what the three states mean", GUIDE_ICON.sheet]];
+  if (me.persona === "early-years") return [["Mark the register", "The class list and who may collect", GUIDE_ICON.register], ["Record an observation", "Descriptive, never a score", GUIDE_ICON.sprout], ["Write remarks for young children", "Warm, specific, and about the next step", GUIDE_ICON.pen]];
+  if (me.persona === "teaching-assistant") return [["Mark the register", "The same register the class teacher would mark", GUIDE_ICON.register], ["What you can and cannot see", "The class list, yes · scores and families, no", GUIDE_ICON.eye], ["Who to ask", "The class teacher first, then the office", GUIDE_ICON.ask]];
+  if (me.persona === "cover") return [["Your first day on cover", "What you can reach, and what you cannot", GUIDE_ICON.eye], ["Enter scores for someone else’s class", "Attributed to you, with the owner named alongside", GUIDE_ICON.sheet], ["When your access ends", "Nothing to hand back — it simply stops", GUIDE_ICON.clock]];
+  return [...base, me.formArms.length ? ["Write remarks that publish cleanly", "What the school’s guidance actually asks for", GUIDE_ICON.pen] : ["Ask for an assignment to change", "How to reach the office from Timetable → Teaching", GUIDE_ICON.ask]];
 }
 
 function helpTab(o: SupportOverview, me: TeacherWorkspaceView): TabContent {
@@ -100,7 +111,7 @@ function helpTab(o: SupportOverview, me: TeacherWorkspaceView): TabContent {
     cells: [{ kind: "name", name: ticket.subject, sub: ticket.ticketNo }, text(ticket.status.replace(/_/g, " ").toLowerCase().replace(/^./, (c) => c.toUpperCase())), text(ticket.ageDays ? `${ticket.ageDays} day${ticket.ageDays === 1 ? "" : "s"}` : "Today"), { kind: "action", label: "Open", drawer: ticketDrawer(ticket) }] as TableCellKind[],
   }));
   const panels: Array<PanelRow | null> = [
-    row("1fr", [{ type: "tiles", title: "Your quick-start guides", sub: "Three pages, not a manual.", per: 3, tiles: guides(me).map(([label, sub]) => ({ label, sub })) }]),
+    row("1fr", [{ type: "tiles", title: "Your quick-start guides", sub: "Three pages, not a manual.", per: 3, tiles: guides(me).map(([label, sub, icon]) => ({ label, sub, icon })) }]),
     row("1.1fr 1fr", [
       {
         type: "list", title: "Articles for your role", sub: mine.length ? "Written for your job." : "From the school’s help library.", meta: `${shown.length} article${shown.length === 1 ? "" : "s"}`,

@@ -2143,7 +2143,11 @@ function PanelViewDesktop({
   if (panel.type === "tray") {
     const lit = panel.items.find((item) => item.on) ?? panel.items[0];
     return (
-      <section className="min-w-0 rounded-[13px] p-[5px]" style={{ background: INK }} aria-label="Browse by section">
+      <section className="min-w-0" aria-label={panel.eyebrow ?? "Browse by section"}>
+        {panel.eyebrow ? (
+          <p className="mb-[7px] text-[9.5px] font-bold uppercase tracking-[0.1em]" style={{ color: MUTED }}>{panel.eyebrow}</p>
+        ) : null}
+        <div className="min-w-0 rounded-[13px] p-[5px]" style={{ background: INK }}>
         <div className="flex gap-[3px] overflow-x-auto" style={{ scrollbarWidth: "none" }}>
           {panel.items.map((item) => (
             <TriggerControl
@@ -2187,6 +2191,7 @@ function PanelViewDesktop({
             </div>
           </div>
         ) : null}
+        </div>
       </section>
     );
   }
