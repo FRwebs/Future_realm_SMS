@@ -1,9 +1,10 @@
-import { Injectable, NotFoundException } from "@nestjs/common";
+import { ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
 
 import type { SessionPayload } from "../../../../src/lib/auth/session-core";
 import { prisma } from "../../../../src/lib/db/prisma";
 import { add, dayOf, emptyTally, iso, loadPolicy, longDay, rate, schoolDaysBetween, today } from "../attendance-management/attendance.shared";
 import { armName } from "../fee-management/fees.shared";
+import { loadStaffNames } from "../score-results/arm";
 import { PeriodRegistersService } from "./period-registers.service";
 import { TeacherWorkspaceService } from "./workspace.service";
 
@@ -78,6 +79,88 @@ export class RegisterHistoryService {
           termRate: entry.kind === "daily" ? termRate.get(entry.classId) ?? null : null,
         };
       }),
+    };
+  }
+
+  /**
+   * The department's period registers today, for the head who is answerable for them.
+   *
+   * Review only: a head sees that a register was taken and whether it was taken while the period
+   * was still running. They do not see, and cannot change, a single child's mark from here — that
+   * belongs to the teacher who took it. "Late" is a register written after the period ended, which
+   * is a fact about the adult, not about any child in the room.
+   */
+  async compliance(session: SessionPayload) {
+    const me = await this.workspace.me(session);
+    if (me.persona !== "head-of-department" || !me.department) throw new ForbiddenException("Compliance is for the head of a department.");
+    if (!me.term) throw new NotFoundException("No term is current, so there are no registers to review.");
+    const schoolId = session.schoolId;
+    const date = today();
+    const mapped = await prisma.classSubject.findMany({
+      where: { schoolId, isActive: true, subject: { departmentId: me.department.id, deletedAt: null, isActive: true }, classRoom: { deletedAt: null, isActive: true } },
+      select: { classId: true, subjectId: true, teacherId: true, subject: { select: { name: true } }, classRoom: { select: { name: true } } }
+    });
+    const subjectIds = [...new Set(mapped.map((entry) => entry.subjectId))];
+    const registers = subjectIds.length
+      ? await prisma.periodRegister.findMany({
+          where: { schoolId, termId: me.term.id, subjectId: { in: subjectIds }, date, status: "SUBMITTED" },
+          select: { classId: true, subjectId: true, periodNumber: true, inPeriod: true, markedById: true }
+        })
+      : [];
+
+    /*
+     * A child marked present for the day but absent in a period is the definition of truancy, and
+     * it is the one thing on this page that is about a child rather than an adult. It is counted,
+     * not named: who it was belongs to the register and the form master, not to a department head.
+     */
+    const classIds = [...new Set(mapped.map((entry) => entry.classId))];
+    const [dayMarks, periodMarks] = classIds.length
+      ? await Promise.all([
+          prisma.studentAttendance.findMany({ where: { schoolId, classId: { in: classIds }, date, subjectId: null, status: "PRESENT" }, select: { studentId: true } }),
+          prisma.studentAttendance.findMany({ where: { schoolId, classId: { in: classIds }, date, subjectId: { in: subjectIds }, status: "ABSENT" }, select: { studentId: true, subjectId: true } })
+        ])
+      : [[], []];
+    const presentToday = new Set(dayMarks.map((mark) => mark.studentId));
+    const truancy = periodMarks.filter((mark) => presentToday.has(mark.studentId)).length;
+
+    // The timetable says how many periods the department should have taught by now; a slot with no
+    // register against it is unmarked, which is worse than late.
+    const slots = subjectIds.length
+      ? await prisma.timetableEntry.count({ where: { schoolId, subjectId: { in: subjectIds }, isPublished: true, dayOfWeek: date.getUTCDay() } })
+      : 0;
+
+    const names = await loadStaffNames(schoolId, mapped.map((entry) => entry.teacherId ?? ""));
+    const byTeacher = new Map<string, { teacher: string; teacherId: string; subjects: Set<string>; taught: number; onTime: number }>();
+    for (const entry of mapped) {
+      const id = entry.teacherId ?? "none";
+      const found = byTeacher.get(id) ?? { teacher: id === "none" ? "Nobody yet" : id === session.userId ? "You" : names.get(id) ?? "Unknown", teacherId: id, subjects: new Set<string>(), taught: 0, onTime: 0 };
+      found.subjects.add(entry.subject.name);
+      const mine = registers.filter((register) => register.classId === entry.classId && register.subjectId === entry.subjectId);
+      found.taught += mine.length;
+      found.onTime += mine.filter((register) => register.inPeriod).length;
+      byTeacher.set(id, found);
+    }
+    const rows = [...byTeacher.values()]
+      .map((entry) => ({
+        teacher: entry.teacher,
+        role: entry.teacherId === session.userId ? `Head of ${me.department!.name}` : "Subject teacher",
+        subjects: [...entry.subjects].sort().join(", "),
+        taught: entry.taught, onTime: entry.onTime, late: entry.taught - entry.onTime,
+        state: entry.taught === 0 ? "Nothing taught yet" : entry.taught === entry.onTime ? "On time" : `${entry.taught - entry.onTime} late`
+      }))
+      .sort((a, b) => b.late - a.late || a.teacher.localeCompare(b.teacher));
+
+    return {
+      department: me.department.name,
+      day: longDay(date),
+      kpis: {
+        taught: registers.length,
+        onTime: registers.filter((register) => register.inPeriod).length,
+        teachers: rows.length,
+        unmarked: Math.max(0, slots - registers.length),
+        truancy
+      },
+      rows
     };
   }
 

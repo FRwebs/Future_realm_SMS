@@ -79,6 +79,13 @@ const dayWords = (iso: string) => formatDay(new Date(iso), { weekday: "long", da
 export async function teacherAttendanceTab(tabSlug: string, me: TeacherWorkspaceView, permissions: string[], query: Record<string, string | undefined>): Promise<TabContent | null | undefined> {
   const held = new Set(permissions);
   if (tabSlug === "mark") return markTab(await apiGet(`${API}/registers`, observe<RegistersView>(localContracts["src/lib/modules/live/t4-attendance.ts#9e919aae"])), me, held);
+  // A head of department reviews their department's period registers; they do not mark them, and
+  // the administrator's whole-school breach page is not theirs. Anyone else keeps the admin page.
+  if (tabSlug === "compliance" && me.persona === "head-of-department") {
+    const view = await apiGet(`${API}/register-compliance`, observe<Compliance>(localContracts["src/lib/modules/live/t4-attendance.ts#compliance"])).catch(() => null);
+    if (view) return complianceTab(view);
+    return undefined;
+  }
   if (tabSlug === "register") {
     // Without an arm named, the tab is the index of every register held; naming one
     // opens that register's own history, which is what the index links to.
@@ -91,6 +98,56 @@ export async function teacherAttendanceTab(tabSlug: string, me: TeacherWorkspace
     return registerTab(await apiGet(`${API}/register-history${query.arm ? `?class=${encodeURIComponent(query.arm)}` : ""}`, observe<ArmHistory | PeriodHistory>(localContracts["src/lib/modules/live/t4-attendance.ts#5d679d9e"])));
   }
   return undefined;
+}
+
+type Compliance = {
+  department: string;
+  day: string;
+  kpis: { taught: number; onTime: number; teachers: number; unmarked: number; truancy: number };
+  rows: Array<{ teacher: string; role: string; subjects: string; taught: number; onTime: number; late: number; state: string }>;
+};
+
+/**
+ * The department's period registers today — who marked, and who marked after the period had ended.
+ *
+ * Review only, and it says so: a head of department is answerable for the registers being taken,
+ * and for nothing inside them. There is no mark on this page and no way to change one.
+ */
+function complianceTab(v: Compliance): TabContent {
+  const late = v.kpis.taught - v.kpis.onTime;
+  const rows: TableRow[] = v.rows.map((entry) => ({
+    keywords: `${entry.teacher} ${entry.subjects} ${entry.state}`,
+    cells: [
+      { kind: "name", name: entry.teacher, sub: entry.role },
+      text(entry.subjects),
+      text(String(entry.taught), { mono: true }),
+      text(String(entry.onTime), { mono: true }),
+      entry.late ? text(String(entry.late), { strong: true, tone: "attention" }) : text("—", { tone: "neutral" }),
+      pill(entry.state, entry.late ? "attention" : entry.taught ? "positive" : "neutral"),
+    ] as TableCellKind[],
+  }));
+  return {
+    title: "Compliance",
+    desc: `${v.department} period registers today. Review only — you do not mark them.`,
+    rows: [
+      row("1fr", [{
+        type: "kpi", per: 4, sub: `Granted because you head ${v.department}. A subject teacher does not audit their colleagues.`,
+        cards: [
+          { label: "Periods taught so far", value: String(v.kpis.taught), sub: `Across ${v.kpis.teachers} ${v.kpis.teachers === 1 ? "teacher" : "teachers"}` },
+          { label: "Marked in the period", value: String(v.kpis.onTime), unit: `of ${v.kpis.taught}`, sub: late ? `${late} marked after it ended` : "Every one marked while it ran", tone: late ? "attention" : "positive" },
+          { label: "Unmarked", value: String(v.kpis.unmarked), sub: v.kpis.unmarked ? "A period with no register at all" : "Every period has a register", tone: v.kpis.unmarked ? "negative" : "positive" },
+          { label: "Truancy alerts", value: String(v.kpis.truancy), sub: v.kpis.truancy ? "Present for the day, absent in a period" : "Nobody present today has missed a period", tone: v.kpis.truancy ? "attention" : "positive" },
+        ],
+      }]),
+      row("1fr", [{
+        type: "table", title: "By teacher", sub: "Period registers only — the daily register belongs to form masters.",
+        meta: `${v.rows.length} ${v.rows.length === 1 ? "teacher" : "teachers"} · ${v.day}`, noun: "teacher", nounPlural: "teachers",
+        head: ["Teacher", "Subjects", "Taught", "On time", "Late", "State"], rows, per: 12, noRowOpen: true,
+        empty: `No subject is mapped to ${v.department} yet.`,
+        foot: "You see that a register was late. You do not see a child's mark from here.",
+      }]),
+    ],
+  };
 }
 
 function markTab(v: RegistersView, me: TeacherWorkspaceView, held: Set<string>): TabContent {

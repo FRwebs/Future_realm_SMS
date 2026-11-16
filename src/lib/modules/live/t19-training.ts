@@ -114,6 +114,21 @@ const addManyToBasket: DrawerSpec = {
   submit: { endpoint: `${API}/learning/basket`, method: "POST" },
 };
 
+/**
+ * The same add, for someone who has already decided.
+ *
+ * It puts the courses in the basket and goes straight on to settle them, rather than leaving a
+ * basket to be remembered later. Nothing is charged here either — the basket is where the school
+ * is asked to pay, or a payment made elsewhere is recorded.
+ */
+const buyNow: DrawerSpec = {
+  mode: "commit", kicker: "Catalogue", title: "Take the selected courses to the basket",
+  sub: "Free courses in the selection are left out. Nothing is charged on this screen.",
+  commitLabel: "Go to the basket", commitDone: "In your basket", commitDoneBody: "Settle them now — the school can be asked to pay, or a payment you made yourself recorded.",
+  next: { label: "Open the basket", href: checkoutHref },
+  submit: { endpoint: `${API}/learning/basket`, method: "POST" },
+};
+
 const suggest: DrawerSpec = {
   mode: "form", kicker: "Training", title: "Suggest a course", sub: "It goes to the staff development lead. If enough colleagues ask for the same thing, it is commissioned.",
   commitLabel: "Send the suggestion", commitDone: "Suggestion sent", commitDoneBody: "Thank you — it is on the list the school reads when it plans training.",
@@ -327,17 +342,24 @@ function catalogueTab(v: Catalogue, b: Basket, query: Record<string, string | un
       phoneOnly({ type: "note", tone: "neutral", icon: "M9.5 9.5a2.5 2.5 0 1 1 3.4 2.3c-.6.3-.9.8-.9 1.4M12 16.5h.01M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0z", title: "Cannot find what you need?", body: "Suggest a course to the staff development lead.", acts: [{ label: "Suggest a course", drawer: suggest }] }),
       ...[
       row("1fr", [{ type: "kpi", title: "Sections", per: 6, cards }]),
-      row("1fr", [{ type: "tray", items: tray }]),
+      row("1fr", [{ type: "tray", eyebrow: "Browse by section", items: tray }]),
       row("1fr", [{
         type: "table", title: sec === "All" ? "Every course" : sec, tag: `${list.length} ${list.length === 1 ? "course" : "courses"}`, tagTone: "neutral", sub: "Required first, then the ones that fit your work.", meta: `${list.length} course${list.length === 1 ? "" : "s"}`,
         noun: "course", nounPlural: "courses", search: "Find a course, a provider or a topic",
         filters: [
+          // The shelf above picks a section; so does this, for anyone working down the table rather
+          // than across the page. Choosing one goes to that section's own address.
+          { label: "Section", value: sec === "All" ? "All courses" : sec, options: ["All courses", ...v.sections], go: Object.fromEntries([["All courses", "/training/catalogue"], ...v.sections.map((name) => [name, `/training/catalogue?sec=${encodeURIComponent(name)}`])]) },
           { label: "Length", value: "All", options: ["All", "Under 2 hours", "2 – 3 hours", "4 hours or more"], match: Object.fromEntries(["Under 2 hours", "2 – 3 hours", "4 hours or more"].map((value) => [value, `len:${value}|`])) },
           { label: "Format", value: "All", options: ["All", ...formats], match: Object.fromEntries(formats.map((value) => [value, `fmt:${value}|`])) },
           { label: "Price", value: "All", options: ["All", "Free", "Paid"], match: { Free: "price:Free|", Paid: "price:Paid|" } },
           { label: "State", value: "All", options: ["All", ...states], match: Object.fromEntries(states.map((value) => [value, `st:${value}|`])) },
         ],
-        selectable: true, bulkActs: [{ label: "Add to basket", primary: true, drawer: addManyToBasket, selection: { key: "courseIds", noun: "course" } }],
+        selectable: true,
+        bulkActs: [
+          { label: "Add to basket", drawer: addManyToBasket, selection: { key: "courseIds", noun: "course" } },
+          { label: "Buy now", primary: true, drawer: buyNow, selection: { key: "courseIds", noun: "course" } },
+        ],
         head: ["Course", "Provider", "Length", "Format", "Price", "State", ""], rows, per: 12, noRowOpen: false, empty: "Nothing in this section.",
         foot: "Your school’s own courses are free. A course from an outside provider is paid for by you or by the school, and opens once it is settled.",
       }]),

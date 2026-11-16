@@ -343,6 +343,12 @@ export type TableFilter = {
    * is the "all" one and never narrows.
    */
   since?: Record<string, number>;
+  /**
+   * Option → hours, looking the other way. Choosing one keeps the rows whose `at` falls between now
+   * and that many hours ahead: "Next 7 days" on a calendar, where what has already happened is the
+   * part you are trying to get past. The first option is the "all" one and never narrows.
+   */
+  within?: Record<string, number>;
   /** Option → page. Choosing one goes there instead of narrowing the rows: a switcher between arms or subjects. */
   go?: Record<string, string>;
 };
@@ -1086,7 +1092,7 @@ export type Panel =
    * A segmented shelf: every section on one line with its count, the one you are on lit, and beneath it one line on what that section
    * holds, what it costs and who awards it. Each segment goes to its own page, so which one is lit is the server's to say.
    */
-  | { type: "tray"; items: TrayItem[] }
+  | { type: "tray"; items: TrayItem[]; /** The small line of type above the shelf saying what the segments are. */ eyebrow?: string }
   /**
    * Two rows of chips that pick a session and then a term inside it, with what
    * that term's figures are worth beside them — "In progress · week 7", or

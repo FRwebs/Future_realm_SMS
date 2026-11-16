@@ -36,6 +36,14 @@ export function rowMatches(tableRow: TableRow, filters: TableFilter[] | undefine
       if (Number.isNaN(happened) || happened < Date.now() - hours * 3_600_000) return false;
       continue;
     }
+    if (filter.within) {
+      const hours = filter.within[chosen];
+      if (hours === undefined) continue;
+      const when = tableRow.at ? Date.parse(tableRow.at) : NaN;
+      // A row with no date of its own cannot be in the next seven days, so it is not kept.
+      if (Number.isNaN(when) || when > Date.now() + hours * 3_600_000) return false;
+      continue;
+    }
     const haystack = filter.column !== undefined ? [texts[filter.column] ?? ""] : texts;
     const wanted = (filter.match?.[chosen] ?? chosen).toLowerCase();
     if (!haystack.some((value) => value.toLowerCase().includes(wanted))) return false;

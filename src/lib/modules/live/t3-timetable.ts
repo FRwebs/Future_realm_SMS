@@ -247,9 +247,13 @@ function askDrawer(kind: "missing" | "wrong" | "cover" | "drop", v: TeachingView
 function teachingTab(v: TeachingView, questions: Question[], me: TeacherWorkspaceView): TabContent {
   const own = v.assignments;
   const waiting = questions.filter((entry) => entry.state === "Sent").length;
+  // Someone holding cover has a fourth thing to ask for, and only they do: the drawer existed all
+  // along, but nothing on the page ever offered it.
+  const holdsCover = own.some((entry) => entry.basis === "Cover") || me.persona === "cover";
   const kinds: Array<{ kind: "missing" | "wrong" | "cover" | "drop"; label: string; sub: string; icon: string; tone?: PanelTone }> = [
     { kind: "missing", label: "A class or subject is missing", sub: "You teach it, but there is no sheet, register or note for it here.", icon: PLUS, tone: "attention" },
     { kind: "wrong", label: "Something listed is wrong", sub: "The wrong arm, the wrong periods, or cover when it is yours.", icon: WARN, tone: "progress" },
+    ...(holdsCover ? [{ kind: "cover" as const, label: "My cover needs to change", sub: "Extend it, end it early, or add score entry.", icon: CLOCK, tone: "submitted" as PanelTone }] : []),
     { kind: "drop", label: "I should no longer hold this", sub: "Hand an assignment back before it is reassigned.", icon: BACK },
   ];
 
@@ -278,7 +282,7 @@ function teachingTab(v: TeachingView, questions: Question[], me: TeacherWorkspac
   }));
 
   const kpis = [
-    { label: "Subject-arms", value: String(own.length), sub: `${own.filter((entry) => !entry.assistant).length} yours · ${own.filter((entry) => entry.assistant).length} assisting` },
+    { label: "Subject-arms", value: String(own.length), sub: `${own.filter((entry) => entry.basis !== "Cover" && !entry.assistant).length} substantive · ${own.filter((entry) => entry.basis === "Cover").length} cover` },
     v.formArms.length
       ? { label: me.persona === "early-years" ? "Class" : "Form class", value: v.formArms[0].name, sub: `${v.formArms[0].roll} children${v.formArms.length > 1 ? ` · and ${v.formArms.length - 1} more` : ""}` }
       : { label: "Form class", value: "None", sub: "You mark period registers only" },
@@ -308,7 +312,7 @@ function teachingTab(v: TeachingView, questions: Question[], me: TeacherWorkspac
         }])
       : null,
     row("1fr", [{
-      type: "tiles", title: "Something here not right?", sub: "Your assignments are set by the school office. Ask them to fix it at the source — the sheet, register and access change together.", per: 3,
+      type: "tiles", title: "Something here not right?", sub: "Your assignments are set by the school office. Ask them to fix it at the source — the sheet, register and access change together.", per: kinds.length,
       tiles: kinds.map((entry) => ({ label: entry.label, sub: entry.sub, icon: entry.icon, tone: entry.tone, drawer: askDrawer(entry.kind, v, me) })),
     }]),
     row("1fr", [{ type: "facts", title: "Your responsibilities", per: 2, facts: me.hats.map((hat) => [`${hat.role} · ${hat.scope}`, hat.detail, ""] as [string, string, string]) }]),

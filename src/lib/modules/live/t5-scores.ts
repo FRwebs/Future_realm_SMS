@@ -806,7 +806,29 @@ function reviewTab(o: OversightView): TabContent {
     }]),
     row("1fr", [{
       type: "table", dense: true, title: `${o.department} sheets`, sub: "You can see where a sheet stands. You cannot change a score inside it.", meta: `${o.rows.length} sheets · ${k.waitingOnMe} waiting on you`, noun: "sheet", nounPlural: "sheets",
-      search: "Find a subject, arm or teacher", selectable: true, bulkActs: [{ label: "Export selected", primary: true, export: true }],
+      search: "Find a subject, arm or teacher", selectable: true,
+      bulkActs: [
+        // Nudging from the rows is how a head actually works: pick the two sheets that are late and
+        // tell those teachers, rather than everyone with an unstarted sheet.
+        {
+          label: "Nudge their teachers",
+          selection: { key: "users", noun: "teacher" },
+          drawer: {
+            mode: "commit", kicker: `${o.department} · score entry`, title: "Notify the teachers of the selected sheets",
+            sub: "This sends a notification. It is not an approval, and it changes nothing on any record.",
+            facts: [
+              ["What they see", "Which sheet is outstanding, and the day the window closes", "Nothing is disclosed about anyone else"],
+              ["Changes anything?", "No", "A notification never alters a record, a state or a deadline"],
+            ],
+            commitLabel: "Send the notification", commitDone: "Notification sent", commitDoneBody: "Each one received only what they personally owe.",
+            submit: {
+              endpoint: "/api/v1/score-results/notify", method: "POST",
+              body: { channels: ["In-app inbox"], message: `Your ${o.department} score sheet is outstanding${o.closes ? ` — the window closes ${short(o.closes)}` : ""}.`, kicker: `${o.department} · score entry`, urgency: "Reminder", href: "/score-entry-results/enter" },
+            },
+          } as DrawerSpec,
+        },
+        { label: "Export selected", primary: true, export: true },
+      ],
       filters: [{ label: "State", value: "All", options: ["All", "Not started", "In progress", "Submitted", "Returned", "Approved"], column: 3 }, { label: "Teacher", value: "All", options: ["All", ...teachers], column: 2 }, { label: "Arm", value: "All", options: ["All", ...arms], column: 1 }],
       head: ["Subject", "Arm", "Teacher", "State", "Entered", "Avg", "Note", ""], rows, noRowOpen: true, per: 8, empty: `${o.department} has no sheet this term.`,
       foot: "Three outcomes only: approve, return for correction, or decline — each with a comment.",

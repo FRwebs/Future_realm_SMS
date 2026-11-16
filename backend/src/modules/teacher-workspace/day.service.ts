@@ -244,14 +244,40 @@ export class MyDayService {
     );
     const inCount = rows.filter((row) => row.state === "Submitted" || row.state === "Approved").length;
     const mine = rows.filter((row) => row.ownerId === session.userId);
+
+    /*
+     * The two things a head owes besides scores: that the department's period registers were
+     * marked while the period was running, and that this week's notes are in. Both are counted the
+     * same way the department's sheets are — over the subjects mapped to it, and nothing else.
+     */
+    const subjectIds = [...new Set(mapped.map((entry) => entry.subjectId))];
+    const dayStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+    const dayEnd = new Date(dayStart.getTime() + 86_400_000);
+    const [periodRegisters, notes] = await Promise.all([
+      subjectIds.length
+        ? prisma.periodRegister.findMany({
+            where: { schoolId, termId: term.id, subjectId: { in: subjectIds }, date: { gte: dayStart, lt: dayEnd }, status: "SUBMITTED" },
+            select: { inPeriod: true }
+          })
+        : Promise.resolve([] as Array<{ inPeriod: boolean }>),
+      me.term.week && subjectIds.length
+        ? prisma.lessonPlan.findMany({
+            where: { schoolId, termId: term.id, subjectId: { in: subjectIds }, weekNumber: me.term.week, deletedAt: null },
+            select: { status: true }
+          })
+        : Promise.resolve([] as Array<{ status: string }>)
+    ]);
+    const notesIn = notes.filter((note) => note.status === "SUBMITTED" || note.status === "APPROVED").length;
     return {
-      department: me.department.name, term: `${me.term.name} ${me.term.session}`, reportsTo: me.reportsTo,
+      department: me.department.name, term: `${me.term.name} ${me.term.session}`, reportsTo: me.reportsTo, week: me.term.week,
       kpis: {
         submitted: inCount, sheets: rows.length, withTeacher: rows.filter((row) => row.state !== "Submitted" && row.state !== "Approved" && row.ownerId !== session.userId).length,
         returnedByMe: rows.filter((row) => row.decidedByMe && row.state === "Returned").length,
         mineSubmitted: mine.filter((row) => row.state === "Submitted" || row.state === "Approved").length, mine: mine.length,
         waitingOnMe: rows.filter((row) => row.state === "Submitted" && row.ownerId !== session.userId).length,
-        notStarted: rows.filter((row) => row.state === "Not started").length, approved: rows.filter((row) => row.state === "Approved").length
+        notStarted: rows.filter((row) => row.state === "Not started").length, approved: rows.filter((row) => row.state === "Approved").length,
+        registersOnTime: periodRegisters.filter((register) => register.inPeriod).length, registersTaught: periodRegisters.length,
+        notesIn, notesDue: rows.length
       },
       closes: closes?.toISOString() ?? null,
       rows: rows.sort((a, b) => Number(b.overdue) - Number(a.overdue) || a.unit.localeCompare(b.unit))

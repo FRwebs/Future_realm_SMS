@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import type { Route } from "next";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
@@ -91,6 +92,13 @@ function SidebarContent({
   teacherRail?: TeacherRail | null;
 }) {
   const router = useRouter();
+  /** Modules already asked for on this visit, so running a pointer down the rail costs one each. */
+  const asked = useRef<Set<string>>(new Set());
+  const warm = (href: string) => {
+    if (asked.current.has(href)) return;
+    asked.current.add(href);
+    router.prefetch(href as Route);
+  };
   const [search, setSearch] = useState("");
   const [tooltip, setTooltip] = useState<{ label: string; top: number; left: number } | null>(null);
   const [signingOut, setSigningOut] = useState(false);
@@ -316,6 +324,10 @@ function SidebarContent({
                         <Link
                           href={item.href}
                           onClick={isMobile ? onCloseMobile : undefined}
+                          // Fetch the module the moment the pointer or the keyboard reaches it, so
+                          // the page is usually in hand before it is clicked. Once per rail per visit.
+                          onMouseEnter={() => warm(item.href)}
+                          onFocus={() => warm(item.href)}
                           className={cn(
                             // The module you are on is a solid white pill with ink
                             // text — the only white surface in the rail.
