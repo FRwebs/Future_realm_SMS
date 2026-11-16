@@ -9,7 +9,7 @@ import { FlowPanelView, GridPanelView, QuotesPanelView } from "@/components/modu
 import Link from "next/link";
 import type { Route } from "next";
 import { useRouter } from "next/navigation";
-import { useEffect, useState, useTransition } from "react";
+import { createContext, useContext, useEffect, useMemo, useState, useTransition } from "react";
 import {
   ArrowRight,
   ChevronDown,
@@ -43,14 +43,15 @@ import type {
 } from "@/lib/modules/panels";
 import { readCookie, readableError } from "@/lib/modules/submit";
 import { tableCsv, csvFileName } from "@/lib/modules/table-query";
-import { useLocalTable, useServedTable, type TableEngine } from "@/components/modules/use-table-engine";
-import { cardIcon } from "@/lib/modules/card-icons";
+import { TABLE_PAGE_SIZE, useLocalTable, useServedTable, type TableEngine } from "@/components/modules/use-table-engine";
+import { assignIcons, iconPaths } from "@/lib/modules/card-icons";
 import { CARD_BORDER, INK, MUTED, toneOf } from "@/lib/modules/tones";
 import { useUiText } from "@/hooks/use-ui-text";
 import { cn } from "@/lib/utils/cn";
 import { onDevice, useHeldCounts } from "@/lib/offline/use-held";
-import { columnWidths, planColumns } from "@/lib/ui/table-columns";
+import { TICK_COLUMN, columnWidths, planColumns } from "@/lib/ui/table-columns";
 import { slimSub } from "@/lib/ui/card-sub";
+import { deskTrim } from "@/lib/ui/tight-copy";
 
 /*
  * The large interactive panels only some tabs draw are fetched when a tab draws one, not with every page: a register marker or a score grid is not part of
@@ -252,8 +253,11 @@ export function PanelHeader({
   joined?: boolean;
 }) {
   const swatch = toneOf(tagTone);
-  // The phone's copy rule: a panel heading that restates itself underneath loses the restatement rather than wrapping.
-  const { node: line, hidePhone: subOffPhone } = useTightLine("bsub", sub);
+  // The copy rule: a panel heading that restates itself underneath loses the restatement rather than
+  // wrapping — on a phone to its own budget, on a laptop to the wider one.
+  const { node: line, hidePhone: subOffPhone } = useTightLine("bsub", sub, "sub");
+  // The figure at the top right is a count, not a sentence.
+  const metaLine = deskTrim("meta", meta);
 
   return (
     <div
@@ -296,14 +300,14 @@ export function PanelHeader({
           </p>
         ) : null}
       </div>
-      {meta || acts?.length ? (
+      {metaLine || acts?.length ? (
         <div className="flex min-w-0 flex-[0_1_auto] items-center justify-end gap-[12px]">
-          {meta ? (
+          {metaLine ? (
             <p
               className="text-pretty text-right text-[10.5px] leading-[1.45]"
               style={{ color: MUTED }}
             >
-              {meta}
+              {metaLine}
             </p>
           ) : null}
           {acts?.length ? (
@@ -343,15 +347,19 @@ function PanelFoot({
   children: string;
   className?: string;
 }) {
+  // A footnote is one line that qualifies what is above it. Where one has grown into a paragraph it
+  // is cut back to the clause that does the qualifying, at every width.
+  const line = deskTrim("foot", children);
+  if (!line) return null;
   return (
     <p
       className={cn(
-        "mx-[-18px] mb-[-12px] mt-[12px] border-t bg-[#F7FAF8] px-[18px] py-[10px] text-pretty text-[10.5px] leading-normal",
+        "mx-[-18px] mb-[-12px] mt-[12px] border-t bg-[#F7FAF8] px-[18px] py-[9px] text-pretty text-[10.5px] leading-normal",
         className,
       )}
       style={{ borderColor: "#EDF3EF", color: MUTED }}
     >
-      {children}
+      {line}
     </p>
   );
 }
@@ -548,12 +556,14 @@ function Cell({
           >
             {cell.name}
           </span>
-          {cell.sub ? (
+          {/* The line under a name is a role or a reference, not a sentence about them. */}
+          {deskTrim("rowsub", cell.sub) ? (
             <span
               className="mt-[1.5px] block truncate text-[10px]"
               style={{ color: MUTED }}
+              title={cell.sub}
             >
-              {cell.sub}
+              {deskTrim("rowsub", cell.sub)}
             </span>
           ) : null}
         </span>
@@ -672,7 +682,35 @@ function pageNumbers(count: number, current: number): Array<number | null> {
  * The engine under it is TanStack: Table searches, filters, pages and selects; and a long list, which arrives one page at a time, has the
  * page asked for fetched with TanStack Query (the one on screen stays until the next is ready). See `use-table-engine`.
  */
-function TablePanel({ panel, openDrawer }: { panel: Extract<Panel, { type: "table" }>; openDrawer: OpenDrawer }) {
+/**
+ * The filter a table needs and was not given.
+ *
+ * A long table with a state column and no way to narrow it makes the reader page through looking
+ * for the four rows they came for. Where a column is plainly a state — every cell a chip, a handful
+ * of distinct words — it becomes a filter. Nothing is derived for a table short enough to read
+ * whole, for one whose rows the server pages (its filters have to be the server's), or where two of
+ * the values contain each other: "Paid" would narrow to "Unpaid" as well, and a filter that lies is
+ * worse than no filter.
+ */
+function derivedFilters(panel: Extract<Panel, { type: "table" }>): TableFilter[] | undefined {
+  if (panel.filters?.length || panel.window || panel.rows.length <= TABLE_PAGE_SIZE) return panel.filters;
+  const out: TableFilter[] = [];
+  panel.head.forEach((heading, index) => {
+    if (out.length >= 2 || !heading.trim()) return;
+    const cells = panel.rows.map((row) => row.cells[index]);
+    if (!cells.length || !cells.every((cell) => cell?.kind === "pill")) return;
+    const values = [...new Set(cells.map((cell) => (cell as Extract<TableCellKind, { kind: "pill" }>).label.trim()).filter(Boolean))];
+    if (values.length < 2 || values.length > 8) return;
+    const overlapping = values.some((one) => values.some((other) => one !== other && other.toLowerCase().includes(one.toLowerCase())));
+    if (overlapping) return;
+    out.push({ label: heading.trim(), value: "All", options: ["All", ...values.sort((a, b) => a.localeCompare(b))], column: index });
+  });
+  return out.length ? out : undefined;
+}
+
+function TablePanel({ panel: authored, openDrawer }: { panel: Extract<Panel, { type: "table" }>; openDrawer: OpenDrawer }) {
+  const filters = derivedFilters(authored);
+  const panel = filters === authored.filters ? authored : { ...authored, filters };
   return panel.window ? <ServedTablePanel panel={panel} openDrawer={openDrawer} /> : <LocalTablePanel panel={panel} openDrawer={openDrawer} />;
 }
 
@@ -794,7 +832,7 @@ function TableView({ panel, openDrawer, engine }: { panel: Extract<Panel, { type
   // what they actually hold. Measured from every row on the page, not only the ones in view, so
   // turning a page never shifts the columns under the reader.
   const plan = planColumns(panel.head, filteredRows, { authored: panel.cols, align: aligns, selectable: panel.selectable });
-  const widths = columnWidths(plan);
+  const widths = columnWidths(plan, Boolean(panel.selectable));
   // A dense table is one asked to fit its panel, so it gives the outer edges back some of
   // their padding on a narrow screen — 18px on each end of a four-column table is a tenth
   // of a phone's width, and spending it on margin is what pushes the table into a slider.
@@ -894,31 +932,58 @@ function TableView({ panel, openDrawer, engine }: { panel: Extract<Panel, { type
             </button>
           ) : null}
 
-          {(panel.filters ?? []).map((filter) => (
-            <label
-              key={filter.label}
-              className="relative hidden cursor-pointer items-center gap-[6px] whitespace-nowrap rounded-[9px] border bg-white py-[7px] pl-[10px] pr-[26px] text-[11px] transition border-[#DEE8E2] focus-within:border-[#12796A] hover:border-[#BFDCD1] hover:bg-[#F7FAF8] md:flex"
-              style={{ color: INK }}
-            >
-              <span style={{ color: MUTED }}>{filter.label}</span>
-              <select
-                value={filterValues[filter.label] ?? filter.value}
-                onChange={(event) => applyFilter(filter, event.target.value)}
-                className="cursor-pointer appearance-none border-none bg-transparent font-semibold outline-hidden"
+          {/* A filter pill says what it is narrowing by, and shows plainly when it is narrowing
+              anything: the control is a native select, because that is what a keyboard, a screen
+              reader and a phone all already know how to drive, dressed as the mockup's chip. */}
+          {(panel.filters ?? []).map((filter) => {
+            const current = filterValues[filter.label] ?? filter.value;
+            const on = current !== filter.options[0];
+            return (
+              <label
+                key={filter.label}
+                className={cn(
+                  "relative hidden cursor-pointer items-center gap-[6px] whitespace-nowrap rounded-full border py-[6.5px] pl-[11px] pr-[26px] text-[11px] transition md:flex",
+                  on
+                    ? "border-[#0D2315] bg-[#0D2315] text-white hover:bg-[#1B3A28]"
+                    : "border-[#DEE8E2] bg-white hover:border-[#BFDCD1] hover:bg-[#F7FAF8] focus-within:border-[#12796A]",
+                )}
+                style={on ? undefined : { color: INK }}
               >
-                {filter.options.map((option) => (
-                  <option key={option} value={option}>
-                    {option}
-                  </option>
-                ))}
-              </select>
-              <ChevronDown
-                className="pointer-events-none absolute right-[10px] top-1/2 h-[11px] w-[11px] -translate-y-1/2"
-                style={{ color: "#6B7A71" }}
-                strokeWidth={2.4}
-              />
-            </label>
-          ))}
+                <span style={{ color: on ? "rgba(255,255,255,0.62)" : MUTED }}>{filter.label}</span>
+                <select
+                  value={current}
+                  onChange={(event) => applyFilter(filter, event.target.value)}
+                  aria-label={filter.label}
+                  className="cursor-pointer appearance-none border-none bg-transparent font-semibold outline-hidden"
+                  style={on ? { color: "#fff" } : undefined}
+                >
+                  {filter.options.map((option) => (
+                    <option key={option} value={option} style={{ color: INK }}>
+                      {option}
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown
+                  className="pointer-events-none absolute right-[10px] top-1/2 h-[11px] w-[11px] -translate-y-1/2"
+                  style={{ color: on ? "rgba(255,255,255,0.7)" : "#6B7A71" }}
+                  strokeWidth={2.4}
+                />
+              </label>
+            );
+          })}
+
+          {/* One control puts every filter back, rather than setting each one to All in turn. */}
+          {narrowed ? (
+            <button
+              type="button"
+              onClick={() => (panel.filters ?? []).forEach((filter) => applyFilter(filter, filter.options[0] ?? filter.value))}
+              className="hidden items-center gap-[5px] rounded-full border border-transparent px-[8px] py-[6.5px] text-[10.5px] font-semibold transition hover:bg-[#F1F8F4] md:flex"
+              style={{ color: "#12796A" }}
+            >
+              <X className="h-[11px] w-[11px]" strokeWidth={2.4} />
+              {ui("Clear filters")}
+            </button>
+          ) : null}
 
           <span className="ml-auto text-[10.5px] max-md:hidden" style={{ color: MUTED }}>
             {filterNote}
@@ -1092,10 +1157,16 @@ function TableView({ panel, openDrawer, engine }: { panel: Extract<Panel, { type
         <div className="mx-[-18px] hidden min-w-0 overflow-x-auto md:block" tabIndex={0} role="region" aria-label={panel.title ? `${panel.title} — scrolls sideways` : "Table — scrolls sideways"}>
           <table
             className={cn("w-full border-collapse", dense && "min-w-0")}
-            style={dense ? { tableLayout: "fixed" } : { tableLayout: "fixed", minWidth: plan.minWidth }}
+            /*
+             * The floor stops a table being squashed into unreadability, but it is an estimate made
+             * on the server from the text, and an estimate that lands a few pixels over its panel
+             * buys a sideways scrollbar for nothing. Within 24px of fitting, the table simply fits;
+             * a table genuinely wider than its panel still scrolls, as it has to.
+             */
+            style={dense ? { tableLayout: "fixed" } : { tableLayout: "fixed", minWidth: `min(${plan.minWidth}px, max(100%, ${Math.max(0, plan.minWidth - 24)}px))` }}
           >
             <colgroup>
-              {panel.selectable ? <col style={{ width: "42px" }} /> : null}
+              {panel.selectable ? <col style={{ width: `${TICK_COLUMN}px` }} /> : null}
               {widths.map((width, index) => <col key={panel.head[index] ?? index} style={{ width }} />)}
             </colgroup>
             <thead>
@@ -1108,7 +1179,7 @@ function TableView({ panel, openDrawer, engine }: { panel: Extract<Panel, { type
                 {panel.selectable ? (
                   <th
                     scope="col"
-                    className="w-[42px] py-[10px] pl-[18px] pr-[9px] text-left"
+                    className="py-[10px] pl-[18px] pr-[4px] text-left"
                   >
                     <input
                       type="checkbox"
@@ -1168,7 +1239,7 @@ function TableView({ panel, openDrawer, engine }: { panel: Extract<Panel, { type
                     }
                   >
                     {panel.selectable ? (
-                      <td className="py-[11px] pl-[18px] pr-[9px] align-middle">
+                      <td className="py-[11px] pl-[18px] pr-[4px] align-middle">
                         <input
                           type="checkbox"
                           checked={rowSelected}
@@ -1462,12 +1533,22 @@ function pagerClass(active: boolean) {
 }
 
 /**
+ * Which icon each card on this screen was given.
+ *
+ * The rules that pick an icon look at one card at a time, so two cards that both count days, or
+ * both count people, drew the same glyph — and a row of figures read as one figure repeated. The
+ * page assigns them together instead, keyed by the card's label, and each tile looks its own up
+ * here. A card rendered outside a page (a story, a test) finds nothing and falls back to the rules.
+ */
+const CardIcons = createContext<Record<string, string>>({});
+
+/**
  * The icon tile at the head of a figure card: 28px, a soft tint and a hairline in the card's tone (a calm green when it has none),
  * and a drawn icon — the card's own, or the one its label or its figure calls for.
  */
-function CardTile({ card }: { card: KpiCard }) {
+function CardTile({ card, name }: { card: KpiCard; name?: string }) {
   const swatch = card.tone && card.tone !== "neutral" ? toneOf(card.tone) : null;
-  const [outline, fill] = cardIcon(card);
+  const [outline, fill] = iconPaths(name ?? card.icon ?? "bars");
   const stroke = swatch ? swatch.fg : "#12796A";
   return (
     <span
@@ -1533,6 +1614,8 @@ function PanelViewDesktop({
 }) {
   // A figure that belongs to this device rather than to the school — what is still waiting here.
   const held = useHeldCounts(panel.type === "kpi" && panel.cards.some((card) => card.device));
+  // One glyph per card across the whole screen, decided by the page rather than card by card.
+  const icons = useContext(CardIcons);
   // Whether a phone is reading this, for the slots whose copy shortens there.
   if (panel.type === "kpi") {
     // ONE card, everywhere in the product: same box, same 1px border, same label
@@ -1602,7 +1685,7 @@ function PanelViewDesktop({
                   >
                     {card.label}
                   </span>
-                  <CardTile card={card} />
+                  <CardTile card={card} name={icons[card.label]} />
                 </div>
 
                 <div className="flex flex-wrap items-baseline gap-[6px]">
@@ -2415,9 +2498,24 @@ function FormPanel({
   }, [savedKey]);
   const minCol = panel.per === 1 ? 300 : 210;
   const submit = panel.submit;
+  // Which required boxes are still empty, and whether anyone has tried to save over them yet. The
+  // button is never dead: the press that cannot go through says what is stopping it.
+  const [tried, setTried] = useState(false);
+  const unanswered = panel.fields.filter((field) => {
+    if (!field.required) return false;
+    const value = values[field.label];
+    if (Array.isArray(value)) return value.length === 0;
+    return value === undefined || value === null || String(value).trim() === "";
+  });
 
   async function save() {
     if (!submit) return;
+    if (unanswered.length) {
+      setTried(true);
+      setState({ kind: "failed", message: `Fill in ${unanswered.map((field) => field.label).join(", ")} before saving.` });
+      return;
+    }
+    setTried(false);
     setState({ kind: "saving" });
 
     // The same rule a drawer's form follows, so a form on the page and the same form in a drawer
@@ -2504,6 +2602,7 @@ function FormPanel({
               setValues((current) => ({ ...current, [field.label]: next }));
               setState({ kind: "idle" });
             }}
+            missing={tried && unanswered.includes(field)}
           />
         ))}
       </div>
@@ -2726,7 +2825,24 @@ export function PanelRowsWithDrawer({
     })
     .filter((row): row is PanelRow => row !== null);
 
+  // Every figure card on this screen, in the order it is drawn, so each one can be given an icon
+  // nothing else here is already using. A card whose label repeats across two rows — the desktop
+  // row and its phone counterpart — is the same card twice and keeps the one glyph.
+  const icons = useMemo(() => {
+    const taken = new Set<string>();
+    const map: Record<string, string> = {};
+    for (const panelRow of kept) {
+      for (const panel of panelRow.panels) {
+        if (panel.type !== "kpi") continue;
+        const fresh = panel.cards.filter((card) => !(card.label in map));
+        assignIcons(fresh, taken).forEach((name, index) => { map[fresh[index]!.label] = name; });
+      }
+    }
+    return map;
+  }, [kept]);
+
   return (
+    <CardIcons.Provider value={icons}>
     <div className="grid min-w-0 gap-4">
       {kept.map((panelRow, index) => (
         <div
@@ -2764,6 +2880,7 @@ export function PanelRowsWithDrawer({
         </div>
       ) : null}
     </div>
+    </CardIcons.Provider>
   );
 }
 

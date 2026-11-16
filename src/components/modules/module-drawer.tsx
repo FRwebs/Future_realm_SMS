@@ -511,6 +511,7 @@ function DrawerPanel({
   const [stepIndex, setStepIndex] = useState(0);
   /** Stage 1 of a staged form: reading back exactly what will be written. */
   const [reviewing, setReviewing] = useState(false);
+  const [tried, setTried] = useState(false);
   const router = useRouter();
 
   /** Each field's value as the modal opened, so a change can name what it replaces. */
@@ -590,6 +591,19 @@ function DrawerPanel({
    * side instead of becoming a long scroll.
    */
   const panelMax = (step ? step.fields.length : (spec.fields?.length ?? 0)) > 3 ? 700 : 520;
+
+  /**
+   * Whether someone has tried to go on without answering everything.
+   *
+   * A disabled button is a dead end: it does not say which field is stopping it, and on a phone its
+   * tooltip is unreachable. The button stays live, and the first press that cannot go through names
+   * what is missing and marks those fields instead.
+   */
+  const blocked = unanswered.length > 0;
+  const stop = () => {
+    setTried(true);
+    setError(`Fill in ${unanswered.map((field) => field.label).join(", ")} before going on.`);
+  };
 
   // An edit always asks why: the reason is kept with both values, so the next
   // person to open the record can see what changed and what it was before.
@@ -952,6 +966,7 @@ function DrawerPanel({
                       value={values[field.label]}
                       values={values}
                       setValue={(next) => setValues((current) => withSeeds(allFields, current, field, next))}
+                      missing={tried && unanswered.includes(field)}
                     />
                   </div>
                 ))}
@@ -1054,15 +1069,10 @@ function DrawerPanel({
                   <button
                     type="button"
                     onClick={() => {
+                      if (blocked) { stop(); return; }
                       setError(null);
                       setReviewing(true);
                     }}
-                    disabled={unanswered.length > 0}
-                    title={
-                      unanswered.length
-                        ? `Answer ${unanswered.map((field) => field.label).join(", ")} first.`
-                        : undefined
-                    }
                     className="whitespace-nowrap rounded-[9px] px-[17px] py-[10px] text-[11.5px] font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
                     style={{ background: INK, boxShadow: "0 7px 16px -9px rgba(13,35,21,0.6)" }}
                   >
@@ -1072,13 +1082,12 @@ function DrawerPanel({
                 {!onLastStep && !(staged && reviewing) ? (
                   <button
                     type="button"
-                    onClick={() => setStepIndex((current) => current + 1)}
-                    disabled={unanswered.length > 0}
-                    title={
-                      unanswered.length
-                        ? `Answer ${unanswered.map((field) => field.label).join(", ")} first.`
-                        : undefined
-                    }
+                    onClick={() => {
+                      if (blocked) { stop(); return; }
+                      setError(null);
+                      setTried(false);
+                      setStepIndex((current) => current + 1);
+                    }}
                     className="whitespace-nowrap rounded-[9px] px-[17px] py-[10px] text-[11.5px] font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
                     style={{ background: INK, boxShadow: "0 7px 16px -9px rgba(13,35,21,0.6)" }}
                   >
@@ -1087,10 +1096,13 @@ function DrawerPanel({
                 ) : null}
                 <button
                   type="button"
-                  onClick={() => (staged ? setConfirm("save") : commit())}
+                  onClick={() => {
+                    if (blocked) { stop(); return; }
+                    if (reasonMissing) { setTried(true); setError("Say why before you send this."); return; }
+                    if (staged) setConfirm("save"); else void commit();
+                  }}
                   hidden={!onLastStep || (staged && !reviewing)}
-                  disabled={pending || reasonMissing || unanswered.length > 0}
-                  title={reasonMissing ? "Say why before you send this." : undefined}
+                  disabled={pending}
                   className="whitespace-nowrap rounded-[9px] px-[17px] py-[10px] text-[11.5px] font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
                   style={{
                     background: INK,

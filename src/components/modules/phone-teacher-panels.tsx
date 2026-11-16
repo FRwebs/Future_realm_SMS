@@ -5,7 +5,7 @@ import type { Route } from "next";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
-import { cardIcon } from "@/lib/modules/card-icons";
+import { assignIcons, iconPaths } from "@/lib/modules/card-icons";
 import { onDevice, useHeldCounts } from "@/lib/offline/use-held";
 import type { DrawerSpec, KpiCard, Panel, PanelAction, PanelTone, TableCellKind, TableRow } from "@/lib/modules/panels";
 import { toneOf } from "@/lib/modules/tones";
@@ -95,13 +95,15 @@ export function PhoneStats({ panel, openDrawer }: { panel: Extract<Panel, { type
   const router = useRouter();
   const held = useHeldCounts(panel.cards.some((card) => card.device));
   const cards = onDevice(panel.cards, held);
+  // One glyph per card here too: the same rule as the laptop's, decided for the row as a whole.
+  const glyphs = assignIcons(cards);
   return (
     <section className="min-w-0">
       <div className="grid grid-cols-2 gap-[10px]">
         {cards.map((card: KpiCard, index) => {
           const dark = index === 0 && cards.length > 1;
           const swatch = card.tone && card.tone !== "neutral" ? toneOf(card.tone) : null;
-          const [outline] = cardIcon(card);
+          const [outline] = iconPaths(glyphs[index] ?? "bars");
           const span = cards.length % 2 === 1 && index === cards.length - 1;
           const value = String(card.value ?? "—");
           const big = value.length <= 7;

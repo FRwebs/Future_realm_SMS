@@ -13,6 +13,9 @@ import type { TableCellKind } from "@/lib/modules/panels";
  * The constants are the mockup's, and they are per-character widths at the table's own font size.
  */
 
+/** The width of the column of tick boxes down the left of a table that can be selected. */
+export const TICK_COLUMN = 36;
+
 /** Below this a column is unreadable; above it, no single column may swallow the table. */
 const MIN_WIDTH = 44;
 const MAX_WIDTH = 300;
@@ -43,6 +46,9 @@ export function estimateWidth(head: string, cells: Array<TableCellKind | undefin
     const text = cellText(cell);
     let want = text.length * 6.2;
     if (cell.kind === "pill") want = text.length * 6.1 + 28;
+    // A row's action is a button, not a word: it carries its own padding, and a column measured as
+    // if it were text leaves the button hanging a few pixels outside the table.
+    else if (cell.kind === "action") want = text.length * 6.1 + 26;
     else if (cell.kind === "name") want = Math.max(text.length * 6.6, (cell.sub ?? "").length * 5.4) + (cell.avatar === false ? 0 : 33);
     else if (cell.kind === "bar") want = Math.max(want, 108);
     else if (cell.kind === "mark") want = 22;
@@ -104,7 +110,7 @@ export function planColumns(
   });
 
   const minWidth = Math.round(
-    (options.selectable ? 28 + GAP : 0)
+    (options.selectable ? TICK_COLUMN : 0)
     + tracks.reduce((sum, track) => sum + (track.kind === "fixed" ? track.px : track.floor) + GAP, 0),
   );
   return { tracks, minWidth };
@@ -118,8 +124,11 @@ export function planColumns(
  * line up — and because the widths came from the content, a column of long names is still the wide
  * one.
  */
-export function columnWidths(plan: ColumnPlan): string[] {
-  const fixedPx = plan.tracks.reduce((sum, track) => sum + (track.kind === "fixed" ? track.px : 0), 0);
+export function columnWidths(plan: ColumnPlan, selectable = false): string[] {
+  // The tick column is a column of the table too. Left out of the sum, every flexible column was
+  // sized against a width the table did not have, and the row ran past its own panel by exactly
+  // that column — which is what put a scrollbar under tables that fit perfectly well.
+  const fixedPx = plan.tracks.reduce((sum, track) => sum + (track.kind === "fixed" ? track.px : 0), 0) + (selectable ? TICK_COLUMN : 0);
   const shares = plan.tracks.reduce((sum, track) => sum + (track.kind === "flex" ? track.share : 0), 0);
   return plan.tracks.map((track) => {
     if (track.kind === "fixed") return `${track.px}px`;

@@ -22,9 +22,11 @@ describe("inline notices", () => {
     expect(success).not.toContain('role="alert"');
   });
 
-  it("offers a dismiss button only when asked", () => {
+  it("can always be put away, whether or not the caller owns the dismissal", () => {
     const notice = { variant: "info" as const, title: "Heads up" };
-    expect(renderToStaticMarkup(<InlineNotice notice={notice} />)).not.toContain("Dismiss this message");
+    // A message you have read should never be something you have to read around. Where the caller
+    // passes nothing, the bar closes itself; where it does, dismissing is the caller's to define.
+    expect(renderToStaticMarkup(<InlineNotice notice={notice} />)).toContain("Dismiss this message");
     expect(renderToStaticMarkup(<InlineNotice notice={notice} onDismiss={() => {}} />)).toContain("Dismiss this message");
   });
 

@@ -165,21 +165,68 @@ export const KI_RULES: Array<[RegExp, string]> = [
 
 type IconCard = { icon?: string; label?: string; value?: string | number | null; unit?: string | null };
 
-/** The [outline, fill] paths for a card: its own named icon, else the first label rule that matches, else the shape of its figure. */
-export function cardIcon(card: IconCard): [string, string] {
-  if (card.icon) return KI[card.icon] ?? (/^M/.test(card.icon) ? [card.icon, ""] : KI.bars);
+/** Every rule that could name an icon for this card, best first, so a taken one can give way to the next. */
+function candidates(card: IconCard): string[] {
+  if (card.icon) return [card.icon];
   const label = String(card.label ?? "").toLowerCase().trim();
   const value = String(card.value ?? "").trim();
   const unit = String(card.unit ?? "").toLowerCase();
+  const out: string[] = [];
+  const add = (name: string) => { if (name && KI[name] && !out.includes(name)) out.push(name); };
   if (/^[\u20a6\u20b5$\u00a3\u20ac]|^(ngn|ghs|usd)\b|^gh\u20b5/i.test(value) || /^[\u20a6\u20b5]/.test(unit)) {
-    for (const [pattern, name] of KI_MONEY) if (pattern.test(label)) return KI[name];
-    return KI.coins;
+    for (const [pattern, name] of KI_MONEY) if (pattern.test(label)) add(name);
+    add("coins");
   }
-  for (const [pattern, name] of KI_RULES) if (pattern.test(label)) return KI[name];
-  if (/%$/.test(value)) return KI.gauge;
-  if (/\b(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\b|\b(mon|tue|wed|thu|fri)[a-z]*\b/i.test(value)) return KI.calendar;
-  if (/\b(min|mins|minutes|hr|hrs|hours)\b|^\d+:\d+/.test(`${value} ${unit}`)) return KI.clock;
-  if (/\bdays?\b|\bweeks?\b/.test(`${value} ${unit}`)) return KI.calendar;
-  if (/students?|children|pupils|people|staff/.test(unit)) return KI.people;
-  return KI.bars;
+  for (const [pattern, name] of KI_RULES) if (pattern.test(label)) add(name);
+  if (/%$/.test(value)) add("gauge");
+  if (/\b(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\b|\b(mon|tue|wed|thu|fri)[a-z]*\b/i.test(value)) add("calendar");
+  if (/\b(min|mins|minutes|hr|hrs|hours)\b|^\d+:\d+/.test(`${value} ${unit}`)) add("clock");
+  if (/\bdays?\b|\bweeks?\b/.test(`${value} ${unit}`)) add("calendar");
+  if (/students?|children|pupils|people|staff/.test(unit)) add("people");
+  add("bars");
+  return out;
+}
+
+/** The [outline, fill] paths for a named icon, or for a raw path a card carried itself. */
+export function iconPaths(name: string): [string, string] {
+  return KI[name] ?? (/^M/.test(name) ? [name, ""] : KI.bars);
+}
+
+/** The [outline, fill] paths for a card: its own named icon, else the first label rule that matches, else the shape of its figure. */
+export function cardIcon(card: IconCard): [string, string] {
+  return iconPaths(candidates(card)[0] ?? "bars");
+}
+
+/**
+ * Icons that nothing in the rules reaches for, kept back so a card whose natural icon is already
+ * spoken for on this screen still gets one of its own rather than the same glyph twice.
+ */
+const SPARE = [
+  "target", "hash", "listCheck", "layers", "grid", "tiles", "star", "flag", "board", "archive",
+  "history", "swap", "link", "eye", "inbox", "bag", "bulb", "sprout", "hourglass", "pulse",
+  "sliders", "globe", "cloud", "sun", "heart", "medal", "trophy", "book", "camera", "key",
+];
+
+/**
+ * One icon per card, and never the same one twice on a screen.
+ *
+ * Two cards that both count days, or both count people, matched the same rule and drew the same
+ * glyph — which makes a row of figures look like one figure repeated. Each card still gets the best
+ * icon its own label asks for; where that one is taken, it falls to its next-best rule, and failing
+ * that to a glyph nothing else on the screen is using. `taken` lets a page keep this true across
+ * several rows of cards, not just within one.
+ */
+export function assignIcons(cards: IconCard[], taken: Set<string> = new Set()): string[] {
+  return cards.map((card) => {
+    // A card that names its own icon keeps it: the author said so, and two cards deliberately
+    // sharing a glyph is their decision, not an accident of the rules.
+    if (card.icon) { taken.add(card.icon); return card.icon; }
+    const free = candidates(card).find((name) => !taken.has(name))
+      ?? SPARE.find((name) => !taken.has(name))
+      ?? Object.keys(KI).find((name) => !taken.has(name))
+      ?? candidates(card)[0]
+      ?? "bars";
+    taken.add(free);
+    return free;
+  });
 }
