@@ -1,3 +1,5 @@
+import { cut, lead } from "@/lib/ui/tight-copy";
+
 /**
  * The supporting line under a figure on a card.
  *
@@ -23,5 +25,9 @@ export function slimSub(value: string, label?: string): string {
       return out;
     }
   }
-  return text;
+  // A long line with no seam of its own used to be carried whole, which is how a sentence ended up
+  // under a figure. It is cut at its first natural break instead, and dropped when there is nothing
+  // short enough left to say — the list the card links to is where the full version belongs.
+  const only = lead(text) || cut(text);
+  return only.length <= 56 ? only.replace(/\.$/, "") : "";
 }

@@ -240,7 +240,7 @@ describe("M8 Admissions", () => {
   it("reads each stage as a count that opens the list behind it", () => {
     const html = markup(admissionsTab(board(), options));
     expect(html).toContain("/student-records/admissions/pipeline/Applied");
-    expect(html).toContain("1 awaiting a screening date");
+    expect(html).toContain("1 awaiting screening");
   });
 
   it("says who is holding the cycle up", () => {

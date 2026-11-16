@@ -124,7 +124,7 @@ export function admissionsTab(data: AdmissionsBoard, o: AdmissionOptions): TabCo
             tag: `${data.rows.length} live`,
             tagTone: "neutral",
             sub: "Open an applicant for their progress, their family and their screening.",
-            meta: `Conversion ${data.conversion}% enquiry to enrolled · ${waitingDate.length} awaiting a screening date`,
+            meta: `Conversion ${data.conversion}% · ${waitingDate.length} awaiting screening`,
             search: "Find by name, reference or guardian",
             filters: [
               { label: "State", value: "All", options: ["All", ...STAGES, "Declined", "Waitlisted"], column: 6 },

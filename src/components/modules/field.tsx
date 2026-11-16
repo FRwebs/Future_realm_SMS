@@ -79,11 +79,45 @@ export function fieldVisible(field: FormField, values: Record<string, unknown>):
  * A field's hint, under the phone's copy rule.
  *
  * Its own component because the rule is a hook, and a hint has to be drawn from more than one place.
+ * Kept for the two places a hint is the field's whole content — a read-only value and a group of
+ * options, where there is no single box for a tooltip to hang off.
  */
 function Hint({ text }: { text?: string }) {
   const { node, hidePhone } = useTightLine("hint", text);
   if (!node) return null;
   return <p className={cn("mt-[5px] text-[10px] leading-[1.45] text-[#6B7A71]", hidePhone && "max-md:hidden")}>{node}</p>;
+}
+
+/**
+ * A field's guidance, moved off the form and onto a mark beside its label.
+ *
+ * A hint under every box turned a form of eight fields into a page of prose, and the longest
+ * sentences in the product live in forms. The guidance has not gone: it is one tap or one hover
+ * away, it is read out by a screen reader through `aria-describedby`, and the browser's own
+ * tooltip carries it for anyone who finds the mark without either.
+ */
+function FieldHelp({ text, id }: { text: string; id: string }) {
+  return (
+    <span className="group/hint relative inline-flex">
+      <button
+        type="button"
+        aria-label={`What to put here: ${text}`}
+        title={text}
+        aria-describedby={id}
+        className="flex h-[13px] w-[13px] items-center justify-center rounded-full border border-[#CFE0D6] text-[8.5px] font-bold text-[#6B7A71] transition hover:border-[#12796A] hover:text-[#12796A] focus-visible:border-[#12796A] focus-visible:text-[#12796A] focus-visible:outline-hidden"
+      >
+        ?
+      </button>
+      <span
+        id={id}
+        role="tooltip"
+        className="pointer-events-none absolute bottom-[calc(100%+6px)] left-[-6px] z-30 w-[220px] max-w-[70vw] rounded-[8px] px-[9px] py-[7px] text-[10px] font-normal leading-[1.45] text-white opacity-0 shadow-[0_10px_24px_-12px_rgba(13,35,21,0.9)] transition-opacity duration-100 group-hover/hint:opacity-100 group-focus-within/hint:opacity-100"
+        style={{ background: "#0D2315" }}
+      >
+        {text}
+      </span>
+    </span>
+  );
 }
 
 /** What a switch says it is set to, in the shorter words a phone has room for. */
@@ -97,25 +131,37 @@ export function Field({
   value,
   setValue,
   values,
+  missing,
 }: {
   field: FormField;
   value: unknown;
   setValue: (next: unknown) => void;
   /** Every field's value, for the fields that depend on another. */
   values?: Record<string, unknown>;
+  /** Set once someone has tried to go on without answering this one. */
+  missing?: boolean;
 }) {
+  const slug = field.label.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
   const label = (
     <div className="mb-[7px] flex flex-wrap items-baseline gap-x-[6px]">
       <span className="text-[10.5px] font-semibold leading-[1.4] text-[#435048]">{field.label}</span>
-      {field.required ? <span className="text-[10px] text-[#B23B3B]">Required</span> : null}
+      {/* Required is a mark, not a word: a column of red "Required" labels says nothing a reader
+          cannot see from the one field that is blank. The word appears on the field that stopped
+          them, and only once they have tried to go on. */}
+      {field.required ? (
+        missing
+          ? <span className="text-[10px] font-semibold text-[#B23B3B]">Required</span>
+          : <span aria-label="Required" title="Required" className="text-[12px] leading-none text-[#B23B3B]">*</span>
+      ) : null}
       {field.optional ? <span className="text-[10px] text-[#8B9A91]">Optional</span> : null}
       {field.unit ? <span className="text-[10px] text-[#8B9A91]">{field.unit}</span> : null}
+      {field.hint ? <FieldHelp text={field.hint} id={`hint-${slug}`} /> : null}
     </div>
   );
 
-  // The phone's copy rule. A form is where the longest sentences in the product live, and a hint that
-  // runs to three lines on a 375px screen is read past rather than read.
-  const hint = <Hint text={field.hint} />;
+  // The guidance now hangs off the label as a tooltip; the two kinds of field that have no single
+  // box of their own keep it underneath, where there is nothing for a mark to point at.
+  const hint = null;
   // A placeholder cannot be written twice and hidden one way or the other, so this one slot asks the
   // browser how wide it is instead of leaving the choice to CSS. Both are read every render: a hook
   // behind a short-circuit is not a hook.
@@ -133,7 +179,9 @@ export function Field({
         <p className="text-pretty pt-[2px] text-[11.5px] font-semibold leading-normal text-[#0D2315]">
           {picked?.value ?? field.value}
         </p>
-        <Hint text={picked?.hint ?? field.hint} />
+        {/* A value that changes with another field carries its own note; the field's general
+            guidance is already on the label as a tooltip. */}
+        <Hint text={picked?.hint && picked.hint !== field.hint ? picked.hint : undefined} />
       </div>
     );
   }

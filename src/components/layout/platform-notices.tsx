@@ -41,7 +41,7 @@ function Notice({ tone, icon: Icon, title, children, onClose }: { tone: Tone; ic
         {children ? <p className="mt-0.5 whitespace-pre-line opacity-90">{children}</p> : null}
       </div>
       {onClose ? (
-        <button type="button" onClick={onClose} aria-label="Dismiss" className="rounded-sm p-0.5 opacity-70 hover:opacity-100">
+        <button type="button" onClick={onClose} aria-label="Dismiss" title="Dismiss" className="-mt-0.5 shrink-0 rounded-[6px] p-1 opacity-70 transition hover:bg-black/5 hover:opacity-100">
           <X className="size-4" />
         </button>
       ) : null}
@@ -67,29 +67,45 @@ export function PlatformNotices({ sync, operational = true, inline = false }: { 
     setGone((current) => [...current, id]);
     void configApi(`/api/v1/platform-sync/announcements/${id}/dismiss`, { method: "POST", body: "{}" }).catch(() => undefined);
   };
+  /**
+   * Every bar here can be put away, not only an announcement.
+   *
+   * An announcement is dismissed for good, because the Back Office is told. The rest describe a
+   * state the school is in — a maintenance window, a tier change, a message from the platform — so
+   * putting one away closes it for this visit only: it is back on the next load, because the state
+   * it describes has not gone anywhere.
+   */
+  const close = (id: string) => setGone((current) => [...current, id]);
+  const shut = (id: string) => gone.includes(id);
 
   const windows = sync.windows;
   const announcements = operational ? sync.announcements.filter((row) => !gone.includes(row.id)) : [];
   const readOnly = sync.readOnly && (operational || sync.readOnly.kind === "maintenance") ? sync.readOnly : null;
   const platformMessage = operational ? sync.platformMessage : null;
   const pendingSwitch = operational ? sync.pendingSwitch : null;
-  if (!readOnly && !platformMessage && !windows.length && !announcements.length && !pendingSwitch) return null;
+  const anything =
+    (readOnly && !shut("read-only"))
+    || (platformMessage && !shut("platform-message"))
+    || windows.some((window) => !shut(`window:${window.id}`))
+    || announcements.length > 0
+    || (pendingSwitch && !shut("pending-switch"));
+  if (!anything) return null;
 
   return (
     // When a teacher's phone is hiding every notice here, the strip's own padding goes with them.
     <div className={cn("grid gap-2 max-md:[&:not(:has([data-notice]:not([data-quiet])))]:hidden", inline ? "mb-3" : "px-4 pt-3 md:px-6")}>
-      {readOnly ? (
-        <Notice tone="warning" icon={AlertTriangle} title={readOnly.kind === "maintenance" ? "FutureRealm is in maintenance — read only" : "Read-only until you choose a plan"}>
+      {readOnly && !shut("read-only") ? (
+        <Notice tone="warning" icon={AlertTriangle} title={readOnly.kind === "maintenance" ? "FutureRealm is in maintenance — read only" : "Read-only until you choose a plan"} onClose={() => close("read-only")}>
           {readOnly.reason}
         </Notice>
       ) : null}
-      {windows.map((window) => (
-        <Notice key={window.id} tone={window.active ? "warning" : "info"} icon={Wrench} title={window.active ? `${window.title} — in progress until ${stamp(window.endsAt)}` : `${window.title} — ${stamp(window.startsAt)} to ${stamp(window.endsAt)}`}>
+      {windows.filter((window) => !shut(`window:${window.id}`)).map((window) => (
+        <Notice key={window.id} tone={window.active ? "warning" : "info"} icon={Wrench} title={window.active ? `${window.title} — in progress until ${stamp(window.endsAt)}` : `${window.title} — ${stamp(window.startsAt)} to ${stamp(window.endsAt)}`} onClose={() => close(`window:${window.id}`)}>
           {window.message}
         </Notice>
       ))}
-      {platformMessage ? (
-        <Notice tone="info" icon={Megaphone} title="From FutureRealm">
+      {platformMessage && !shut("platform-message") ? (
+        <Notice tone="info" icon={Megaphone} title="From FutureRealm" onClose={() => close("platform-message")}>
           {platformMessage}
         </Notice>
       ) : null}
@@ -98,8 +114,8 @@ export function PlatformNotices({ sync, operational = true, inline = false }: { 
           {row.body}
         </Notice>
       ))}
-      {pendingSwitch ? (
-        <Notice tone="info" icon={Info} title={`Moving to ${pendingSwitch.to}${pendingSwitch.from ? ` on ${stamp(pendingSwitch.from)}` : ""}`}>
+      {pendingSwitch && !shut("pending-switch") ? (
+        <Notice tone="info" icon={Info} title={`Moving to ${pendingSwitch.to}${pendingSwitch.from ? ` on ${stamp(pendingSwitch.from)}` : ""}`} onClose={() => close("pending-switch")}>
           This was scheduled in Subscription & Billing. What the school can use changes on that date.
         </Notice>
       ) : null}

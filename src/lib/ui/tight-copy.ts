@@ -284,3 +284,71 @@ export const tightFor = (phone: boolean, rule: TightRule, text: string | undefin
   if (!phone || !text || text.length < TIGHT_FLOOR) return text;
   return tighten(rule, text) || undefined;
 };
+
+/* ───────────────────────── the same rule, on a wide screen ─────────────────────────
+ *
+ * The phone rule above exists because a phone has no room. A laptop has more room, not unlimited
+ * room, and the tracker is explicit that the trimming "applies to web and mobile": a card's
+ * supporting line, a panel's sub-heading, a table's footnote and the line under a name are all
+ * places where a sentence had been allowed to grow into a paragraph. These budgets are wider than
+ * the phone's and narrower than a page, and they use the same primitives — a line is cut at a seam
+ * or dropped, never truncated mid-word with an ellipsis.
+ */
+
+/** Which slot on a wide screen is being shortened. */
+export type DeskRule =
+  /** The sentence under a page's title in its dark head. */
+  | "head"
+  /** The line under a panel's heading — a table's description. */
+  | "sub"
+  /** A table's footnote. */
+  | "foot"
+  /** The figure or count at a panel's top right. */
+  | "meta"
+  /** The second line under a name or a role inside a row. */
+  | "rowsub"
+  /** The line under a tile, an option or a toggle. */
+  | "opt";
+
+/*
+ * The budgets, set from the copy the product actually carries rather than picked by eye: a line at
+ * or under about three-quarters of what is written is left alone, and the quarter that had grown
+ * into a paragraph is cut back. A footnote is held tighter than a sub-heading, because it is read
+ * last and least, and the corner of a table tighter still, because it is a count.
+ */
+const DESK: Record<DeskRule, number> = { head: 96, sub: 76, foot: 84, meta: 48, rowsub: 42, opt: 72 };
+
+/**
+ * One line, shortened for a wide screen.
+ *
+ * Returns the line unchanged when it already fits. Over budget, a line that is really data keeps the
+ * segments that fit; prose keeps its leading sentence, cut at its first natural seam. Nothing is
+ * ever returned with an ellipsis, and nothing is invented.
+ */
+export function deskTighten(rule: DeskRule, text: string): string {
+  const max = DESK[rule];
+  let value = text.replace(/\s+/g, " ").trim();
+  if (Object.prototype.hasOwnProperty.call(EXACT, value)) value = EXACT[value]!;
+  for (const [pattern, replacement] of REWRITES) {
+    if (pattern.test(value)) value = value.replace(pattern, replacement);
+  }
+  if (value.length <= max) return value;
+  if (isData(value)) {
+    const some = segments(value, max);
+    if (some && some.length <= max) return some;
+  }
+  const only = lead(value) || cut(value);
+  if (only.length <= max) return only;
+  const fitted = fit(only, max);
+  // A single clause with nowhere to break is kept whole rather than shorn: a half-read rule is
+  // worse than a long one. Everything that *can* be shortened already has been by here.
+  return fitted.length <= max * 1.25 ? fitted : cut(fitted);
+}
+
+/** What a caller asks: shorten this for a wide screen, or leave a line that is already short alone. */
+export const deskTrim = (rule: DeskRule, text: string | undefined): string | undefined => {
+  if (!text) return text;
+  const trimmed = text.replace(/\s+/g, " ").trim();
+  if (trimmed.length <= DESK[rule]) return trimmed || undefined;
+  return deskTighten(rule, trimmed) || undefined;
+};

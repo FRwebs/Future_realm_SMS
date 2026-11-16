@@ -3,7 +3,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 
 import { usePhoneKind } from "@/components/layout/phone-shell";
-import { TIGHT_FLOOR, tighten, type TightRule } from "@/lib/ui/tight-copy";
+import { TIGHT_FLOOR, deskTrim, tighten, type DeskRule, type TightRule } from "@/lib/ui/tight-copy";
 
 /**
  * A line under the phone's copy rule, drawn by an element that exists at every width.
@@ -17,16 +17,19 @@ import { TIGHT_FLOOR, tighten, type TightRule } from "@/lib/ui/tight-copy";
  * Where the rule drops the line altogether there is no phone form at all, and `hidePhone` says so,
  * because an empty paragraph still leaves its margin on the screen.
  */
-export function useTightLine(rule: TightRule, text: string | undefined): { node: ReactNode; hidePhone: boolean } {
+export function useTightLine(rule: TightRule, text: string | undefined, desk?: DeskRule): { node: ReactNode; hidePhone: boolean } {
   const kind = usePhoneKind();
-  if (!kind || !text || text.length < TIGHT_FLOOR) return { node: text ?? null, hidePhone: false };
+  // A wide screen has its own, looser budget. It applies in every portal, including the ones with no
+  // phone skin at all, because a paragraph where a line belongs reads as badly on a laptop.
+  const wide = desk ? deskTrim(desk, text) ?? "" : (text ?? "");
+  if (!kind || !text || text.length < TIGHT_FLOOR) return { node: wide || null, hidePhone: !wide };
   const short = tighten(rule, text);
-  if (short === text) return { node: text, hidePhone: false };
+  if (short === wide) return { node: wide || null, hidePhone: !wide };
   return {
     node: (
       <>
         {short ? <span className="md:hidden">{short}</span> : null}
-        <span className="max-md:hidden">{text}</span>
+        {wide ? <span className="max-md:hidden">{wide}</span> : null}
       </>
     ),
     hidePhone: !short,

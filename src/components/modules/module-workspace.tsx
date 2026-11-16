@@ -9,7 +9,7 @@ import { createPortal } from "react-dom";
 import { ModuleDrawer } from "@/components/modules/lazy-drawer";
 import { PanelRowsWithDrawer } from "@/components/modules/panel-renderer";
 import { useHasPhoneBar, usePhoneKind } from "@/components/layout/phone-shell";
-import { tightFor } from "@/lib/ui/tight-copy";
+import { deskTrim, tightFor } from "@/lib/ui/tight-copy";
 import { useUiText } from "@/hooks/use-ui-text";
 import type { DrawerSpec, PanelAction, PanelRow, PanelTone } from "@/lib/modules/panels";
 import { toneOf } from "@/lib/modules/tones";
@@ -191,8 +191,9 @@ function PhoneHead({ eyebrow, title, description }: { eyebrow: string; title: st
 
 /**
  * The ink header at the top of every tab: the module as its eyebrow, the tab
- * as its title, and at most three decisions — the primary and two shortcuts.
- * Anything further down the authored list lives on the page itself.
+ * as its title, and at most two decisions — the one thing the page is for, and
+ * the one place it most often leads. Anything further down the authored list
+ * lives on the page itself, beside the rows it acts on.
  */
 function ModuleHead({
   eyebrow,
@@ -217,7 +218,10 @@ function ModuleHead({
   /** When the primary floats on a phone, the header does not also carry it. */
   floatPrimary?: boolean;
 }) {
-  const shortcuts = (launchers ?? []).slice(0, 2);
+  // Two decisions on the head card, never three. Where a page offers a primary, it keeps one
+  // shortcut beside it; a page with no primary keeps two. Everything further down the authored list
+  // lives on the page itself, next to the rows it acts on.
+  const shortcuts = (launchers ?? []).slice(0, primary ? 1 : 2);
   const hasPhoneBar = useHasPhoneBar();
   const kind = usePhoneKind();
   const ui = useUiText();
@@ -283,7 +287,7 @@ function ModuleHead({
               hasPhoneBar && "max-md:mt-[6px] max-md:text-[13px] max-md:leading-[1.5] max-md:text-white/76",
             )}
           >
-            {description}
+            {deskTrim("head", description)}
           </p>
         </div>
         {primary || shortcuts.length ? (
