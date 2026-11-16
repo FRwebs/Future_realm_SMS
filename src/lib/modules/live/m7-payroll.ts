@@ -703,7 +703,7 @@ export function paymentsSection(person: PayPerson, record: StaffRecord, head: Om
         panels: [
           {
             type: "facts",
-            title: "How they are paid",
+            title: "How they are paid", tuck: "How they are paid", tuckIcon: "M12 6.5C10.5 5 8 4.5 4 4.5v13c4 0 6.5.5 8 2 1.5-1.5 4-2 8-2v-13c-4 0-6.5.5-8 2zM12 6.5v13", tuckKicker: "How this works",
             per: 1,
             facts: [
               ["Method", row.method, "Set when they were mapped"],

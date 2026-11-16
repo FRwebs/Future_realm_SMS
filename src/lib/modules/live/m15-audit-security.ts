@@ -383,7 +383,7 @@ function monitoringTab(attempts: LoginAttempt[]): TabContent {
           {
             type: "note",
             tone: "neutral",
-            title: "What this page cannot tell you",
+            title: "What this page cannot tell you", tuck: "What this page cannot tell you", tuckIcon: "M12 6.5C10.5 5 8 4.5 4 4.5v13c4 0 6.5.5 8 2 1.5-1.5 4-2 8-2v-13c-4 0-6.5.5-8 2zM12 6.5v13", tuckKicker: "How this works",
             body: "Uptime, request failures and rate-limit hits are not collected anywhere on this stack, so nothing on this tab speaks to availability. It covers sign-ins only, which is the one signal that is actually recorded.",
           },
         ],

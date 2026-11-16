@@ -219,7 +219,7 @@ function enterTab(v: SheetsView, me: TeacherWorkspaceView): TabContent {
     row("1.1fr 1fr", [
       { type: "steps", title: "Where a sheet of yours can be", steps: [{ label: "Draft · yours alone", sub: "Editable, saved on this phone, visible to nobody else", state: "current" }, { label: "Submitted · locked to you", sub: "Visible to your reviewer · online only", state: "todo" }, { label: "Returned or approved", sub: "Returned comes back with a comment; approved feeds the report cards", state: "todo" }] },
       {
-        type: "facts", show: "desktop", title: "What the states mean", per: 1,
+        type: "facts", show: "desktop", title: "What the states mean", tuck: "What the states mean", tuckIcon: "M12 6.5C10.5 5 8 4.5 4 4.5v13c4 0 6.5.5 8 2 1.5-1.5 4-2 8-2v-13c-4 0-6.5.5-8 2zM12 6.5v13", tuckKicker: "How this works", per: 1,
         facts: [
           ["Draft", "Editable, saved as you go, visible to nobody else", "Not counted in any review"],
           ["Submitted", "Locked to you, visible to your reviewer", "Online only"],

@@ -93,7 +93,7 @@ export async function teacherCalendarTab(tabSlug: string): Promise<TabContent | 
         ],
       }]), show: "desktop" as const },
       phoneDates,
-      { ...row("1fr", [{ type: "facts", phoneFold: true, title: "The rules your deadlines run on", sub: "Set once by the school, visible so you can plan.", per: 1, facts }]), show: "phone" as const },
+      { ...row("1fr", [{ type: "facts", phoneFold: true, title: "The rules your deadlines run on", tuck: "The rules your deadlines run on", tuckIcon: "M12 6.5C10.5 5 8 4.5 4 4.5v13c4 0 6.5.5 8 2 1.5-1.5 4-2 8-2v-13c-4 0-6.5.5-8 2zM12 6.5v13", tuckKicker: "How this works", sub: "Set once by the school, visible so you can plan.", per: 1, facts }]), show: "phone" as const },
       { ...row("1.3fr 1fr", [
         {
           type: "table", title: "Key dates", sub: "What each one means for your own work.", meta: `${c.dates.length} dates · yours are included`, noun: "date", nounPlural: "dates",
@@ -105,7 +105,7 @@ export async function teacherCalendarTab(tabSlug: string): Promise<TabContent | 
           ],
           head: ["Date", "What", "Kind", "What it means for you"], rows, per: 10, noRowOpen: true, empty: "The school has not put any dates on this term’s calendar yet.", foot: "Nothing on this page is editable by any staff role.",
         },
-        { type: "facts", phoneFold: true, title: "The rules your deadlines run on", sub: "Set once by the school, visible so you can plan.", per: 1, facts },
+        { type: "facts", phoneFold: true, title: "The rules your deadlines run on", tuck: "The rules your deadlines run on", tuckIcon: "M12 6.5C10.5 5 8 4.5 4 4.5v13c4 0 6.5.5 8 2 1.5-1.5 4-2 8-2v-13c-4 0-6.5.5-8 2zM12 6.5v13", tuckKicker: "How this works", sub: "Set once by the school, visible so you can plan.", per: 1, facts },
       ]), show: "desktop" as const },
     ],
   };

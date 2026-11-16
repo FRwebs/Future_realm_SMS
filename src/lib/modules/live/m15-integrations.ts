@@ -63,7 +63,7 @@ export async function integrationsTab(): Promise<TabContent> {
         { label: "Plan", value: v.entitled ? "Included" : "Not included", sub: v.why, tone: v.entitled ? "positive" : "attention" },
       ] }]),
       row("1fr", [{ type: "table", title: "Your keys", sub: "A key is shown once, when it is made. Only its first characters are kept to tell it apart.", meta: `${v.keys.length}`, noun: "key", nounPlural: "keys", head: ["Key", "May read", "Made", "Last used", "Calls", "State", ""], rows, per: 10, noRowOpen: true, empty: "No key has been made." }]),
-      row("1fr", [{ type: "facts", title: "What a key opens", per: 1, facts: docs }]),
+      row("1fr", [{ type: "facts", title: "What a key opens", tuck: "What a key opens", tuckIcon: "M12 6.5C10.5 5 8 4.5 4 4.5v13c4 0 6.5.5 8 2 1.5-1.5 4-2 8-2v-13c-4 0-6.5.5-8 2zM12 6.5v13", tuckKicker: "How this works", per: 1, facts: docs }]),
     ].filter(Boolean) as PanelRow[]),
   };
 }
