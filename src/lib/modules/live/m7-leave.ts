@@ -92,7 +92,7 @@ export function leaveTab(data: LeaveOverview): TabContent {
     launchers: [
       { label: "Leave policy", href: POLICY },
       { label: "Balances", href: BALANCES },
-      { label: "Export the register", href: REGISTER },
+      { label: "Export the register", href: REGISTER, download: true },
     ],
     rows: [
       { cols: "1fr", panels: [{ type: "kpi", title: "Who is away, and who has asked", sub: data.session ?? "Every session on record", per: 5, cards }] },

@@ -237,6 +237,14 @@ export type DrawerSpec = {
 export type Trigger = {
   href?: string;
   drawer?: DrawerSpec;
+  /**
+   * The href hands back a file rather than a page.
+   *
+   * A route that answers with a CSV is not somewhere the router can go: asked through the client
+   * router it fetches, finds no page, and nothing happens — which is how "Export the day" came to
+   * do nothing at all. Marked this way it is drawn as a plain link the browser downloads.
+   */
+  download?: boolean;
   /** Runs in the browser — for a surface that is built on the client and holds its own state. Never authored on the server. */
   run?: () => void;
 };

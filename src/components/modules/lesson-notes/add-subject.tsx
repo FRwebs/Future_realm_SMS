@@ -48,6 +48,15 @@ export function AddSubject({ options }: { options: AddOptions }) {
   const router = useRouter();
   const toast = useToast();
   const { busy, run } = useWrite(toast.show);
+  /*
+   * Why the add was refused, said where the asking happened.
+   *
+   * The server's refusal — "Biology is already taught in SS 1 Emerald by another teacher" — only
+   * reached a toast at the top of a page one and a half screens tall, while the button that asked
+   * is at the foot of the preview. The dialog closed, nothing moved, and adding a subject looked
+   * like a button that does nothing.
+   */
+  const [refused, setRefused] = useState<string | null>(null);
   const file = useRef<HTMLInputElement>(null);
   const [confirm, setConfirm] = useState(false);
   const form = useForm<AddValues>({
@@ -103,10 +112,11 @@ export function AddSubject({ options }: { options: AddOptions }) {
     const all = mode === "standard" ? [{ topic: "", subtopics: "", assessment: null, periods: null, kind: "teach" as const }] : rows;
     const here = all.slice(0, options.weeks).map(toWeek);
     const later = options.nextTerm ? all.slice(options.weeks).map((entry) => { const w = toWeek(entry); return { topic: w.topic, subtopics: w.subtopics, assessment: w.assessment, kind: w.kind }; }) : [];
+    setRefused(null);
     const made = await run<{ subjectId: string; subject: string; arms: string[]; told: number }>("create", `${LN_API}/curriculum/add`, "POST", {
       subjectId: subject.id, classIds, periodsPerWeek: per, lessonMinutes: minutes, curriculum: curriculum || undefined, weeks: here.length ? here : [toWeek(blank())], nextTerm: later,
-    });
-    if (!made) return;
+    }, undefined, (message) => setRefused(message));
+    if (!made) { setConfirm(false); return; }
     if (mode === "standard" && outline) await run("outline", `${LN_API}/curriculum/${made.subjectId}/catalogue/apply`, "POST", { entryId: outline, replace: true });
     toast.show(`${made.subject} added.${made.told ? " The school has been told, so it can go on the timetable." : ""}`);
     router.push(`/lesson-notes/curriculum?subject=${made.subjectId}` as Route);
@@ -211,6 +221,7 @@ export function AddSubject({ options }: { options: AddOptions }) {
           </dl>
           <p className="mt-4 rounded-[10px] px-3 py-2 text-[11.5px] leading-[1.6]" style={{ background: "#FDF6E7", color: "#8A6410" }}>The school office is told you added this, so it can be put on the timetable. Until then it has no register and no score sheet.</p>
           {problem ? <p className="mt-3 text-[11.5px] font-semibold" style={{ color: "#B23B3B" }}>{problem}</p> : null}
+          {refused ? <p role="alert" className="mt-3 rounded-[10px] px-3 py-2 text-[11.5px] font-semibold leading-[1.6]" style={{ background: "#FCECEC", color: "#B23B3B" }}>{refused}</p> : null}
           <div className="mt-4 flex gap-2">
             <Link href={"/lesson-notes/curriculum" as Route} className="inline-flex rounded-[10px] border px-[13px] py-[8px] text-[11.5px] font-semibold" style={{ borderColor: "#CFDDD5", color: "#435048" }}>Cancel</Link>
             <Btn kind="primary" disabled={Boolean(problem)} onClick={() => setConfirm(true)}>Add the subject</Btn>

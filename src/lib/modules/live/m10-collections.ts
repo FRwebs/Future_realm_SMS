@@ -107,7 +107,7 @@ export function collectionsTab(data: Collections): TabContent {
     primary: { label: "Record a payment", drawer: record },
     launchers: [
       { label: "Send reminders", drawer: remind },
-      { label: "Export the debtor list", href: "/fee-management/collections/export" },
+      { label: "Export the debtor list", href: "/fee-management/collections/export", download: true },
       { label: "Open the history", href: "/fee-management/history" },
     ],
     rows: [
@@ -153,7 +153,7 @@ export function collectionsTab(data: Collections): TabContent {
                   body: "Past 90 days your policy asks for a meeting rather than another reminder — a third SMS to a family that has ignored two is not a collection strategy. Nothing here withholds a report card; that is a separate decision this school has not taken.",
                   acts: [
                     { label: `Request meetings with all ${over90.length}`, drawer: { ...meetingDrawer({ selection: true }), submit: { ...meetingDrawer({ selection: true }).submit!, body: { families: over90.map((family) => family.id) } } } },
-                    { label: "Export for the proprietor", href: "/fee-management/collections/export" },
+                    { label: "Export for the proprietor", href: "/fee-management/collections/export", download: true },
                   ],
                 },
               ],
@@ -180,7 +180,7 @@ export function collectionsTab(data: Collections): TabContent {
               { label: "Escalation", value: "All", options: ["All", "Not started", "First reminder", "Second reminder", "Meeting requested", "On a payment plan"], match: Object.fromEntries(["Not started", "First reminder", "Second reminder", "Meeting requested", "On a payment plan"].map((name) => [name, token("stage", name)])) },
               { label: "Portal", value: "All", options: ["All", "Active", "Not activated"], match: { Active: token("portal", "Active"), "Not activated": token("portal", "Not activated") } },
             ],
-            acts: [{ label: "Export for the meeting", href: "/fee-management/collections/export" }, { label: "Record a payment", drawer: record }, { label: "Send reminders", primary: true, drawer: remind }],
+            acts: [{ label: "Export for the meeting", href: "/fee-management/collections/export", download: true }, { label: "Record a payment", drawer: record }, { label: "Send reminders", primary: true, drawer: remind }],
             selectable: true,
             bulkActs: [
               { label: "Send a reminder", drawer: remindersDrawer({ count: 0, amount: 0, selection: true }), selection: { key: "families", noun: "family" } },

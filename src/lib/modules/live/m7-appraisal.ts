@@ -96,7 +96,7 @@ export function appraisalTab(data: AppraisalOverview, moderation: Moderation): T
     launchers: [
       { label: "KPI sets and the cycle", href: SETS },
       { label: "Moderate the ratings", drawer: moderationDrawer(moderation) },
-      { label: "Export the cycle", href: REGISTER },
+      { label: "Export the cycle", href: REGISTER, download: true },
     ],
     rows: [
       { cols: "1fr", panels: [{ type: "kpi", title: "Where the cycle stands", sub: cycle.name, per: 5, cards }] },
