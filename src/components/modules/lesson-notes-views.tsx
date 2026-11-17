@@ -5,7 +5,7 @@ import { CatalogueImport } from "@/components/modules/catalogue-import";
 import { ModuleWorkspace } from "@/components/modules/module-workspace";
 import { canOpenModule } from "@/lib/auth/server-access";
 import { getServerSession } from "@/lib/auth/session";
-import { addSubjectPage, historyNotePage, historyPage, notePage, notesHistoryPage, reviewNotePage, subjectNotesPage } from "@/lib/modules/live/t17-lesson-notes";
+import { addSubjectPage, historyNotePage, historyPage, notePage, reviewNotePage, subjectNotesPage } from "@/lib/modules/live/t17-lesson-notes";
 import type { TabContent } from "@/lib/modules/panels";
 
 /** The pages Lesson Notes opens from its tabs: adding a subject, a subject's notes, a week's note, the history, and a note under review. */
@@ -34,8 +34,6 @@ async function open(build: () => Promise<Page>) {
 export const AddSubjectView = () => open(() => addSubjectPage());
 export const SubjectNotesView = ({ subjectId, term }: { subjectId: string; term?: string }) => open(() => subjectNotesPage(subjectId, term));
 export const NoteView = ({ subjectId, week, term }: { subjectId: string; week: string; term?: string }) => open(() => notePage(subjectId, week, term));
-/** Every subject with signed notes from an earlier term, lifted off the Notes tab. */
-export const NotesHistoryView = () => open(() => notesHistoryPage());
 export const HistoryView = ({ subjectId }: { subjectId: string }) => open(() => historyPage(subjectId));
 export const HistoryNoteView = ({ subjectId, planId }: { subjectId: string; planId: string }) => open(() => historyNotePage(subjectId, planId));
 export const ReviewNoteView = ({ planId, from }: { planId: string; from?: string }) => open(() => reviewNotePage(planId, from));
