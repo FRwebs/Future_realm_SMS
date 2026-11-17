@@ -149,14 +149,12 @@ export const attendanceContent: ModuleContent = {
               label: "Present today",
               value: `${day.percent}%`,
               unit: `of ${day.accounted} marked`,
-              sub: `${day.present} present · school target is 92%`,
               tone: parseFloat(day.percent) >= 92 ? "positive" : "attention",
             },
             {
               label: "Registers in",
               value: String(day.marked),
               unit: `of ${day.arms} arms`,
-              sub: `${day.unmarked} arms past the 09:30 cutoff`,
               tone: day.unmarked ? "attention" : "positive",
               link: `See the ${day.unmarked}`,
               href: "/attendance/compliance",
@@ -164,19 +162,16 @@ export const attendanceContent: ModuleContent = {
             {
               label: "Absent",
               value: String(day.absent),
-              sub: "Across the arms marked so far",
               tone: day.absent ? "attention" : "positive",
             },
             {
               label: "Late",
               value: String(day.late),
-              sub: "All after 08:00, before 08:40",
               tone: day.late ? "attention" : "positive",
             },
             {
               label: "Chronic absence cases",
               value: "4",
-              sub: "Below the 75% threshold this term",
               tone: "negative",
               link: "Open the cases",
               href: "/attendance/log",
@@ -207,7 +202,6 @@ export const attendanceContent: ModuleContent = {
           ],
           head: ["Arm", "Form master", "Roll", "Pres", "Abs", "Today %", "State", ""],
           rows: everyArmToday,
-          foot: "Today % is present against roll. An unmarked arm is not 0% — it is unknown, and counted as unknown. Late counts and marking times are inside each arm.",
         },
       ]),
       row("1.15fr 1fr", [
@@ -221,7 +215,6 @@ export const attendanceContent: ModuleContent = {
           nounPlural: "teachers",
           head: ["Teacher", "Arms", "Roll", "Marked", "Punctuality", ""],
           rows: byTeacher,
-          foot: "Open a teacher to see their arms, their marking history, and to move an arm to someone else.",
         },
         {
           type: "list",
@@ -307,27 +300,23 @@ export const attendanceContent: ModuleContent = {
               label: "Registers marked",
               value: String(day.marked),
               unit: `of ${day.arms} arms`,
-              sub: `${day.unmarked + day.partial} still open`,
               tone: day.unmarked ? "attention" : "positive",
             },
             {
               label: "Students accounted for",
               value: day.accounted.toLocaleString(),
               unit: `of ${day.roll.toLocaleString()}`,
-              sub: "Across the arms marked so far",
               tone: "positive",
             },
             {
               label: "Absent so far",
               value: String(day.absent),
-              sub: "Each one needs a reason on the register",
               tone: day.absent ? "attention" : "positive",
             },
             {
               label: "Past the cutoff",
               value: String(day.unmarked),
               unit: "arms",
-              sub: "Their form masters have been notified",
               tone: day.unmarked ? "negative" : "positive",
             },
           ],
@@ -344,7 +333,6 @@ export const attendanceContent: ModuleContent = {
           nounPlural: "arms",
           head: ["Arm", "Form master", "Students", "State", "Marked at", ""],
           rows: chooseAnArm,
-          foot: "Nobody is present until you say so, and a register will not submit until every row is set.",
         },
       ]),
     ],
@@ -363,39 +351,29 @@ export const attendanceContent: ModuleContent = {
               label: "Today",
               value: String(day.unmarked),
               unit: "arms",
-              sub: "Unmarked past the 09:30 cutoff",
               tone: "negative",
             },
             {
               label: "This week",
               value: String(masters.reduce((total, master) => total + master.week, 0)),
               unit: "arm-days",
-              sub: `Across ${masters.filter((master) => master.week > 0).length} form masters`,
               tone: "attention",
             },
             {
               label: "This term",
               value: String(masters.reduce((total, master) => total + master.term, 0)),
               unit: "arm-days",
-              sub: `Of ${(day.arms * 34).toLocaleString()} expected · ${
-                100 -
-                Math.round(
-                  (masters.reduce((total, master) => total + master.term, 0) / (day.arms * 34)) * 100,
-                )
-              }% compliance`,
               tone: "attention",
             },
             {
               label: "Repeat breachers",
               value: String(masters.filter((master) => master.pattern === "Repeat").length),
               unit: "teachers",
-              sub: "Breached in 3 or more of the last 5 weeks",
               tone: "negative",
             },
             {
               label: "Median marking time",
               value: "52s",
-              sub: "Up from 44s last term — worth a conversation",
               tone: "attention",
             },
           ],
@@ -421,7 +399,6 @@ export const attendanceContent: ModuleContent = {
           ],
           head: ["Teacher", "Arms", "Today", "Week", "Term", "Punctuality", "Pattern", ""],
           rows: breachesByTeacher,
-          foot: "Week counts arm-days missed in the last 5 school days. Term counts them across all 34 so far.",
         },
       ]),
       row("1fr", [
@@ -567,26 +544,22 @@ export const attendanceContent: ModuleContent = {
             {
               label: "School attendance",
               value: "94.2%",
-              sub: "Target 92% · above it every week so far",
               tone: "positive",
             },
-            { label: "Best arm", value: "97.2%", sub: "SSS 3A · 22 students", tone: "positive" },
+            { label: "Best arm", value: "97.2%", tone: "positive" },
             {
               label: "Weakest arm",
               value: "89.4%",
-              sub: `JSS 3B · ${formMasterOf("JSS 3B")}`,
               tone: "negative",
             },
             {
               label: "Chronic absence cases",
               value: "4",
-              sub: "Below 75% · each one is a case, not a number",
               tone: "negative",
             },
             {
               label: "Corrections this term",
               value: "23",
-              sub: "11 backdated, 12 same-day",
               tone: "withheld",
             },
           ],
@@ -615,7 +588,6 @@ export const attendanceContent: ModuleContent = {
               action("Open"),
             ],
           })),
-          foot: "Direction compares the last two weeks against the two before them.",
         },
       ]),
       row("1fr", [
@@ -746,7 +718,6 @@ export const attendanceContent: ModuleContent = {
               ],
             },
           ],
-          foot: "A chronic case is opened automatically below 75%, and cannot be closed without a recorded outcome.",
         },
       ]),
       row("1.15fr 1fr", [
@@ -821,7 +792,6 @@ export const attendanceContent: ModuleContent = {
               ],
             },
           ],
-          foot: "A same-day edit is free. Anything earlier routes for approval and keeps both values.",
         },
         {
           type: "facts",

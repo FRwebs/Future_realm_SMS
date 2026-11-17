@@ -120,7 +120,6 @@ function childLearning(kid: Kid, data: Learning, me: ParentMe, query: Record<str
             type: "table", title: `Week ${data.week} · ${dShort(monday)} – ${dShort(friday)}`,
             sub: "The topic each teacher is teaching this week, and what comes next.",
             noun: "subject", nounPlural: "subjects", head: ["Subject", "This week", "Next week"], rows, dense: true, noRowOpen: true,
-            foot: "From approved schemes of work. Next week can still change.",
           }
         : { type: "note", tone: "neutral", title: "No topics are published yet", body: `${kid.first}’s teachers have not had a scheme of work approved for ${term}. Each subject’s topic appears here the week it is taught.` }])],
     };

@@ -30,18 +30,17 @@ export function registryTab(data: Registry, rooms: Array<{ id: string; name: str
   const resend = { label: `Resend ${plural(noPortal, "portal invite")}`, drawer: resendDrawer(noPortal, unreachableChildren) };
 
   const cards: KpiCard[] = [
-    { label: "Enrolled", value: String(totals.enrolled), sub: `Across ${plural(totals.arms, "arm")}`, tone: "positive" },
-    { label: "Net this term", value: `${totals.in - totals.out >= 0 ? "+" : "−"}${Math.abs(totals.in - totals.out)}`, sub: `${totals.in} in · ${totals.out} out`, tone: totals.in - totals.out >= 0 ? "positive" : "attention" },
-    { label: "Alumni and withdrawn", value: `${totals.alumni} / ${totals.withdrawn}`, sub: "A status filter, not a tab" },
+    { label: "Enrolled", value: String(totals.enrolled), tone: "positive" },
+    { label: "Net this term", value: `${totals.in - totals.out >= 0 ? "+" : "−"}${Math.abs(totals.in - totals.out)}`, unit: `${totals.in} in · ${totals.out} out`, tone: totals.in - totals.out >= 0 ? "positive" : "attention" },
+    { label: "Alumni and withdrawn", value: `${totals.alumni} / ${totals.withdrawn}`, },
     {
       label: "No class arm",
       value: String(totals.withoutArm),
-      sub: totals.withoutArm ? "In no register" : "Everybody is placed",
       tone: totals.withoutArm ? "negative" : "positive",
       link: totals.withoutArm ? "Allocate them" : undefined,
       drawer: totals.withoutArm ? listDrawer("Registry", "Students with no class arm", "A student with no arm is in no register and on no broadsheet.", unplaced.slice(0, 20).map((row) => ({ label: row.name, sub: row.adm })), "Move them from the registry's bulk bar: tick them, then “Move to another arm”.") : undefined,
     },
-    { label: "Fees outstanding", value: String(totals.owingFamilies), sub: "Families, not children", tone: totals.owingFamilies ? "attention" : "positive", link: "Open the debtor list", href: "/fee-management/collections" },
+    { label: "Fees outstanding", value: String(totals.owingFamilies), unit: "families, not children", tone: totals.owingFamilies ? "attention" : "positive", link: "Open the debtor list", href: "/fee-management/collections" },
   ];
 
   const tableRows: TableRow[] = rows.map((row) => ({
@@ -123,7 +122,6 @@ export function registryTab(data: Registry, rooms: Array<{ id: string; name: str
               { label: "Export to Excel", primary: true, export: true },
             ],
             rows: tableRows,
-            foot: "A student with no arm is in no register and on no broadsheet — fix that before anything else on this page.",
           },
         ],
       },

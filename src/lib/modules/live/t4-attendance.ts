@@ -133,10 +133,10 @@ function complianceTab(v: Compliance): TabContent {
       row("1fr", [{
         type: "kpi", per: 4, sub: `Granted because you head ${v.department}. A subject teacher does not audit their colleagues.`,
         cards: [
-          { label: "Periods taught so far", value: String(v.kpis.taught), sub: `Across ${v.kpis.teachers} ${v.kpis.teachers === 1 ? "teacher" : "teachers"}` },
-          { label: "Marked in the period", value: String(v.kpis.onTime), unit: `of ${v.kpis.taught}`, sub: late ? `${late} marked after it ended` : "Every one marked while it ran", tone: late ? "attention" : "positive" },
-          { label: "Unmarked", value: String(v.kpis.unmarked), sub: v.kpis.unmarked ? "A period with no register at all" : "Every period has a register", tone: v.kpis.unmarked ? "negative" : "positive" },
-          { label: "Truancy alerts", value: String(v.kpis.truancy), sub: v.kpis.truancy ? "Present for the day, absent in a period" : "Nobody present today has missed a period", tone: v.kpis.truancy ? "attention" : "positive" },
+          { label: "Periods taught so far", value: String(v.kpis.taught), },
+          { label: "Marked in the period", value: String(v.kpis.onTime), unit: `of ${v.kpis.taught}`, tone: late ? "attention" : "positive" },
+          { label: "Unmarked", value: String(v.kpis.unmarked), tone: v.kpis.unmarked ? "negative" : "positive" },
+          { label: "Truancy alerts", value: String(v.kpis.truancy), tone: v.kpis.truancy ? "attention" : "positive" },
         ],
       }]),
       row("1fr", [{
@@ -144,7 +144,6 @@ function complianceTab(v: Compliance): TabContent {
         meta: `${v.rows.length} ${v.rows.length === 1 ? "teacher" : "teachers"} · ${v.day}`, noun: "teacher", nounPlural: "teachers",
         head: ["Teacher", "Subjects", "Taught", "On time", "Late", "State"], rows, per: 12, noRowOpen: true,
         empty: `No subject is mapped to ${v.department} yet.`,
-        foot: "You see that a register was late. You do not see a child's mark from here.",
       }]),
     ],
   };
@@ -172,10 +171,10 @@ function markTab(v: RegistersView, me: TeacherWorkspaceView, held: Set<string>):
     row("1fr", [{
       type: "kpi", sub: `${dayWords(v.date)} · the cutoff is ${v.cutoff}.`, per: 4,
       cards: [
-        { label: "Registers to mark", value: String(open.length), unit: `of ${live.length}`, sub: !v.schoolDay ? "Today is not a school day" : open.length ? (open.some((entry) => entry.pastCutoff) ? "Past the cutoff" : "Still open") : "Nothing outstanding", tone: open.length && v.schoolDay ? "negative" : "positive" },
-        { label: "Children unaccounted for", value: String(waiting), sub: waiting ? "Until you mark them" : "Everyone is accounted for", tone: waiting ? "attention" : "positive" },
-        { label: "Your median time", value: median ? `${median}s` : "—", unit: median ? "per register" : undefined, sub: median ? "Over this term, from opening to submitting" : "Marked after you take your first register", tone: median ? "positive" : "neutral" },
-        { label: "Works offline", value: "Yes", sub: "Marking never needs a connection", tone: "positive" },
+        { label: "Registers to mark", value: String(open.length), unit: `of ${live.length}`, tone: open.length && v.schoolDay ? "negative" : "positive" },
+        { label: "Children unaccounted for", value: String(waiting), tone: waiting ? "attention" : "positive" },
+        { label: "Your median time", value: median ? `${median}s` : "—", unit: median ? "per register" : undefined, tone: median ? "positive" : "neutral" },
+        { label: "Works offline", value: "Yes", tone: "positive" },
       ],
     }]),
     { ...row("1fr", [{
@@ -192,7 +191,6 @@ function markTab(v: RegistersView, me: TeacherWorkspaceView, held: Set<string>):
         : undefined,
       head: ["Arm", "Register", "Roll", "Why it is yours", "State", "Note", ""], rows: tableRows, noRowOpen: true,
       empty: v.schoolDay ? "No register is yours today. Daily registers belong to form masters; period registers appear on the days you teach." : "Today is not a school day in this term — there is no register to take.",
-      foot: "Where the daily register already exists, a period register opens against it — absences are carried in, so you are never asked the same question twice.",
     }]), show: "desktop" as const },
     // The phone reads the same registers as rows: an icon for the kind of register, who it is yours as, and how many children are in it.
     {
@@ -275,8 +273,8 @@ function registerIndexTab(v: RegisterIndex): TabContent {
       { ...row("1fr", [{
         type: "kpi", bare: true,
         cards: [
-          { label: "Registers you hold", value: String(v.registers.length), sub: `${daily.length} daily · ${v.registers.length - daily.length} period` },
-          { label: "Registers marked today", value: String(v.markedToday), unit: `of ${v.registers.length}`, sub: v.registers.length - v.markedToday > 0 ? `${v.registers.length - v.markedToday} still to mark` : v.date ? dayWords(v.date) : "No term is running", tone: v.registers.length && v.markedToday === v.registers.length ? "positive" : "attention" },
+          { label: "Registers you hold", value: String(v.registers.length), },
+          { label: "Registers marked today", value: String(v.markedToday), unit: `of ${v.registers.length}`, tone: v.registers.length && v.markedToday === v.registers.length ? "positive" : "attention" },
         ],
       }]), show: "phone" as const },
       { ...row("1fr", [{
@@ -296,10 +294,10 @@ function registerIndexTab(v: RegisterIndex): TabContent {
         // that count every register they hold.
         type: "kpi", title: "Your registers this term", per: 4,
         cards: [
-          { label: "Registers you hold", value: String(v.registers.length), sub: `${daily.length} daily · ${v.registers.length - daily.length} period` },
-          { label: "Marked today", value: String(v.markedToday), unit: `of ${v.registers.length}`, sub: v.date ? dayWords(v.date) : "No term is running", tone: v.registers.length && v.markedToday === v.registers.length ? "positive" : "attention" },
-          { label: "School days so far", value: schoolDays, sub: v.term ? v.term.name : "No term is running" },
-          { label: "Corrections pending", value: String(v.correctionsPending), sub: v.correctionsPending ? "Waiting on approval" : "Nothing waiting on approval", tone: v.correctionsPending ? "attention" : "positive" },
+          { label: "Registers you hold", value: String(v.registers.length), },
+          { label: "Marked today", value: String(v.markedToday), unit: `of ${v.registers.length}`, tone: v.registers.length && v.markedToday === v.registers.length ? "positive" : "attention" },
+          { label: "School days so far", value: schoolDays, },
+          { label: "Corrections pending", value: String(v.correctionsPending), tone: v.correctionsPending ? "attention" : "positive" },
         ],
       }]), show: "desktop" as const },
       { ...row("1fr", [{
@@ -308,7 +306,6 @@ function registerIndexTab(v: RegisterIndex): TabContent {
         search: v.registers.length > 2 ? "Find an arm or a register" : undefined,
         head: ["Arm", "Register", "Why you have it", "Today", "Term", "Roll", ""], rows, noRowOpen: true,
         empty: "You hold no register. Daily registers belong to form masters; period registers appear on the days you teach.",
-        foot: "The daily register is the arm's record. A period register sits under it and never overwrites its figure.",
       }]), show: "desktop" as const },
     ],
   };
@@ -336,17 +333,16 @@ function registerTab(h: ArmHistory | PeriodHistory): TabContent {
         row("1fr", [{
           type: "kpi", sub: `${h.arm.name} · ${h.term.name} ${h.term.session} · ${h.schoolDays} school day${h.schoolDays === 1 ? "" : "s"} so far.`, per: 4,
           cards: [
-            { label: "Term attendance", value: h.rate === null ? "—" : `${h.rate}%`, sub: `School target is ${target}%`, tone: h.rate === null ? "neutral" : h.rate >= target ? "positive" : "attention" },
-            { label: "Days marked", value: String(h.marked), unit: `of ${h.schoolDays}`, sub: h.today === "Marked" ? "Today is in" : "Today is still open", tone: h.marked === h.schoolDays ? "positive" : "attention" },
-            { label: `Marked before ${h.cutoff}`, value: String(h.onTime), unit: `of ${h.marked}`, sub: "By whoever held the register that day", tone: h.onTime === h.marked ? "positive" : "attention" },
-            { label: "Below the chronic line", value: String(h.chronic), unit: h.chronic === 1 ? "child" : "children", sub: h.chronic ? "An absence case may be open" : "Nobody", tone: h.chronic ? "negative" : "positive" },
+            { label: "Term attendance", value: h.rate === null ? "—" : `${h.rate}%`, tone: h.rate === null ? "neutral" : h.rate >= target ? "positive" : "attention" },
+            { label: "Days marked", value: String(h.marked), unit: `of ${h.schoolDays}`, tone: h.marked === h.schoolDays ? "positive" : "attention" },
+            { label: `Marked before ${h.cutoff}`, value: String(h.onTime), unit: `of ${h.marked}`, tone: h.onTime === h.marked ? "positive" : "attention" },
+            { label: "Below the chronic line", value: String(h.chronic), unit: h.chronic === 1 ? "child" : "children", tone: h.chronic ? "negative" : "positive" },
           ],
         }]),
         row("1fr", [{
           type: "table", title: `${h.arm.name}, day by day`, sub: "Open a day to see the register exactly as it was marked.", meta: `Last ${h.recent.length} school days`, noun: "day", nounPlural: "days",
           head: ["Date", "Roll", "Pres", "Abs", "Late", "State", "Marked by", ""], rows, noRowOpen: true,
-          empty: "No school day has passed in this term yet.", foot: "An unmarked day is not 0% — it is unknown, and it is counted as unknown.",
-        }]),
+          empty: "No school day has passed in this term yet.",         }]),
         row("1fr", [{ type: "note", tone: "withheld", icon: SHIELD, title: "You cannot backdate or correct a saved register", body: "A same-day correction is yours to make. Anything earlier is a request with a reason, and it reaches the Principal.", acts: [{ label: "Request a correction", href: `/attendance/register/${h.arm.id}` }] }]),
       ],
     };
@@ -364,16 +360,15 @@ function registerTab(h: ArmHistory | PeriodHistory): TabContent {
       row("1fr", [{
         type: "kpi", sub: "Period registers are subordinate: they feed truancy alerts and never overwrite the daily figure.", per: 3,
         cards: [
-          { label: "Periods marked this term", value: String(h.marked), sub: h.assigned ? `${h.assigned} periods a week on your assignments` : "Marked the day you teach them", tone: "positive" },
-          { label: "Marked in the period", value: h.marked ? `${Math.round((h.inPeriod / h.marked) * 100)}%` : "—", sub: h.marked ? `${h.inPeriod} of ${h.marked} before the period ended` : "After your first period register", tone: h.marked && h.inPeriod === h.marked ? "positive" : "neutral" },
-          { label: "Arms", value: String(h.arms.length), sub: h.arms.join(" · ") || "None assigned" },
+          { label: "Periods marked this term", value: String(h.marked), tone: "positive" },
+          { label: "Marked in the period", value: h.marked ? `${Math.round((h.inPeriod / h.marked) * 100)}%` : "—", tone: h.marked && h.inPeriod === h.marked ? "positive" : "neutral" },
+          { label: "Arms", value: String(h.arms.length), },
         ],
       }]),
       row("1fr", [{
         type: "table", title: "Your period registers", sub: "Each one as you marked it.", meta: `Last ${h.recent.length} period${h.recent.length === 1 ? "" : "s"}`, noun: "period", nounPlural: "periods",
         head: ["Day", "Arm", "Period", "Pres", "Abs", "Subject", "Timing", ""], rows, noRowOpen: true,
         empty: "You have not taken a period register this term. Mark one from the Mark tab on a day you teach.",
-        foot: "A child present on the daily register and absent from your period raises a truancy alert to their form master.",
       }]),
     ],
   };

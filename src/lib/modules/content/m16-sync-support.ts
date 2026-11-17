@@ -146,24 +146,20 @@ const syncTab: TabContent = {
           {
             label: "Connection",
             value: "Offline",
-            sub: "Manual sync is always available and always visible",
             tone: "offline",
           },
           {
             label: "Pending records",
             value: String(pendingRecords),
-            sub: "Oldest is 41 minutes old · an attendance register",
             tone: "attention",
           },
           {
             label: "Last successful sync",
             value: "41 min ago",
-            sub: "4 September 2026, 09:43 WAT",
           },
           {
             label: "Unresolved conflicts",
             value: String(conflicts.length),
-            sub: "Above the school threshold of 1 — escalated to the Principal",
             tone: "negative",
           },
         ],
@@ -213,7 +209,6 @@ const syncTab: TabContent = {
             keywords: `${entry.who} ${entry.role}`,
           }),
         ),
-        foot: "Nothing in this queue has been lost. A record is held on the device until it syncs, and it is never dropped.",
       },
     ]),
     row("1fr", [
@@ -239,7 +234,6 @@ const syncTab: TabContent = {
             keywords: conflict.authors,
           }),
         ),
-        foot: "The product will not guess between two people's work. You choose, and the version you did not choose is kept alongside with who chose and when.",
       },
     ]),
     row("1fr", [
@@ -258,7 +252,6 @@ const syncTab: TabContent = {
             cells: [text(works), mark(true), text(requires), mark(false)],
           }),
         ),
-        foot: "This list is here so a teacher finds out what works before they are standing in a classroom with no signal — not afterwards.",
       },
     ]),
     row("1fr", [
@@ -504,7 +497,6 @@ const helpTab: TabContent = {
             keywords: `${ticket.priority} ${ticket.state}`,
           }),
         ),
-        foot: "A ticket drafted with no connection is queued and sends on the next sync — it is never lost because the signal went.",
       },
       {
         type: "list",

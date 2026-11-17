@@ -31,8 +31,8 @@ const panel: Panel = {
   type: "kpi",
   per: 2,
   cards: [
-    { label: "Observations this half-term", value: "9", sub: "Across 6 areas" },
-    { label: "Saved on this device", value: "0", sub: "Written with no connection — sent when there is one", tone: "neutral", device: "OBSERVATION" },
+    { label: "Observations this half-term", value: "9", },
+    { label: "Saved on this device", value: "0", tone: "neutral", device: "OBSERVATION" },
   ],
 };
 

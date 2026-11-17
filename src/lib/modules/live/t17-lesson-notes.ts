@@ -127,8 +127,8 @@ export function phoneScheme(overview: Overview, scheme: SchemeData | null, chose
   if (overview.subjects.length > 1 && !subjectNamed) {
     return [
       shown({ type: "kpi", bare: true, cards: [
-        { label: "Your subjects", value: String(overview.subjects.length), sub: overview.subjects.slice(0, 2).map((entry) => entry.subject).join(" · ") },
-        { label: "Topics taught", value: String(overview.subjects.reduce((sum, entry) => sum + entry.taught, 0)), unit: `of ${overview.subjects.reduce((sum, entry) => sum + entry.teachTotal, 0)}`, sub: overview.term.name },
+        { label: "Your subjects", value: String(overview.subjects.length), },
+        { label: "Topics taught", value: String(overview.subjects.reduce((sum, entry) => sum + entry.taught, 0)), unit: `of ${overview.subjects.reduce((sum, entry) => sum + entry.teachTotal, 0)}`, },
       ] }),
       shown({
         type: "list", title: "Choose a subject", tag: `${overview.subjects.length} subjects`, tagTone: "neutral", sub: "A scheme of work is one subject for one term. Open one to see its weeks.",
@@ -147,8 +147,8 @@ export function phoneScheme(overview: Overview, scheme: SchemeData | null, chose
   return [
     ...(scheme.terms.length > 1 ? [shown({ type: "embed", component: "phone-chips", props: { chips: scheme.terms.map((entry) => ({ label: entry.name, on: entry.id === term.id, href: `/lesson-notes/curriculum?subject=${scheme.subjectId}&term=${entry.id}` })) } })] : []),
     shown({ type: "kpi", bare: true, cards: [
-      { label: "Topics taught", value: String(chosen.taught), unit: `of ${chosen.teachTotal}`, sub: chosen.awaitingTimetable ? "Waiting for the timetable" : chosen.status === "Behind" ? `Behind for week ${term.current ?? ""}`.trim() : chosen.planned ? (term.current ? `On schedule for week ${term.current}` : "Nothing is due yet") : "Nothing planned yet", tone: chosen.status === "Behind" ? "attention" : "positive" },
-      { label: "Weeks left", value: left === null ? "—" : String(left), sub: left === null ? "The term is not running" : "Left in the term" },
+      { label: "Topics taught", value: String(chosen.taught), unit: `of ${chosen.teachTotal}`, tone: chosen.status === "Behind" ? "attention" : "positive" },
+      { label: "Weeks left", value: left === null ? "—" : String(left), },
     ] }),
     shown({
       type: "list", title: `${scheme.subject} · ${term.name.toLowerCase()}`, sub: scheme.readOnly ? "You read this scheme; the subject’s teacher plans it." : "Tap a week to open its note, edit its topic, mark it covered, or push it on.",
@@ -258,7 +258,6 @@ function notesTab(v: Landing, query: Q): TabContent {
   const other = v.terms.filter((t) => t.id !== v.term.id);
   const totalHistory = v.history.reduce((sum, entry) => sum + historyNotes(entry), 0);
   const readOnly = v.subjects.length > 0 && v.subjects.every((entry) => entry.readOnly);
-  const resubmitted = v.rework.filter((entry) => entry.resubmitted).length;
   const returnedNow = v.rework.filter((entry) => !entry.resubmitted);
   // This week's note, preferring one that still wants work over one already signed.
   const thisWeek = v.subjects.find((entry) => entry.thisWeek && !entry.readOnly && ["Not started", "Draft", "Returned"].includes(entry.thisWeek.state))
@@ -300,8 +299,8 @@ function notesTab(v: Landing, query: Q): TabContent {
       ...row("1fr", [{
         type: "kpi", bare: true,
         cards: [
-          { label: "Signed this term", value: String(k.signed), unit: k.signed === 1 ? "note" : "notes", sub: v.signer ? `By ${v.signer.name}` : "No one is named to sign them yet", tone: "positive" },
-          { label: "This week", value: String(doneNow), unit: `of ${dueNow.length}`, sub: dueNow.length ? (doneNow === dueNow.length ? "Every note is in" : "Still to write or send") : v.term.current ? "Nothing is due" : "The term is not running", tone: dueNow.length && doneNow < dueNow.length ? "attention" : "positive" },
+          { label: "Signed this term", value: String(k.signed), unit: k.signed === 1 ? "note" : "notes", tone: "positive" },
+          { label: "This week", value: String(doneNow), unit: `of ${dueNow.length}`, tone: dueNow.length && doneNow < dueNow.length ? "attention" : "positive" },
         ],
       }]),
       show: "phone" as const,
@@ -352,15 +351,15 @@ function notesTab(v: Landing, query: Q): TabContent {
       row("1fr", [{
         type: "kpi", per: 5, sub: query.term ? undefined : "Counted from your own notes — nothing here is typed in twice.",
         cards: [
-          { label: "Subjects", value: String(v.subjects.length), sub: v.subjects.map((entry) => entry.subject).join(" · ") || "None yet" },
-          { label: "Notes written", value: String(totalWritten), unit: `of ${totalPlanned}`, sub: k.toWrite ? `${k.toWrite} still to write` : "Up to date", tone: k.toWrite ? "attention" : "positive" },
-          { label: "Signed this term", value: String(k.signed), unit: `of ${totalPlanned}`, sub: v.signer ? `By ${v.signer.name}` : "No one is named to sign them yet", tone: "positive" },
-          { label: "With the reviewer", value: String(k.withReviewer), sub: k.withReviewer ? (resubmitted ? `${resubmitted} resubmitted after rework` : "Waiting to be signed") : "Nothing waiting", tone: k.withReviewer ? "submitted" : "neutral" },
+          { label: "Subjects", value: String(v.subjects.length), },
+          { label: "Notes written", value: String(totalWritten), unit: `of ${totalPlanned}`, tone: k.toWrite ? "attention" : "positive" },
+          { label: "Signed this term", value: String(k.signed), unit: `of ${totalPlanned}`, tone: "positive" },
+          { label: "With the reviewer", value: String(k.withReviewer), tone: k.withReviewer ? "submitted" : "neutral" },
           readOnly
-            ? { label: "Weeks ahead", value: String(v.subjects.reduce((sum, entry) => sum + Math.max(0, entry.planned - entry.due), 0)), sub: "Topics still to come" }
+            ? { label: "Weeks ahead", value: String(v.subjects.reduce((sum, entry) => sum + Math.max(0, entry.planned - entry.due), 0)), }
             : {
                 label: "Returned for rework", value: String(k.returned),
-                sub: k.returned ? `${returnedNow[0]?.topic ?? "A note"} · read the comment` : "Nothing sent back", tone: k.returned ? "negative" : "positive",
+tone: k.returned ? "negative" : "positive",
                 ...(returnedNow[0] ? { link: "Correct it", href: `/lesson-notes/notes/${returnedNow[0].subjectId}/${returnedNow[0].week}?term=${v.term.id}` } : {}),
               },
         ],
@@ -374,7 +373,6 @@ function notesTab(v: Landing, query: Q): TabContent {
         meta: `${rework.length} ${rework.length === 1 ? "note" : "notes"}`, noun: "note", nounPlural: "notes",
         filters: [{ label: "State", value: "All", options: ["All", "Returned", "Resubmitted"] }],
         head: ["Subject", "Week · topic", "Returned by", "Comment", "State", ""], rows: rework,
-        foot: "Resubmitted notes stay here until they are signed.",
       }])] : []),
       row("1fr", [{
         type: "table", title: readOnly ? "Notes this term" : "Every note this term",
@@ -385,7 +383,6 @@ function notesTab(v: Landing, query: Q): TabContent {
         filters: [{ label: "State", value: "All", options: ["All", "Returned", "Behind", "Draft open", "On track"] }],
         head: ["Subject", "Classes", "This week", "Written", "Signed", "Needs you", "State", ""], rows: subjects, empty: "You are not named on a subject.",
         emptyTitle: "No subjects to write for", emptyBody: "Your subjects come from the school admin, or from Add a subject in Curriculum.",
-        foot: readOnly ? "Notes stay with their author." : "A note is your own work.",
       }]),
       row("1fr", [{
         type: "table", title: "Note history",
@@ -398,7 +395,6 @@ function notesTab(v: Landing, query: Q): TabContent {
         emptyBody: readOnly
           ? "You teach from someone else’s notes for the arms you cover. Notes you write here start your own history."
           : "When this term ends, every note you wrote moves here, signed and readable.",
-        foot: "Read only. A signed note is never edited.",
       }]),
       ]),
     ],
@@ -478,11 +474,11 @@ function reviewTab(v: Review): TabContent {
       row("1fr", [{
         type: "kpi", per: 5, sub: "One row below for every subject, arm and week a note is due — started or not.",
         cards: [
-          { label: "Not started", value: String(k.notStarted), sub: "Due, with no note", tone: k.notStarted ? "attention" : "positive" },
-          { label: "In progress", value: String(k.inProgress), sub: "Drafts", tone: "progress" },
-          { label: "Waiting for a signature", value: String(k.submitted), sub: k.submitted ? "Oldest first in the list" : "Nothing is waiting", tone: k.submitted ? "submitted" : "positive" },
-          { label: "Returned", value: String(k.returned), sub: "With the teacher to change", tone: k.returned ? "negative" : "neutral" },
-          { label: "Signed", value: String(k.signed), sub: "Ready to teach from", tone: "positive" },
+          { label: "Not started", value: String(k.notStarted), tone: k.notStarted ? "attention" : "positive" },
+          { label: "In progress", value: String(k.inProgress), tone: "progress" },
+          { label: "Waiting for a signature", value: String(k.submitted), tone: k.submitted ? "submitted" : "positive" },
+          { label: "Returned", value: String(k.returned), tone: k.returned ? "negative" : "neutral" },
+          { label: "Signed", value: String(k.signed), tone: "positive" },
         ],
       }]),
       row("1fr", [{
@@ -547,7 +543,7 @@ function coverageTab(v: Coverage): TabContent {
   }));
   const bars = v.rows.filter((entry) => entry.expected > 0).sort((a, b) => Math.min(a.reached, a.expected) / a.expected - Math.min(b.reached, b.expected) / b.expected).slice(0, 12).map((entry) => {
     const pct = Math.round((Math.min(entry.reached, entry.expected) / entry.expected) * 100);
-    return { label: `${entry.subject} · ${entry.arm}`, value: pct, display: `${Math.min(entry.reached, entry.expected)} of ${entry.expected}`, sub: entry.teacher, tone: tone(entry.state) };
+    return { label: `${entry.subject} · ${entry.arm}`, sub: entry.teacher, value: pct, display: `${Math.min(entry.reached, entry.expected)} of ${entry.expected}`, tone: tone(entry.state) };
   });
   return {
     title: "Coverage", desc: "What the scheme says should have been taught by now, against what has been.",
@@ -557,10 +553,10 @@ function coverageTab(v: Coverage): TabContent {
       row("1fr", [{
         type: "kpi", sub: "Expected is the weeks of each scheme due by now; reached is what the teacher has ticked off or marked taught — the calendar’s guess does not count.", per: 4,
         cards: [
-          { label: "Covered", value: k.covered === null ? "—" : `${k.covered}%`, sub: k.covered === null ? "Nothing is due yet" : "Of what was due", tone: k.covered !== null && k.covered < 80 ? "attention" : "positive" },
-          { label: "On schedule", value: String(k.onSchedule), unit: `of ${k.total}`, tone: "positive", sub: "Subject-arms" },
-          { label: "Behind", value: String(k.behind), sub: k.behind ? "Reached less than was due" : "Nobody is behind", tone: k.behind ? "negative" : "positive" },
-          { label: "No scheme on file", value: String(k.none), sub: k.none ? "Nothing to measure against" : "Every subject has one", tone: k.none ? "attention" : "positive" },
+          { label: "Covered", value: k.covered === null ? "—" : `${k.covered}%`, tone: k.covered !== null && k.covered < 80 ? "attention" : "positive" },
+          { label: "On schedule", value: String(k.onSchedule), unit: `of ${k.total}`, tone: "positive", },
+          { label: "Behind", value: String(k.behind), tone: k.behind ? "negative" : "positive" },
+          { label: "No scheme on file", value: String(k.none), tone: k.none ? "attention" : "positive" },
         ],
       }]),
       row("1.4fr 1fr", [
@@ -568,7 +564,6 @@ function coverageTab(v: Coverage): TabContent {
           type: "table", title: v.scope === "school" ? "Every subject, arm by arm" : "Your department, subject by subject", sub: "Expected unit against the unit actually reached.", meta: v.term.current ? `Week ${v.term.current}` : v.term.name, noun: "subject-arm", nounPlural: "subject-arms", search: "Find a subject or a teacher",
           filters: [{ label: "State", value: "All", options: ["All", "On schedule", "Behind", "No scheme on file"], column: 6 }],
           head: ["Subject", "Arm", "Teacher", "Expected", "Reached", "Planned", "State"], rows, per: 12, noRowOpen: true, acts: [{ label: "Export these rows", export: true }],
-          foot: "Behind means the notes on file stop short of the unit the scheme expects by this week.",
           empty: "No class-subject is set up yet.", emptyTitle: "Nothing to measure yet", emptyBody: "Coverage is counted from each subject’s scheme of work. When class subjects are mapped and schemes planned, they appear here.",
         },
         { type: "bars", title: "Furthest behind first", sub: "Share of the weeks due that have been reached.", rows: bars, foot: bars.length ? "Only subjects with weeks due are shown." : "Nothing is due yet, so there is nothing to compare." },

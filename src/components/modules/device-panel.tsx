@@ -60,10 +60,10 @@ export function DevicePanel({ title, sub }: { title?: string; sub?: string }) {
   if (!device) return null;
   const connection = toneOf(device.online ? "positive" : "attention");
   const cards = [
-    { label: "This device", value: device.online ? "Online" : "Offline", sub: device.online ? "Everything saved goes straight to the school's record" : "Work is kept on this device until the connection returns", tone: connection },
-    { label: "Waiting on this device", value: String(device.queued), sub: device.queued ? "Set aside offline, not yet sent" : "Nothing is held here", tone: toneOf(device.queued ? "attention" : "positive") },
-    { label: "Storage held", value: device.used === null ? "—" : mb(device.used), sub: device.quota === null ? "This browser does not say how much it allows" : `of ${mb(device.quota)} this browser allows`, tone: toneOf("neutral") },
-    { label: "Kept if space runs short", value: device.persisted === null ? "Not reported" : device.persisted ? "Yes" : "Not guaranteed", sub: device.persisted ? "The browser will not clear it on its own" : "The browser may clear it if the device runs short of space", tone: toneOf(device.persisted ? "positive" : "attention") },
+    { label: "This device", value: device.online ? "Online" : "Offline", tone: connection },
+    { label: "Waiting on this device", value: String(device.queued), tone: toneOf(device.queued ? "attention" : "positive") },
+    { label: "Storage held", value: device.used === null ? "—" : mb(device.used), tone: toneOf("neutral") },
+    { label: "Kept if space runs short", value: device.persisted === null ? "Not reported" : device.persisted ? "Yes" : "Not guaranteed", tone: toneOf(device.persisted ? "positive" : "attention") },
   ];
   return (
     <section className="min-w-0 rounded-[14px] border bg-(--color-bg-surface) px-[18px] pb-[16px] pt-[14px]" style={{ borderColor: "#DEE8E2" }}>
@@ -113,7 +113,6 @@ export function DevicePanel({ title, sub }: { title?: string; sub?: string }) {
           <article key={card.label} className="rounded-[14px] border px-[14px] pb-[13px] pt-[12px]" style={{ borderColor: "#DEE8E2" }}>
             <p className="text-[9.5px] font-semibold uppercase tracking-wider" style={{ color: MUTED }}>{card.label}</p>
             <p className="mt-[8px] text-[20px] font-extrabold leading-none tracking-[-0.03em]" style={{ color: card.tone.fg }}>{card.value}</p>
-            <p className="mt-[6px] text-pretty text-[10.5px] leading-[1.4]" style={{ color: MUTED }}>{card.sub}</p>
           </article>
         ))}
       </div>

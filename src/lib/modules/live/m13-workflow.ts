@@ -28,11 +28,11 @@ export function workflowTab(d: WorkflowData): TabContent {
     panels: [{
       type: "kpi", title: "How work is routed", per: 5,
       cards: [
-        { label: "Routes", value: String(d.routes.length), sub: `${over} ${over === 1 ? "is your own override" : "are your own overrides"}` },
-        { label: "School overrides", value: String(over), sub: "On top of the defaults", tone: "submitted" },
-        { label: "Standing rules", value: String(active), sub: `${d.rules.length - active} revoked · revocable instantly`, tone: "neutral" },
-        { label: "Never bulk-approvable", value: String(locked), sub: "Locked, never hidden", tone: "withheld" },
-        { label: "Slowest route", value: d.slowest ? dayText(d.slowest.avgDays) : "—", sub: d.slowest ? d.slowest.name : "Nothing decided yet", tone: d.slowest && (d.slowest.avgDays ?? 0) > 5 ? "negative" : "neutral", link: d.slowest ? "Open it" : undefined, href: d.slowest ? routeHref(d.slowest.type) : undefined },
+        { label: "Routes", value: String(d.routes.length), },
+        { label: "School overrides", value: String(over), tone: "submitted" },
+        { label: "Standing rules", value: String(active), tone: "neutral" },
+        { label: "Never bulk-approvable", value: String(locked), tone: "withheld" },
+        { label: "Slowest route", value: d.slowest ? dayText(d.slowest.avgDays) : "—", tone: d.slowest && (d.slowest.avgDays ?? 0) > 5 ? "negative" : "neutral", link: d.slowest ? "Open it" : undefined, href: d.slowest ? routeHref(d.slowest.type) : undefined },
       ],
     }],
   });
@@ -56,7 +56,6 @@ export function workflowTab(d: WorkflowData): TabContent {
       head: ["Approval type", "Module", "Approver", "Second approver", "Escalates", "Open", "Source", ""], noun: "route", nounPlural: "routes", per: 12, selectable: true,
       bulkActs: [{ label: "Change the approver", drawer: changeApproverDrawer(d.options), selection: { key: "types", noun: "route" } }, { label: "Change the escalation period", drawer: changeEscalationDrawer(d.options), selection: { key: "types", noun: "route" } }, { label: "Reset to the default", drawer: resetManyDrawer(), selection: { key: "types", noun: "route" } }, { label: "Export selected", primary: true, export: true }],
       rows: routeRows,
-      foot: "A route decides who may decide. Nobody approves their own submission, whatever the route says.",
     }],
   });
   const ruleRows: TableRow[] = d.rules.map((rule) => ({
@@ -72,7 +71,6 @@ export function workflowTab(d: WorkflowData): TabContent {
         acts: [{ label: "Create a standing rule", primary: true, drawer: createRule }],
         head: ["Rule", "Condition", "Fired", "Created by", "State", ""], noun: "rule", nounPlural: "rules", noRowOpen: true, rows: ruleRows,
         empty: "The school has no standing rule. Every decision waits for a person.",
-        foot: "Only a small change to a student's record can be made a standing rule today — nothing involving money, marks or access.",
       },
       {
         type: "list", title: "Permanently excluded from bulk approval", sub: "These can never be bulk-approved, whatever a route says.",
@@ -99,12 +97,12 @@ export function routePage(p: RoutePage): RoutePageView {
     panels: [{
       type: "kpi", title: "This route", per: 6,
       cards: [
-        { label: "Approver", value: r.approver, sub: "By role, never by name", tone: "neutral" },
-        { label: "Second approval", value: r.second ? "Required" : "Not required", sub: r.second || "One decision is enough", tone: r.second ? "submitted" : "neutral" },
-        { label: "Escalates after", value: dayText(r.escalateDays), sub: p.config.escalateTo },
-        { label: "Waiting now", value: String(r.open), sub: r.open ? "Open decisions" : "Nothing waiting", tone: r.open > 3 ? "negative" : r.open ? "attention" : "positive", link: r.open ? "Open the queue" : undefined, href: r.open ? "/approvals-workflow/queue" : undefined },
-        { label: "Average decision", value: dayText(r.avgDays), sub: r.avgDays === null ? "Nothing decided yet" : late ? "Slower than it escalates" : "Inside the period", tone: r.avgDays === null ? "neutral" : late ? "negative" : "positive" },
-        { label: "Bulk approval", value: r.bulk ? "Allowed" : "Never", sub: r.locked ? "Locked permanently" : r.bulk ? "Up to 20 at a time" : "Decided one at a time", tone: r.bulk ? "neutral" : "withheld" },
+        { label: "Approver", value: r.approver, tone: "neutral" },
+        { label: "Second approval", value: r.second ? "Required" : "Not required", tone: r.second ? "submitted" : "neutral" },
+        { label: "Escalates after", value: dayText(r.escalateDays), },
+        { label: "Waiting now", value: String(r.open), tone: r.open > 3 ? "negative" : r.open ? "attention" : "positive", link: r.open ? "Open the queue" : undefined, href: r.open ? "/approvals-workflow/queue" : undefined },
+        { label: "Average decision", value: dayText(r.avgDays), tone: r.avgDays === null ? "neutral" : late ? "negative" : "positive" },
+        { label: "Bulk approval", value: r.bulk ? "Allowed" : "Never", tone: r.bulk ? "neutral" : "withheld" },
       ],
     }],
   });

@@ -3,7 +3,7 @@ import type { ParentMe } from "@/lib/modules/live/parent/shared";
 
 const child = (over: Record<string, unknown>) => ({ id: "c", name: "Chioma Adebayo", first: "Chioma", arm: "SSS 2A", invoiceNo: "INV-1", invoiceId: "i", payInvoiceId: "i", payAmount: 0, term: "First Term", billed: 0, paid: 0, balance: 0, outstanding: 0, fromEarlier: 0, oldestDue: null, status: "Paid in full", tone: "positive", ...over });
 const me = { school: "Grace Academy", name: "Mrs Adebayo" } as unknown as ParentMe;
-type Loose = { type: string; cards?: Array<{ label: string; value: string; sub?: string }>; title?: string; body?: string };
+type Loose = { type: string; cards?: Array<{ label: string; value: string; unit?: string }>; title?: string; body?: string };
 const panels = (data: Fees) => familyFees(data, me).rows.flatMap((entry) => entry.panels as unknown as Loose[]);
 
 describe("the family's fees across two schools", () => {
@@ -21,8 +21,8 @@ describe("the family's fees across two schools", () => {
       ["Grace Academy · owed now", "₦124,000"], ["Grace Academy · paid", "₦435,000"],
       ["Ridgeview · owed now", "GH₵11,550"], ["Ridgeview · paid", "GH₵23,100"],
     ]);
-    expect(cards.find((card) => card.label === "Grace Academy · paid")!.sub).toBe("Of ₦559,000 billed");
-    expect(cards.find((card) => card.label === "Ridgeview · paid")!.sub).toBe("Of GH₵34,650 billed");
+    expect(cards.find((card) => card.label === "Grace Academy · paid")!.unit).toBe("of ₦559,000 billed");
+    expect(cards.find((card) => card.label === "Ridgeview · paid")!.unit).toBe("of GH₵34,650 billed");
   });
 
   it("says the schools are kept apart, and why", () => {

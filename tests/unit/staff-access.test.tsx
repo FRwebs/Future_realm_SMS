@@ -262,7 +262,8 @@ describe("M07 Activity", () => {
     const html = markup(activityTab(data));
     expect(html).toContain("24 / 30");
     expect(html).toContain("2 of 4 submitted");
-    expect(html).toContain("1 form master not started");
+    // The count of remarks still owed is the card; which form master owes them is the row below it.
+    expect(html).toContain("Remarks outstanding");
   });
 });
 

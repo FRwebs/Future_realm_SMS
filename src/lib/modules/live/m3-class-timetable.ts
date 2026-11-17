@@ -158,26 +158,23 @@ function classesTab(overview: Overview, teaching: Teaching): TabContent {
   const allocateAll = allocateBulkDrawer(overview);
 
   const cards: KpiCard[] = [
-    { label: "Classes", value: String(classes.length), sub: "The promotion ladder" },
-    { label: "Class arms", value: String(arms.length), sub: "Each with its own register" },
+    { label: "Classes", value: String(classes.length), },
+    { label: "Class arms", value: String(arms.length), },
     {
       label: "Students",
       value: (placed + unallocated.length).toLocaleString("en-NG"),
-      sub: arms.length ? `${Math.round(placed / arms.length)} per arm on average` : "No arm yet",
     },
     {
       label: "Over capacity",
       value: String(over.length),
       unit: over.length === 1 ? "arm" : "arms",
       tone: over.length ? "attention" : "positive",
-      sub: over.length ? over.slice(0, 3).map((arm) => arm.name).join(", ") : "Every arm is within its capacity",
     },
     {
       label: "No arm yet",
       value: String(unallocated.length),
       unit: "students",
       tone: unallocated.length ? "negative" : "positive",
-      sub: unallocated.length ? "Excluded from every register" : "Everyone is placed",
       ...(unallocated.length ? { link: "Allocate", drawer: allocate } : {}),
     },
   ];
@@ -302,7 +299,6 @@ function classesTab(overview: Overview, teaching: Teaching): TabContent {
             rows: classRows,
             per: 8,
             empty: "No class matches this filter.",
-            foot: "Open a class to change its arms, capacity or promotion position — or to delete it.",
           },
         ],
       },
@@ -344,7 +340,6 @@ function classesTab(overview: Overview, teaching: Teaching): TabContent {
             rows: armRows,
             per: 10,
             empty: "No arm matches this filter.",
-            foot: "Open an arm for its roster, its subject teachers and its register history — or to delete it.",
           },
         ],
       },
@@ -466,18 +461,16 @@ function subjectsTab(teaching: Teaching, overview: Overview): TabContent {
             type: "kpi",
             per: 4,
             cards: [
-              { label: "Subjects in catalogue", value: String(teaching.subjectCount), sub: `${plural(rows.length, "subject-arm")} offered across ${plural(new Set(rows.map((row) => row.classId)).size, "arm")}` },
-              { label: "Choice groups", value: "—", sub: "Not recorded — registration rules are not stored yet" },
+              { label: "Subjects in catalogue", value: String(teaching.subjectCount), },
+              { label: "Choice groups", value: "—", },
               {
                 label: "Invalid combinations",
                 value: String(invalid.length),
-                sub: "Named by student and rule broken",
                 tone: invalid.length ? "negative" : "positive",
               },
               {
                 label: "Not counted to average",
                 value: String(notCounted.length),
-                sub: notCounted.length ? notCounted.slice(0, 2).join(", ") : "Every subject counts",
               },
             ],
           },
@@ -556,7 +549,6 @@ function subjectsTab(teaching: Teaching, overview: Overview): TabContent {
             rows: catalogueRows,
             per: 8,
             empty: "No subject matches this filter.",
-            foot: "Teacher state says plainly whether a subject-arm has anybody to teach it. Assign from the row, or from the subject’s own modal.",
           },
         ],
       },
@@ -583,7 +575,6 @@ function subjectsTab(teaching: Teaching, overview: Overview): TabContent {
             rows: teacherRows,
             per: 8,
             empty: "No teacher matches this filter.",
-            foot: `The ceiling is ${teaching.schoolCeiling} periods a week. A mapping always names the exact arm — never just the subject.`,
           },
         ],
       },
@@ -740,10 +731,7 @@ async function teachingTab(teaching: Teaching, overview: Overview, list: Timetab
     .sort((a, b) => b.periods - a.periods)
     .slice(0, 8)
     .map((teacher) => ({
-      label: teacher.name,
-      value: Math.min(100, percent(teacher.periods, teacher.ceiling)),
-      display: `${teacher.periods} of ${teacher.ceiling}`,
-      sub:
+      label: teacher.name, sub:
         teacher.periods > teacher.ceiling
           ? `${teacher.periods - teacher.ceiling} periods above ${teacher.raised ? "their raised" : "the school"} ceiling`
           : teacher.periods === teacher.ceiling
@@ -751,6 +739,8 @@ async function teachingTab(teaching: Teaching, overview: Overview, list: Timetab
             : teacher.load === "Under-loaded"
               ? `Capacity for ${Math.max(1, Math.floor((teacher.ceiling - teacher.periods) / 4))} more subject-arms`
               : undefined,
+      value: Math.min(100, percent(teacher.periods, teacher.ceiling)),
+      display: `${teacher.periods} of ${teacher.ceiling}`,
       tone: loadTone(teacher),
     }));
 
@@ -771,32 +761,26 @@ async function teachingTab(teaching: Teaching, overview: Overview, list: Timetab
             type: "kpi",
             per: 5,
             cards: [
-              { label: "Subject-arms", value: String(rows.length), sub: `Across ${plural(new Set(rows.map((row) => row.classId)).size, "arm")}` },
+              { label: "Subject-arms", value: String(rows.length), },
               {
                 label: "Assigned",
                 value: String(rows.length - unstaffed.length),
                 unit: `of ${rows.length}`,
-                sub: "Primary teacher named",
                 tone: unstaffed.length ? "attention" : "positive",
               },
               {
                 label: "Unassigned",
                 value: String(unstaffed.length),
-                sub: unstaffed.length
-                  ? Array.from(new Set(unstaffed.map((row) => `${row.subject} ${row.arm}`))).slice(0, 2).join(" and ") + (unstaffed.length > 2 ? " and more" : "")
-                  : "Nothing is uncovered",
                 tone: unstaffed.length ? "negative" : "positive",
               },
               {
                 label: "Load outside ceiling",
                 value: String(over.length + under.length),
-                sub: `${over.length} above ${teaching.schoolCeiling} periods · ${under.length} far below`,
                 tone: over.length ? "attention" : under.length ? "attention" : "positive",
               },
               {
                 label: "Timetables in draft",
                 value: String(drafts.length),
-                sub: drafts.length ? drafts.slice(0, 2).map((draft) => draft.name).join(" and ") : "Nothing waiting to be published",
                 tone: drafts.length ? "attention" : "positive",
                 link: "Open timetables",
                 href: "/class-timetable/timetable",
@@ -1080,27 +1064,23 @@ async function timetableTab(list: TimetableList, overview: Overview): Promise<Ta
               {
                 label: "Running",
                 value: running ? "1" : "0",
-                sub: running ? `${running.name}${running.publishedAt ? ` · published ${dateLabel(running.publishedAt)}` : ""}` : "Nothing is published",
                 tone: running ? "positive" : "negative",
                 ...(previewHref ? { link: "Preview it", href: previewHref } : {}),
               },
               {
                 label: "In draft",
                 value: String(drafts.length),
-                sub: drafts.length ? drafts.slice(0, 2).map((draft) => draft.name).join(" and ") : "Nothing waiting",
                 tone: drafts.length ? "progress" : undefined,
               },
               {
                 label: "Arms covered",
                 value: String(list.totals.liveArms),
                 unit: `of ${list.totals.arms}`,
-                sub: list.totals.liveArms === list.totals.arms ? "Every arm has periods on the running version" : "The rest have no week families can see",
                 tone: list.totals.liveArms === list.totals.arms && list.totals.arms > 0 ? "positive" : "attention",
               },
               {
                 label: "Unresolved clashes",
                 value: String(list.totals.clashes),
-                sub: "A teacher in two arms in one period, on the running week",
                 tone: list.totals.clashes ? "negative" : "positive",
               },
             ],
@@ -1130,7 +1110,6 @@ async function timetableTab(list: TimetableList, overview: Overview): Promise<Ta
             rows: versionRows,
             per: 8,
             empty: "No timetable has been built yet. Start one with New timetable.",
-            foot: "Publishing never silently replaces the running timetable: the one it replaces is archived and can be published again.",
           },
         ],
       },
@@ -1166,7 +1145,6 @@ async function timetableTab(list: TimetableList, overview: Overview): Promise<Ta
                 rows: byArm,
                 per: 8,
                 empty: "No arm matches this filter.",
-                foot: "View week opens that arm’s own grid — the same one its teachers and guardians see.",
               }
             : {
                 type: "note",
@@ -1217,7 +1195,7 @@ async function timetableTab(list: TimetableList, overview: Overview): Promise<Ta
 
 /* ───────────────────────────── Coverage ───────────────────────────── */
 
-function coverageTab(data: Coverage, overview: Overview, teaching: Teaching): TabContent {
+function coverageTab(data: Coverage, overview: Overview): TabContent {
   const top = data.checks.find((check) => check.state !== "Complete");
   const cards = data.cards;
   return {
@@ -1236,21 +1214,18 @@ function coverageTab(data: Coverage, overview: Overview, teaching: Teaching): Ta
               {
                 label: "Subject-arms uncovered",
                 value: String(cards.uncovered),
-                sub: cards.uncoveredSub,
                 tone: cards.uncovered ? "negative" : "positive",
                 ...(cards.uncovered ? { link: "Assign teachers", href: "/class-timetable/teaching" } : {}),
               },
               {
                 label: "Students with no arm",
                 value: String(cards.noArm),
-                sub: cards.noArm ? "Excluded from every register and result" : "Everyone is on a register",
                 tone: cards.noArm ? "negative" : "positive",
                 ...(cards.noArm ? { link: "Allocate", href: "/class-timetable/classes" } : {}),
               },
               {
                 label: "Load outside ceiling",
                 value: String(cards.overCeiling + cards.underLoaded),
-                sub: `${cards.overCeiling} above ${teaching.schoolCeiling} periods · ${cards.underLoaded} far below`,
                 tone: cards.overCeiling || cards.underLoaded ? "attention" : "positive",
                 ...(cards.overCeiling || cards.underLoaded ? { link: "See loads", href: "/class-timetable/teaching" } : {}),
               },
@@ -1258,7 +1233,6 @@ function coverageTab(data: Coverage, overview: Overview, teaching: Teaching): Ta
                 label: "Timetables unpublished",
                 value: String(cards.unpublishedArms),
                 unit: `of ${Math.max(cards.timetabledArms, overview.arms.length)} arms`,
-                sub: "Arms with periods placed that families cannot see",
                 tone: cards.unpublishedArms ? "attention" : "positive",
                 link: "Publish",
                 href: "/class-timetable/timetable",
@@ -1338,8 +1312,8 @@ export async function classTimetableLiveTab(tabSlug: string): Promise<TabContent
   if (tabSlug === "homework") return homeworkTab();
 
   if (tabSlug === "coverage") {
-    const [data, overview, teaching] = await Promise.all([loadCoverage(), loadOverview(), loadTeaching()]);
-    return coverageTab(data, overview, teaching);
+    const [data, overview] = await Promise.all([loadCoverage(), loadOverview()]);
+    return coverageTab(data, overview);
   }
 
   return undefined;

@@ -23,10 +23,10 @@ export function reportsTab(o: ReportsOverview): TabContent {
     panels: [{
       type: "kpi", per: 4,
       cards: [
-        { label: "Standard reports", value: String(k.standard), sub: "Built from live records, dated and logged" },
-        { label: "Custom definitions", value: String(k.custom), sub: k.scheduled ? `${k.scheduled} run on their own schedule` : "Saved questions, run on demand" },
-        { label: "Datasets exportable", value: String(k.datasets), sub: "Every one opens in Excel as CSV", tone: "positive" },
-        { label: "Exports this session", value: String(k.exports), sub: "Every one written to the audit log" },
+        { label: "Standard reports", value: String(k.standard), },
+        { label: "Custom definitions", value: String(k.custom), },
+        { label: "Datasets exportable", value: String(k.datasets), tone: "positive" },
+        { label: "Exports this session", value: String(k.exports), },
       ],
     }],
   });
@@ -56,7 +56,6 @@ export function reportsTab(o: ReportsOverview): TabContent {
         head: ["Definition", "Grouped by", "Schedule", "Owner", "Run"], noun: "definition", nounPlural: "definitions", noRowOpen: true,
         rows: o.definitions.map((definition) => ({ cells: [nameCell(definition.name, `${definition.datasetName}${definition.filterColumn && definition.filterValue ? ` · ${definition.filterColumn} contains “${definition.filterValue}”` : ""}`), text(definition.groupBy || "Not grouped"), text(definition.schedule), text(definition.owner), { kind: "action" as const, label: "Run", href: downloadCustom(definition.code) }] })),
         empty: "No report has been saved yet. Build one: pick the data, how to narrow it and how to group it.",
-        foot: o.definitions.length ? "Remove a saved report from its drawer — what it produced before stays in the log." : undefined,
       },
       {
         type: "table", title: "Data export", sub: "Every dataset, as CSV for Excel.", meta: `${plural(k.exports, "export")} taken this session · each one logged`,

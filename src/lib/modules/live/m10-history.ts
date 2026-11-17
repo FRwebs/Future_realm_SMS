@@ -19,11 +19,11 @@ const rateTone = (pct: number | null): PanelTone => (pct === null ? "neutral" : 
 export function historyTab(data: History): TabContent {
   const { kpis } = data;
   const cards: KpiCard[] = [
-    { label: "Collected this session", value: nairaShort(kpis.collectedSession), sub: data.session || "The current session" },
-    { label: "This term", value: nairaShort(kpis.collectedTerm), tone: "positive", sub: kpis.expectedTerm ? `${Math.round((kpis.collectedTerm / kpis.expectedTerm) * 100)}% of ${nairaShort(kpis.expectedTerm)}` : "Nothing billed yet" },
-    { label: "Receipts issued", value: kpis.receipts.toLocaleString("en-NG"), sub: "Sequential · every one on file" },
-    { label: "Reversals", value: String(kpis.reversals), tone: kpis.reversals ? "attention" : "positive", sub: kpis.reversals ? `${naira(kpis.reversalValue)} · each with a named reason` : "Nothing has been reversed" },
-    { label: "Still outstanding", value: nairaShort(kpis.outstanding), tone: kpis.outstanding ? "attention" : "positive", sub: "Carried into the debtor list", link: "Open Collections", href: "/fee-management/collections" },
+    { label: "Collected this session", value: nairaShort(kpis.collectedSession), },
+    { label: "This term", value: nairaShort(kpis.collectedTerm), tone: "positive", },
+    { label: "Receipts issued", value: kpis.receipts.toLocaleString("en-NG"), },
+    { label: "Reversals", value: String(kpis.reversals), tone: kpis.reversals ? "attention" : "positive", },
+    { label: "Still outstanding", value: nairaShort(kpis.outstanding), tone: kpis.outstanding ? "attention" : "positive", link: "Open Collections", href: "/fee-management/collections" },
   ];
   const termRows: TableRow[] = data.terms.map((row) => ({
     id: row.id,
@@ -85,7 +85,6 @@ export function historyTab(data: History): TabContent {
             noRowOpen: true,
             emptyTitle: "Nothing billed yet",
             emptyBody: "A term appears here once it has invoices.",
-            foot: "Collected is money actually received against the term’s invoices, never money promised.",
           },
         ],
       },
@@ -132,7 +131,6 @@ export function historyTab(data: History): TabContent {
             per: 12,
             emptyTitle: "No receipt yet",
             emptyBody: "A receipt is issued when a payment is recorded with “Issue the receipt now”.",
-            foot: "Opening a receipt shows the document itself. The original stays the only payment recorded.",
           },
         ],
       },

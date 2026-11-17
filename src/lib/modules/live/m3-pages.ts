@@ -217,11 +217,10 @@ export async function armPage(armId: string): Promise<(TabContent & { heading: s
             sub: detail.term ? `${detail.term.name} ${detail.term.session} · every figure is the one on the child’s own record.` : "No active term",
             per: 6,
             cards: [
-              { label: "Roll", value: String(detail.roll), unit: `of ${detail.capacity}`, sub: over ? `Over capacity by ${detail.roll - detail.capacity}` : `${detail.capacity - detail.roll} places free`, tone: over ? "attention" : "positive" },
+              { label: "Roll", value: String(detail.roll), unit: `of ${detail.capacity}`, tone: over ? "attention" : "positive" },
               {
                 label: "Attendance",
                 value: attendance === null ? "—" : `${attendance}%`,
-                sub: attendance === null ? "No register marked this term" : "Target is 92%",
                 tone: attendance === null ? "neutral" : attendance >= 92 ? "positive" : "attention",
                 link: "Open the register history",
                 href: "/attendance/log",
@@ -230,20 +229,18 @@ export async function armPage(armId: string): Promise<(TabContent & { heading: s
                 label: "Term average",
                 value: results.average === null ? "—" : String(results.average),
                 unit: results.average === null ? undefined : "/ 100",
-                sub: results.average === null ? "No result sheet yet" : `Pass rate ${results.passRate}% · top grade ${results.topGrade ?? "—"}`,
                 tone: results.average === null ? "neutral" : results.average >= 65 ? "positive" : "attention",
               },
-              { label: "Subjects", value: String(detail.subjects.length), sub: uncovered.length ? `${uncovered.length} with no teacher` : "All have a named teacher", tone: uncovered.length ? "negative" : "positive" },
+              { label: "Subjects", value: String(detail.subjects.length), tone: uncovered.length ? "negative" : "positive" },
               {
                 label: "Fees outstanding",
                 value: String(owing.length),
                 unit: "families",
-                sub: owing.length ? `${money(owing.reduce((sum, student) => sum + student.owes, 0))} unpaid` : "Everyone settled",
                 tone: owing.length ? "attention" : "positive",
                 link: owing.length ? "Open the debtor list" : undefined,
                 href: owing.length ? "/fee-management/collections" : undefined,
               },
-              { label: "Chronic absence", value: String(chronic), unit: "students", sub: "Below the 75% threshold", tone: chronic ? "negative" : "positive" },
+              { label: "Chronic absence", value: String(chronic), unit: "students", tone: chronic ? "negative" : "positive" },
             ],
           },
         ],
@@ -329,7 +326,6 @@ export async function armPage(armId: string): Promise<(TabContent & { heading: s
             rows: rosterRows,
             per: 12,
             empty: "Nobody is on this arm’s roll.",
-            foot: "A student with a blocked result is waiting on a score sheet, not on anything you can fix here.",
           },
         ],
       },
@@ -354,7 +350,6 @@ export async function armPage(armId: string): Promise<(TabContent & { heading: s
             rows: subjectRows,
             per: 10,
             empty: "No subject is offered to this arm yet.",
-            foot: "Opening a subject shows every child in this arm with all four components, their total, grade and position.",
           },
         ],
       },
@@ -397,7 +392,6 @@ export async function teacherPage(teacherId: string): Promise<(TabContent & { he
   const mapDrawer = mapSubjectDrawer(teaching, overview.arms, { teacherId: teacher.id });
   const raise = ceilingDrawer(teacher, teaching.schoolCeiling);
   const subjectNames = Array.from(new Set(mine.map((row) => row.subject)));
-  const arms = Array.from(new Set(mine.map((row) => row.arm)));
 
   const mappingRows: TableRow[] = mine.map((row) => {
     const drawer = subjectArmDrawer(row, teaching.teachers);
@@ -474,20 +468,18 @@ export async function teacherPage(teacherId: string): Promise<(TabContent & { he
             sub: `The ceiling ${teacher.raised ? "for this teacher is" : "for this school is"} ${teacher.ceiling} periods a week.`,
             per: 5,
             cards: [
-              { label: "Subject-arms held", value: String(mine.length), sub: "Each one names an exact arm" },
-              { label: "Distinct subjects", value: String(subjectNames.length), sub: subjectNames.slice(0, 3).join(", ") || "None" },
+              { label: "Subject-arms held", value: String(mine.length), },
+              { label: "Distinct subjects", value: String(subjectNames.length), },
               {
                 label: "Periods a week",
                 value: String(teacher.periods),
                 unit: `of ${teacher.ceiling}`,
-                sub: teacher.load,
                 tone: over ? "negative" : teacher.load === "Under-loaded" || teacher.load === "No assignment" ? "attention" : "positive",
               },
-              { label: "Students taught", value: String(students), sub: `Across ${plural(arms.length, "arm")}` },
+              { label: "Students taught", value: String(students), },
               {
                 label: "Score sheets owed",
                 value: String(owed.length),
-                sub: owed.length ? owed.slice(0, 2).map((row) => `${row.subject} ${row.arm} · ${row.scores.state.toLowerCase()}`).join(", ") : "Nothing outstanding",
                 tone: owed.length ? "negative" : "positive",
                 link: owed.length ? "Open the score review" : undefined,
                 href: owed.length ? "/score-entry-results/review" : undefined,
@@ -520,7 +512,6 @@ export async function teacherPage(teacherId: string): Promise<(TabContent & { he
             rows: mappingRows,
             per: 8,
             empty: "This teacher holds no subject yet.",
-            foot: "Removing a mapping unregisters nobody — it leaves the subject-arm needing a teacher, and says so on the catalogue.",
           },
         ],
       },
@@ -539,7 +530,6 @@ export async function teacherPage(teacherId: string): Promise<(TabContent & { he
             rows: openingRows,
             per: 5,
             empty: "Nothing in this department is waiting for a teacher.",
-            foot: "A subject nobody teaches cannot be scored, so every card in that arm is blocked by it.",
           },
         ],
       },
@@ -607,30 +597,26 @@ export async function studentPage(armId: string, studentId: string): Promise<(Ta
               {
                 label: "Attendance",
                 value: attendance.rate === null ? "—" : `${attendance.rate}%`,
-                sub: attendance.marked ? `${attendance.present} present of ${attendance.marked} marked days` : "No register marked yet",
                 tone: attendance.rate === null ? "neutral" : attendance.rate < 75 ? "negative" : attendance.rate < 92 ? "attention" : "positive",
               },
               {
                 label: "Term average",
                 value: result ? String(result.average) : "—",
                 unit: result ? "/ 100" : undefined,
-                sub: result ? `Total ${result.total}` : "No result sheet yet",
                 tone: result ? gradeTone(result.average) : "neutral",
               },
               {
                 label: "Position",
                 value: result?.position ? String(result.position) : "—",
                 unit: result?.position ? `of ${result.outOf}` : undefined,
-                sub: result?.position ? `In ${armName}` : "Not ranked yet",
               },
-              { label: "Grade", value: result?.grade ?? "—", sub: result ? `Result ${result.status.toLowerCase().replace(/_/g, " ")}` : "Waiting on score sheets", tone: result ? gradeTone(result.average) : "neutral" },
+              { label: "Grade", value: result?.grade ?? "—", tone: result ? gradeTone(result.average) : "neutral" },
               {
                 label: "Fees outstanding",
                 value: money(fees.outstanding),
-                sub: fees.outstanding ? plural(fees.invoices.filter((invoice) => invoice.balance > 0).length, "invoice") + " unpaid" : "Settled",
                 tone: fees.outstanding ? "attention" : "positive",
               },
-              { label: "Portal", value: student.portal === "Active" ? "Active" : student.portal === "Not activated" ? "Off" : "Created", sub: student.portal, tone: student.portal === "Active" ? "positive" : "neutral" },
+              { label: "Portal", value: student.portal === "Active" ? "Active" : student.portal === "Not activated" ? "Off" : "Created", tone: student.portal === "Active" ? "positive" : "neutral" },
             ],
           },
         ],
@@ -721,7 +707,6 @@ export async function studentPage(armId: string, studentId: string): Promise<(Ta
             head: ["Invoice", "Total", "Balance", "Due", "State"],
             rows: invoiceRows,
             empty: "No invoice has been raised for this child.",
-            foot: "Fees are managed in Fee Management; this is a read-out.",
           },
           {
             type: "bars",

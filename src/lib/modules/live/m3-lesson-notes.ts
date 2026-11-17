@@ -103,11 +103,11 @@ export async function lessonNotesTab(): Promise<TabContent> {
       row("1fr", [{
         type: "kpi", title: `${review.term.name} ${review.term.session} · ${week}`, per: 5,
         cards: [
-          { label: "Signed to date", value: `${pct(signed, due.length)}%`, sub: `${signed.toLocaleString()} of ${due.length.toLocaleString()} notes due by now`, tone: pct(signed, due.length) >= 85 ? "positive" : "attention", icon: "check" },
-          { label: "Waiting for review", value: String(waiting.length), sub: waiting.length ? `Oldest ${waiting[0]!.age} ${waiting[0]!.age === 1 ? "day" : "days"}` : "Nothing waiting", tone: waiting.length ? "submitted" : "positive", icon: "inbox", ...(waiting[0]?.planId ? { link: "Review the oldest", href: `/lesson-notes/review/${waiting[0].planId}?from=class-timetable` } : {}) },
-          { label: "Sent back for rework", value: String(back.length), sub: "With the teacher", tone: back.length ? "negative" : "positive", icon: "undo" },
-          { label: "Overdue", value: String(late.length), sub: "Taught weeks with no note", tone: late.length ? "attention" : "positive", icon: "hourglass" },
-          { label: "Arms up to date", value: String(upToDate), unit: `of ${armList.length}`, sub: "Nothing overdue or sent back", tone: armList.length && upToDate === armList.length ? "positive" : "neutral", icon: "board" }
+          { label: "Signed to date", value: `${pct(signed, due.length)}%`, tone: pct(signed, due.length) >= 85 ? "positive" : "attention", icon: "check" },
+          { label: "Waiting for review", value: String(waiting.length), tone: waiting.length ? "submitted" : "positive", icon: "inbox", ...(waiting[0]?.planId ? { link: "Review the oldest", href: `/lesson-notes/review/${waiting[0].planId}?from=class-timetable` } : {}) },
+          { label: "Sent back for rework", value: String(back.length), tone: back.length ? "negative" : "positive", icon: "undo" },
+          { label: "Overdue", value: String(late.length), tone: late.length ? "attention" : "positive", icon: "hourglass" },
+          { label: "Arms up to date", value: String(upToDate), unit: `of ${armList.length}`, tone: armList.length && upToDate === armList.length ? "positive" : "neutral", icon: "board" }
         ]
       }]),
       row("1fr", [{
@@ -118,7 +118,6 @@ export async function lessonNotesTab(): Promise<TabContent> {
         rows: waitingRows, per: 8, selectable: signable.length > 0,
         bulkActs: signable.length ? [{ label: "Sign the selected", primary: true, drawer: signSelected, selection: { key: "planIds", noun: "note" } }] : undefined,
         emptyTitle: "Nothing is waiting for review", emptyBody: "Every submitted note has been signed or sent back.",
-        foot: "Signing records the read, never a change to the note."
       }]),
       row("1fr", [{
         type: "table", title: "Every arm", tag: `${armList.length} ${armList.length === 1 ? "arm" : "arms"}`, tagTone: "neutral",
@@ -140,7 +139,6 @@ export async function lessonNotesTab(): Promise<TabContent> {
         })),
         per: 8,
         emptyTitle: "No arm has a note due yet", emptyBody: "Arms appear here once a scheme of work has weeks that have come round.",
-        foot: "A note shared by several arms counts once for each."
       }])
     ]
   };

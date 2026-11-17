@@ -40,10 +40,10 @@ export function markTab(o: Overview): TabContent {
         panels: [{
           type: "kpi", title: `${o.today ? "Today, across the school" : "On this day, across the school"}`, sub: `${o.label} · cutoff ${o.policy.markCutoff}`, per: 4,
           cards: [
-            { label: "Registers marked", value: String(d.marked), unit: `of ${d.arms} arms`, sub: `${d.unmarked + d.partial} still open`, tone: d.unmarked ? "attention" : "positive" },
-            { label: "Children accounted for", value: d.accounted.toLocaleString(), unit: `of ${d.roll.toLocaleString()}`, sub: "Across the arms marked so far", tone: "positive" },
-            { label: "Absent so far", value: String(d.absent), sub: "Each one needs a reason on the register", tone: d.absent ? "attention" : "positive" },
-            { label: "Past the cutoff", value: String(d.pastCutoff), unit: "arms", sub: d.pastCutoff ? "Their form masters can be told from Compliance" : "Nothing is overdue", tone: d.pastCutoff ? "negative" : "positive" },
+            { label: "Registers marked", value: String(d.marked), unit: `of ${d.arms} arms`, tone: d.unmarked ? "attention" : "positive" },
+            { label: "Children accounted for", value: d.accounted.toLocaleString(), unit: `of ${d.roll.toLocaleString()}`, tone: "positive" },
+            { label: "Absent so far", value: String(d.absent), tone: d.absent ? "attention" : "positive" },
+            { label: "Past the cutoff", value: String(d.pastCutoff), unit: "arms", tone: d.pastCutoff ? "negative" : "positive" },
           ],
         }],
       },
@@ -54,7 +54,6 @@ export function markTab(o: Overview): TabContent {
           meta: `${d.arms} arms · ${d.unmarked} unmarked`, search: "Find an arm by name or form master",
           filters: [{ label: "State", value: "All", options: ["All", "Marked", "In progress", "Unmarked"], column: 3 }],
           head: ["Arm", "Form master", "Children", "State", "Marked at", ""], noun: "arm", nounPlural: "arms", per: 10, rows,
-          foot: "Mark an unmarked arm, or Open a marked one to review and correct it. A register for an earlier day needs a reason.",
         }],
       },
     ],

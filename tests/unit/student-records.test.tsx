@@ -46,7 +46,7 @@ describe("M8 Registry", () => {
 
   it("counts families, not children, against fees", () => {
     const html = markup(registryTab(registry(), rooms));
-    expect(html).toContain("Families, not children");
+    expect(html).toContain("families, not children");
   });
 
   it("opens each student at their own record", () => {

@@ -63,11 +63,11 @@ export function registerTab(o: Overview, options: Options): TabContent {
   });
 
   const cards: KpiCard[] = [
-    { label: "Attendance", value: pct(d.rate), unit: `of ${d.accounted} marked`, sub: `${d.present} present · school target is ${o.policy.target}%`, tone: rateTone(d.rate, o.policy) },
-    { label: "Registers in", value: String(d.marked), unit: `of ${d.arms} arms`, sub: pastCutoff.length ? `${plural(pastCutoff.length, "arm")} past the ${o.policy.markCutoff} cutoff` : unmarked.length ? "Still inside the cutoff" : "Every register is in", tone: pastCutoff.length ? "attention" : "positive", link: pastCutoff.length ? `See the ${pastCutoff.length}` : undefined, href: pastCutoff.length ? "/attendance/compliance" : undefined },
-    { label: "Absent", value: String(d.absent), sub: "Across the arms marked so far", tone: d.absent ? "attention" : "positive" },
-    { label: "Late", value: String(d.late), sub: `After the ${o.policy.bell} bell`, tone: d.late ? "attention" : "positive" },
-    { label: "Chronic absence cases", value: String(o.chronic), sub: `Below ${o.policy.chronic}% this term`, tone: o.chronic ? "negative" : "positive", link: o.chronic ? "Open the cases" : undefined, href: o.chronic ? "/attendance/log" : undefined },
+    { label: "Attendance", value: pct(d.rate), unit: `of ${d.accounted} marked`, tone: rateTone(d.rate, o.policy) },
+    { label: "Registers in", value: String(d.marked), unit: `of ${d.arms} arms`, tone: pastCutoff.length ? "attention" : "positive", link: pastCutoff.length ? `See the ${pastCutoff.length}` : undefined, href: pastCutoff.length ? "/attendance/compliance" : undefined },
+    { label: "Absent", value: String(d.absent), tone: d.absent ? "attention" : "positive" },
+    { label: "Late", value: String(d.late), tone: d.late ? "attention" : "positive" },
+    { label: "Chronic absence cases", value: String(o.chronic), tone: o.chronic ? "negative" : "positive", link: o.chronic ? "Open the cases" : undefined, href: o.chronic ? "/attendance/log" : undefined },
   ];
 
   const armRows: TableRow[] = o.arms
@@ -128,7 +128,7 @@ export function registerTab(o: Overview, options: Options): TabContent {
         title: o.today ? "Every arm, today" : "Every arm on this day",
         tag: unmarked.length ? `${unmarked.length} unmarked` : "All marked",
         tagTone: unmarked.length ? "attention" : "positive",
-        sub: "Open an arm for its student list, or open the teacher to see everything they are responsible for.",
+        sub: "Rate counts present and late. An unmarked arm is unknown, not 0%.",
         meta: `${d.arms} arms · ${d.roll.toLocaleString()} children${o.since ? ` · registers counted from ${LONG_DATE(o.since)}` : ""}`,
         search: "Find an arm, a form master or a class",
         filters: [
@@ -147,7 +147,6 @@ export function registerTab(o: Overview, options: Options): TabContent {
           { label: "Export selected", primary: true, export: true },
         ],
         rows: armRows,
-        foot: "Rate counts present and late; excused children are left out. An unmarked arm is unknown, not 0%.",
       },
     ],
   });
@@ -161,7 +160,6 @@ export function registerTab(o: Overview, options: Options): TabContent {
         filters: depts.length > 1 ? [{ label: "Department", value: "All", options: ["All", ...depts], match: Object.fromEntries(depts.map((dept) => [dept, `dept:${dept}`])) }] : undefined,
         head: ["Teacher", "Arms", "Roll", "Marked", "Punctuality", ""],
         noun: "teacher", nounPlural: "teachers", per: 8, rows: teacherRows,
-        foot: "Punctuality is the share of the term's registers taken before the cutoff. Open a teacher to see their record, and to move an arm to someone else.",
       },
       {
         type: "list", title: "Guardian explanations", sub: "A guardian submits; the school decides.",
@@ -246,12 +244,12 @@ export function dayPage(d: Day, options: Options, correction: CorrectionOptions)
       panels: [{
         type: "kpi", title: "This day", per: 6,
         cards: [
-          { label: "Present", value: String(c.present), unit: `of ${c.roll}`, sub: `${pct(d.rate)} including late`, tone: "positive" },
-          { label: "Absent", value: String(c.absent), sub: c.absent ? `${c.unexplained} without a reason` : "Nobody absent", tone: c.absent ? "negative" : "positive" },
-          { label: "Late", value: String(c.late), sub: c.late ? `After the ${policy.bell} bell` : "Nobody late", tone: c.late ? "attention" : "positive" },
-          { label: "Excused", value: String(c.excused), sub: "Not counted against them", tone: "neutral" },
-          { label: "Marked at", value: d.register.markedAt ?? "—", sub: d.register.markedAt ? (d.register.markedAt > policy.markCutoff ? `After the ${policy.markCutoff} cutoff` : `Before the ${policy.markCutoff} cutoff`) : "The clock time was not recorded", tone: d.register.markedAt ? (d.register.markedAt > policy.markCutoff ? "attention" : "positive") : "neutral" },
-          { label: "Marked by", value: (d.register.by ?? "Unknown").split(" ").slice(-1)[0], sub: d.arm.master ? `Form master ${d.arm.master}` : "No form master named", tone: d.register.by ? "neutral" : "attention", link: d.arm.masterId ? "Open them" : undefined, href: d.arm.masterId ? staffRecordHref(d.arm.masterId) : undefined },
+          { label: "Present", value: String(c.present), unit: `of ${c.roll}`, tone: "positive" },
+          { label: "Absent", value: String(c.absent), tone: c.absent ? "negative" : "positive" },
+          { label: "Late", value: String(c.late), tone: c.late ? "attention" : "positive" },
+          { label: "Excused", value: String(c.excused), tone: "neutral" },
+          { label: "Marked at", value: d.register.markedAt ?? "—", tone: d.register.markedAt ? (d.register.markedAt > policy.markCutoff ? "attention" : "positive") : "neutral" },
+          { label: "Marked by", value: (d.register.by ?? "Unknown").split(" ").slice(-1)[0], tone: d.register.by ? "neutral" : "attention", link: d.arm.masterId ? "Open them" : undefined, href: d.arm.masterId ? staffRecordHref(d.arm.masterId) : undefined },
         ],
       }],
     });
@@ -280,7 +278,6 @@ export function dayPage(d: Day, options: Options, correction: CorrectionOptions)
           { label: "Export selected", primary: true, export: true },
         ],
         rows: studentRows,
-        foot: "Excused · excluded from the percentage · late · still counted",
       }],
     });
   }

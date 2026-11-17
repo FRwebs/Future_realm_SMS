@@ -91,7 +91,6 @@ function todayTab(d: DayView, me: TeacherWorkspaceView, permissions: string[]): 
   if (d.registers.length) {
     cards.push({
       label: "Registers to mark", value: String(open.length), unit: `of ${d.registers.length}`,
-      sub: !d.schoolDay ? "Today is not a school day" : open.length ? `The cutoff was ${d.cutoff}` : "Every register is in",
       tone: open.length && d.schoolDay ? "negative" : "positive",
       link: open.length ? "Mark one now" : "Open the registers",
       href: open.length ? `/attendance/mark/${open[0].classId}` : "/attendance/mark",
@@ -100,24 +99,21 @@ function todayTab(d: DayView, me: TeacherWorkspaceView, permissions: string[]): 
   if (d.sheets.length && !early) {
     cards.push({
       label: "Score sheets due", value: String(dueSheets.length), unit: `of ${d.sheets.length}`,
-      sub: d.closes ? `The window closes ${shortDay(d.closes)}` : "No closing date has been set",
       tone: dueSheets.length ? "attention" : "positive", link: "Open your sheets", href: "/score-entry-results/enter",
     });
   }
   if (d.returned.length) {
-    cards.push({ label: "Returned to you", value: String(d.returned.length), sub: "A return is a conversation, not a task", tone: "negative", link: "Read the comment", href: `/score-entry-results/enter/${d.returned[0].classId}/${d.returned[0].subjectId}` });
+    cards.push({ label: "Returned to you", value: String(d.returned.length), tone: "negative", link: "Read the comment", href: `/score-entry-results/enter/${d.returned[0].classId}/${d.returned[0].subjectId}` });
   }
   if (d.remarks && held.has("report-cards.remarks.view")) {
     const left = d.remarks.roll - d.remarks.written;
     cards.push({
       label: "Remarks outstanding", value: String(left), unit: `of ${d.remarks.roll}`,
-      sub: d.remarks.due ? `Due ${shortDay(d.remarks.due)}${d.remarks.days !== null ? ` · ${Math.max(0, d.remarks.days)} days` : ""}` : "No publication date is set",
       tone: left ? "neutral" : "positive", link: d.remarks.written ? "Continue writing" : "Start writing", href: "/report-cards/remarks",
     });
   }
   cards.push({
     label: "Waiting to sync", value: String(d.sync.pending), unit: d.sync.pending === 1 ? "item" : "items",
-    sub: d.sync.pending ? `Saved on this device since ${clockOf(d.sync.items[0].at)}` : "Nothing is waiting",
     tone: d.sync.pending ? "offline" : "positive", link: "What is queued", href: "/sync-support/sync",
   });
   const kpis = cards.slice(0, 5);
@@ -183,14 +179,12 @@ function todayTab(d: DayView, me: TeacherWorkspaceView, permissions: string[]): 
         sub: "In deadline order. One tap opens the screen that clears it.", meta: `${dayWords(d.date)} · nothing here belongs to anybody else`,
         noun: "item", nounPlural: "items", search: "Find something you owe", head: ["Work", "What it is", "Due", "State", ""], rows: queueRows, per: 8, noRowOpen: true,
         empty: "Nothing is waiting on you. An item appears here the moment something is yours to do.",
-        foot: "An item leaves this list when the work is done — never because you looked at it.",
       },
       {
         type: "table", title: early ? "Today’s sessions" : "Today", sub: "In order. What is happening now and what is next are marked.",
         meta: d.schoolDay ? `${d.periods.length} period${d.periods.length === 1 ? "" : "s"}${nextPeriod ? ` · next is ${nextPeriod.what.split(" · ")[0]}` : ""}` : "Not a school day",
         noun: "period", nounPlural: "periods", head: ["Time", "What", "Where", "Note"], rows: periodRows, noRowOpen: true,
         empty: d.schoolDay ? "No period is timetabled for you today." : "Today is not a school day in this term.",
-        foot: "A cover period is marked as cover, and leaves this page when the cover ends.",
       },
     ]),
     row("1fr 1fr", [
@@ -299,25 +293,23 @@ function oversightTab(o: OversightView): TabContent {
     row("1fr", [{
       type: "kpi", per: 5, sub: `${o.term} · you hold this because you head ${o.department}.`,
       cards: [
-        { label: "Sheets submitted", value: `${k.submitted} of ${k.sheets}`, sub: `${k.withTeacher} still with their teacher`, tone: k.submitted < k.sheets ? "attention" : "positive", link: "Open the queue", href: "/score-entry-results/review" },
+        { label: "Sheets submitted", value: `${k.submitted} of ${k.sheets}`, tone: k.submitted < k.sheets ? "attention" : "positive", link: "Open the queue", href: "/score-entry-results/review" },
         // The department's registers and its notes are the head's two other answerables; they sit
         // beside the sheets rather than being reached for one tab at a time.
         {
           label: "Period registers on time",
           value: k.registersTaught === undefined ? "—" : `${k.registersOnTime ?? 0} of ${k.registersTaught}`,
-          sub: k.registersTaught === undefined ? "Not counted yet" : late ? `${late} marked after the period ended` : k.registersTaught ? "Every one marked in the period" : "No period taught yet today",
           tone: k.registersTaught === undefined ? "neutral" : late ? "attention" : "positive",
           link: "See who", href: "/attendance/compliance",
         },
         {
           label: o.week ? `Week ${o.week} notes in` : "Notes in",
           value: k.notesDue === undefined ? "—" : `${k.notesIn ?? 0} of ${k.notesDue}`,
-          sub: k.notesDue === undefined ? "Not counted yet" : (k.notesIn ?? 0) >= (k.notesDue ?? 0) ? "Every note is in" : `${(k.notesDue ?? 0) - (k.notesIn ?? 0)} still to come`,
           tone: k.notesDue === undefined ? "neutral" : (k.notesIn ?? 0) >= (k.notesDue ?? 0) ? "positive" : "attention",
           link: "Sign them", href: "/lesson-notes/review",
         },
-        { label: "Returned by you", value: String(k.returnedByMe), sub: k.returnedByMe ? "Sent back for correction" : "Nothing sent back this term" },
-        { label: "Your own sheets", value: `${k.mineSubmitted} of ${k.mine}`, sub: "You are counted like everyone else", tone: k.mine && k.mineSubmitted < k.mine ? "negative" : k.mine ? "positive" : "neutral" },
+        { label: "Returned by you", value: String(k.returnedByMe), },
+        { label: "Your own sheets", value: `${k.mineSubmitted} of ${k.mine}`, tone: k.mine && k.mineSubmitted < k.mine ? "negative" : k.mine ? "positive" : "neutral" },
       ],
     }]),
     row("1fr", [{

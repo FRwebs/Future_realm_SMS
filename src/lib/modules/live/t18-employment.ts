@@ -126,10 +126,10 @@ function leaveTab(v: Leave): TabContent {
       row("1fr", [{
         type: "kpi", sub: `${v.session ?? ""} · entitlements are set by the school${v.reportsTo ? `, and ${v.reportsTo} is who you report to` : ""}.`, per: 4,
         cards: [
-          { label: annual ? `${annual.name} left` : "Annual leave", value: left(annual) === null ? "—" : String(left(annual)), unit: annual && annual.entitlement !== null ? `of ${annual.entitlement} days` : undefined, sub: annual ? `${annual.used} taken this session` : "Not offered here", tone: "positive" },
-          { label: sick ? `${sick.name}` : "Sick leave", value: left(sick) === null ? "—" : String(left(sick)), unit: sick && sick.entitlement !== null ? `of ${sick.entitlement} days` : undefined, sub: sick ? `${sick.used} taken` : "Not offered here" },
-          { label: "Waiting on a decision", value: String(waiting.length), sub: latest ? `With ${(latest.with ?? "").replace(/^The /, "the ")}` : "Nothing is waiting", tone: waiting.length ? "progress" : "neutral" },
-          { label: "Carried over", value: annual?.carry && !/^none$/i.test(annual.carry) ? "Allowed" : "None", sub: annual?.carry ?? "This school does not carry leave over" },
+          { label: annual ? `${annual.name} left` : "Annual leave", value: left(annual) === null ? "—" : String(left(annual)), unit: annual && annual.entitlement !== null ? `of ${annual.entitlement} days` : undefined, tone: "positive" },
+          { label: sick ? `${sick.name}` : "Sick leave", value: left(sick) === null ? "—" : String(left(sick)), unit: sick && sick.entitlement !== null ? `of ${sick.entitlement} days` : undefined, },
+          { label: "Waiting on a decision", value: String(waiting.length), tone: waiting.length ? "progress" : "neutral" },
+          { label: "Carried over", value: annual?.carry && !/^none$/i.test(annual.carry) ? "Allowed" : "None", },
         ],
       }]),
       row("1fr", [{
@@ -143,8 +143,7 @@ function leaveTab(v: Leave): TabContent {
               { label: "State", value: "All", options: ["All", ...new Set(v.rows.map((entry) => entry.status))] },
             ]
           : undefined,
-        head: ["Type", "Dates", "Days", "With", "State", "Cover", ""], rows, per: 10, noRowOpen: true, empty: "You have not asked for leave this session.", foot: "A decision reaches you in-app, whatever the outcome.",
-      }]),
+        head: ["Type", "Dates", "Days", "With", "State", "Cover", ""], rows, per: 10, noRowOpen: true, empty: "You have not asked for leave this session.",       }]),
       steps ? row("1fr", [{ type: "steps", title: `Where your ${latest!.type.toLowerCase()} request is`, steps }]) : null,
     ].filter(Boolean) as PanelRow[]),
   };
@@ -187,8 +186,8 @@ function assignmentsTab(v: Assignments, gaps: Gaps | null): TabContent {
   // The phone: cover in both directions — what you are doing for colleagues, and what they did for you.
   const phone: PanelRow[] = [
     phoneOnly({ type: "kpi", bare: true, cards: [
-      { label: "Cover you hold", value: String(live.length), sub: live.map((entry) => `${entry.what} ${entry.arm}`).join(" · ") || "Nobody at the moment", tone: live.length ? "attention" : "neutral" },
-      { label: "Covered for you", value: String(v.absences.length), unit: v.absences.length === 1 ? "time" : "times", sub: "This term" },
+      { label: "Cover you hold", value: String(live.length), tone: live.length ? "attention" : "neutral" },
+      { label: "Covered for you", value: String(v.absences.length), unit: v.absences.length === 1 ? "time" : "times", },
     ] }),
     phoneOnly({
       type: "list", title: "Cover you are doing", sub: "Each one ends on its own date. Nothing you entered is lost when it does.",
@@ -214,18 +213,18 @@ function assignmentsTab(v: Assignments, gaps: Gaps | null): TabContent {
       row("1fr", [{
         type: "kpi", sub: "Cover is time-boxed by rule — an end date is mandatory, always.", per: 3,
         cards: [
-          { label: "You are covering", value: String(live.length), unit: live.length === 1 ? "assignment" : "assignments", sub: live.map((entry) => `${entry.arm} · until ${entry.endsLabel}`).join(" · ") || "Nobody at the moment", tone: live.length ? "attention" : "neutral" },
-          { label: "Covered for you", value: String(v.absences.length), unit: v.absences.length === 1 ? "day" : "days", sub: "This term" },
-          { label: "Registers marked on cover", value: String(v.registersOnCover), unit: v.registersOnCover === 1 ? "register" : "registers", sub: "Attributed to you, with the owner named alongside" },
+          { label: "You are covering", value: String(live.length), unit: live.length === 1 ? "assignment" : "assignments", tone: live.length ? "attention" : "neutral" },
+          { label: "Covered for you", value: String(v.absences.length), unit: v.absences.length === 1 ? "day" : "days", },
+          { label: "Registers marked on cover", value: String(v.registersOnCover), unit: v.registersOnCover === 1 ? "register" : "registers", },
         ],
       }]),
       row("1fr", [{ type: "table", title: "What you hold", sub: "Your classes and subjects, from the school’s class structure.", meta: `${v.holding.length}`, noun: "assignment", nounPlural: "assignments", head: ["What", "Where", "Load", "Kind"], rows: holdRows, per: 12, noRowOpen: true, empty: "You are not named on a class or subject yet." }]),
       // Shown whether or not there is cover to show. "You are not covering for anyone"
       // is an answer; an absent panel is a question about whether the page is finished.
-      row("1fr", [{ type: "table", title: "Your cover assignments", sub: "What each one grants, and when it ends.", meta: `${v.covering.length} this term`, noun: "assignment", nounPlural: "assignments", head: ["What", "Arm", "For whom", "Grants", "Ends", "Attribution", ""], rows: coverRows, per: 10, noRowOpen: true, empty: "You are not covering for anyone. Cover is arranged by a head of department or a school leader, and always carries an end date.", foot: "A cover teacher never inherits the owner’s remarks, family conversations or historic reach." }]),
+      row("1fr", [{ type: "table", title: "Your cover assignments", sub: "What each one grants, and when it ends.", meta: `${v.covering.length} this term`, noun: "assignment", nounPlural: "assignments", head: ["What", "Arm", "For whom", "Grants", "Ends", "Attribution", ""], rows: coverRows, per: 10, noRowOpen: true, empty: "You are not covering for anyone. Cover is arranged by a head of department or a school leader, and always carries an end date.", }]),
       live.length ? row("1fr", [{ type: "note", tone: "attention", icon: WARN, title: `Your access to ${live[0]!.arm} ends on ${live[0]!.endsLabel}, without anyone remembering`, body: "The register returns to its owner. Nothing you did on cover is lost: every mark stays on the record under your name." }]) : null,
-      row("1fr", [{ type: "table", title: "Covered for you", sub: "Days you were away, and who held your work.", meta: `${v.absences.length} this term`, noun: "day", nounPlural: "days", head: ["Date", "Reason", "Covered by", "What they held"], rows: coveredForRows, per: 10, noRowOpen: true, empty: "Nobody has covered for you this term.", foot: "Their marks are on your registers under their name, with yours alongside." }]),
-      gaps ? row("1fr", [{ type: "table", title: "Gaps to fill today", sub: `Staff in ${gaps.scope === "department" ? "your department" : "the school"} who have said they are away, and what nobody holds yet.`, meta: `${gaps.gaps.length} away`, noun: "gap", nounPlural: "gaps", head: ["Who is away", "What", "Arm", "Cover", ""], rows: gapRows, per: 12, noRowOpen: true, empty: "Nobody in your department has reported an absence today.", foot: "Cover you assign always has an end date, and stops by itself on it." }]) : null,
+      row("1fr", [{ type: "table", title: "Covered for you", sub: "Days you were away, and who held your work.", meta: `${v.absences.length} this term`, noun: "day", nounPlural: "days", head: ["Date", "Reason", "Covered by", "What they held"], rows: coveredForRows, per: 10, noRowOpen: true, empty: "Nobody has covered for you this term.", }]),
+      gaps ? row("1fr", [{ type: "table", title: "Gaps to fill today", sub: `Staff in ${gaps.scope === "department" ? "your department" : "the school"} who have said they are away, and what nobody holds yet.`, meta: `${gaps.gaps.length} away`, noun: "gap", nounPlural: "gaps", head: ["Who is away", "What", "Arm", "Cover", ""], rows: gapRows, per: 12, noRowOpen: true, empty: "Nobody in your department has reported an absence today.", }]) : null,
     ])],
   };
 }
@@ -285,8 +284,8 @@ function appraisalTab(v: Appraisal): TabContent {
       phoneTitle: `${v.cycle} appraisal`, phoneDesc: "Built from your work in Nooria — nothing typed twice.",
       rows: [
         phoneOnly({ type: "kpi", bare: true, cards: [
-          { label: "Measured on", value: String(v.kpis.length), unit: "KPIs", sub: `${v.kpis.filter((kpi) => kpi.automatic).length} computed from your own record` },
-          { label: "Cycle", value: "Not open", sub: "The school has not published it yet", tone: "neutral" },
+          { label: "Measured on", value: String(v.kpis.length), unit: "KPIs", },
+          { label: "Cycle", value: "Not open", tone: "neutral" },
         ] }),
         // The stages are shown before the cycle opens too, all still to come: what is
         // ahead of you is part of knowing where you stand.
@@ -331,9 +330,9 @@ function appraisalTab(v: Appraisal): TabContent {
     launchers: !v.shared && !submitted && writtenSelf ? [{ label: "Submit it", drawer: selfDrawer(true) }] : [],
     rows: [
       phoneOnly({ type: "kpi", bare: true, cards: [
-        { label: "From your own record", value: String(v.kpis.filter((kpi) => kpi.auto !== null).length), unit: `of ${v.kpis.length}`, sub: "Computed, not typed" },
-        v.shared ? { label: "Overall", value: v.overall !== null ? v.overall.toFixed(1) : "—", unit: "of 5", sub: "This cycle", tone: "positive" as const }
-          : { label: "Stage", value: submitted ? "Manager review" : "Self-assessment", sub: submitted ? `With ${v.reviewer?.name ?? "your reviewer"}` : `${v.deadline ? `Due ${long(v.deadline)} · ` : ""}${writtenSelf ? "draft saved" : "not started"}`, tone: submitted ? ("submitted" as const) : ("progress" as const) },
+        { label: "From your own record", value: String(v.kpis.filter((kpi) => kpi.auto !== null).length), unit: `of ${v.kpis.length}`, },
+        v.shared ? { label: "Overall", value: v.overall !== null ? v.overall.toFixed(1) : "—", unit: "of 5", tone: "positive" as const }
+          : { label: "Stage", value: submitted ? "Manager review" : "Self-assessment", tone: submitted ? ("submitted" as const) : ("progress" as const) },
       ] }),
       phoneOnly({ type: "steps", title: "Where the cycle is", steps: steps.map((step, index) => (index === 1 && v.deadline && !submitted ? { ...step, sub: `Due ${long(v.deadline)}` } : index === 2 && v.reviewer ? { ...step, sub: v.reviewer.name } : step)) }),
       measured,
@@ -342,10 +341,10 @@ function appraisalTab(v: Appraisal): TabContent {
       row("1fr", [{
         type: "kpi", sub: `${v.publishedBy ? `Published by ${v.publishedBy}. ` : ""}${v.kpis.length} KPIs, weighted to 100.`, per: 4,
         cards: [
-          v.shared ? { label: "Stage", value: "Shared with you", sub: v.acknowledgedAt ? "You have responded" : "You may add a response", tone: "positive" } : submitted ? { label: "Stage", value: "Manager review", sub: `With ${v.reviewer?.name ?? "your reviewer"}`, tone: "submitted" } : { label: "Stage", value: "Self-assessment", sub: `${v.deadline ? `Due ${long(v.deadline)} · ` : ""}${writtenSelf ? "draft saved" : "not started"}`, tone: "progress" },
-          { label: "From your own record", value: String(v.kpis.filter((kpi) => kpi.auto !== null).length), unit: `of ${v.kpis.length}`, sub: "Computed, not typed" },
-          { label: "Your reviewer", value: v.reviewer?.name ?? "—", sub: v.reviewer?.title ?? "" },
-          { label: v.previous ? "Last cycle" : "Overall", value: v.shared && v.overall !== null ? v.overall.toFixed(1) : v.previous?.score != null ? v.previous.score.toFixed(1) : "—", unit: "of 5", sub: v.shared ? "This cycle" : v.previous ? v.previous.cycle : "No earlier cycle on record", tone: "positive" },
+          v.shared ? { label: "Stage", value: "Shared with you", tone: "positive" } : submitted ? { label: "Stage", value: "Manager review", tone: "submitted" } : { label: "Stage", value: "Self-assessment", tone: "progress" },
+          { label: "From your own record", value: String(v.kpis.filter((kpi) => kpi.auto !== null).length), unit: `of ${v.kpis.length}`, },
+          { label: "Your reviewer", value: v.reviewer?.name ?? "—", },
+          { label: v.previous ? "Last cycle" : "Overall", value: v.shared && v.overall !== null ? v.overall.toFixed(1) : v.previous?.score != null ? v.previous.score.toFixed(1) : "—", unit: "of 5", tone: "positive" },
         ],
       }]),
       row("1.25fr 1fr", [
@@ -369,7 +368,7 @@ function kpiTable(v: Appraisal): PanelRow["panels"][number] {
   }));
   // Dense: it sits in the narrower half of a two-up, and the measured-by column needs
   // the room that padding would otherwise take.
-  return { type: "table", dense: true, title: "What you are measured on", sub: "Where each figure comes from, and what it is worth.", meta: `${v.kpis.length} KPIs`, noun: "KPI", nounPlural: "KPIs", head: ["KPI", "Measured by", "Weight", "Target", "Your figure", "Reviewer"], rows, per: 12, noRowOpen: true, foot: "You are appraised against what happened, not against recollection." };
+  return { type: "table", dense: true, title: "What you are measured on", sub: "Where each figure comes from, and what it is worth.", meta: `${v.kpis.length} KPIs`, noun: "KPI", nounPlural: "KPIs", head: ["KPI", "Measured by", "Weight", "Target", "Your figure", "Reviewer"], rows, per: 12, noRowOpen: true, };
 }
 
 /* ───────────────────────── Payslips ───────────────────────── */
@@ -439,7 +438,7 @@ function payslipsTab(v: Payslips): TabContent {
     facts: [["Started", long(v.record.started), ""], ["Employment", v.record.employment, ""], ["Reports to", v.record.reportsTo ? v.record.reportsTo.name : "—", v.record.reportsTo?.title ?? ""], ...credentialRows, ...docRows.filter((fact) => !credentialRows.some((row) => row[0] === fact[0]))] as PanelFact[],
     acts: [{ label: "File a document", drawer: upload }],
   };
-  const slipsTable: Panel = { type: "table", title: "Your payslips", sub: "Open one for the breakdown.", meta: `${v.slips.length} most recent`, noun: "payslip", nounPlural: "payslips", head: ["Month", "Gross", "Allowances", "Deductions", "Net", "State", ""], rows, per: 12, noRowOpen: false, selectable: true, bulkActs: [{ label: "Email them to me", drawer: emailThem, selection: { key: "ids", noun: "payslip" } }, { label: "Download selected", primary: true, export: true }], empty: "No payslip yet.", foot: "A payslip appears when the school approves the month’s run." };
+  const slipsTable: Panel = { type: "table", title: "Your payslips", sub: "Open one for the breakdown.", meta: `${v.slips.length} most recent`, noun: "payslip", nounPlural: "payslips", head: ["Month", "Gross", "Allowances", "Deductions", "Net", "State", ""], rows, per: 12, noRowOpen: false, selectable: true, bulkActs: [{ label: "Email them to me", drawer: emailThem, selection: { key: "ids", noun: "payslip" } }, { label: "Download selected", primary: true, export: true }], empty: "No payslip yet.", };
   const month = latest ? latest.label.replace(/\s*\d{4}$/, "") : null;
   const warning = attention ? row("1fr", [{ type: "note", tone: "attention", icon: WARN, title: `${attention.title} ${attention.expiry === "Expired" ? "has expired" : `expires ${attention.expiresLabel}`}`, body: "Upload the renewal before it lapses; the school office verifies it and it replaces this one on your record.", acts: [{ label: "Upload the renewal", drawer: upload }] }]) : null;
   return {
@@ -451,10 +450,10 @@ function payslipsTab(v: Payslips): TabContent {
     rows: [
       ...(warning ? [warning] : []),
       phoneOnly({ type: "kpi", bare: true, cards: [
-        { label: latest ? `Net pay · ${month}` : "Latest payslip", value: latest ? ngn(latest.net) : "None yet", sub: latest ? (latest.paidAt ? `Paid ${short(latest.paidAt)}` : "Approved, not yet paid") : "A payslip appears once the school approves a payroll run" },
-        { label: "Gross", value: latest ? ngn(latest.gross) : "—", sub: v.band ? `${v.band.code}${v.band.step ? ` · step ${v.band.step}` : ""}` : "You have not been placed on a pay band" },
-        { label: "Allowances", value: latest ? ngn(latest.allowTotal) : "—", sub: latest?.allowances.length ? latest.allowances.map((line) => line.name).join(" · ") : "None this month" },
-        { label: "Deductions", value: latest ? ngn(latest.deductTotal) : "—", sub: latest?.deductions.length ? latest.deductions.map((line) => line.name).join(" · ") : "None this month" },
+        { label: latest ? `Net pay · ${month}` : "Latest payslip", value: latest ? ngn(latest.net) : "None yet", },
+        { label: "Gross", value: latest ? ngn(latest.gross) : "—", },
+        { label: "Allowances", value: latest ? ngn(latest.allowTotal) : "—", },
+        { label: "Deductions", value: latest ? ngn(latest.deductTotal) : "—", },
       ] }),
       phoneOnly({
         type: "list", title: "Payslips", sub: "Tap one for the full breakdown.", empty: "No payslip yet. One appears when the school approves the month’s run.", foot: "Record-keeping only. The school pays you through its own bank.",
@@ -475,10 +474,10 @@ function payslipsTab(v: Payslips): TabContent {
         row("1fr", [{
           type: "kpi", sub: "Record-keeping only. The school pays you through its own bank.", per: 4,
           cards: [
-            { label: "Latest payslip", value: latest ? latest.label : "None yet", sub: latest ? (latest.paidAt ? `Paid ${long(latest.paidAt)}` : "Approved, not yet paid") : "A payslip appears once the school approves a payroll run" },
-            { label: "Band", value: v.band ? v.band.code : "—", sub: v.band ? `${v.band.name}${v.band.step ? ` · step ${v.band.step}` : ""}` : "You have not been placed on a pay band" },
-            { label: "Gross this month", value: latest ? ngn(latest.gross) : "—", sub: latest && latest.allowTotal ? `Plus ${ngn(latest.allowTotal)} in allowances` : "" },
-            { label: "Net this month", value: latest ? ngn(latest.net) : "—", sub: latest ? `${ngn(latest.deductTotal)} deducted` : "", tone: "positive" },
+            { label: "Latest payslip", value: latest ? latest.label : "None yet", },
+            { label: "Band", value: v.band ? v.band.code : "—", },
+            { label: "Gross this month", value: latest ? ngn(latest.gross) : "—", },
+            { label: "Net this month", value: latest ? ngn(latest.net) : "—", tone: "positive" },
           ],
         }]),
         row("1.1fr 1fr", [slipsTable, record]),
@@ -498,5 +497,5 @@ export function gapsPanel(gaps: Gaps): PanelRow {
       ] as TableCellKind[],
     })),
   );
-  return row("1fr", [{ type: "table", title: "Away today — and who holds their classes", sub: "Staff who have said they are not in, and what nobody holds yet. Cover you assign always has an end date.", meta: `${gaps.gaps.length} away`, noun: "gap", nounPlural: "gaps", head: ["Who is away", "What", "Arm", "Cover", ""], rows, per: 12, noRowOpen: true, empty: "Nobody has reported an absence today.", foot: "Cover stops by itself on its end date — nothing needs remembering." }]);
+  return row("1fr", [{ type: "table", title: "Away today — and who holds their classes", sub: "Staff who have said they are not in, and what nobody holds yet. Cover you assign always has an end date.", meta: `${gaps.gaps.length} away`, noun: "gap", nounPlural: "gaps", head: ["Who is away", "What", "Arm", "Cover", ""], rows, per: 12, noRowOpen: true, empty: "Nobody has reported an absence today.", }]);
 }

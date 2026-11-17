@@ -94,12 +94,12 @@ function enterTab(v: List): TabContent {
       row("1fr", [{
         type: "kpi", sub: `Half-term ${v.half} · the observation window closes ${short(v.closes)}, counted from the term’s dates.`, per: 4,
         cards: [
-          { label: "Not yet observed", value: String(unseen.length), unit: `of ${total}`, sub: `${v.daysLeft} day${v.daysLeft === 1 ? "" : "s"} left`, tone: unseen.length ? "negative" : "positive" },
-          { label: "Observations this half-term", value: String(v.arms.reduce((sum, arm) => sum + arm.total, 0)), sub: `Across ${v.framework.areas.length} areas` },
+          { label: "Not yet observed", value: String(unseen.length), unit: `of ${total}`, tone: unseen.length ? "negative" : "positive" },
+          { label: "Observations this half-term", value: String(v.arms.reduce((sum, arm) => sum + arm.total, 0)), },
           // This device's own figure, not the school's: an observation written with no connection is
           // kept here and sent when there is one, so the count is read off the device after mounting.
-          { label: "Saved on this device", value: "0", unit: "notes", sub: "Written with no connection — sent when there is one", tone: "offline", device: "OBSERVATION" },
-          { label: "Photographs", value: String(v.arms.reduce((sum, arm) => sum + arm.photos, 0)), sub: "Attached to observations this half-term", tone: "neutral" },
+          { label: "Saved on this device", value: "0", unit: "notes", tone: "offline", device: "OBSERVATION" },
+          { label: "Photographs", value: String(v.arms.reduce((sum, arm) => sum + arm.photos, 0)), tone: "neutral" },
         ],
       }]),
       row("1fr", [{
@@ -110,8 +110,7 @@ function enterTab(v: List): TabContent {
           { label: "Record a group observation", primary: true, drawer: groupDrawer(v), selection: { key: "studentIds", noun: "child" } },
           { label: "Export selected", export: true },
         ],
-        head: ["Child", "Admission no", "State", headline.join(" · "), "Last seen", ""], rows, per: 12, noRowOpen: true, empty: "No children are on the roll.", foot: "An observation is saved on this device the moment you write it, and syncs when you are next online.",
-      }]),
+        head: ["Child", "Admission no", "State", headline.join(" · "), "Last seen", ""], rows, per: 12, noRowOpen: true, empty: "No children are on the roll.",       }]),
     ],
   };
 }
@@ -122,9 +121,8 @@ function resultsTab(v: Summary): TabContent {
   const secure = v.framework.bands.length - 2;
   const tables: PanelRow[] = v.arms.map((entry) => {
     const rows: TableRow[] = entry.counts.map((line) => ({ keywords: line.area, cells: [text(line.area, { strong: true }), ...line.counts.map((count) => text(String(count), { mono: true })), text(String(line.unseen), { mono: true, tone: line.unseen ? "attention" : undefined })] as TableCellKind[] }));
-    return row("1fr", [{ type: "table", title: `${entry.name} · by learning area`, sub: "How many children sit at each descriptor — counts of children, never an average.", meta: `${v.framework.areas.length} areas`, noun: "area", nounPlural: "areas", head: ["Learning area", ...v.framework.bands, "Not yet seen"], rows, per: 0, noRowOpen: true, foot: v.framework.own ? "The descriptors are your school’s own." : "These descriptors are the usual four. When the school writes its own, they replace them here." }]);
+    return row("1fr", [{ type: "table", title: `${entry.name} · by learning area`, sub: "How many children sit at each descriptor — counts of children, never an average.", meta: `${v.framework.areas.length} areas`, noun: "area", nounPlural: "areas", head: ["Learning area", ...v.framework.bands, "Not yet seen"], rows, per: 0, noRowOpen: true, }]);
   });
-  const bandName = v.framework.bands[secure]?.toLowerCase() ?? "secure";
   const atBand = (line: { counts: number[] }) => line.counts.slice(secure).reduce((sum, count) => sum + count, 0);
   const strongest = arm.counts.map((line) => ({ area: line.area, secure: atBand(line) })).sort((a, b) => b.secure - a.secure)[0];
   /* Below the band the school calls secure — the areas most of the class is still working through. */
@@ -149,10 +147,10 @@ function resultsTab(v: Summary): TabContent {
       row("1fr", [{
         type: "kpi", sub: `Half-term ${v.half} · ${arm.roll} children · nothing here is a score.`, per: 4,
         cards: [
-          { label: "Children observed", value: String(arm.observed), unit: `of ${arm.roll}`, sub: "At least once this half-term", tone: arm.observed < arm.roll ? "attention" : "positive" },
-          { label: `${v.framework.bands[secure] ?? "Secure"} or beyond`, value: String(acrossAreas), unit: "children", sub: "Average across the learning areas", tone: "positive" },
-          { label: "Strongest area", value: strongest && strongest.secure ? strongest.area : "—", sub: strongest && strongest.secure ? `${strongest.secure} children ${bandName} or beyond` : "Nothing observed yet", tone: "positive" },
-          { label: "Needs attention", value: weakest && weakest.below ? weakest.area : "—", sub: weakest && weakest.below ? `${weakest.below} children still below ${bandName}` : "Nothing observed yet", tone: weakest && weakest.below ? "attention" : "neutral" },
+          { label: "Children observed", value: String(arm.observed), unit: `of ${arm.roll}`, tone: arm.observed < arm.roll ? "attention" : "positive" },
+          { label: `${v.framework.bands[secure] ?? "Secure"} or beyond`, value: String(acrossAreas), unit: "children", tone: "positive" },
+          { label: "Strongest area", value: strongest && strongest.secure ? strongest.area : "—", tone: "positive" },
+          { label: "Needs attention", value: weakest && weakest.below ? weakest.area : "—", tone: weakest && weakest.below ? "attention" : "neutral" },
         ],
       }]),
       ...tables,

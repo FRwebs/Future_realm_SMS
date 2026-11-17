@@ -260,7 +260,11 @@ export type KpiCard = {
   label: string;
   value: string;
   unit?: string;
-  sub?: string;
+  /*
+   * A card has no second line. The figure and what it is called are the whole card; a sentence
+   * under it was read after the number it qualified, which is too late to change how it was read.
+   * Where the qualification matters it belongs in the label, or on the page the card links to.
+   */
   tone?: PanelTone;
   /** Text of the card's link through to the list or record behind the figure. */
   link?: string;
@@ -951,9 +955,11 @@ export type Panel =
       cols?: string;
       rows: TableRow[];
       acts?: PanelAction[];
-      foot?: string;
-      /** Actions laid in the foot bar, to the right of `foot` — where a long sheet ends and what to do with it begins. */
-      footActs?: PanelAction[];
+      /*
+       * A table has no foot. Nothing is drawn under the rows, so there is no field to write one
+       * into: a qualifier is read after the rows it qualifies, which is too late to change how they
+       * were read. Say it in the heading, in `sub`, or `tuck` the rule to the foot of the page.
+       */
       /** Shown instead of rows when there are none. */
       empty?: string;
       /** The cells are themselves the controls, so a row does not also open a record behind them. */

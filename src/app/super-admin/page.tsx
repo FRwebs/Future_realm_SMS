@@ -304,13 +304,13 @@ export default async function SuperAdminDashboardPage() {
     alerts: []
   };
 
-  const pulseCells: Array<{ label: string; value: string; sub: string; tone: HealthTone }> = [
-    { label: "Active schools", value: commandCenter.pulse.totalActiveSchools.toLocaleString(), sub: `${overview.schools.total} total tenants`, tone: "good" },
-    { label: "Total students", value: commandCenter.pulse.totalStudents.toLocaleString(), sub: "Across active schools", tone: "good" },
-    { label: "Online now", value: commandCenter.pulse.schoolsOnline.toLocaleString(), sub: "Last 30 minutes", tone: "good" },
-    { label: "Uptime (30d)", value: formatPercent(commandCenter.pulse.uptime30Day), sub: "API success proxy", tone: commandCenter.pulse.uptime30Day >= 99.5 ? "good" : "warn" },
-    { label: "Sync queue", value: commandCenter.pulse.offlineSyncQueueSize.toLocaleString(), sub: "Pending records", tone: commandCenter.pulse.offlineSyncQueueSize > 0 ? "warn" : "good" },
-    { label: "Last backup", value: commandCenter.pulse.lastSuccessfulBackupAt ? formatDate(commandCenter.pulse.lastSuccessfulBackupAt) : "Not logged", sub: "Successful run", tone: commandCenter.pulse.lastSuccessfulBackupAt ? "good" : "danger" }
+  const pulseCells: Array<{ label: string; value: string; tone: HealthTone }> = [
+    { label: "Active schools", value: commandCenter.pulse.totalActiveSchools.toLocaleString(), tone: "good" },
+    { label: "Total students", value: commandCenter.pulse.totalStudents.toLocaleString(), tone: "good" },
+    { label: "Online now", value: commandCenter.pulse.schoolsOnline.toLocaleString(), tone: "good" },
+    { label: "Uptime (30d)", value: formatPercent(commandCenter.pulse.uptime30Day), tone: commandCenter.pulse.uptime30Day >= 99.5 ? "good" : "warn" },
+    { label: "Sync queue", value: commandCenter.pulse.offlineSyncQueueSize.toLocaleString(), tone: commandCenter.pulse.offlineSyncQueueSize > 0 ? "warn" : "good" },
+    { label: "Last backup", value: commandCenter.pulse.lastSuccessfulBackupAt ? formatDate(commandCenter.pulse.lastSuccessfulBackupAt) : "Not logged", tone: commandCenter.pulse.lastSuccessfulBackupAt ? "good" : "danger" }
   ];
 
   const revenueSparkline = (revenue?.monthlyRevenue ?? []).slice(-8).map((item) => item.amount);
@@ -519,7 +519,6 @@ export default async function SuperAdminDashboardPage() {
                 <p className="truncate text-[9px] font-bold uppercase tracking-[0.09em] text-white/50">{cell.label}</p>
               </div>
               <p className="mt-[8px] truncate font-(--font-mono) text-[20.5px] font-extrabold leading-none tracking-tight" style={{ color: valueColor }}>{cell.value}</p>
-              <p className="mt-1.5 truncate text-[10px] text-white/55">{cell.sub}</p>
             </div>
           );
         })}

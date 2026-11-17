@@ -54,12 +54,12 @@ export function planTab(p: Plan, credits: Credits, ledger?: BillingLedger): TabC
   const renewLabel = p.renewal.startsNow ? `Pay for ${shortTerm(p.renewal.target)}` : p.next ? `Renew for ${shortTerm(p.next)}` : "Renew for next term";
 
   const cards: KpiCard[] = [
-    { label: "This term", value: naira(p.thisTerm.amount), sub: `${p.thisTerm.students.toLocaleString("en-NG")} students · ${naira(p.rate)} each${p.thisTerm.billed ? "" : " · estimate"}`, tone: "neutral" },
-    { label: "Plan", value: p.tierName, sub: "Per student, per term", tone: "positive" },
-    { label: "Students billed", value: p.roll.toLocaleString("en-NG"), sub: p.thisTerm.billed ? `On ${p.thisTerm.invoice}` : "Counted from the roll today" },
-    { label: "Renews", value: p.next ? dayLabel(p.next.start) : "Not set", sub: p.next ? `${(p.daysToRenew ?? 0) >= 0 ? plural(p.daysToRenew ?? 0, "day") : `Began ${plural(-(p.daysToRenew ?? 0), "day")} ago`} · ${p.next.label}` : "No later term is set up yet", tone: p.daysToRenew !== null && p.daysToRenew < 30 ? "attention" : "neutral" },
-    { label: "Account state", value: p.account.state, sub: p.account.outstandingCount ? `${plural(p.account.outstandingCount, "invoice")} unpaid` : p.account.lastSettled ? `Settled ${dayLong(p.account.lastSettled)}` : "Nothing invoiced yet", tone: accountTone(p.account.state) },
-    { label: "Outstanding", value: naira(p.account.outstanding), sub: p.account.outstanding ? "Across unpaid invoices, with VAT" : "Settled", tone: p.account.outstanding ? "attention" : "positive", link: payNow ? "Pay it" : undefined, drawer: payNow },
+    { label: "This term", value: naira(p.thisTerm.amount), unit: p.thisTerm.billed ? `${p.thisTerm.students.toLocaleString("en-NG")} students · ${naira(p.rate)} each` : `estimate · ${p.thisTerm.students.toLocaleString("en-NG")} students · ${naira(p.rate)} each`, tone: "neutral" },
+    { label: "Plan", value: p.tierName, tone: "positive" },
+    { label: "Students billed", value: p.roll.toLocaleString("en-NG"), },
+    { label: "Renews", value: p.next ? dayLabel(p.next.start) : "Not set", unit: p.next ? ((p.daysToRenew ?? 0) >= 0 ? `in ${plural(p.daysToRenew ?? 0, "day")}` : `began ${plural(-(p.daysToRenew ?? 0), "day")} ago`) : undefined, tone: p.daysToRenew !== null && p.daysToRenew < 30 ? "attention" : "neutral" },
+    { label: "Account state", value: p.account.state, tone: accountTone(p.account.state) },
+    { label: "Outstanding", value: naira(p.account.outstanding), tone: p.account.outstanding ? "attention" : "positive", link: payNow ? "Pay it" : undefined, drawer: payNow },
   ];
 
   const running: TableRow[] = p.running.map((item) => ({
@@ -103,7 +103,7 @@ export function planTab(p: Plan, credits: Credits, ledger?: BillingLedger): TabC
       ...(p.pending ? [{ cols: "1fr", panels: [{ type: "note" as const, tone: "progress" as PanelTone, title: `A switch to ${p.pending.tier} is scheduled`, body: `It takes effect from ${dayLong(p.pending.from)}${p.pending.reason ? ` — you gave “${p.pending.reason.toLowerCase()}” as the reason` : ""}. Nothing changes for the rest of this term.`, acts: [{ label: "Change it", drawer: switchDrawer(p) }, { label: "Withdraw it", drawer: cancelSwitchDrawer(p) }] }] }] : []),
       ...(open.some((invoice) => invoice.state === "Overdue") ? [{ cols: "1fr", panels: [{ type: "note" as const, tone: "negative" as PanelTone, title: "An invoice is overdue", body: `${plural(open.filter((invoice) => invoice.state === "Overdue").length, "invoice")} past its due date. Pay it to keep the account current.`, acts: payNow ? [{ label: "Pay by card", drawer: payNow }] : [] }] }] : []),
       { cols: "1fr", panels: [{ type: "kpi", title: p.term?.label ?? "This term", per: 6, cards }] },
-      { cols: "1fr", panels: [{ type: "table", title: "What is running on this account", tag: `${p.running.filter((item) => item.state === "Active").length} active`, tagTone: "positive", sub: "Everything currently billed to this school, and when each of them renews.", meta: `${p.tierName} · per student per term${p.next ? ` · next renewal ${dayLong(p.next.start)}` : ""}`, acts: [{ label: "Switch plan", drawer: switchDrawer(p) }, { label: renewLabel, primary: true, drawer: renew }], head: ["What is running", "Basis", "Units", "Rate", "This term", "Renews", "State", ""], noun: "item", nounPlural: "items", noRowOpen: true, rows: running, foot: "Billed per student per term · counted at term start · joiners at renewal" }] },
+      { cols: "1fr", panels: [{ type: "table", title: "What is running on this account", tag: `${p.running.filter((item) => item.state === "Active").length} active`, tagTone: "positive", sub: "Everything currently billed to this school, and when each of them renews.", meta: `${p.tierName} · per student per term${p.next ? ` · next renewal ${dayLong(p.next.start)}` : ""}`, acts: [{ label: "Switch plan", drawer: switchDrawer(p) }, { label: renewLabel, primary: true, drawer: renew }], head: ["What is running", "Basis", "Units", "Rate", "This term", "Renews", "State", ""], noun: "item", nounPlural: "items", noRowOpen: true, rows: running, }] },
       {
         cols: "1fr",
         panels: [
@@ -149,7 +149,6 @@ export function planTab(p: Plan, credits: Credits, ledger?: BillingLedger): TabC
                     ],
                     keywords: `${entry.description} ${entry.type}`,
                   })),
-                  foot: "Mid-term upgrade · charged only for the part of the term that was left",
                 },
               ],
             },

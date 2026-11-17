@@ -40,10 +40,10 @@ export function enterTab(c: Chooser): TabContent {
     panels: [{
       type: "kpi", title: "Across the school", sub: `${c.term.name} ${c.term.session}`, per: 4,
       cards: [
-        { label: "Sheets in", value: String(k.in), unit: `of ${k.expected}`, sub: `${k.outstanding} still outstanding`, tone: k.outstanding ? "attention" : "positive" },
-        { label: "Approved", value: String(k.approved), sub: "Cleared for report cards", tone: "positive" },
-        { label: "Returned to a teacher", value: String(k.withTeacher), sub: "Sent back and not yet resubmitted", tone: k.withTeacher ? "negative" : "positive" },
-        { label: "Impossible to enter", value: String(k.impossible), sub: k.impossible ? `${k.impossibleNames.join(", ")}${k.impossible > 3 ? "…" : ""} have no teacher` : "Every subject has someone to enter it", tone: k.impossible ? "negative" : "positive", link: k.impossible ? "Assign a teacher" : undefined, href: k.impossible ? "/class-timetable/teaching" : undefined },
+        { label: "Sheets in", value: String(k.in), unit: `of ${k.expected}`, tone: k.outstanding ? "attention" : "positive" },
+        { label: "Approved", value: String(k.approved), tone: "positive" },
+        { label: "Returned to a teacher", value: String(k.withTeacher), tone: k.withTeacher ? "negative" : "positive" },
+        { label: "Impossible to enter", value: String(k.impossible), tone: k.impossible ? "negative" : "positive", link: k.impossible ? "Assign a teacher" : undefined, href: k.impossible ? "/class-timetable/teaching" : undefined },
       ],
     }],
   });
@@ -86,7 +86,6 @@ export function enterTab(c: Chooser): TabContent {
         filters: [{ label: "State", value: "All", options: ["All", "Not started", "In progress", "Submitted", "Returned", "Approved", "Unassigned"], match: Object.fromEntries(["Not started", "In progress", "Submitted", "Returned", "Approved", "Unassigned"].map((state) => [state, `state:${state}`])) }],
         acts: [{ label: `Preview ${c.picked.name}'s entire result entry so far`, primary: true, href: broadsheetHref(c.picked.id) }],
         head: ["Subject", "Teacher", "Entered", "State", ""], noun: "sheet", nounPlural: "sheets", per: 12, rows: c.subjects.map((sheet) => subjectRow(sheet, false)),
-        foot: `Every child in ${c.picked.name} against every subject they take, in one screen — including the marks nobody has entered yet.`,
       }],
     });
   } else {
@@ -97,8 +96,7 @@ export function enterTab(c: Chooser): TabContent {
         type: "table", title: "Sheets outstanding across the school", sub: "Or choose an arm above to enter by class instead.", meta: `${c.outstanding.length} of ${k.expected} sheets not yet approved`, search: "Find by subject, arm or teacher",
         filters: [{ label: "Arm", value: "All", options: ["All", ...arms], column: 1 }, { label: "State", value: "All", options: ["All", "Not started", "In progress", "Submitted", "Returned", "Unassigned"], match: Object.fromEntries(["Not started", "In progress", "Submitted", "Returned", "Unassigned"].map((state) => [state, `state:${state}`])) }],
         head: ["Subject", "Arm", "Teacher", "Entered", "State", ""], noun: "sheet", nounPlural: "sheets", per: 10, rows: c.outstanding.map((sheet) => subjectRow(sheet, true)),
-        empty: "Every sheet is approved.", foot: "No teacher named · the sheet cannot be entered by anyone",
-      }],
+        empty: "Every sheet is approved.",       }],
     });
   }
   return { title: "Enter scores", desc: "Choose the class, the arm, then the subject.", primary: { label: "Open the review queue", icon: "M5 12h13M13 6.5l5.5 5.5L13 17.5", href: "/score-entry-results/review" }, rows };
@@ -152,12 +150,12 @@ export function previewPage(g: Grid): { content: TabContent & Crumb } {
     panels: [{
       type: "kpi", title: "What you are about to submit", sub: "Recomputed from the grid, not typed here.", per: 6,
       cards: [
-        { label: "Entered", value: `${s.scored} of ${s.roll}`, sub: blanks ? `${blanks} still blank` : "No blanks", tone: blanks ? "attention" : "positive" },
-        { label: "Subject average", value: num(s.mean), unit: `/ ${maxTotal}`, sub: s.armMean === null ? "" : `Arm average ${s.armMean}`, tone: s.mean !== null && s.armMean !== null && s.mean >= s.armMean ? "positive" : "attention" },
-        { label: "Highest", value: s.high ? String(s.high.total) : "—", sub: s.high?.name ?? "", tone: "positive" },
-        { label: "Lowest", value: s.low ? String(s.low.total) : "—", sub: s.low?.name ?? "", tone: s.low && s.low.total < g.passMark ? "negative" : "attention" },
-        { label: "At credit or above", value: String(s.passed), unit: `of ${s.scored}`, sub: "50 and above", tone: "positive" },
-        { label: "Below the pass mark", value: String(s.failed), sub: `Under ${g.passMark}`, tone: s.failed ? "negative" : "positive" },
+        { label: "Entered", value: `${s.scored} of ${s.roll}`, tone: blanks ? "attention" : "positive" },
+        { label: "Subject average", value: num(s.mean), unit: `/ ${maxTotal}`, tone: s.mean !== null && s.armMean !== null && s.mean >= s.armMean ? "positive" : "attention" },
+        { label: "Highest", value: s.high ? String(s.high.total) : "—", tone: "positive" },
+        { label: "Lowest", value: s.low ? String(s.low.total) : "—", tone: s.low && s.low.total < g.passMark ? "negative" : "attention" },
+        { label: "At credit or above", value: String(s.passed), unit: `of ${s.scored}`, tone: "positive" },
+        { label: "Below the pass mark", value: String(s.failed), tone: s.failed ? "negative" : "positive" },
       ],
     }],
   });
@@ -182,7 +180,6 @@ export function previewPage(g: Grid): { content: TabContent & Crumb } {
         ],
       })),
       summaryRows: [[text(""), text("Subject average", { strong: true }), text(`${s.scored} scored`), ...g.columns.map(() => text("")), text(num(s.mean), { mono: true, strong: true }), text(""), text(""), text(s.armMean === null ? "" : `Arm average ${s.armMean}`), text("")]],
-      foot: "Once submitted · a change needs a correction request with a reason",
     }],
   });
   rows.push({
@@ -243,10 +240,10 @@ export function broadsheetPage(b: BroadsheetEnter): { content: TabContent & Crum
           panels: [{
             type: "kpi", title: "This arm, this term", sub: `${b.term.name} ${b.term.session}`, per: 4,
             cards: [
-              { label: "Children complete", value: String(complete), unit: `of ${b.rows.length}`, sub: complete === b.rows.length ? "Every subject in for everyone" : `${b.rows.length - complete} have a subject missing`, tone: complete === b.rows.length ? "positive" : "attention" },
-              { label: "Marks missing", value: String(missing), unit: `of ${cells}`, sub: missing ? "Each one blocks a report card" : "Nothing outstanding", tone: missing ? "negative" : "positive" },
-              { label: "Subjects", value: String(subjects.length), sub: "What this arm takes", tone: "neutral" },
-              { label: "Arm average", value: num(armAvg), unit: "/ 100", sub: "Across every mark entered", tone: "neutral" },
+              { label: "Children complete", value: String(complete), unit: `of ${b.rows.length}`, tone: complete === b.rows.length ? "positive" : "attention" },
+              { label: "Marks missing", value: String(missing), unit: `of ${cells}`, tone: missing ? "negative" : "positive" },
+              { label: "Subjects", value: String(subjects.length), tone: "neutral" },
+              { label: "Arm average", value: num(armAvg), unit: "/ 100", tone: "neutral" },
             ],
           }],
         },
@@ -262,7 +259,6 @@ export function broadsheetPage(b: BroadsheetEnter): { content: TabContent & Crum
               keywords: `${row.name} ${row.adm} standing:${row.live.length === subjects.length ? "Complete" : "Missing"}`,
               cells: [text(String(index + 1), { mono: true }), nameCell(row.name, b.arm.name), text(row.adm, { mono: true }), ...row.totals.map((value) => text(value === null ? "—" : String(value), { mono: true })), text(row.avg === null ? "—" : String(Math.round(row.avg * 10) / 10), { mono: true, strong: true }), row.avg === null ? text("—") : pill(gradeOf(row.avg), gradeTone(gradeOf(row.avg))), text(`${row.live.length}/${subjects.length}`, { strong: true, tone: row.live.length === subjects.length ? "positive" : "negative" })],
             })),
-            foot: "Each column is a subject code. Open the review queue to approve or decline a whole subject at a time.",
           }],
         },
         {
@@ -272,7 +268,6 @@ export function broadsheetPage(b: BroadsheetEnter): { content: TabContent & Crum
             rows: subjects.map((subject) => ({
               cells: [text(subject.name, { strong: true }), text(subject.code, { mono: true }), subject.teacher ? nameCell(subject.teacher, "Subject teacher") : text("Unassigned", { tone: "negative", strong: true }), text(String(subject.scored), { mono: true }), text(num(subject.mean), { mono: true }), pill(subject.state as State, stateTone(subject.state)), subject.teacher ? { kind: "action" as const, label: "Open", href: gridHref(b.arm.id, subject.subjectId) } : { kind: "action" as const, label: "Assign", href: "/class-timetable/teaching" }],
             })),
-            foot: "No teacher named · nobody can enter it · assign one on Class & Timetable",
           }],
         },
       ],

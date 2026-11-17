@@ -83,7 +83,7 @@ describe("M14 Insights", () => {
   it("says so when a figure has nothing behind it, rather than showing zero", () => {
     const empty: Insights = { term: null, kpis: { average: null, averageMove: null, results: 0, attendance: null, attendanceMove: null, collection: null, collectionMove: null, billed: 0, portal: { activated: 0, guardians: 0, never: 0, pct: null }, growth: { admitted: 0, left: 0, net: 0 } }, grades: [], failing: null, scheme: "", correlation: [], subjects: [], weekdays: [], financial: { billed: 0, outstanding: 0, aged: 0, agedInvoices: 0, agedFamilies: 0, discounts: 0, discountRules: 0, discountPct: null }, engagement: { signedIn30: 0, activated: 0, signedInPct: null, channels: [], unreachable: 0, worst: null } };
     const html = markup(insightsTab(empty));
-    expect(html).toContain("No result has been computed yet");
+    expect(html).toContain("no result computed yet");
     expect(html).toContain("Not kept");
   });
 });

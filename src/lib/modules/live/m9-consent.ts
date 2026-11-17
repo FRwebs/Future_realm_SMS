@@ -22,10 +22,10 @@ export function consentTab(data: ConsentOverview): TabContent {
   const noCore = rows.filter((row) => row.consents.core !== "GIVEN");
 
   const cards: KpiCard[] = [
-    { label: "Consent types", value: String(types.length), sub: `${totals.required} required · ${totals.optional} optional`, tone: "neutral", link: "Define one", drawer: consentTypeDrawer() },
-    { label: "Complete", value: String(totals.complete), unit: `of ${totals.families}`, sub: "Everything on file", tone: "positive" },
-    { label: "With a gap", value: String(totals.gaps), sub: totals.gaps ? "At least one missing" : "None", tone: totals.gaps ? "attention" : "positive", link: totals.gaps ? "Request it" : undefined, drawer: totals.gaps ? request : undefined },
-    { label: "No core consent", value: String(totals.noCore), sub: totals.noCore ? `${plural(totals.noCoreChildren, "child", "children")} affected` : "None", tone: totals.noCore ? "negative" : "positive" },
+    { label: "Consent types", value: String(types.length), tone: "neutral", link: "Define one", drawer: consentTypeDrawer() },
+    { label: "Complete", value: String(totals.complete), unit: `of ${totals.families}`, tone: "positive" },
+    { label: "With a gap", value: String(totals.gaps), tone: totals.gaps ? "attention" : "positive", link: totals.gaps ? "Request it" : undefined, drawer: totals.gaps ? request : undefined },
+    { label: "No core consent", value: String(totals.noCore), tone: totals.noCore ? "negative" : "positive" },
   ];
 
   const typeRows: TableRow[] = types.map((type) => ({
@@ -46,7 +46,7 @@ export function consentTab(data: ConsentOverview): TabContent {
     rows: [
       { cols: "1fr", panels: [{ type: "kpi", title: `Across ${totals.families} families`, per: 4, cards }] },
       ...(noCore.length ? [{ cols: "1fr", panels: [{ type: "note" as const, tone: "negative" as PanelTone, title: `${plural(noCore.length, "family", "families")} ${noCore.length === 1 ? "has" : "have"} not given core record processing consent`, body: `This is the one that matters legally: without it the school has no recorded basis for holding these children's records at all, and nothing can be published to those families — not a report card, not an invoice. ${plural(totals.noCoreChildren, "child", "children")} ${totals.noCoreChildren === 1 ? "is" : "are"} affected.`, acts: [{ label: "Request it now", drawer: request }] }] }] : []),
-      { cols: "1fr", panels: [{ type: "table", title: "The consents this school needs", tag: `${types.length} types`, tagTone: "neutral", sub: "Define a new one and it appears on every family's register.", meta: `${totals.required} required · ${totals.optional} optional`, filters: [{ label: "Standing", value: "All", options: ["All", "Required", "Optional"], column: 2 }], acts: [{ label: "Export the register", href: "/parents-guardians/consent/export" }, { label: "Define a consent type", primary: true, drawer: consentTypeDrawer() }], head: ["Consent", "Who gives it", "Standing", "What it covers", "What a gap blocks", "Given", "Gaps", ""], noun: "consent type", nounPlural: "consent types", noRowOpen: true, rows: typeRows, foot: "A consent is recorded against the family, not the child — one guardian answers once, however many children they have here." }] },
+      { cols: "1fr", panels: [{ type: "table", title: "The consents this school needs", tag: `${types.length} types`, tagTone: "neutral", sub: "Define a new one and it appears on every family's register.", meta: `${totals.required} required · ${totals.optional} optional`, filters: [{ label: "Standing", value: "All", options: ["All", "Required", "Optional"], column: 2 }], acts: [{ label: "Export the register", href: "/parents-guardians/consent/export" }, { label: "Define a consent type", primary: true, drawer: consentTypeDrawer() }], head: ["Consent", "Who gives it", "Standing", "What it covers", "What a gap blocks", "Given", "Gaps", ""], noun: "consent type", nounPlural: "consent types", noRowOpen: true, rows: typeRows, }] },
       {
         cols: "1fr",
         panels: [
@@ -70,7 +70,6 @@ export function consentTab(data: ConsentOverview): TabContent {
             per: 10,
             noRowOpen: true,
             rows: families,
-            foot: "Opening a family shows every consent, lets you change a status, and tells them in the app in the same action.",
           },
         ],
       },

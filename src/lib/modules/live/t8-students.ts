@@ -134,8 +134,7 @@ function studentsTab(v: StudentsView, me: TeacherWorkspaceView, held: Set<string
         {
           ...row("1fr", [{
             type: "table", title: chosen.arm, tag: `${chosen.count} ${chosen.count === 1 ? "child" : "children"}`, tagTone: "neutral", sub: "Open a child for the record a parent conversation needs.", noun: "child", nounPlural: "children",
-            search: "Find a child by name or admission number", head: ["Student", "Admission no", "Attend", "Flag", "Guardian", ""], rows: tableRows.filter((_, index) => v.rows[index]!.arm === chosen.arm), per: 10, noRowOpen: true, foot: "A medical alert says contact the office.",
-          }]),
+            search: "Find a child by name or admission number", head: ["Student", "Admission no", "Attend", "Flag", "Guardian", ""], rows: tableRows.filter((_, index) => v.rows[index]!.arm === chosen.arm), per: 10, noRowOpen: true,           }]),
           show: "phone" as const,
         },
       ]
@@ -145,8 +144,8 @@ function studentsTab(v: StudentsView, me: TeacherWorkspaceView, held: Set<string
           ...row("1fr", [{
             type: "kpi", bare: true,
             cards: [
-              { label: "Classes", value: String(arms.length), sub: arms.map((entry) => entry.arm).join(" · ") },
-              { label: "Children", value: String(v.kpis.children), sub: "Across every class you see" },
+              { label: "Classes", value: String(arms.length), },
+              { label: "Children", value: String(v.kpis.children), },
             ],
           }]),
           show: "phone" as const,
@@ -169,18 +168,17 @@ function studentsTab(v: StudentsView, me: TeacherWorkspaceView, held: Set<string
     {...row("1fr", [{
       type: "kpi", sub: own ? `Your ${word}’s view. A subject teacher sees only the children they teach.` : "The children you teach — and only them.", per: 5,
       cards: [
-        { label: "Children", value: String(v.kpis.children), sub: own ? (v.formArms.length > 1 ? `${v.formArms.map((arm) => arm.name).join(" · ")}` : `${own.name} · one class, one ${word}`) : `${new Set(v.rows.map((student) => student.arm)).size} arm${new Set(v.rows.map((student) => student.arm)).size === 1 ? "" : "s"}` },
-        { label: `Below ${v.policy.chronic}% attendance`, value: String(v.kpis.belowLine), sub: v.kpis.belowLine ? "An absence case may be open" : "Nobody below the line", tone: v.kpis.belowLine ? "negative" : "positive" },
-        { label: "Medical alerts", value: String(v.kpis.medical), sub: "Flag only — the condition is not yours to read", tone: "withheld" },
-        { label: "Learning support plans", value: String(v.kpis.support), sub: "You see the strategies, never the diagnosis", tone: "withheld" },
-        { label: "Guardians not activated", value: String(v.kpis.notActivated), sub: "They cannot receive anything in-app", tone: v.kpis.notActivated ? "attention" : "positive" },
+        { label: "Children", value: String(v.kpis.children), },
+        { label: `Below ${v.policy.chronic}% attendance`, value: String(v.kpis.belowLine), tone: v.kpis.belowLine ? "negative" : "positive" },
+        { label: "Medical alerts", value: String(v.kpis.medical), tone: "withheld" },
+        { label: "Learning support plans", value: String(v.kpis.support), tone: "withheld" },
+        { label: "Guardians not activated", value: String(v.kpis.notActivated), tone: v.kpis.notActivated ? "attention" : "positive" },
       ],
     }]), show: "desktop" as const },
     { ...row("1fr", [{
       type: "table", title: own && !many ? own.name : "The children you answer for", sub: "Open a child for the record a parent conversation needs.", meta: `${v.rows.length} children`, noun: "child", nounPlural: "children",
       search: "Find a child by name or admission number", filters: [{ label: "Flag", value: "All", options: ["All", "Medical alert", "Learning support", "Chronic absence"], column: 3 }],
-      head: ["Student", "Admission no", "Attend", "Flag", "Guardian", ""], rows: tableRows, per: 12, noRowOpen: true, foot: "A medical alert says contact the office.",
-      // A form master works on a handful of children at a time — the ones whose families need
+      head: ["Student", "Admission no", "Attend", "Flag", "Guardian", ""], rows: tableRows, per: 12, noRowOpen: true,       // A form master works on a handful of children at a time — the ones whose families need
       // telling, the ones going on the trip. Picking them is how every other table in the product
       // works, and this one had no way to.
       selectable: true,

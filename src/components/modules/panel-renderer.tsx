@@ -50,7 +50,6 @@ import { useUiText } from "@/hooks/use-ui-text";
 import { cn } from "@/lib/utils/cn";
 import { onDevice, useHeldCounts } from "@/lib/offline/use-held";
 import { TICK_COLUMN, columnWidths, planColumns } from "@/lib/ui/table-columns";
-import { slimSub } from "@/lib/ui/card-sub";
 import { deskTrim } from "@/lib/ui/tight-copy";
 
 /*
@@ -710,9 +709,54 @@ function derivedFilters(panel: Extract<Panel, { type: "table" }>): TableFilter[]
   return out.length ? out : undefined;
 }
 
+/** Words that say only "this row opens" — which the row itself already says by being clickable. */
+const SAYS_ONLY_OPEN = new Set(["open", "view", "see", "open it", "view it", "see it", "details", "open record", "view record"]);
+
+/**
+ * The trailing button whose whole job is to open the row.
+ *
+ * A row that opens something is already clickable along its whole width, so a last column holding
+ * nothing but "Open" asks for a smaller target to do what the larger one does, and spends a column
+ * saying it. The button goes and what it opened becomes the row's own.
+ *
+ * Only a bare column of bare words: the column has no heading, every row has exactly one action and
+ * it is that one, and its label names no destination. "Decide", "Payslip", "Resend" and "Open the
+ * map" each say something the rest of the row does not, so each stays where it was written.
+ */
+function withoutRepeatedOpen(panel: Extract<Panel, { type: "table" }>): Extract<Panel, { type: "table" }> {
+  const last = panel.head.length - 1;
+  if (last < 1 || panel.head[last]?.trim() || !panel.rows.length) return panel;
+  const repeated = panel.rows.every((row) => {
+    const cell = row.cells[last];
+    return (
+      row.cells.length === panel.head.length &&
+      cell?.kind === "action" &&
+      Boolean(cell.href || cell.drawer) &&
+      SAYS_ONLY_OPEN.has(cell.label.trim().toLowerCase()) &&
+      row.cells.filter((one) => one.kind === "action").length === 1
+    );
+  });
+  if (!repeated) return panel;
+  return {
+    ...panel,
+    head: panel.head.slice(0, last),
+    rows: panel.rows.map((row) => {
+      const cell = row.cells[last] as Extract<TableCellKind, { kind: "action" }>;
+      return {
+        ...row,
+        cells: row.cells.slice(0, last),
+        href: row.href ?? (row.drawer ? undefined : cell.href),
+        drawer: row.drawer ?? (row.href ? undefined : cell.drawer),
+      };
+    }),
+    summaryRows: panel.summaryRows?.map((cells) => (cells.length === panel.head.length ? cells.slice(0, last) : cells)),
+  };
+}
+
 function TablePanel({ panel: authored, openDrawer }: { panel: Extract<Panel, { type: "table" }>; openDrawer: OpenDrawer }) {
-  const filters = derivedFilters(authored);
-  const panel = filters === authored.filters ? authored : { ...authored, filters };
+  const opened = withoutRepeatedOpen(authored);
+  const filters = derivedFilters(opened);
+  const panel = filters === opened.filters ? opened : { ...opened, filters };
   return panel.window ? <ServedTablePanel panel={panel} openDrawer={openDrawer} /> : <LocalTablePanel panel={panel} openDrawer={openDrawer} />;
 }
 
@@ -1261,7 +1305,24 @@ function TableView({ panel, openDrawer, engine }: { panel: Extract<Panel, { type
                           aligns[cellIndex] === "center" && "text-center",
                         )}
                       >
-                        <Cell cell={cell} openDrawer={openDrawer} dense={dense} />
+                        {/*
+                          * The whole row is clickable, and the cell that names the row is the control
+                          * that makes it reachable without a mouse: a real link where the row goes to a
+                          * page, a button where it opens a drawer. A row that opened only on click left
+                          * a keyboard with no way in and took away "open in a new tab" — which is what
+                          * the trailing "Open" button used to provide before it was dropped as a repeat.
+                          */}
+                        {cellIndex === 0 && rowHref ? (
+                          <Link href={rowHref as Route} className="block w-full min-w-0 overflow-hidden text-inherit no-underline" tabIndex={0}>
+                            <Cell cell={cell} openDrawer={openDrawer} dense={dense} />
+                          </Link>
+                        ) : cellIndex === 0 && rowDrawer ? (
+                          <button type="button" onClick={() => openDrawer(rowDrawer)} className="block w-full min-w-0 overflow-hidden text-left text-inherit">
+                            <Cell cell={cell} openDrawer={openDrawer} dense={dense} />
+                          </button>
+                        ) : (
+                          <Cell cell={cell} openDrawer={openDrawer} dense={dense} />
+                        )}
                       </td>
                     ))}
                   </tr>
@@ -1342,23 +1403,9 @@ function TableView({ panel, openDrawer, engine }: { panel: Extract<Panel, { type
         </div>
       ) : null}
 
-      {panel.foot || panel.footActs?.length ? (
-        <div
-          className="mx-[-18px] mb-[-12px] flex flex-wrap items-center justify-between gap-[10px] border-t bg-[#F7FAF8] px-[18px] py-[10px]"
-          style={{ borderColor: "#EDF3EF" }}
-        >
-          <p className="min-w-0 flex-1 text-pretty text-[10.5px] leading-normal" style={{ color: MUTED }}>
-            {panel.foot}
-          </p>
-          {panel.footActs?.length ? (
-            <div className="flex flex-none flex-wrap items-center gap-[7px]">
-              {panel.footActs.map((act) => (
-                <TriggerControl key={act.label} trigger={act} label={act.label} openDrawer={openDrawer} className={panelActClass(act.primary)} />
-              ))}
-            </div>
-          ) : null}
-        </div>
-      ) : null}
+      {/* Nothing sits under a table. A line qualifying the rows was read after they had already been
+          read, so it changed nothing; what it had to say belongs in the heading, in the panel's own
+          sub-line, or on the chip at the foot of the page that opens the rule in full. */}
     </section>
   );
 }
@@ -1674,7 +1721,7 @@ function PanelViewDesktop({
             const drawerSpec: DrawerSpec | undefined =
               card.drawer ??
               (card.link && !card.href
-                ? { mode: "view", kicker: panel.title ?? "Summary", title: card.label, facts: [[card.label, `${card.value}${card.unit ? ` ${card.unit}` : ""}`, card.sub ?? ""].filter((part, index) => index < 2 || part) as PanelFact], readOnly: true, readOnlyNote: "A figure, read as it stands." }
+                ? { mode: "view", kicker: panel.title ?? "Summary", title: card.label, facts: [[card.label, `${card.value}${card.unit ? ` ${card.unit}` : ""}`] as PanelFact], readOnly: true, readOnlyNote: "A figure, read as it stands." }
                 : undefined);
             const linked = Boolean(card.href || drawerSpec || card.link);
 
@@ -1704,14 +1751,7 @@ function PanelViewDesktop({
                   ) : null}
                 </div>
 
-                {slimSub(card.sub ?? "", card.label) ? (
-                  <p
-                    className="mt-[6px] line-clamp-2 text-pretty text-[10.5px] leading-[1.4]"
-                    style={{ color: MUTED }}
-                  >
-                    {slimSub(card.sub ?? "", card.label)}
-                  </p>
-                ) : null}
+                {/* A stat is the label, the figure and the way through to it. Nothing else. */}
 
                 {card.link ? (
                   <span

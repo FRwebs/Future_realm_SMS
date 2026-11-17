@@ -144,21 +144,18 @@ const planTab: TabContent = {
           {
             label: "This term",
             value: naira(termCost),
-            sub: `${studentsBilled.toLocaleString("en-NG")} students · ${naira(planRates[currentPlan])} each`,
           },
-          { label: "Plan", value: currentPlan, sub: "Per student, per term", tone: "positive" },
-          { label: "Students billed", value: studentsBilled.toLocaleString("en-NG"), sub: "Counted at term start" },
+          { label: "Plan", value: currentPlan, tone: "positive" },
+          { label: "Students billed", value: studentsBilled.toLocaleString("en-NG"), },
           {
             label: "Renews",
             value: planRenewal.date,
-            sub: `${planRenewal.days} days · ${planRenewal.term}`,
             tone: "neutral",
           },
-          { label: "Account state", value: "Good standing", sub: "Paid and current", tone: "positive" },
+          { label: "Account state", value: "Good standing", tone: "positive" },
           {
             label: "Outstanding",
             value: naira(planRenewal.outstanding),
-            sub: `Settled ${planRenewal.settled}`,
             tone: "positive",
           },
         ],
@@ -212,7 +209,6 @@ const planTab: TabContent = {
             keywords: item.basis,
           }),
         ),
-        foot: "Billed per student per term · counted at term start · joiners at renewal",
       },
     ]),
     row("1fr", [
@@ -352,7 +348,6 @@ const creditsTab: TabContent = {
                 label: channel.name,
                 value: channel.left.toLocaleString("en-NG"),
                 unit: "left",
-                sub: `${channel.base.toLocaleString("en-NG")} base · ${channel.topped.toLocaleString("en-NG")} topped up`,
                 tone: (channel.left < 1500
                   ? "negative"
                   : channel.left < 3000
@@ -364,7 +359,6 @@ const creditsTab: TabContent = {
             : {
                 label: channel.name,
                 value: "Free",
-                sub: `${channel.used.toLocaleString("en-NG")} sent this term`,
                 tone: "positive" as PanelTone,
               },
         ),
@@ -437,7 +431,6 @@ const creditsTab: TabContent = {
             keywords: channel.note,
           }),
         ),
-        foot: "Email and in-app are free on every tier. SMS and WhatsApp are paid because the networks charge for them.",
       },
     ]),
     row("1.15fr 1fr", [
@@ -487,7 +480,6 @@ const creditsTab: TabContent = {
             keywords: `${entry.channel} ${entry.paidBy}`,
           }),
         ),
-        foot: "Topped-up credits never expire and survive a plan change. Base credits are granted per term and do not roll over.",
       },
       {
         type: "facts",

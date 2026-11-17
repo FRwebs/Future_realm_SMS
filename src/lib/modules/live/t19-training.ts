@@ -196,10 +196,10 @@ export function forYouTab(v: Home): TabContent {
         },
       }) : null,
       phoneOnly({ type: "kpi", bare: true, cards: [
-        { label: "Required, still open", value: String(v.required.length), sub: v.required[0]?.requiredBy ? `Due ${day(v.required[0].requiredBy).replace(/ \d{4}$/, "")}` : "Everything required is done", tone: v.required.length ? "attention" : "positive" },
-        { label: "CPD this year", value: String(v.cpd.hours), unit: L !== null ? `of ${L} h` : "hours", sub: L !== null ? "The school’s expectation" : "No expectation set", tone: L !== null && v.cpd.hours >= L ? "positive" : "progress" },
-        { label: "In progress", value: String(v.inProgress.length + v.required.filter((course) => course.done).length), sub: "Pick up where you stopped" },
-        { label: "Certificates", value: String(v.certificates), sub: v.expiring ? `${v.expiring.name} ${v.expiring.state === "Expired" ? "has expired" : "expires soon"}` : "All current", tone: v.expiring ? "attention" : "positive" },
+        { label: "Required, still open", value: String(v.required.length), tone: v.required.length ? "attention" : "positive" },
+        { label: "CPD this year", value: String(v.cpd.hours), unit: L !== null ? `of ${L} h` : "hours", tone: L !== null && v.cpd.hours >= L ? "positive" : "progress" },
+        { label: "In progress", value: String(v.inProgress.length + v.required.filter((course) => course.done).length), },
+        { label: "Certificates", value: String(v.certificates), tone: v.expiring ? "attention" : "positive" },
       ] }),
       v.required.length ? phoneOnly({ type: "list", noFind: true, title: "Required by your school", tag: `${v.required.length} open`, tagTone: "attention", items: v.required.map((course) => courseItem(course)) }) : null,
       v.inProgress.filter((course) => !v.required.some((entry) => entry.id === course.id)).length ? phoneOnly({ type: "list", noFind: true, title: "In progress", items: v.inProgress.filter((course) => !v.required.some((entry) => entry.id === course.id)).map((course) => courseItem(course)) }) : null,
@@ -215,10 +215,10 @@ export function forYouTab(v: Home): TabContent {
       { ...row("1fr", [{
         type: "kpi", per: 4,
         cards: [
-          { label: "CPD this year", value: String(v.cpd.hours), unit: L !== null ? `of ${L} hours` : "hours", sub: L !== null ? "The school’s yearly expectation · counts in your appraisal" : "The school has not set a yearly expectation", tone: L !== null && v.cpd.hours >= L ? "positive" : "progress" },
-          { label: "Required by your school", value: String(v.required.length), sub: v.required.length ? v.required.map((course) => `${course.title}${course.requiredBy ? ` · due ${day(course.requiredBy)}` : ""}`).join("; ") : "Everything required is done", tone: v.required.length ? "attention" : "positive" },
-          { label: "In progress", value: String(v.inProgress.length + v.required.filter((course) => course.done).length), sub: "Pick up exactly where you stopped" },
-          { label: "Certificates", value: String(v.certificates), sub: v.expiring ? `${v.expiring.name} ${v.expiring.state === "Expired" ? "has expired" : `expires ${v.expiring.expires}`}` : "All current", tone: v.expiring ? "attention" : "positive", link: "View them", href: "/training/certificates" },
+          { label: "CPD this year", value: String(v.cpd.hours), unit: L !== null ? `of ${L} hours` : "hours", tone: L !== null && v.cpd.hours >= L ? "positive" : "progress" },
+          { label: "Required by your school", value: String(v.required.length), tone: v.required.length ? "attention" : "positive" },
+          { label: "In progress", value: String(v.inProgress.length + v.required.filter((course) => course.done).length), },
+          { label: "Certificates", value: String(v.certificates), tone: v.expiring ? "attention" : "positive", link: "View them", href: "/training/certificates" },
         ],
       }]) },
       due ? row("1fr", [{ type: "note", tone: "attention", icon: WARN, title: `${due.title} is required${due.requiredBy ? ` by ${day(due.requiredBy)}` : ""}${due.dueDays !== null ? ` · ${due.dueDays < 0 ? `${-due.dueDays} days overdue` : `${due.dueDays} days`}` : ""}`, body: `${due.requiredNote ? `${due.requiredNote} ` : "Set by your school. "}${length(due.hours)}, ${due.format.toLowerCase()} — stop whenever you like and carry on from the same lesson. The school sees that you finished, not your answers.`, acts: [{ label: due.done ? "Continue it" : "Start it", href: courseHref(due.id) }] }]) : null,
@@ -252,18 +252,11 @@ function catalogueTab(v: Catalogue, b: Basket, query: Record<string, string | un
   const list = v.courses.filter((course) => sec === "All" || course.section === sec);
   const isFree = (course: Course) => course.free !== false;
   const owns = (course: Course) => course.owned !== false;
-  const from = (members: Course[]) => {
-    const paid = members.filter((course) => !isFree(course) && typeof course.price === "number").map((course) => course.price as number);
-    if (!members.length) return "None for your role yet";
-    if (!paid.length) return "Free";
-    return paid.length === members.length ? `From ${naira(Math.min(...paid))}` : `Free, or from ${naira(Math.min(...paid))}`;
-  };
   const sections = [{ name: "All", sub: "Every course open to you", members: v.courses }, ...v.sections.map((name) => ({ name, sub: "", members: v.courses.filter((course) => course.section === name) }))]
     .filter((card) => card.name === "All" || card.members.length > 0);
   const sectionIcon = (name: string) => SECTION_CARD_ICON[name] ?? "tiles";
   const cards = sections.map((card) => ({
-    label: card.name, value: String(card.members.length), unit: card.members.length === 1 ? "course" : "courses", sub: card.name === "All" ? card.sub : from(card.members),
-    tone: card.name === sec ? ("progress" as PanelTone) : undefined, icon: sectionIcon(card.name),
+    label: card.name, value: String(card.members.length), unit: card.members.length === 1 ? "course" : "courses",     tone: card.name === sec ? ("progress" as PanelTone) : undefined, icon: sectionIcon(card.name),
   }));
   const inBasket = new Set(b.basket.map((entry) => entry.courseId));
   const tray = sections.map((card): TrayItem => {
@@ -361,7 +354,6 @@ function catalogueTab(v: Catalogue, b: Basket, query: Record<string, string | un
           { label: "Buy now", primary: true, drawer: buyNow, selection: { key: "courseIds", noun: "course" } },
         ],
         head: ["Course", "Provider", "Length", "Format", "Price", "State", ""], rows, per: 12, noRowOpen: false, empty: "Nothing in this section.",
-        foot: "Your school’s own courses are free. A course from an outside provider is paid for by you or by the school, and opens once it is settled.",
       }]),
       ...(b.history.length
         ? [row("1fr", [{
@@ -452,17 +444,17 @@ function certificatesTab(v: Certificates): TabContent {
       { ...row("1fr", [{
         type: "kpi", bare: true,
         cards: [
-          { label: "Certificates", value: String(v.certificates.length), sub: `${v.certificates.filter((cert) => !cert.external).length} from your school · ${v.certificates.filter((cert) => cert.external).length} from elsewhere` },
-          { label: "CPD this year", value: String(v.cpd.hours), unit: "hours", sub: v.cpd.target !== null ? `Of the school’s ${v.cpd.target}` : "The school has not set an expectation" },
+          { label: "Certificates", value: String(v.certificates.length), },
+          { label: "CPD this year", value: String(v.cpd.hours), unit: "hours", },
         ],
       }]), show: "phone" as const },
       { ...row("1fr", [{
         type: "kpi", per: 4,
         cards: [
-          { label: "Certificates", value: String(v.certificates.length), sub: `${v.certificates.filter((cert) => !cert.external).length} from your school · ${v.certificates.filter((cert) => cert.external).length} from elsewhere` },
-          { label: "Expiring soon", value: String(exp.length), sub: exp.length ? `${first!.name} · ${first!.expires}` : "Nothing to renew", tone: exp.length ? "attention" : "positive" },
-          { label: "CPD this year", value: String(v.cpd.hours), unit: "hours", sub: v.cpd.target !== null ? `Of the school’s ${v.cpd.target}` : "The school has not set an expectation" },
-          { label: "On your staff record", value: "All", sub: "Valid certificates are seen by the school office", tone: "positive" },
+          { label: "Certificates", value: String(v.certificates.length), },
+          { label: "Expiring soon", value: String(exp.length), tone: exp.length ? "attention" : "positive" },
+          { label: "CPD this year", value: String(v.cpd.hours), unit: "hours", },
+          { label: "On your staff record", value: "All", tone: "positive" },
         ],
       }]), show: "desktop" as const },
       first ? row("1fr", [{
@@ -480,8 +472,7 @@ function certificatesTab(v: Certificates): TabContent {
       { ...row("1fr", [{
         type: "table", title: "Your certificates", sub: "Open one to print it, or to share its code, which anyone can check.", noun: "certificate", nounPlural: "certificates", search: v.certificates.length > 4 ? "Find a certificate" : undefined,
         filters: v.certificates.length > 2 ? [{ label: "State", value: "All", options: ["All", ...new Set(v.certificates.map((cert) => cert.state))], match: Object.fromEntries([...new Set(v.certificates.map((cert) => cert.state))].map((state) => [state, `st:${state}|`])) }, { label: "Issued by", value: "All", options: ["All", ...new Set(v.certificates.map((cert) => cert.by))], match: Object.fromEntries([...new Set(v.certificates.map((cert) => cert.by))].map((by) => [by, `by:${by}|`])) }] : undefined,
-        head: ["Certificate", "Issued by", "Issued", "Expires", "Code", "State", ""], rows, per: 10, noRowOpen: true, empty: "You have no certificate yet. Finish a course and it appears here, with a code anyone can verify.", foot: "Certificates are yours. They stay with you if you leave.",
-      }]), show: "desktop" as const },
+        head: ["Certificate", "Issued by", "Issued", "Expires", "Code", "State", ""], rows, per: 10, noRowOpen: true, empty: "You have no certificate yet. Finish a course and it appears here, with a code anyone can verify.",       }]), show: "desktop" as const },
     ].filter(Boolean) as PanelRow[]),
   };
 }
@@ -553,13 +544,13 @@ export function coursePage(c: CoursePage): TabContent & { crumb: { label: string
       row("1fr", [{
         type: "kpi", per: 5, title: c.title.split(" · ")[0],
         cards: [
-          { label: "Progress", value: `${c.done} of ${c.lessons.length}`, unit: "lessons", sub: c.completed ? "Finished" : c.owned && nextLesson ? `Next: ${nextLesson.title}` : c.owned ? "" : "Opens once it is paid for", tone: c.completed ? "positive" : "progress" },
-          { label: "Time", value: length(c.hours), sub: c.format === "Self-paced" ? "At your own pace, on any device" : c.format },
+          { label: "Progress", value: `${c.done} of ${c.lessons.length}`, unit: "lessons", tone: c.completed ? "positive" : "progress" },
+          { label: "Time", value: length(c.hours), },
           c.owned
-            ? { label: "Price", value: c.price ? c.priceLabel : "Free", sub: c.price ? "Paid · unlocked for you" : "No charge", tone: "positive" as PanelTone, icon: "bag" }
-            : { label: "Price", value: c.priceLabel, sub: c.purchase?.state === "REQUESTED" ? "Waiting on the school’s decision" : c.purchase?.state === "DECLINED" ? "The school did not approve it" : c.purchase?.state === "BASKET" ? "In your basket" : "Lesson 1 is free to try", tone: c.purchase?.state === "DECLINED" ? "negative" as PanelTone : c.purchase?.state === "BASKET" ? "progress" as PanelTone : "attention" as PanelTone, icon: "bag" },
-          { label: "Certificate", value: c.certificateName ? (c.completed ? "Issued" : "Included") : "None", sub: c.certificateName ? `${c.certificateName} · ${c.validMonths ? `valid ${c.validMonths} months` : "does not expire"}` : "Counts as CPD hours only", tone: c.certificateName ? "positive" : undefined, ...(c.completed && c.certificate ? { link: "View it", href: "/training/certificates" } : preview ? { link: "Preview it", drawer: preview } : {}) },
-          c.required ? { label: "Required by", value: c.required.by ? day(c.required.by) : "Your school", sub: c.required.note ?? "Set by your school", tone: c.completed ? "positive" : "attention" } : { label: "Offered by", value: c.provider, sub: c.provider ? "Open to staff whose work it is written for" : "Written by your school" },
+            ? { label: "Price", value: c.price ? c.priceLabel : "Free", tone: "positive" as PanelTone, icon: "bag" }
+            : { label: "Price", value: c.priceLabel, tone: c.purchase?.state === "DECLINED" ? "negative" as PanelTone : c.purchase?.state === "BASKET" ? "progress" as PanelTone : "attention" as PanelTone, icon: "bag" },
+          { label: "Certificate", value: c.certificateName ? (c.completed ? "Issued" : "Included") : "None", tone: c.certificateName ? "positive" : undefined, ...(c.completed && c.certificate ? { link: "View it", href: "/training/certificates" } : preview ? { link: "Preview it", drawer: preview } : {}) },
+          c.required ? { label: "Required by", value: c.required.by ? day(c.required.by) : "Your school", tone: c.completed ? "positive" : "attention" } : { label: "Offered by", value: c.provider, },
         ],
       }]),
       !c.owned && c.purchase?.state === "DECLINED" ? row("1fr", [{ type: "note", tone: "negative", icon: WARN, title: "The school did not approve this one", body: c.purchase.decision ?? "No reason was recorded.", acts: [{ label: "Ask again", drawer: buy }] }]) : null,

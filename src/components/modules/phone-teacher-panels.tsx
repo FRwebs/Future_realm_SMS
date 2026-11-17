@@ -10,7 +10,6 @@ import { onDevice, useHeldCounts } from "@/lib/offline/use-held";
 import type { DrawerSpec, KpiCard, Panel, PanelAction, PanelTone, TableCellKind, TableRow } from "@/lib/modules/panels";
 import { toneOf } from "@/lib/modules/tones";
 import { tightFor } from "@/lib/ui/tight-copy";
-import { slimSub } from "@/lib/ui/card-sub";
 import { useUiText } from "@/hooks/use-ui-text";
 import { cn } from "@/lib/utils/cn";
 
@@ -141,7 +140,6 @@ export function PhoneStats({ panel, openDrawer }: { panel: Extract<Panel, { type
               </div>
               {/* The same line the laptop's card carries, cut by the same rule: a phone has least room
                   of all for a sentence that repeats the label above it. */}
-              {slimSub(card.sub ?? "", card.label) ? <span className="relative mt-[6px] text-pretty text-[12px] font-medium leading-[1.4]" style={{ color: dark ? "rgba(255,255,255,0.72)" : "#5C6B62" }}>{slimSub(card.sub ?? "", card.label)}</span> : null}
             </div>
           );
         })}
@@ -286,7 +284,7 @@ export function PhoneTable({ panel, openDrawer }: { panel: Extract<Panel, { type
     <section className="min-w-0">
       <BlockHead title={panel.title} sub={panel.sub} tag={panel.tag} tagTone={panel.tagTone} acts={panel.acts} openDrawer={openDrawer} />
       <RowsCard rows={rows} empty={panel.empty ?? "Nothing here yet."} per={panel.per === 0 ? 0 : Math.min(panel.per ?? 10, 10)} />
-      <PhoneFoot foot={panel.foot} />
+      {/* Nothing under a table, on a phone either. */}
     </section>
   );
 }
