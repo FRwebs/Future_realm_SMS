@@ -7,6 +7,16 @@
 @import 'tailwindcss';
 
 @theme {
+  /*
+   * How wide the application is allowed to be.
+   *
+   * The sidebar, the top bar and the page body share it, so on a wide screen the whole frame is
+   * centred as one rather than the header running edge to edge over a narrow column. 1,800px is
+   * the rail (272) plus the page's own gutters (48) plus the 1,480 the panels already cap at, so
+   * nothing about a laptop changes — it is narrower than this and fills it.
+   */
+  --app-frame: 1800px;
+
   --color-primary-50: rgb(var(--color-primary-50-rgb));
   --color-primary-100: rgb(var(--color-primary-100-rgb));
   --color-primary-200: rgb(var(--color-primary-200-rgb));

@@ -127,7 +127,17 @@ export function DashboardShell({
       <div
         data-shell-theme={theme}
         data-phone-skin={phoneTabs?.items.length ? "on" : undefined}
-        className="finance-shell flex h-screen overflow-hidden"
+        /*
+         * The whole frame has a width, and the page it sits on shows past it.
+         *
+         * Only the page body used to be capped, so on a wide screen the top bar and the notices
+         * ran the full width while the panels under them stopped at 1,480px and were centred in
+         * what was left — which opened a hole between the sidebar and the content and left the
+         * header floating over nothing. Capping the frame instead keeps the rail against the
+         * content it belongs to and centres the application as one thing. Under the cap nothing
+         * moves: a laptop is narrower than this and still fills it edge to edge.
+         */
+        className="finance-shell mx-auto flex h-screen w-full max-w-(--app-frame) overflow-hidden"
       >
         {mobileSidebarOpen && (
           <button
