@@ -2,7 +2,7 @@ import { invoiceDocDrawer } from "@/lib/modules/live/documents";
 import { apiGet, observe } from "@/lib/api/server";
 import { localContracts } from "@/lib/api/local-contracts.zod";
 import { dayLabel, dayLong, plural } from "@/lib/modules/live/m7-format";
-import { SB, cancelSwitchDrawer, invoiceDrawer, naira, payOneDrawer, renewDrawer, switchDrawer, topUpDrawer } from "@/lib/modules/live/m11-forms";
+import { SB, cancelSwitchDrawer, naira, payOneDrawer, renewDrawer, switchDrawer, topUpDrawer } from "@/lib/modules/live/m11-forms";
 import type { Credits, InvoiceDoc, InvoiceRow, Plan } from "@/lib/modules/live/m11-types";
 import { name as nameCell, pill, text, type KpiCard, type PanelTone, type TabContent, type TableRow } from "@/lib/modules/panels";
 
@@ -51,13 +51,37 @@ export function planTab(p: Plan, credits: Credits, ledger?: BillingLedger): TabC
   const payNow = open[0] ? payOneDrawer(open[0], p) : undefined;
   const trial = p.school.billingStatus === "TRIAL";
   const shortTerm = (term: { label: string } | null) => (term ? term.label.split(" ").slice(0, 2).join(" ") : "");
-  const renewLabel = p.renewal.startsNow ? `Pay for ${shortTerm(p.renewal.target)}` : p.next ? `Renew for ${shortTerm(p.next)}` : "Renew for next term";
+  /*
+   * A term is renewed once.
+   *
+   * The renew button used to be offered whatever had already happened, so a school that renewed and
+   * came back could raise a second invoice for the same term by clicking it again, with nothing on
+   * the page saying the first one existed. Where the next term already has a termly invoice, the
+   * action opens that invoice — to pay it, or to read it — instead of raising another.
+   */
+  const renewed = p.next ? p.invoices.find((invoice) => invoice.kind === "TERMLY" && invoice.termLabel === p.next!.label) : undefined;
+  const renewLabel = renewed
+    ? renewed.state === "Paid" ? `${shortTerm(p.next)} is renewed` : `Pay the ${shortTerm(p.next)} invoice`
+    : p.renewal.startsNow ? `Pay for ${shortTerm(p.renewal.target)}` : p.next ? `Renew for ${shortTerm(p.next)}` : "Renew for next term";
+  const renewAct = renewed
+    ? renewed.state === "Paid"
+      ? { label: `Open the ${shortTerm(p.next)} invoice`, drawer: invoiceDocDrawer(renewed.id, renewed.no) }
+      : { label: renewLabel, drawer: payOneDrawer(renewed, p) }
+    : { label: renewLabel, drawer: renew };
 
   const cards: KpiCard[] = [
     { label: "This term", value: naira(p.thisTerm.amount), unit: p.thisTerm.billed ? `${p.thisTerm.students.toLocaleString("en-NG")} students · ${naira(p.rate)} each` : `estimate · ${p.thisTerm.students.toLocaleString("en-NG")} students · ${naira(p.rate)} each`, tone: "neutral" },
     { label: "Plan", value: p.tierName, tone: "positive" },
     { label: "Students billed", value: p.roll.toLocaleString("en-NG"), },
-    { label: "Renews", value: p.next ? dayLabel(p.next.start) : "Not set", unit: p.next ? ((p.daysToRenew ?? 0) >= 0 ? `in ${plural(p.daysToRenew ?? 0, "day")}` : `began ${plural(-(p.daysToRenew ?? 0), "day")} ago`) : undefined, tone: p.daysToRenew !== null && p.daysToRenew < 30 ? "attention" : "neutral" },
+    {
+      label: "Renews",
+      value: p.next ? dayLabel(p.next.start) : "Not set",
+      unit: renewed
+        ? renewed.state === "Paid" ? `renewed · ${renewed.no}` : `invoiced · ${renewed.no} unpaid`
+        : p.next ? ((p.daysToRenew ?? 0) >= 0 ? `in ${plural(p.daysToRenew ?? 0, "day")}` : `began ${plural(-(p.daysToRenew ?? 0), "day")} ago`) : undefined,
+      tone: renewed ? (renewed.state === "Paid" ? "positive" : "attention") : p.daysToRenew !== null && p.daysToRenew < 30 ? "attention" : "neutral",
+      ...(renewed ? { link: renewed.state === "Paid" ? "Open the invoice" : "Pay it", drawer: renewed.state === "Paid" ? invoiceDocDrawer(renewed.id, renewed.no) : payOneDrawer(renewed, p) } : {}),
+    },
     { label: "Account state", value: p.account.state, tone: accountTone(p.account.state) },
     { label: "Outstanding", value: naira(p.account.outstanding), tone: p.account.outstanding ? "attention" : "positive", link: payNow ? "Pay it" : undefined, drawer: payNow },
   ];
@@ -92,18 +116,18 @@ export function planTab(p: Plan, credits: Credits, ledger?: BillingLedger): TabC
   return {
     title: "Plan",
     desc: "What Future Realm costs at your current roll, and how to change it.",
-    primary: { label: renewLabel, icon: "M20 11.5a8 8 0 0 0-13.7-5L4 8.8M4 12.5a8 8 0 0 0 13.7 5l2.3-2.3M4 4.5v4.3h4.3", drawer: renew },
+    primary: { ...renewAct, icon: "M20 11.5a8 8 0 0 0-13.7-5L4 8.8M4 12.5a8 8 0 0 0 13.7 5l2.3-2.3M4 4.5v4.3h4.3" },
     launchers: [
       { label: "Switch plan", drawer: switchDrawer(p) },
       ...(payNow ? [{ label: "Pay by card", drawer: payNow }] : []),
-      ...(latest ? [{ label: "Download an invoice", drawer: invoiceDrawer(latest) }] : []),
+      ...(latest ? [{ label: "Download an invoice", drawer: invoiceDocDrawer(latest.id, latest.no) }] : []),
     ],
     rows: [
-      ...(trial ? [{ cols: "1fr", panels: [{ type: "note" as const, tone: "attention" as PanelTone, title: "This account is on a trial", body: p.renewal.startsNow ? `Pay for ${p.renewal.target?.label ?? "this term"} and the school moves onto the plan you choose from today${p.school.trialEndsAt ? `, before the trial ends on ${dayLong(p.school.trialEndsAt)}` : ""}. You are not booked for the next term.` : p.school.trialEndsAt ? `The trial ends on ${dayLong(p.school.trialEndsAt)}. Renew before then so nothing is interrupted.` : "Renew to move the school onto a paid plan.", acts: [{ label: p.renewal.startsNow ? "Pay and upgrade now" : "Renew now", drawer: renew }] }] }] : []),
+      ...(trial ? [{ cols: "1fr", panels: [{ type: "note" as const, tone: "attention" as PanelTone, title: "This account is on a trial", body: p.renewal.startsNow ? `Pay for ${p.renewal.target?.label ?? "this term"} and the school moves onto the plan you choose from today${p.school.trialEndsAt ? `, before the trial ends on ${dayLong(p.school.trialEndsAt)}` : ""}. You are not booked for the next term.` : p.school.trialEndsAt ? `The trial ends on ${dayLong(p.school.trialEndsAt)}. Renew before then so nothing is interrupted.` : "Renew to move the school onto a paid plan.", acts: [renewed ? renewAct : { label: p.renewal.startsNow ? "Pay and upgrade now" : "Renew now", drawer: renew }] }] }] : []),
       ...(p.pending ? [{ cols: "1fr", panels: [{ type: "note" as const, tone: "progress" as PanelTone, title: `A switch to ${p.pending.tier} is scheduled`, body: `It takes effect from ${dayLong(p.pending.from)}${p.pending.reason ? ` — you gave “${p.pending.reason.toLowerCase()}” as the reason` : ""}. Nothing changes for the rest of this term.`, acts: [{ label: "Change it", drawer: switchDrawer(p) }, { label: "Withdraw it", drawer: cancelSwitchDrawer(p) }] }] }] : []),
       ...(open.some((invoice) => invoice.state === "Overdue") ? [{ cols: "1fr", panels: [{ type: "note" as const, tone: "negative" as PanelTone, title: "An invoice is overdue", body: `${plural(open.filter((invoice) => invoice.state === "Overdue").length, "invoice")} past its due date. Pay it to keep the account current.`, acts: payNow ? [{ label: "Pay by card", drawer: payNow }] : [] }] }] : []),
       { cols: "1fr", panels: [{ type: "kpi", title: p.term?.label ?? "This term", per: 6, cards }] },
-      { cols: "1fr", panels: [{ type: "table", title: "What is running on this account", tag: `${p.running.filter((item) => item.state === "Active").length} active`, tagTone: "positive", sub: "Everything currently billed to this school, and when each of them renews.", meta: `${p.tierName} · per student per term${p.next ? ` · next renewal ${dayLong(p.next.start)}` : ""}`, acts: [{ label: "Switch plan", drawer: switchDrawer(p) }, { label: renewLabel, primary: true, drawer: renew }], head: ["What is running", "Basis", "Units", "Rate", "This term", "Renews", "State", ""], noun: "item", nounPlural: "items", noRowOpen: true, rows: running, }] },
+      { cols: "1fr", panels: [{ type: "table", title: "What is running on this account", tag: `${p.running.filter((item) => item.state === "Active").length} active`, tagTone: "positive", sub: "Everything currently billed to this school, and when each of them renews.", meta: `${p.tierName} · per student per term${p.next ? ` · next renewal ${dayLong(p.next.start)}` : ""}`, acts: [{ label: "Switch plan", drawer: switchDrawer(p) }, { ...renewAct, primary: true }], head: ["What is running", "Basis", "Units", "Rate", "This term", "Renews", "State", ""], noun: "item", nounPlural: "items", noRowOpen: true, rows: running, }] },
       {
         cols: "1fr",
         panels: [

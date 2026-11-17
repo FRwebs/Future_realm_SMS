@@ -110,16 +110,11 @@ export function payOneDrawer(invoice: InvoiceRow, p: Plan): DrawerSpec {
   return { ...base, title: `Pay ${naira(invoice.total)} by card`, fields: [fixed("Paying for", `${invoice.no} · ${invoice.period}`, { span: 2, hint: `${naira(invoice.amount)} plus ${naira(invoice.tax)} VAT` }), text("Email the receipt to", { value: p.preferences.receiptEmail ?? "", placeholder: "bursary@school.ng" }), fixed("Next step", "The payment provider asks for your card, and your bank for a one-time code", { span: 2 })], submit: { endpoint: `${SB}/invoices/${invoice.id}/pay`, method: "POST", body: { method: "Card" }, map: { "Email the receipt to": "email" } } };
 }
 
-export function invoiceDrawer(invoice: InvoiceRow): DrawerSpec {
-  return {
-    mode: "output",
-    kicker: "Subscription",
-    title: `Download ${invoice.no}`,
-    facts: [["Invoice", invoice.no, invoice.kindLabel], ["For", invoice.period], ["Amount", naira(invoice.total), `${naira(invoice.amount)} plus ${naira(invoice.tax)} VAT`], ["State", invoice.state, invoice.paidAt ? `Settled ${day(invoice.paidAt)}` : `Due ${day(invoice.due)}`], ["Format", "Printable page", "Save as PDF from the print dialog"]],
-    readOnly: true,
-    readOnlyNote: "Open the invoice to print it or save it as a PDF.",
-  };
-}
+/*
+ * There is no "describe an invoice" drawer any more. It listed the invoice's facts, said "open the
+ * invoice to print it or save it as a PDF", and offered no way to open it — so the head's "Download
+ * an invoice" ended at a Close button. The invoice document itself is what opens now.
+ */
 
 /* ───────────────────────── credits ───────────────────────── */
 

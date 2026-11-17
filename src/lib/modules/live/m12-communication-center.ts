@@ -314,7 +314,7 @@ function composeTab(audiences: Audience[], to: string): TabContent {
             meta: `Sent as ${chosen.key} · ${chosen.reach} will receive`,
             per: 1,
             fields: [
-              { label: "Name this send", kind: "text", value: "", placeholder: "Fee reminder · second" },
+              { label: "Name this send", kind: "text", value: "", placeholder: "Fee reminder · second", required: true, hint: "What it is called in Sent, so it can be found again" },
               {
                 label: "Channel",
                 kind: "choice",
