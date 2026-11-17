@@ -60,7 +60,7 @@ export function estimateWidth(head: string, cells: Array<TableCellKind | undefin
 
 export type ColumnPlan = {
   /** One entry per column: a fixed pixel width, or a share of what is left over. */
-  tracks: Array<{ kind: "fixed"; px: number } | { kind: "flex"; floor: number; share: number }>;
+  tracks: Array<{ kind: "fixed"; px: number } | { kind: "flex"; floor: number; share: number; want: number }>;
   /** The narrowest the table can be drawn before it has to scroll sideways. */
   minWidth: number;
 };
@@ -102,11 +102,19 @@ export function planColumns(
 
   const tracks = columns.map((_, index) => {
     if (!flexible[index]) return { kind: "fixed" as const, px: width[index]! };
-    const weight = weights ? Number.parseFloat(weights[index]!) || 1 : 1;
-    // The authored weight and the measured content agree on the share, so neither a stale
-    // hand-written template nor one unusually long row decides the table on its own.
-    const share = Math.max(0.6, Math.min(3, (weight + width[index]! / 130) / 2));
-    return { kind: "flex" as const, floor: Math.min(width[index]!, FLEX_FLOOR), share };
+    const weight = weights ? Math.max(0.4, Math.min(2.5, Number.parseFloat(weights[index]!) || 1)) : 1;
+    /*
+     * A column's share is what it holds, scaled by whatever the template asked for.
+     *
+     * It used to be the average of the two — the weight (about 1) and the content divided by 130
+     * (also about 1) — which flattened them into each other: a column needing three times another
+     * came out barely wider, so the long one was crammed to an ellipsis while a column of single
+     * digits sat in a hand's width of space, on a table with room to spare. Multiplying keeps the
+     * difference the content actually has, and still lets a hand-written weight widen or narrow a
+     * column against it.
+     */
+    const share = (width[index]! / 130) * weight;
+    return { kind: "flex" as const, floor: Math.min(width[index]!, FLEX_FLOOR), share, want: width[index]! * weight };
   });
 
   const minWidth = Math.round(
@@ -125,14 +133,24 @@ export function planColumns(
  * one.
  */
 export function columnWidths(plan: ColumnPlan, selectable = false): string[] {
-  // The tick column is a column of the table too. Left out of the sum, every flexible column was
-  // sized against a width the table did not have, and the row ran past its own panel by exactly
-  // that column — which is what put a scrollbar under tables that fit perfectly well.
-  const fixedPx = plan.tracks.reduce((sum, track) => sum + (track.kind === "fixed" ? track.px : 0), 0) + (selectable ? TICK_COLUMN : 0);
-  const shares = plan.tracks.reduce((sum, track) => sum + (track.kind === "flex" ? track.share : 0), 0);
-  return plan.tracks.map((track) => {
-    if (track.kind === "fixed") return `${track.px}px`;
-    const part = shares > 0 ? track.share / shares : 0;
-    return `calc((100% - ${fixedPx}px) * ${part.toFixed(4)})`;
-  });
+  /*
+   * Every column as a plain percentage of the table — the tick column included.
+   *
+   * This used to be `calc((100% - 200px) * 0.36)`, which reads correctly and is silently dropped:
+   * a `<col>` width that mixes a percentage with a length is treated as `auto` under
+   * `table-layout: fixed`, so the engine fell back to dividing the table equally. Every flexible
+   * column in the product came out the same width whatever it held — a column of long names and a
+   * column of single digits side by side, one crammed to an ellipsis and the other mostly air. A
+   * plain percentage is honoured, so the plan is what is drawn.
+   *
+   * The proportions are measured against the plan's own total rather than the window, so they hold
+   * at any width; the table's `min-width` keeps it from being drawn much narrower than that total,
+   * which is what stops a percentage shrinking a column under what it needs.
+   */
+  const wants = plan.tracks.map((track) => (track.kind === "fixed" ? track.px : track.want));
+  const total = wants.reduce((sum, want) => sum + want, 0) + (selectable ? TICK_COLUMN : 0);
+  if (total <= 0) return plan.tracks.map(() => "auto");
+  const pct = (px: number) => `${((px / total) * 100).toFixed(4)}%`;
+  const columns = wants.map(pct);
+  return selectable ? [pct(TICK_COLUMN), ...columns] : columns;
 }

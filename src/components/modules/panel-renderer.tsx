@@ -49,7 +49,7 @@ import { CARD_BORDER, INK, MUTED, toneOf } from "@/lib/modules/tones";
 import { useUiText } from "@/hooks/use-ui-text";
 import { cn } from "@/lib/utils/cn";
 import { onDevice, useHeldCounts } from "@/lib/offline/use-held";
-import { TICK_COLUMN, columnWidths, planColumns } from "@/lib/ui/table-columns";
+import { columnWidths, planColumns } from "@/lib/ui/table-columns";
 import { deskTrim } from "@/lib/ui/tight-copy";
 
 /*
@@ -1212,8 +1212,8 @@ function TableView({ panel, openDrawer, engine }: { panel: Extract<Panel, { type
             style={dense ? { tableLayout: "fixed" } : { tableLayout: "fixed", minWidth: `min(${plan.minWidth}px, max(100%, ${Math.max(0, plan.minWidth - 24)}px))` }}
           >
             <colgroup>
-              {panel.selectable ? <col style={{ width: `${TICK_COLUMN}px` }} /> : null}
-              {widths.map((width, index) => <col key={panel.head[index] ?? index} style={{ width }} />)}
+              {/* `widths` already carries the tick column when the table has one. */}
+              {widths.map((width, index) => <col key={index} style={{ width }} />)}
             </colgroup>
             <thead>
               <tr

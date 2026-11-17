@@ -87,11 +87,23 @@ describe("planning a table's columns", () => {
   it("turns the plan into widths a colgroup can carry, which together make one table", () => {
     const widths = columnWidths(planColumns(head, body));
     expect(widths).toHaveLength(3);
-    // the chips column is a plain pixel width; the rest divide what is left
-    expect(widths[2]).toMatch(/px$/);
-    expect(widths[0]).toMatch(/^calc\(\(100% - \d+px\) \* 0\.\d+\)$/);
-    const shares = widths.filter((w) => w.startsWith("calc")).map((w) => Number(w.match(/\* (0\.\d+)\)/)![1]));
-    expect(shares.reduce((sum, part) => sum + part, 0)).toBeCloseTo(1, 3);
+    // Every column is a plain percentage, and they come to one whole table. A `<col>` width that
+    // mixes a percentage with a length is dropped under `table-layout: fixed` and the engine
+    // divides the table equally instead, which is how a column of long names ended up exactly as
+    // wide as a column of single digits.
+    widths.forEach((width) => expect(width).toMatch(/^\d+(\.\d+)?%$/));
+    const parts = widths.map((width) => Number.parseFloat(width));
+    expect(parts.reduce((sum, part) => sum + part, 0)).toBeCloseTo(100, 2);
+    // The column holding the longest text is the widest one.
+    expect(Math.max(...parts)).toBe(parts[0]);
+  });
+
+  it("gives the tick column a width of its own when the rows can be selected", () => {
+    const plain = columnWidths(planColumns(head, body));
+    const ticked = columnWidths(planColumns(head, body, { selectable: true }), true);
+    expect(ticked).toHaveLength(plain.length + 1);
+    expect(Number.parseFloat(ticked[0]!)).toBeLessThan(Number.parseFloat(ticked[1]!));
+    expect(ticked.map((w) => Number.parseFloat(w)).reduce((sum, part) => sum + part, 0)).toBeCloseTo(100, 2);
   });
 });
 
