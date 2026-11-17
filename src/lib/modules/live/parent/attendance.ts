@@ -147,12 +147,10 @@ function familyAttendance(data: Attendance, school: string): ParentContent {
         type: "kpi", bare: true, per: Math.min(4, data.children.length + 1),
         cards: [
           ...data.children.map((entry) => {
-            const term = current(entry);
             const mark = entry.today;
             return {
               label: `${entry.first} · today`,
               value: mark ? WORD[mark.status] ?? mark.status : "Not marked",
-              sub: term ? `${pctText(term.pct)} this term` : "No register yet",
               tone: mark ? TONE[mark.status] ?? "neutral" : ("neutral" as PanelTone),
               href: `/portals/parent/attendance?child=${entry.id}`,
               icon: "register",
@@ -160,7 +158,6 @@ function familyAttendance(data: Attendance, school: string): ParentContent {
           }),
           {
             label: "Waiting for you", value: String(unexplained.length),
-            sub: unexplained.length ? `${unexplained.length} ${unexplained.length === 1 ? "absence" : "absences"} not explained` : "Every absence explained",
             tone: unexplained.length ? ("attention" as PanelTone) : ("positive" as PanelTone), icon: "listCheck",
           },
         ],
@@ -187,7 +184,6 @@ function familyAttendance(data: Attendance, school: string): ParentContent {
             };
           }),
           empty: "No child on your account has a register yet.",
-          foot: "A mark is made on the morning register. An explanation changes it only when the school accepts it.",
         },
         {
           type: "list", title: "Days away and late arrivals", sub: "Explanations sit beside the marks they changed.",
@@ -286,12 +282,12 @@ function childAttendance(entry: Child, data: Attendance, query: Record<string, s
       row("1fr", [{
         type: "kpi", bare: true, per: 4,
         cards: [
-          { label: chosen.current ? "This term so far" : "Attendance", value: pctText(chosen.pct), sub: `${chosen.present} of ${chosen.marked} school days`, tone: attTone(chosen.pct), icon: "calendar" },
-          { label: "Days away", value: String(chosen.away), sub: chosen.unexplained ? `${chosen.unexplained} not explained yet` : chosen.away ? "All explained" : "None", tone: chosen.unexplained ? "attention" : chosen.away ? "neutral" : "positive", icon: "person" },
-          { label: "Late arrivals", value: String(chosen.late), sub: chosen.late ? "Counted as present" : "None", tone: chosen.late ? "attention" : "positive", icon: "clock" },
+          { label: chosen.current ? "This term so far" : "Attendance", value: pctText(chosen.pct), tone: attTone(chosen.pct), icon: "calendar" },
+          { label: "Days away", value: String(chosen.away), tone: chosen.unexplained ? "attention" : chosen.away ? "neutral" : "positive", icon: "person" },
+          { label: "Late arrivals", value: String(chosen.late), tone: chosen.late ? "attention" : "positive", icon: "clock" },
           previous
-            ? { label: `Against ${previous.short}`, value: change === null ? "—" : change === 0 ? "Level" : `${change > 0 ? "+" : "−"}${Math.abs(change)} ${Math.abs(change) === 1 ? "pt" : "pts"}`, sub: `${pctText(previous.pct)} that term`, tone: change === null ? "neutral" : change > 0 ? "positive" : change < 0 ? "attention" : "neutral", icon: change !== null && change < 0 ? "trendDown" : "trendUp", href: `/portals/parent/attendance?child=${entry.id}&term=${previous.id}` }
-            : { label: "Compared with", value: "First term", sub: `${entry.first}’s first term on record`, tone: "neutral" as PanelTone, icon: "calendar" },
+            ? { label: `Against ${previous.short}`, value: change === null ? "—" : change === 0 ? "Level" : `${change > 0 ? "+" : "−"}${Math.abs(change)} ${Math.abs(change) === 1 ? "pt" : "pts"}`, tone: change === null ? "neutral" : change > 0 ? "positive" : change < 0 ? "attention" : "neutral", icon: change !== null && change < 0 ? "trendDown" : "trendUp", href: `/portals/parent/attendance?child=${entry.id}&term=${previous.id}` }
+            : { label: "Compared with", value: "First term", tone: "neutral" as PanelTone, icon: "calendar" },
         ],
       }]),
       row("minmax(0,1.5fr) minmax(0,1fr)", [

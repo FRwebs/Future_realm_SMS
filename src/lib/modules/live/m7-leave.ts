@@ -55,11 +55,11 @@ export function leaveTab(data: LeaveOverview): TabContent {
   const declined = rows.filter((row) => row.status === "Declined").length;
 
   const cards: KpiCard[] = [
-    { label: "Away today", value: String(kpis.awayToday), sub: kpis.awayNames.length ? kpis.awayNames.slice(0, 3).join(", ") : "Everybody is in" },
-    { label: "Waiting on you", value: String(kpis.waiting), tone: kpis.waiting ? "attention" : "positive", sub: kpis.waiting ? `Oldest has waited ${kpis.oldestDays} ${kpis.oldestDays === 1 ? "day" : "days"}` : "Nothing waiting", ...(kpis.waiting && decideFirst ? { link: "Decide them", drawer: decideFirst } : {}) },
-    { label: "Cover not arranged", value: String(kpis.noCover), tone: kpis.noCover ? "negative" : "positive", sub: kpis.noCover ? "Classes would be uncovered" : "Every open request names its cover" },
-    { label: "Working days off this session", value: String(kpis.lost), sub: data.session ? `${data.session} · approved and taken` : "Approved leave, all told" },
-    { label: "Annual entitlement used", value: kpis.annualUsedPct === null ? "—" : `${kpis.annualUsedPct}%`, tone: "progress", sub: `School-wide · ${kpis.staff} staff`, link: "See balances", href: BALANCES },
+    { label: "Away today", value: String(kpis.awayToday), },
+    { label: "Waiting on you", value: String(kpis.waiting), tone: kpis.waiting ? "attention" : "positive", ...(kpis.waiting && decideFirst ? { link: "Decide them", drawer: decideFirst } : {}) },
+    { label: "Cover not arranged", value: String(kpis.noCover), tone: kpis.noCover ? "negative" : "positive", },
+    { label: "Working days off this session", value: String(kpis.lost), },
+    { label: "Annual entitlement used", value: kpis.annualUsedPct === null ? "—" : `${kpis.annualUsedPct}%`, tone: "progress", link: "See balances", href: BALANCES },
   ];
 
   const typeNames = types.map((type) => type.name);
@@ -146,7 +146,6 @@ export function leaveTab(data: LeaveOverview): TabContent {
             emptyTitle: "No leave on record",
             emptyBody: "Requests made in the staff portal, and leave recorded here, appear in this register.",
             empty: "No request matches.",
-            foot: "A request is never deleted. Declined, cancelled and withdrawn ones stay with their reason.",
           },
         ],
       },
@@ -222,7 +221,6 @@ export function leavePolicyPage(data: LeaveOverview): TabContent {
             emptyTitle: "No leave type exists yet",
             emptyBody: "Define the first: its entitlement, how it accrues, what evidence it needs and what it does to pay.",
             empty: "No type matches.",
-            foot: "Unpaid leave is the only type that reaches payroll by itself.",
           },
         ],
       },
@@ -309,7 +307,6 @@ export function leaveBalancesPage(data: LeaveOverview): TabContent {
             emptyTitle: "Nobody is on the leave register yet",
             emptyBody: "A balance appears here once a person’s first request is approved, or leave is recorded for them.",
             empty: "Nobody matches.",
-            foot: "A request still in sequence has not been spent.",
           },
         ],
       },

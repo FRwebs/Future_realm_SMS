@@ -153,18 +153,17 @@ const directoryTab: TabContent = {
         type: "kpi",
         per: 5,
         cards: [
-          { label: "Total staff", value: String(counts.total), sub: `Across ${counts.depts} departments` },
-          { label: "Activated", value: `${counts.active} of ${counts.total}`, sub: "Signed in within 30 days", tone: "positive" },
+          { label: "Total staff", value: String(counts.total), },
+          { label: "Activated", value: `${counts.active} of ${counts.total}`, tone: "positive" },
           {
             label: "Never activated",
             value: String(counts.never),
-            sub: "Holds routing, blocks approvals",
             tone: "negative",
             link: "Resend invitations",
             drawer: resendInvitesDrawer,
           },
-          { label: "Dormant", value: String(counts.dormant), sub: "No sign-in for 96 days", tone: "attention" },
-          { label: "Active delegations", value: "2", sub: "1 expired and not renewed", tone: "submitted" },
+          { label: "Dormant", value: String(counts.dormant), tone: "attention" },
+          { label: "Active delegations", value: "2", tone: "submitted" },
         ],
       },
     ]),
@@ -262,7 +261,6 @@ const directoryTab: TabContent = {
             keywords: `${staff.id} ${staff.dept} ${staff.role}`,
           }),
         ),
-        foot: "Open tasks counts registers, sheets, remarks and approvals outstanding against a person.",
       },
     ]),
     row("1fr 1.1fr", [
@@ -505,18 +503,15 @@ const permissionsTab: TabContent = {
           {
             label: "People with access",
             value: String(people.length),
-            sub: `Across ${schoolRoleTemplates.length} role templates`,
           },
           {
             label: "Above their template",
             value: String(counts.above),
-            sub: "Each with a reason on record",
             tone: counts.above ? "attention" : "positive",
           },
           {
             label: "Never activated",
             value: String(counts.never),
-            sub: "Approvals queue unread",
             tone: "negative",
             link: "Resend the links",
             drawer: resendInvitesDrawer,
@@ -524,13 +519,11 @@ const permissionsTab: TabContent = {
           {
             label: "Sensitive group holders",
             value: String(counts.sensitiveHolders),
-            sub: "Granted one by one",
             tone: "sensitive",
           },
           {
             label: "Recertification",
             value: "30 Sep",
-            sub: "25 days · last done 12 June",
             tone: "attention",
             link: "Review everyone",
             drawer: recertifyDrawer,
@@ -615,7 +608,6 @@ const permissionsTab: TabContent = {
             keywords: `${person.dept} ${person.scope} ${person.above}`,
           };
         }),
-        foot: "A module a person cannot reach is absent from their navigation entirely — never shown and greyed out, which only teaches people to ask for it.",
       },
     ]),
     row("1.05fr 1fr", [
@@ -766,7 +758,6 @@ const permissionsTab: TabContent = {
             keywords: entry.kind,
           }),
         ),
-        foot: "An account configured but never activated is the dangerous one: work routes to it and stops.",
       },
     ]),
   ],
@@ -925,18 +916,16 @@ const payrollTab: TabContent = {
         type: "kpi",
         per: 5,
         cards: [
-          { label: "Monthly payroll cost", value: nairaM(totals.cost), sub: "Gross plus allowances, before deductions" },
+          { label: "Monthly payroll cost", value: nairaM(totals.cost), },
           {
             label: "On the payroll",
             value: String(totals.n),
-            unit: `of ${pay.length}`,
-            sub: totals.unmapped ? `${totals.unmapped} not mapped to a band` : "Everybody mapped",
+            unit: totals.unmapped ? `of ${pay.length} · ${totals.unmapped} not mapped to a band` : `of ${pay.length}`,
             tone: totals.unmapped ? "attention" : "positive",
           },
           {
             label: "September run",
             value: "In review",
-            sub: "Pay date 25 Sep · cut-off was 20 Sep",
             tone: "progress",
             link: "Open the run",
             drawer: openRunDrawer,
@@ -944,12 +933,10 @@ const payrollTab: TabContent = {
           {
             label: "Statutory deductions",
             value: nairaM(totals.deductions),
-            sub: "PAYE, pension and NHF · Nigeria profile",
           },
           {
             label: "Payments needing a decision",
             value: String(held),
-            sub: held ? "Held or waiting on approval" : "Nothing waiting",
             tone: held ? "attention" : "positive",
             link: held ? "See them" : undefined,
             drawer: held ? openRunDrawer : undefined,
@@ -1029,7 +1016,6 @@ const payrollTab: TabContent = {
             keywords: band.covers,
           };
         }),
-        foot: "A step is a position on a ladder, not a negotiation. Moving somebody up a step is one decision, recorded once, and it reaches their pay on the next run.",
       },
     ]),
     row("1fr", [
@@ -1111,7 +1097,6 @@ const payrollTab: TabContent = {
             keywords: `${entry.band.code} ${entry.band.name} ${entry.person.role}`,
           }),
         ),
-        foot: "Deductions are never entered by hand: they come from the statutory profile for the school's country.",
       },
     ]),
   ],
@@ -1241,11 +1226,10 @@ const leaveTab: TabContent = {
         type: "kpi",
         per: 5,
         cards: [
-          { label: "Away today", value: "3", sub: "2 sick, 1 annual · all three covered" },
+          { label: "Away today", value: "3", },
           {
             label: "Waiting on you",
             value: String(waiting),
-            sub: waiting ? "Oldest has waited 4 days" : "Nothing waiting",
             tone: waiting ? "attention" : "positive",
             link: waiting ? "Decide them" : undefined,
             drawer: waiting ? leaveDrawer(firstWaiting) : undefined,
@@ -1253,13 +1237,12 @@ const leaveTab: TabContent = {
           {
             label: "Cover not arranged",
             value: String(noCover),
-            sub: "Classes would be uncovered if granted",
             tone: "negative",
             link: "See them",
             drawer: leaveDrawer(firstUncovered),
           },
-          { label: "Working days lost this term", value: "41", sub: "Of 1,054 staff working days · 3.9%" },
-          { label: "Annual entitlement used", value: "38%", sub: "School-wide · term 2 of 3", tone: "progress" },
+          { label: "Working days lost this term", value: "41", },
+          { label: "Annual entitlement used", value: "38%", tone: "progress" },
         ],
       },
     ]),
@@ -1349,7 +1332,6 @@ const leaveTab: TabContent = {
             keywords: `${request.role} ${request.cover}`,
           }),
         ),
-        foot: "A request is never deleted. Declined, cancelled and withdrawn ones stay in the register with their reason.",
       },
     ]),
     row("1fr", [
@@ -1447,7 +1429,6 @@ const leaveTab: TabContent = {
             keywords: `${entry.pay} ${entry.evidence}`,
           };
         }),
-        foot: "Unpaid leave is the only type that reaches payroll by itself, prorated by working day.",
       },
     ]),
     row("1fr", [
@@ -1515,7 +1496,6 @@ const leaveTab: TabContent = {
             keywords: balance.person.dept,
           }),
         ),
-        foot: "An unused entitlement is a cost, not a saving: five people who take nothing all session will all want December, and the school cannot give it to them.",
       },
     ]),
     row("1.1fr 1fr", [
@@ -1686,29 +1666,26 @@ const appraisalTab: TabContent = {
         type: "kpi",
         per: 5,
         cards: [
-          { label: "Cycle", value: "Second Term", sub: "Published 1 September · closes 30 September" },
+          { label: "Cycle", value: "Second Term", },
           {
             label: "Published to",
             value: String(appraisals.length),
             unit: "staff",
-            sub: `Across ${Object.keys(kpiSets).length} KPI sets`,
           },
           {
             label: "Completed by staff",
             value: String(appraisals.filter((entry) => entry.stage !== "Not started").length - selfAssessing),
             unit: `of ${appraisals.length}`,
-            sub: `${selfAssessing} still writing theirs`,
             tone: "progress",
           },
           {
             label: "Waiting on your review",
             value: String(withMe),
-            sub: withMe ? "Oldest returned 6 days ago" : "Nothing waiting",
             tone: withMe ? "attention" : "positive",
             link: withMe ? "Review them" : undefined,
             drawer: withMe ? appraisalDrawer(firstWithMe) : undefined,
           },
-          { label: "Average rating", value: "3.8", unit: "of 5", sub: "Moderation not yet run" },
+          { label: "Average rating", value: "3.8", unit: "of 5", },
         ],
       },
     ]),
@@ -1837,7 +1814,6 @@ const appraisalTab: TabContent = {
             keywords: setName,
           };
         }),
-        foot: "Every KPI here reads a figure the product already holds, or is rated by a named person against stated evidence.",
       },
     ]),
     row("1fr", [
@@ -1905,7 +1881,6 @@ const appraisalTab: TabContent = {
             keywords: `${entry.person.dept} ${entry.set}`,
           }),
         ),
-        foot: "A self-assessment far above the manager's rating is surfaced as its own view, not hidden.",
       },
     ]),
   ],
@@ -1962,10 +1937,10 @@ const activityTab: TabContent = {
         type: "kpi",
         per: 4,
         cards: [
-          { label: "Staff reporting", value: "31", sub: "Every figure drawn from its own module" },
-          { label: "Registers on time", value: "91%", sub: "School-wide, this term", tone: "positive" },
-          { label: "Sheets outstanding", value: "16", sub: "Across 5 teachers", tone: "attention" },
-          { label: "Remarks outstanding", value: "948", sub: "2 form masters have not started", tone: "attention" },
+          { label: "Staff reporting", value: "31", },
+          { label: "Registers on time", value: "91%", tone: "positive" },
+          { label: "Sheets outstanding", value: "16", tone: "attention" },
+          { label: "Remarks outstanding", value: "948", tone: "attention" },
         ],
       },
     ]),

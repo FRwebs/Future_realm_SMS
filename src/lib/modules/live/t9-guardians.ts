@@ -91,10 +91,10 @@ function guardiansTab(v: GuardiansView, me: TeacherWorkspaceView, held: Set<stri
     row("1fr", [{
       type: "kpi", sub: `${armLabel} · ${roll} children, ${k.households} households.`, per: 4,
       cards: [
-        { label: "Households", value: String(k.households), sub: "Siblings share a household" },
-        { label: "Reachable in-app", value: String(k.reachable), unit: `of ${k.households}`, sub: `${k.households - k.reachable} have never activated the portal`, tone: k.reachable === k.households ? "positive" : "attention" },
-        { label: "No phone number on file", value: String(k.noPhone), sub: k.noPhone ? "The office is chasing it" : "Everyone has a number", tone: k.noPhone ? "negative" : "positive" },
-        { label: "Prefer another language", value: String(k.otherLanguage), sub: k.otherLanguage ? `Messages go in their language where the school can${languages.filter((entry) => entry !== "English").length ? ` · ${languages.filter((entry) => entry !== "English").join(", ")}` : ""}` : "Everyone prefers English" },
+        { label: "Households", value: String(k.households), },
+        { label: "Reachable in-app", value: String(k.reachable), unit: `of ${k.households}`, tone: k.reachable === k.households ? "positive" : "attention" },
+        { label: "No phone number on file", value: String(k.noPhone), tone: k.noPhone ? "negative" : "positive" },
+        { label: "Prefer another language", value: String(k.otherLanguage), },
       ],
     }]),
     // The phone reads the same guardians as people to call: initials, who they are to which child, how to reach them, and one tap to call.
@@ -126,8 +126,7 @@ function guardiansTab(v: GuardiansView, me: TeacherWorkspaceView, held: Set<stri
         { label: "Export contacts", primary: true, export: true },
       ],
       head: ["Guardian", "Child", "Phone", "Portal", "Prefers", ""], rows, per: 10, noRowOpen: true,
-      empty: "No guardian is on record for this class yet.", foot: "Where the Safeguarding Lead has restricted a contact, it is simply not here — and you are not told why.",
-    }]), show: "desktop" as const },
+      empty: "No guardian is on record for this class yet.",     }]), show: "desktop" as const },
   ];
   return {
     title: "Guardians", desc: "A number to call. Contact details only.",
@@ -180,12 +179,12 @@ function submissionsTab(v: SubmissionsView, me: TeacherWorkspaceView): TabConten
       row("1fr", [{
         type: "kpi", sub: "Your class only. A guardian writes to the school; you are the person who acts on it.", per: 4,
         cards: [
-          { label: "Waiting on you", value: String(open.length), sub: open.length ? `The oldest is ${v.oldest} day${v.oldest === 1 ? "" : "s"} old` : "Nothing is waiting", tone: open.length ? "attention" : "positive" },
-          { label: "Decided this term", value: String(k.decided), sub: `${k.accepted ?? 0} accepted, ${k.declined ?? 0} declined` },
-          { label: "Median time to decide", value: k.median === null ? "—" : String(k.median), unit: k.median === null ? undefined : "days", sub: "From a family sending it to a decision", tone: k.median !== null && k.median <= 2 ? "positive" : "neutral" },
+          { label: "Waiting on you", value: String(open.length), tone: open.length ? "attention" : "positive" },
+          { label: "Decided this term", value: String(k.decided), },
+          { label: "Median time to decide", value: k.median === null ? "—" : String(k.median), unit: k.median === null ? undefined : "days", tone: k.median !== null && k.median <= 2 ? "positive" : "neutral" },
           me.persona === "early-years"
-            ? { label: "Collection changes", value: String(k.collections ?? 0), sub: "Checked against the photo on file", tone: "neutral" as PanelTone }
-            : { label: "Without evidence", value: String(k.withoutEvidence), sub: "Allowed where the school’s policy allows it", tone: "neutral" as PanelTone },
+            ? { label: "Collection changes", value: String(k.collections ?? 0), tone: "neutral" as PanelTone }
+            : { label: "Without evidence", value: String(k.withoutEvidence), tone: "neutral" as PanelTone },
         ],
       }]),
       row("1fr", [{ type: "list", title: "From families", tag: `${open.length} waiting`, tagTone: open.length ? "attention" : "positive", sub: "A guardian submits; you decide; the decision is logged.", meta: `${arm.name} · this term`, items: items.length ? items : [{ label: "Nothing has been sent in", sub: "When a family writes to the school about a child in your class, it appears here.", pill: "Clear", tone: "positive" as PanelTone }] }]),

@@ -38,7 +38,7 @@ export function changesTab(data: Changes, registry: Registry | null): TabContent
     desc: "What changed, what is pending, what is incomplete.",
     primary: data.pending.length ? { label: `Review ${plural(data.pending.length, "pending change")}`, icon: "M5 12.5l4.5 4.5 9-10", drawer: decideChangeDrawer(data.pending[0]) } : { label: "Request a change", icon: "M12 5.5v13M5.5 12h13", drawer: request.drawer },
     rows: [
-      { cols: "1fr", panels: [{ type: "kpi", per: 4, cards: [{ label: "Pending approval", value: String(data.pending.length), sub: "Each carries its evidence", tone: data.pending.length ? "attention" : "positive" }, { label: "Approved this term", value: String(approvedCount), sub: "Before and after kept on record" }, { label: "Incomplete records", value: String(incomplete), sub: `Across ${data.completeness.length} completeness checks`, tone: incomplete ? "attention" : "positive" }, { label: "Suspected duplicates", value: String(data.duplicates.length), sub: "A merge preserves every link", tone: data.duplicates.length ? "attention" : "positive" }] }] },
+      { cols: "1fr", panels: [{ type: "kpi", per: 4, cards: [{ label: "Pending approval", value: String(data.pending.length), tone: data.pending.length ? "attention" : "positive" }, { label: "Approved this term", value: String(approvedCount), }, { label: "Incomplete records", value: String(incomplete), tone: incomplete ? "attention" : "positive" }, { label: "Suspected duplicates", value: String(data.duplicates.length), tone: data.duplicates.length ? "attention" : "positive" }] }] },
       {
         cols: "1fr",
         panels: [

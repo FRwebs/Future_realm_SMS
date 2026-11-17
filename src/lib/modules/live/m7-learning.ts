@@ -113,13 +113,13 @@ export async function learningTab(): Promise<TabContent> {
       row("1fr", [{
         type: "kpi", sub: "Counted from enrolments and certificates. A teacher’s answers are never shown here — only that a course was finished.", per: 4,
         cards: [
-          { label: "Published courses", value: String(published.length), sub: `${v.courses.filter((course) => !course.published && !course.archived).length} in draft`, tone: published.length ? "positive" : "neutral" },
-          { label: "Required courses", value: String(requiredOpen.length), sub: requiredOpen.length ? `${requiredOpen.reduce((sum, course) => sum + course.finished, 0)} completions so far across ${v.staff} teachers` : "None set", tone: requiredOpen.length ? "progress" : "neutral" },
-          { label: "Waiting to be verified", value: String(v.pending.length), sub: v.pending.length ? "Certificates staff filed from elsewhere" : v.funding.length ? `${v.funding.length} funding request${v.funding.length === 1 ? "" : "s"} waiting · ${v.fundingTotal}` : "Nothing waiting", tone: v.pending.length || v.funding.length ? "attention" : "positive" },
-          { label: "Suggestions", value: String(v.suggestions.length), sub: v.cpdTarget === null ? "No yearly CPD expectation is set" : `Yearly expectation: ${v.cpdTarget} hours` },
+          { label: "Published courses", value: String(published.length), tone: published.length ? "positive" : "neutral" },
+          { label: "Required courses", value: String(requiredOpen.length), tone: requiredOpen.length ? "progress" : "neutral" },
+          { label: "Waiting to be verified", value: String(v.pending.length), tone: v.pending.length || v.funding.length ? "attention" : "positive" },
+          { label: "Suggestions", value: String(v.suggestions.length), },
         ],
       }]),
-      row("1fr", [{ type: "table", title: "Courses", sub: "Open one to write its lessons, choose who it is for, and publish it.", meta: `${v.courses.length}`, noun: "course", nounPlural: "courses", search: "Find a course", head: ["Course", "Section", "Lessons", "State", "Finished", ""], rows, per: 10, empty: "No course has been written yet. Write one, add its lessons, and publish it.", foot: "This school writes its own courses. There is no platform course library in this build." }]),
+      row("1fr", [{ type: "table", title: "Courses", sub: "Open one to write its lessons, choose who it is for, and publish it.", meta: `${v.courses.length}`, noun: "course", nounPlural: "courses", search: "Find a course", head: ["Course", "Section", "Lessons", "State", "Finished", ""], rows, per: 10, empty: "No course has been written yet. Write one, add its lessons, and publish it.", }]),
       v.funding.length ? row("1fr", [{ type: "table", title: "Funding requests", tag: v.fundingTotal, tagTone: "attention", sub: "Staff asked the school to pay for these. Approving one opens the course for them; declining says why.", meta: `${v.funding.length}`, noun: "request", nounPlural: "requests", head: ["Course", "Provider", "Price", "Their reason", "", ""], rows: funding, noRowOpen: true, per: 8 }]) : null,
       v.pending.length ? row("1fr", [{ type: "table", title: "Certificates to verify", sub: "Staff filed these from outside the school. They count only once you have checked them.", meta: `${v.pending.length} waiting`, noun: "certificate", nounPlural: "certificates", head: ["Certificate", "Issued by", "Issued", "Evidence", "", ""], rows: pending, per: 10, noRowOpen: true }]) : null,
       v.suggestions.length ? row("1fr", [{ type: "list", title: "What staff have asked to learn", sub: "If enough colleagues ask for the same thing, it is worth writing.", items: v.suggestions.map((item) => ({ label: item.topic, sub: `${item.who} · ${item.at}${item.why ? ` — ${item.why}` : ""}` })) }]) : null,
@@ -165,10 +165,10 @@ export function courseEditorPage(c: ManagedCourse): TabContent & { crumb: { labe
       row("1fr", [{
         type: "kpi", per: 4,
         cards: [
-          { label: "State", value: status, sub: c.published ? "In the catalogue of the staff it is written for" : "Staff cannot see it yet", tone: c.published && !c.archived ? "positive" : "progress" },
-          { label: "Lessons", value: String(c.lessons.length), sub: `${c.lessons.reduce((sum, lesson) => sum + lesson.minutes, 0)} minutes in all`, tone: c.lessons.length ? "positive" : "attention" },
-          { label: "Started", value: String(c.started), sub: c.published ? "Staff who opened it" : "Nobody — it is a draft" },
-          { label: "Finished", value: String(c.finished), sub: c.started ? `${Math.round((c.finished / c.started) * 100)}% of those who started` : "", tone: c.finished ? "positive" : "neutral" },
+          { label: "State", value: status, tone: c.published && !c.archived ? "positive" : "progress" },
+          { label: "Lessons", value: String(c.lessons.length), tone: c.lessons.length ? "positive" : "attention" },
+          { label: "Started", value: String(c.started), },
+          { label: "Finished", value: String(c.finished), tone: c.finished ? "positive" : "neutral" },
         ],
       }]),
       row("1fr", [{ type: "table", title: "Lessons", sub: "In the order a person takes them.", meta: `${c.lessons.length}`, noun: "lesson", nounPlural: "lessons", head: ["#", "Lesson", "Time", "Question", "", ""], rows: lessonRows, per: 0, noRowOpen: true, empty: "No lessons yet. Add the first one." }]),

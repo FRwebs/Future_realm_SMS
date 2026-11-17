@@ -18,7 +18,7 @@ const when = (field: FormField, w: FormField["when"]): FormField => ({ ...field,
 /* ───────────────────────── the registry ───────────────────────── */
 
 export function enrolDrawer(data: EnrolOptions): DrawerSpec {
-  const guardianOptions: PickerOption[] = data.guardians.map((guardian) => ({ value: guardian.id, label: guardian.name, sub: `${guardian.phone} · ${plural(guardian.children, "child", "children")}` }));
+  const guardianOptions: PickerOption[] = data.guardians.map((guardian) => ({ value: guardian.id, label: guardian.name, sub: `${guardian.phone} · ${plural(guardian.children, "child", "children")}`, }));
   return {
     mode: "form",
     kicker: "Registry",
@@ -282,7 +282,7 @@ export function documentDrawer(d: Pick<Dossier, "id" | "name">, type?: string): 
 
 export function mapGuardianDrawer(d: Pick<Dossier, "id" | "name">, existing: boolean, guardians: Array<{ id: string; name: string; phone: string; children: number }>): DrawerSpec {
   const kid = d.name.split(" ")[0];
-  const options: PickerOption[] = guardians.map((guardian) => ({ value: guardian.id, label: guardian.name, sub: `${guardian.phone} · ${plural(guardian.children, "child", "children")}` }));
+  const options: PickerOption[] = guardians.map((guardian) => ({ value: guardian.id, label: guardian.name, }));
   return {
     mode: "form",
     kicker: "Student record · family",
@@ -433,7 +433,7 @@ export function scheduleDrawer(o: AdmissionOptions, applicants: Array<{ id: stri
     reviewNote: "An applicant must have been reviewed and have their application fee cleared before a seat can be held — the workflow will not skip that.",
     fields: [
       choice("Schedule for", ["One applicant", "Everyone without a date", "A selected group"], { span: 2, value: pre ? "One applicant" : "One applicant" }),
-      when(picker("Applicants", applicants.map((a) => ({ value: a.id, label: a.name, sub: `${a.ref} · ${a.forClass}` })), { checked: pre ? [pre] : [], placeholder: "Search by name or reference", noun: "applicant", nounPlural: "applicants" }), { field: "Schedule for", excludes: "Everyone without a date" }),
+      when(picker("Applicants", applicants.map((a) => ({ value: a.id, label: a.name, sub: `${a.ref} · ${a.forClass}`, })), { checked: pre ? [pre] : [], placeholder: "Search by name or reference", noun: "applicant", nounPlural: "applicants" }), { field: "Schedule for", excludes: "Everyone without a date" }),
       select("Session", [...labels, NEW], { required: true, span: 2 }),
       when(text("New session date", { type: "date" }), { field: "Session", equals: NEW }),
       when(text("Start time", { value: "09:00" }), { field: "Session", equals: NEW }),

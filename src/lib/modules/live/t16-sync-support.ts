@@ -41,15 +41,15 @@ function syncTab(o: SyncOverview, me: TeacherWorkspaceView): TabContent {
     row("1fr", [{
       type: "kpi", sub: "Your work, on this device and on the school’s record.", per: 4,
       cards: [
-        { label: "Waiting to send", value: String(o.pending), unit: o.pending === 1 ? "item" : "items", sub: o.pending ? `Saved here ${ago(o.oldestMinutes)} · oldest` : "Nothing queued", tone: o.pending ? "offline" : "positive" },
-        { label: "Last successful sync", value: since(o.lastSyncedAt), sub: o.lastSyncedAt ? "Your last item to reach the school’s record" : "Nothing of yours has synced yet", tone: o.lastSyncedAt ? "positive" : "neutral" },
-        { label: "Your last change on record", value: since(o.lastWriteMineAt), sub: "Anything you save, anywhere in the product", tone: "neutral" },
-        { label: "Needs your attention", value: String(conflicts), sub: conflicts ? "Both versions are kept — a leader will choose" : "Nothing has been lost", tone: conflicts ? "attention" : "positive" },
+        { label: "Waiting to send", value: String(o.pending), unit: o.pending === 1 ? "item" : "items", tone: o.pending ? "offline" : "positive" },
+        { label: "Last successful sync", value: since(o.lastSyncedAt), tone: o.lastSyncedAt ? "positive" : "neutral" },
+        { label: "Your last change on record", value: since(o.lastWriteMineAt), tone: "neutral" },
+        { label: "Needs your attention", value: String(conflicts), tone: conflicts ? "attention" : "positive" },
       ],
     }]),
     row("1fr", [{ type: "device", title: "This device", sub: "What this phone or laptop knows that the server cannot." }]),
     row("1.1fr 1fr", [
-      { type: "table", title: "What is queued", sub: "Every item, with when you actually did it.", meta: "Client event time, not server receipt", noun: "item", nounPlural: "items", head: ["Item", "Where", "Done", "State"], rows, noRowOpen: true, empty: "Nothing is waiting.", foot: o.pending ? "A queued item survives a closed tab, a closed browser and a dead battery." : "Nothing is waiting — your work is on the school’s record." },
+      { type: "table", title: "What is queued", sub: "Every item, with when you actually did it.", meta: "Client event time, not server receipt", noun: "item", nounPlural: "items", head: ["Item", "Where", "Done", "State"], rows, noRowOpen: true, empty: "Nothing is waiting.", },
       {
         type: "facts", title: "What works without a connection", per: 1, sub: "Declared, not discovered.",
         facts: [
@@ -64,8 +64,8 @@ function syncTab(o: SyncOverview, me: TeacherWorkspaceView): TabContent {
   // The phone: what is waiting and when it last got through, the queue itself, this phone's own figures folded shut, and the promise about conflicts.
   const phone: PanelRow[] = [
     phoneOnly({ type: "kpi", bare: true, cards: [
-      { label: "Waiting to send", value: String(o.pending), unit: o.pending === 1 ? "item" : "items", sub: o.pending ? `Oldest saved ${ago(o.oldestMinutes)}` : "Nothing queued", tone: o.pending ? "offline" : "positive" },
-      { label: "Last successful sync", value: since(o.lastSyncedAt), sub: o.lastSyncedAt ? "Your last item to reach the school" : "Nothing of yours has synced yet", tone: o.lastSyncedAt ? "positive" : "neutral" },
+      { label: "Waiting to send", value: String(o.pending), unit: o.pending === 1 ? "item" : "items", tone: o.pending ? "offline" : "positive" },
+      { label: "Last successful sync", value: since(o.lastSyncedAt), tone: o.lastSyncedAt ? "positive" : "neutral" },
     ] }),
     phoneOnly({
       type: "list", title: "Waiting to send", sub: "In the order they will send. Each is written to this phone first.", empty: "Nothing is waiting. What you save goes straight to the school.",

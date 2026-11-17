@@ -71,12 +71,12 @@ describe("M11 Plan", () => {
   it("works the cost out from the roll, and says when it is only an estimate", () => {
     const html = markup(planTab(plan(), credits()));
     expect(html).toContain("₦222,000");
-    expect(html).toContain("185 students · ₦1,200 each · estimate");
+    expect(html).toContain("estimate · 185 students · ₦1,200 each");
   });
 
   it("says a term has begun rather than counting a negative number of days", () => {
     const html = markup(planTab(plan({ daysToRenew: -161 }), credits()));
-    expect(html).toContain("Began 161 days ago");
+    expect(html).toContain("began 161 days ago");
   });
 
   it("flags a low wallet on the line that sells the credits", () => {

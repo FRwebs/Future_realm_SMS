@@ -116,18 +116,16 @@ export const approvalsWorkflowContent: ModuleContent = {
           type: "kpi",
           per: 5,
           cards: [
-            { label: "Waiting on me", value: "6", sub: "Priority, then age", tone: "attention" },
+            { label: "Waiting on me", value: "6", tone: "attention" },
             {
               label: "Escalating today",
               value: "2",
-              sub: "Past their routing period",
               tone: "negative",
             },
-            { label: "Oldest item", value: "19 days", sub: "A hardship waiver", tone: "negative" },
+            { label: "Oldest item", value: "19 days", tone: "negative" },
             {
               label: "Work blocked",
               value: "146 cards",
-              sub: "Waiting on 2 decisions",
               tone: "negative",
               link: "See what is blocked",
               href: "/report-cards/completion",
@@ -135,7 +133,6 @@ export const approvalsWorkflowContent: ModuleContent = {
             {
               label: "Decided this session",
               value: "207",
-              sub: "Average 2.4 days",
               tone: "positive",
             },
           ],
@@ -389,25 +386,21 @@ export const approvalsWorkflowContent: ModuleContent = {
             {
               label: "Routes",
               value: String(approvalRoutes.length),
-              sub: `${overrides} are your own overrides`,
             },
             {
               label: "School overrides",
               value: String(overrides),
-              sub: "On top of the defaults",
               tone: "submitted",
             },
-            { label: "Standing rules", value: "2", sub: "Revocable instantly", tone: "neutral" },
+            { label: "Standing rules", value: "2", tone: "neutral" },
             {
               label: "Never bulk-approvable",
               value: String(locked),
-              sub: "Locked, never hidden",
               tone: "withheld",
             },
             {
               label: "Slowest route",
               value: "8.6 days",
-              sub: "Fee waiver above ₦50,000",
               tone: "negative",
             },
           ],
@@ -482,7 +475,6 @@ export const approvalsWorkflowContent: ModuleContent = {
             "",
           ],
           rows: routeRows,
-          foot: "A route decides who may decide. Nobody approves their own submission, whatever the route says.",
         },
       ]),
       row("1.05fr 1fr", [
@@ -599,13 +591,11 @@ export const approvalsWorkflowContent: ModuleContent = {
             {
               label: "Decided this session",
               value: "207",
-              sub: "Across 20 approval types",
               tone: "positive",
             },
             {
               label: "Outstanding",
               value: "15",
-              sub: "6 waiting on you · 4 escalated",
               tone: "attention",
               link: "Open queue",
               href: "/approvals-workflow/queue",
@@ -613,13 +603,11 @@ export const approvalsWorkflowContent: ModuleContent = {
             {
               label: "Average time to decide",
               value: "2.4 days",
-              sub: "Down from 3.8 days last session",
               tone: "positive",
             },
             {
               label: "Blocked work",
               value: "146 cards",
-              sub: "2 teachers and 146 report cards wait on 2 decisions",
               tone: "negative",
               link: "See what is blocked",
               href: "/report-cards/completion",
@@ -697,11 +685,10 @@ export const approvalsWorkflowContent: ModuleContent = {
           sub: "Average days to decision this session.",
           rows: [
             {
-              label: "Waiver and discount",
+              label: "Waiver and discount", sub: "The slowest category, and the one where delay costs a family most",
               value: 8.6,
               display: "8.6 days",
               tone: "negative",
-              sub: "The slowest category, and the one where delay costs a family most",
             },
             { label: "Payment reversal", value: 5.2, display: "5.2 days", tone: "attention" },
             { label: "Results publication", value: 2.8, display: "2.8 days", tone: "progress" },

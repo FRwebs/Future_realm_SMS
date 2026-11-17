@@ -9,10 +9,8 @@ import {
 import { decisionDrawer, decisions } from "@/lib/modules/decisions";
 import { exportDrawer, notifyPersonDrawer, nudgeDrawer } from "@/lib/modules/drawers";
 import { nairaShort, schoolFees } from "@/lib/modules/fees-data";
-import { attendanceDay } from "@/lib/modules/school-data";
 import { registrySummary } from "@/lib/modules/students-data";
 
-const day = attendanceDay();
 const fees = schoolFees();
 const registry = registrySummary();
 
@@ -42,14 +40,12 @@ export const commandCenterContent: ModuleContent = {
               // instead, because a child in no arm is in no register.
               label: "Total students",
               value: registry.total.toLocaleString(),
-              sub: "+14 this term · 3 withdrawals",
               link: "Open registry",
               href: "/student-records/registry",
             },
             {
               label: "Attendance today",
               value: "94.2%",
-              sub: `${day.unmarked + day.partial} of ${day.arms} classes unmarked`,
               tone: "attention",
               link: "See unmarked",
               href: "/attendance/register",
@@ -61,14 +57,12 @@ export const commandCenterContent: ModuleContent = {
               // SSS 2 term is ₦339,000.
               label: "Collected this term",
               value: nairaShort(fees.collected),
-              sub: `of ${nairaShort(fees.billed)} expected`,
               link: "Open collections",
               href: "/fee-management/collections",
             },
             {
               label: "Score submissions",
               value: "38 of 54",
-              sub: "7 returned to teachers",
               tone: "attention",
               link: "Open review",
               href: "/score-entry-results/review",
@@ -76,7 +70,6 @@ export const commandCenterContent: ModuleContent = {
             {
               label: "Message credits",
               value: "8,420",
-              sub: "SMS · above your 2,000 threshold",
               link: "Top up",
               href: "/subscription-billing/credits",
             },
@@ -84,7 +77,6 @@ export const commandCenterContent: ModuleContent = {
               label: "Sync depth",
               value: "0",
               unit: "pending",
-              sub: "Last synced 2 minutes ago",
               link: "Sync detail",
               href: "/sync-support/sync",
             },
@@ -346,13 +338,11 @@ export const commandCenterContent: ModuleContent = {
               label: "Cards that would generate now",
               value: "1,433",
               unit: "of 1,560",
-              sub: "92% of the school is ready today",
               tone: "positive",
             },
             {
               label: "Cards blocked",
               value: "127",
-              sub: "Across 4 arms and 4 named causes",
               tone: "negative",
               link: "See the causes",
               href: "/report-cards/completion",
@@ -360,7 +350,6 @@ export const commandCenterContent: ModuleContent = {
             {
               label: "People holding it up",
               value: "5",
-              sub: "3 teachers, 2 form masters",
               tone: "attention",
               link: "See who",
               href: "/approvals-workflow/queue",
@@ -368,7 +357,6 @@ export const commandCenterContent: ModuleContent = {
             {
               label: "Days of slack left",
               value: "11",
-              sub: "Before remarks alone put the date at risk",
               tone: "attention",
             },
           ],
@@ -687,7 +675,6 @@ export const commandCenterContent: ModuleContent = {
           sub: "Everything you handed to someone else, and whether it is moving.",
           meta: "8 trackers · 3 not moving",
           head: ["Tracker", "Progress", "State", "Oldest", "Moving?", ""],
-          foot: "“Not moving” means the count has not changed in more than 5 days.",
           rows: [
             {
               cells: [
@@ -777,7 +764,6 @@ export const commandCenterContent: ModuleContent = {
           sub: "Data that breaks something later, not today.",
           meta: "61 records · each one blocks a specific thing",
           head: ["Check", "Count", "What it breaks", ""],
-          foot: "None of these stop you today. All of them stop you on result day.",
           rows: [
             {
               cells: [

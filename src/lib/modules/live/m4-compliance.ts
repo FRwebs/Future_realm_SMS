@@ -75,11 +75,11 @@ export function complianceTab(c: Compliance, options: Options): TabContent {
         panels: [{
           type: "kpi", title: "Breaches", sub: `Against the school's own rule: every register taken before ${c.cutoff}${c.since ? ` · counted from ${formatDay(new Date(`${c.since}T00:00:00Z`), { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" })}` : ""}.`, per: 5,
           cards: [
-            { label: c.today ? "Today" : "On the day shown", value: String(k.unmarked), unit: "arms", sub: k.unmarked ? `Unmarked past the ${c.cutoff} cutoff` : k.notYet ? `${k.notYet} still inside the cutoff` : "Every register is in", tone: k.unmarked ? "negative" : "positive" },
-            { label: "This week", value: String(k.week), unit: "arm-days", sub: `Across ${plural(k.weekTeachers, "form master")}`, tone: k.week ? "attention" : "positive" },
-            { label: "This term", value: String(k.term), unit: "arm-days", sub: k.compliance === null ? "Nothing to measure yet" : `Of ${k.owed.toLocaleString()} expected · ${k.compliance}% compliance`, tone: k.term ? "attention" : "positive" },
-            { label: "Repeat breachers", value: String(k.repeat), unit: "teachers", sub: "Breached in 3 or more of the last 5 weeks", tone: k.repeat ? "negative" : "positive" },
-            { label: "Median marking time", value: k.median === null ? "—" : k.median >= 90 ? `${Math.floor(k.median / 60)}m ${String(k.median % 60).padStart(2, "0")}s` : `${k.median}s`, sub: k.median === null ? "None recorded yet" : `Across ${k.medianOf} timed registers`, tone: "neutral" },
+            { label: c.today ? "Today" : "On the day shown", value: String(k.unmarked), unit: "arms", tone: k.unmarked ? "negative" : "positive" },
+            { label: "This week", value: String(k.week), unit: "arm-days", tone: k.week ? "attention" : "positive" },
+            { label: "This term", value: String(k.term), unit: "arm-days", tone: k.term ? "attention" : "positive" },
+            { label: "Repeat breachers", value: String(k.repeat), unit: "teachers", tone: k.repeat ? "negative" : "positive" },
+            { label: "Median marking time", value: k.median === null ? "—" : k.median >= 90 ? `${Math.floor(k.median / 60)}m ${String(k.median % 60).padStart(2, "0")}s` : `${k.median}s`, unit: k.median === null ? "none timed yet" : `across ${k.medianOf} timed registers`, tone: "neutral" },
           ],
         }],
       },
@@ -105,7 +105,6 @@ export function complianceTab(c: Compliance, options: Options): TabContent {
             } satisfies DrawerSpec },
           ],
           rows: teacherRows,
-          foot: "Week counts arm-days missed or late in the last five school days on record. Term counts them across every day the school kept registers.",
         }],
       },
       {

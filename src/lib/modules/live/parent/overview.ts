@@ -138,11 +138,10 @@ function familyOverview(me: ParentMe, needs: NeedItem[], more: PanelRow[]): Pare
       row("1fr", [{
         type: "kpi", bare: true, per: Math.min(4, Math.max(1, me.children.length + 1)),
         cards: [
-          { label: "Needs you", value: String(count), sub: count ? `${urgent} overdue · ${count - urgent} waiting` : "Nothing outstanding", tone: urgent ? "negative" : count ? "attention" : "positive", icon: "listCheck" },
+          { label: "Needs you", value: String(count), tone: urgent ? "negative" : count ? "attention" : "positive", icon: "listCheck" },
           ...me.children.map((entry) => ({
             label: entry.first,
             value: entry.arm,
-            sub: `${entry.level} · ${entry.admissionNumber}`,
             tone: "neutral" as const,
             href: `/portals/parent/profile?child=${entry.id}`,
             icon: "person",

@@ -159,20 +159,18 @@ export function directoryTab(directory: Directory): TabContent {
   const resendAll = inviteDrawer(never, { title: "Resend the activation links" });
 
   const cards: KpiCard[] = [
-    { label: "Total staff", value: String(counts.total), sub: `Across ${plural(counts.departments, "department")}` },
-    { label: "Activated", value: String(counts.active), tone: counts.active ? "positive" : "neutral", sub: "Signed in within the last 90 days" },
+    { label: "Total staff", value: String(counts.total), },
+    { label: "Activated", value: String(counts.active), tone: counts.active ? "positive" : "neutral", },
     {
       label: "Never activated",
       value: String(counts.never),
       tone: counts.never ? "negative" : "positive",
-      sub: counts.never ? "Invited, never signed in" : "Everyone has signed in",
       ...(counts.never ? { link: "Resend invitations", drawer: resendAll } : {}),
     },
-    { label: "Dormant", value: String(counts.dormant), tone: counts.dormant ? "attention" : "positive", sub: "No sign-in for 90 days or more" },
+    { label: "Dormant", value: String(counts.dormant), tone: counts.dormant ? "attention" : "positive", },
     {
       label: "Active delegations",
       value: String(counts.delegationsActive),
-      sub: counts.delegationsExpired ? `${counts.delegationsExpired} expired` : "None have expired",
     },
   ];
 
@@ -271,7 +269,6 @@ export function directoryTab(directory: Directory): TabContent {
             rows: tableRows,
             per: 10,
             empty: "Nobody matches this filter.",
-            foot: "Never-activated and dormant accounts are the first thing to look at: work routed to them sits unread.",
           },
         ],
       },
@@ -312,24 +309,21 @@ export function activityTab(activity: Activity): TabContent {
   const { totals, rows } = activity;
   const term = activity.term ? `${activity.term.name} · day ${activity.term.day}` : "No active term";
   const cards: KpiCard[] = [
-    { label: "Staff", value: String(totals.staff), sub: term },
+    { label: "Staff", value: String(totals.staff), },
     {
       label: "Registers marked",
       value: totals.registerPct === null ? "—" : `${totals.registerPct}%`,
       tone: totals.registerPct === null ? "neutral" : totals.registerPct >= 90 ? "positive" : "attention",
-      sub: totals.registerPct === null ? "No register has been marked this term" : "Of the days a register was taken, by their form masters",
     },
     {
       label: "Score sheets outstanding",
       value: String(totals.sheetsOutstanding),
       tone: totals.sheetsOutstanding ? "attention" : "positive",
-      sub: totals.sheetsOutstanding ? `Across ${plural(totals.teachersWithSheets, "teacher")}` : "None owed",
     },
     {
       label: "Remarks outstanding",
       value: String(totals.remarksOutstanding),
       tone: totals.remarksOutstanding ? "attention" : "positive",
-      sub: totals.formMastersNotStarted ? `${plural(totals.formMastersNotStarted, "form master")} not started` : "Every form master has started",
     },
   ];
 
@@ -395,7 +389,6 @@ export function activityTab(activity: Activity): TabContent {
             rows: tableRows,
             per: 10,
             empty: "Nobody matches this filter.",
-            foot: "Read from the registers, score sheets, report cards and approvals themselves — nobody types these.",
           },
         ],
       },

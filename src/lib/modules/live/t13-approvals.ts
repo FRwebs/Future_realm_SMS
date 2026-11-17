@@ -46,18 +46,17 @@ function queueTab(o: QueueOverview, me: TeacherWorkspaceView): TabContent {
     row("1fr", [{
       type: "kpi", sub: me.persona === "head-of-department" ? `You hold approval for ${dept} submissions, and for nothing else.` : "You hold approval for what is routed to you, and for nothing else.", per: 4,
       cards: [
-        { label: "Waiting on you", value: String(k.waiting), sub: k.oldest ? `The oldest is ${k.oldest.days} day${k.oldest.days === 1 ? "" : "s"} old` : "Nothing is waiting", tone: k.waiting ? "attention" : "positive" },
-        { label: "Escalating", value: String(k.escalating), sub: k.escalating ? "Past their routing period" : "Nothing is overdue", tone: k.escalating ? "negative" : "positive" },
-        { label: "Raised by you", value: String(o.raised.length), sub: o.raised.length ? "Where each one sits is below" : "Nothing raised", tone: o.raised.length ? "progress" : "neutral" },
-        { label: "Decided this term", value: String(k.decided.count), sub: k.decided.avgDays === null ? "Nothing decided yet" : `Average ${k.decided.avgDays} days` },
+        { label: "Waiting on you", value: String(k.waiting), tone: k.waiting ? "attention" : "positive" },
+        { label: "Escalating", value: String(k.escalating), tone: k.escalating ? "negative" : "positive" },
+        { label: "Raised by you", value: String(o.raised.length), tone: o.raised.length ? "progress" : "neutral" },
+        { label: "Decided this term", value: String(k.decided.count), },
       ],
     }]),
     row("1fr", [{
       type: "table", title: "Routed to you", tag: `${waiting.length} item${waiting.length === 1 ? "" : "s"}`, tagTone: waiting.length ? "attention" : "positive", sub: "Three outcomes only: approve, return, or decline.", meta: dept, noun: "item", nounPlural: "items",
-      head: ["Item", "Raised by", "Waiting", "Escalates", "State", ""], rows: routed, noRowOpen: true, empty: "Nothing is waiting on you.", foot: "Week-by-week lesson notes are signed in Lesson Notes · Review, where the coverage behind them is visible.",
-    }]),
+      head: ["Item", "Raised by", "Waiting", "Escalates", "State", ""], rows: routed, noRowOpen: true, empty: "Nothing is waiting on you.",     }]),
     row("1.1fr 1fr", [
-      { type: "table", title: "Raised by you", sub: "What you are waiting on somebody else for.", meta: `${o.raised.length} item${o.raised.length === 1 ? "" : "s"}`, noun: "item", nounPlural: "items", head: ["Item", "With", "Waiting", "State", ""], rows: raised, noRowOpen: true, empty: "You have raised nothing that is still open.", foot: "Your own submissions never appear in your own queue." },
+      { type: "table", title: "Raised by you", sub: "What you are waiting on somebody else for.", meta: `${o.raised.length} item${o.raised.length === 1 ? "" : "s"}`, noun: "item", nounPlural: "items", head: ["Item", "With", "Waiting", "State", ""], rows: raised, noRowOpen: true, empty: "You have raised nothing that is still open.", },
       { type: "note", tone: "withheld", icon: SHIELD, title: "Where you are the only approver, the item escalates", body: "It never silently self-approves. Segregation of duties is enforced where the decision is made, not by policy." },
     ]),
   ];

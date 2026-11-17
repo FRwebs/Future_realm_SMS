@@ -246,26 +246,24 @@ export function familyFees(data: Fees, me: ParentMe): ParentContent {
   const childMoney = (entry: FeeChild) => moneyOf(entry);
   const reported = data.reports.reduce((sum, entry) => sum + entry.amount, 0);
   const owed = total(data.children, "outstanding");
-  const earlier = total(data.children, "fromEarlier");
   const billed = total(data.children, "billed");
   const paid = total(data.children, "paid");
   const cards: KpiCard[] = many
     ? groups.flatMap((group) => {
         const gowed = total(group.children, "outstanding");
-        const gbilled = total(group.children, "billed");
         const gpaid = total(group.children, "paid");
         const gworst = group.children.find((entry) => entry.tone === "negative");
         const label = group.school || "This school";
         return [
-          { label: `${label} · owed now`, value: gowed > 0 ? fmt(gowed, group.currency) : "Nothing owed", sub: gworst ? `${gworst.first}’s balance is overdue` : gowed > 0 ? "Part paid" : "Every bill settled", tone: gowed > 0 ? (gworst ? "negative" : "attention") : "positive", icon: "wallet" },
-          { label: `${label} · paid`, value: fmt(gpaid, group.currency), sub: gbilled ? `Of ${fmt(gbilled, group.currency)} billed` : "Nothing to pay", tone: "positive" as PanelTone, icon: "check" },
+          { label: `${label} · owed now`, value: gowed > 0 ? fmt(gowed, group.currency) : "Nothing owed", tone: gowed > 0 ? (gworst ? "negative" : "attention") : "positive", icon: "wallet" },
+          { label: `${label} · paid`, value: fmt(gpaid, group.currency), unit: `of ${fmt(total(group.children, "billed"), group.currency)} billed`, tone: "positive" as PanelTone, icon: "check" },
         ];
       })
     : [
-        { label: "Owed now", value: owed > 0 ? money(owed) : "Nothing owed", sub: earlier > 0 ? `${money(earlier)} of it from an earlier bill` : worst ? `${worst.first}’s balance is overdue` : owed > 0 ? "Part paid" : "Every bill settled", tone: owed > 0 ? (worst ? "negative" : "attention") : "positive", icon: "wallet" },
-        { label: "Billed this term", value: money(billed), sub: billed ? `for ${plural(data.children.length, "child", "children")}` : "Nothing billed yet", tone: "neutral" as PanelTone, icon: "receipt" },
-        { label: "Paid this term", value: money(paid), sub: billed ? `${Math.round((paid / billed) * 100)}% of what was billed` : "Nothing to pay", tone: "positive" as PanelTone, icon: "check" },
-        { label: "Receipts on record", value: String(data.payments.length), sub: reported ? `${money(reported)} reported, waiting for the bursar` : data.payments.length ? "Every payment the bursar has recorded" : "None yet", tone: reported ? "submitted" : ("neutral" as PanelTone), icon: "doc" },
+        { label: "Owed now", value: owed > 0 ? money(owed) : "Nothing owed", tone: owed > 0 ? (worst ? "negative" : "attention") : "positive", icon: "wallet" },
+        { label: "Billed this term", value: money(billed), tone: "neutral" as PanelTone, icon: "receipt" },
+        { label: "Paid this term", value: money(paid), tone: "positive" as PanelTone, icon: "check" },
+        { label: "Receipts on record", value: String(data.payments.length), tone: reported ? "submitted" : ("neutral" as PanelTone), icon: "doc" },
       ];
   const currencies = [...new Set(groups.map((group) => group.currency))];
   const apart: PanelRow | null = many
@@ -319,7 +317,6 @@ export function familyFees(data: Fees, me: ParentMe): ParentContent {
           };
         }),
         empty: "No child on your account has been billed yet.",
-        foot: "A discount the school has applied is its own line on the invoice, not a reduced total.",
       }]), show: "desktop" as const },
     ],
   };
@@ -386,7 +383,6 @@ function childFees(entry: FeeChild, data: Fees, query: Record<string, string | u
         ],
         head: ["Receipt", "Term", "Date", "Amount", "Method", "Bank reference", ""], rows: [...reportedRows, ...paidRows],
         empty: "No receipt has been issued yet. If you have paid, tell the bursar with “I have paid”.",
-        foot: "A receipt is issued when the bursar matches a payment. Each prints exactly as the school issued it.",
       }])],
     };
   }
@@ -411,10 +407,10 @@ function childFees(entry: FeeChild, data: Fees, query: Record<string, string | u
         row("1fr", [{
           type: "kpi", bare: true, per: 4,
           cards: [
-            { label: "Earlier bills", value: String(earlier.length), sub: `Since ${dShort(earlier[earlier.length - 1]!.issued)}`, tone: "neutral" as PanelTone, icon: "calendar" },
-            { label: "Paid across them", value: money(paidAll), sub: `Of ${money(billedAll)} billed`, tone: "positive" as PanelTone, icon: "check" },
-            { label: "Receipts issued", value: String(receipts), sub: "Open a statement to print them", tone: "neutral" as PanelTone, icon: "receipt" },
-            { label: "Carried forward", value: carried ? money(carried) : "Nothing", sub: carried ? "Unpaid from earlier bills" : "Every earlier bill settled", tone: (carried ? "negative" : "positive") as PanelTone, icon: "wallet" },
+            { label: "Earlier bills", value: String(earlier.length), tone: "neutral" as PanelTone, icon: "calendar" },
+            { label: "Paid across them", value: money(paidAll), tone: "positive" as PanelTone, icon: "check" },
+            { label: "Receipts issued", value: String(receipts), tone: "neutral" as PanelTone, icon: "receipt" },
+            { label: "Carried forward", value: carried ? money(carried) : "Nothing", tone: (carried ? "negative" : "positive") as PanelTone, icon: "wallet" },
           ],
         }]),
         row("1fr", [{
@@ -435,7 +431,8 @@ function childFees(entry: FeeChild, data: Fees, query: Record<string, string | u
             };
           }),
           summaryRows, empty: "This is the first bill this child has had.",
-          footActs: earlier.slice(0, 1).map((item) => ({ label: "Open the latest invoice", drawer: invoicePaper(item, entry, paidOn(item), me) })),
+          // Nothing is drawn under a table, so the way into the latest invoice sits on the strip.
+          acts: earlier.slice(0, 1).map((item) => ({ label: "Open the latest invoice", drawer: invoicePaper(item, entry, paidOn(item), me) })),
         }]),
       ],
     };
@@ -448,14 +445,13 @@ function childFees(entry: FeeChild, data: Fees, query: Record<string, string | u
     const balance = current.reduce((sum, item) => sum + item.balance, 0);
     const paidTo = billed - balance;
     const overdue = balance > 0 && invoice.due < today();
-    const receiptCount = current.reduce((sum, item) => sum + paidOn(item).length, 0);
     rows.push(row("1fr", [{
       type: "kpi", bare: true, per: 4,
       cards: [
-        { label: "Billed this term", value: money(billed), sub: `${invoice.number} · issued ${dShort(invoice.issued)}`, tone: "neutral" as PanelTone, icon: "receipt" },
-        { label: "Paid", value: money(paidTo), sub: `${plural(receiptCount, "receipt", "receipts")} · tap to view`, tone: "positive" as PanelTone, icon: "check", href: `/portals/parent/fees?child=${entry.id}&tab=Payments+and+receipts` },
-        { label: "Balance", value: money(balance), sub: balance > 0 ? (overdue ? `Was due ${dLong(invoice.due)}` : plan ? "Under the payment plan" : `Due ${dLong(invoice.due)}`) : "Nothing owed", tone: (balance > 0 ? (overdue ? "negative" : "attention") : "positive") as PanelTone, icon: "wallet" },
-        { label: "Status", value: balance <= 0 ? "Paid in full" : overdue ? "Overdue" : "Part paid", sub: entry.fromEarlier > 0 ? `${money(entry.fromEarlier)} more from earlier bills` : balance > 0 ? "Pay, report a payment, or ask for a plan" : "Nothing more to do", tone: (balance <= 0 ? "positive" : overdue ? "negative" : "attention") as PanelTone, icon: "listCheck" },
+        { label: "Billed this term", value: money(billed), tone: "neutral" as PanelTone, icon: "receipt" },
+        { label: "Paid", value: money(paidTo), tone: "positive" as PanelTone, icon: "check", href: `/portals/parent/fees?child=${entry.id}&tab=Payments+and+receipts` },
+        { label: "Balance", value: money(balance), tone: (balance > 0 ? (overdue ? "negative" : "attention") : "positive") as PanelTone, icon: "wallet" },
+        { label: "Status", value: balance <= 0 ? "Paid in full" : overdue ? "Overdue" : "Part paid", tone: (balance <= 0 ? "positive" : overdue ? "negative" : "attention") as PanelTone, icon: "listCheck" },
       ],
     }]));
     if (reports.length) {

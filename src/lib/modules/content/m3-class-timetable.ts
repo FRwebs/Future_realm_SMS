@@ -168,12 +168,11 @@ const classesTab: TabContent = {
         type: "kpi",
         per: 5,
         cards: [
-          { label: "Classes", value: String(classes.length), sub: "The promotion ladder" },
-          { label: "Class arms", value: String(armRows.length), sub: "Each with its own register" },
+          { label: "Classes", value: String(classes.length), },
+          { label: "Class arms", value: String(armRows.length), },
           {
             label: "Students",
             value: (placed + noArm).toLocaleString("en-NG"),
-            sub: `${Math.round(placed / armRows.length)} per arm on average`,
           },
           {
             label: "Over capacity",
@@ -303,7 +302,6 @@ const classesTab: TabContent = {
             keywords: entry.arms.join(" "),
           }),
         ),
-        foot: "Open a class to change its arms, capacity or promotion position — or to delete it.",
       },
     ]),
     row("1fr", [
@@ -378,7 +376,6 @@ const classesTab: TabContent = {
             keywords: `${arm.formMaster} ${arm.className} ${arm.stream}`,
           };
         }),
-        foot: "Open an arm for its roster, its subject teachers and its register history — or to delete it.",
       },
     ]),
     row("1fr 1.15fr", [
@@ -603,20 +600,17 @@ const subjectsTab: TabContent = {
           {
             label: "Subjects in catalogue",
             value: String(subjectArmTotals.subjects),
-            sub: "Core, elective, trade and co-curricular",
           },
-          { label: "Choice groups", value: "3", sub: "Trade, language and stream rules" },
+          { label: "Choice groups", value: "3", },
           {
             label: "Invalid combinations",
             value: String(invalidCombinations.length),
-            sub: "Named by student and rule broken",
             tone: "negative",
             link: `See the ${invalidCombinations.length}`,
           },
           {
             label: "Not counted to average",
             value: "1",
-            sub: "Physical Education · the school's own decision",
           },
         ],
       },
@@ -724,7 +718,6 @@ const subjectsTab: TabContent = {
             keywords: `${entry.teacher} ${entry.department}`,
           }),
         ),
-        foot: "Teacher state says plainly whether a subject-arm has anybody to teach it. Assign from the row, or from the subject's own modal.",
       },
     ]),
     row("1fr", [
@@ -797,7 +790,6 @@ const subjectsTab: TabContent = {
             keywords: teacher.subjects.join(" "),
           }),
         ),
-        foot: `The ceiling is ${subjectArmTotals.ceiling} periods a week. A mapping always names the exact arm — never just the subject.`,
       },
     ]),
     row("1.1fr 1fr", [
@@ -931,18 +923,16 @@ const teachingTab: TabContent = {
         type: "kpi",
         per: 5,
         cards: [
-          { label: "Subject-arms", value: String(subjectArmTotals.subjectArms), sub: `Across ${armRows.length} arms` },
+          { label: "Subject-arms", value: String(subjectArmTotals.subjectArms), },
           {
             label: "Assigned",
             value: String(subjectArmTotals.assigned),
             unit: `of ${subjectArmTotals.subjectArms}`,
-            sub: "Primary teacher named",
             tone: "positive",
           },
           {
             label: "Unassigned",
             value: String(subjectArmTotals.unassigned),
-            sub: "Civic Education JSS 3A and 3C · 34 days",
             tone: "negative",
             link: "Assign them",
             drawer: assignUncoveredDrawer,
@@ -950,13 +940,11 @@ const teachingTab: TabContent = {
           {
             label: "Load outside ceiling",
             value: "2",
-            sub: `Ceiling is ${subjectArmTotals.ceiling} periods a week`,
             tone: "attention",
           },
           {
             label: "Timetables in draft",
             value: "2",
-            sub: "Version 5 and a Third Term proposal",
             tone: "attention",
             link: "Open timetables",
             href: "/class-timetable/timetable",
@@ -1041,11 +1029,11 @@ const teachingTab: TabContent = {
         title: "Teaching load",
         sub: `The school ceiling is ${subjectArmTotals.ceiling} periods a week.`,
         rows: [
-          { label: "Mr Ibrahim Danladi", value: 100, display: "27 of 24", tone: "negative", sub: "3 periods above the school ceiling" },
-          { label: "Mrs Folake Adeniyi", value: 89, display: "24 of 24", tone: "attention", sub: "At the ceiling exactly" },
+          { label: "Mr Ibrahim Danladi", sub: "3 periods above the school ceiling", value: 100, display: "27 of 24", tone: "negative", },
+          { label: "Mrs Folake Adeniyi", sub: "At the ceiling exactly", value: 89, display: "24 of 24", tone: "attention", },
           { label: "Mr Samuel Adeyemi", value: 78, display: "21 of 24", tone: "positive" },
           { label: "Mrs Ngozi Eze", value: 67, display: "18 of 24", tone: "positive" },
-          { label: "Miss Grace Etim", value: 22, display: "6 of 24", tone: "attention", sub: "Newly activated · capacity for 3 more subject-arms" },
+          { label: "Miss Grace Etim", sub: "Newly activated · capacity for 3 more subject-arms", value: 22, display: "6 of 24", tone: "attention", },
         ],
         foot: "A teacher over the ceiling has to give a mapping up, or the ceiling has to be raised for them with a recorded reason.",
       },
@@ -1203,7 +1191,6 @@ const timetableTab: TabContent = {
           {
             label: "Running",
             value: "1",
-            sub: "Version 4 · published 14 January",
             tone: "positive",
             link: "Preview it",
             drawer: previewDrawer(timetables[0]!),
@@ -1211,20 +1198,17 @@ const timetableTab: TabContent = {
           {
             label: "In draft",
             value: "2",
-            sub: "Version 5 and a Third Term proposal",
             tone: "progress",
           },
           {
             label: "Arms covered",
             value: String(armRows.length),
             unit: `of ${armRows.length}`,
-            sub: "Every arm has periods on the running version",
             tone: "positive",
           },
           {
             label: "Unresolved clashes",
             value: "0",
-            sub: "Checked on every save, not only on publish",
             tone: "positive",
           },
         ],
@@ -1287,7 +1271,6 @@ const timetableTab: TabContent = {
             keywords: `${entry.builtBy} ${entry.sub}`,
           }),
         ),
-        foot: "Publishing a timetable notifies every teacher whose periods changed, and never silently replaces the running one.",
       },
     ]),
     row("1fr", [
@@ -1322,7 +1305,6 @@ const timetableTab: TabContent = {
             keywords: arm.formMaster,
           }),
         ),
-        foot: "View week opens that arm's own grid — the same one its teachers and guardians see.",
       },
     ]),
     row("1.15fr 1fr", [
@@ -1429,7 +1411,6 @@ const coverageTab: TabContent = {
           {
             label: "Subject-arms uncovered",
             value: String(subjectArmTotals.unassigned),
-            sub: "Civic Education JSS 3A and 3C · 34 days",
             tone: "negative",
             link: "Assign teachers",
             href: "/class-timetable/teaching",
@@ -1437,7 +1418,6 @@ const coverageTab: TabContent = {
           {
             label: "Students with no arm",
             value: String(noArm),
-            sub: "Excluded from every register and result",
             tone: "negative",
             link: "Allocate",
             drawer: allocateDrawer,
@@ -1445,7 +1425,6 @@ const coverageTab: TabContent = {
           {
             label: "Load outside ceiling",
             value: "2",
-            sub: "1 above 24 periods · 1 far below",
             tone: "attention",
             link: "See loads",
             href: "/class-timetable/teaching",
@@ -1453,7 +1432,6 @@ const coverageTab: TabContent = {
           {
             label: "Timetables unpublished",
             value: "6 of 42",
-            sub: "Per-period attendance unavailable for those arms",
             tone: "attention",
             link: "Publish",
             drawer: publishDrawer,
@@ -1501,11 +1479,11 @@ const lessonNotesTab: TabContent = {
         type: "kpi",
         per: 5,
         cards: [
-          { label: "Signed to date", value: "0%", sub: "No note is due yet", tone: "neutral" },
-          { label: "Waiting for review", value: "0", sub: "Nothing waiting", tone: "positive" },
-          { label: "Sent back for rework", value: "0", sub: "With the teacher", tone: "positive" },
-          { label: "Overdue", value: "0", sub: "Taught weeks with no note", tone: "positive" },
-          { label: "Arms up to date", value: "0", unit: "of 0", sub: "Nothing overdue or sent back", tone: "neutral" },
+          { label: "Signed to date", value: "0%", tone: "neutral" },
+          { label: "Waiting for review", value: "0", tone: "positive" },
+          { label: "Sent back for rework", value: "0", tone: "positive" },
+          { label: "Overdue", value: "0", tone: "positive" },
+          { label: "Arms up to date", value: "0", unit: "of 0", tone: "neutral" },
         ],
       },
     ]),
@@ -1536,11 +1514,11 @@ const homeworkTab: TabContent = {
         type: "kpi",
         per: 5,
         cards: [
-          { label: "Homework set", value: "0", sub: "None has been set yet", tone: "neutral" },
-          { label: "Handed in", value: "0%", sub: "Nothing expected yet", tone: "neutral" },
-          { label: "Waiting to be marked", value: "0", sub: "Nothing waiting", tone: "positive" },
-          { label: "Waiting over a week", value: "0", sub: "Marking is keeping up", tone: "positive" },
-          { label: "Teachers not setting any", value: "0", sub: "Of those named on an arm", tone: "positive" },
+          { label: "Homework set", value: "0", tone: "neutral" },
+          { label: "Handed in", value: "0%", tone: "neutral" },
+          { label: "Waiting to be marked", value: "0", tone: "positive" },
+          { label: "Waiting over a week", value: "0", tone: "positive" },
+          { label: "Teachers not setting any", value: "0", tone: "positive" },
         ],
       },
     ]),

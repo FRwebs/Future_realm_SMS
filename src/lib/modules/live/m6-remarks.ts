@@ -4,7 +4,6 @@ import { notifyPersonDrawer } from "@/lib/modules/live/m4-forms";
 import { bandDrawer, cardDrawer, formMasterDrawer, notifyBehind, RC, remarkHref, reviewDrawer } from "@/lib/modules/live/m6-forms";
 import type { PublishDate, RemarkPage, RemarksOverview } from "@/lib/modules/live/m6-types";
 import { gradeTone, num, stateTone } from "@/lib/modules/live/m5-enter";
-import { plural } from "@/lib/modules/live/m7-format";
 import { name as nameCell, pill, text, type PanelRow, type PanelTone, type TabContent, type TableRow, type TrackerRow } from "@/lib/modules/panels";
 import { formatDay } from "@/lib/date-format";
 
@@ -22,7 +21,7 @@ const WARN = "M12 8.2v4.6M12 16h.02M12 3.6 21 19.4H3z";
 const PEN = "M4 20h4L19 9l-4-4L4 16zM14.5 5.5l4 4";
 export const bandTone = (band: string): PanelTone => (band === "Excellent" || band === "Very good" || band === "Good" ? "positive" : band === "Fair" || band === "Weak" ? "attention" : band === "Not scored" ? "neutral" : "negative");
 export const dateText = (iso: string) => formatDay(new Date(`${iso}T00:00:00Z`), { day: "numeric", month: "short", timeZone: "UTC" });
-export const publishCard = (d: PublishDate) => ({ label: "Publish date", value: d ? dateText(d.iso) : "—", sub: d ? (d.days > 0 ? `${d.days} days away` : d.days === 0 ? "Today" : `${-d.days} days ago`) : "No release date is set" });
+export const publishCard = (d: PublishDate) => ({ label: "Publish date", sub: d ? (d.days > 0 ? `${d.days} days away` : d.days === 0 ? "Today" : `${-d.days} days ago`) : "No release date is set", value: d ? dateText(d.iso) : "—", });
 
 export function remarksTab(o: RemarksOverview, school: string): TabContent {
   const k = o.kpis;
@@ -43,10 +42,10 @@ export function remarksTab(o: RemarksOverview, school: string): TabContent {
     panels: [{
       type: "kpi", title: `In view · ${o.label}`, per: 5,
       cards: [
-        { label: "Students in view", value: k.students.toLocaleString("en-NG"), sub: o.arm ? "One arm" : o.level ? `Every arm in ${o.level}` : "Every arm in the school" },
-        { label: "Teacher report in", value: k.teacherIn.toLocaleString("en-NG"), unit: `of ${k.students}`, sub: `${k.students - k.teacherIn} not submitted yet`, tone: k.teacherIn === k.students ? "positive" : "attention" },
-        { label: "Awaiting your review", value: k.waiting.toLocaleString("en-NG"), sub: "Teacher is in, you are not", tone: k.waiting ? "attention" : "positive", link: k.waiting ? "Start reviewing" : undefined, href: k.waiting ? href(k.firstWaiting) : undefined },
-        { label: "Reviewed", value: k.reviewed.toLocaleString("en-NG"), sub: "Written by the Principal", tone: "positive" },
+        { label: "Students in view", value: k.students.toLocaleString("en-NG"), },
+        { label: "Teacher report in", value: k.teacherIn.toLocaleString("en-NG"), unit: `of ${k.students}`, tone: k.teacherIn === k.students ? "positive" : "attention" },
+        { label: "Awaiting your review", value: k.waiting.toLocaleString("en-NG"), tone: k.waiting ? "attention" : "positive", link: k.waiting ? "Start reviewing" : undefined, href: k.waiting ? href(k.firstWaiting) : undefined },
+        { label: "Reviewed", value: k.reviewed.toLocaleString("en-NG"), tone: "positive" },
         { ...publish },
       ],
     }],
@@ -109,12 +108,12 @@ export function remarkPage(p: RemarkPage, school: string): { content: TabContent
     panels: [{
       type: "kpi", title: "The result you are reviewing", per: 6,
       cards: [
-        { label: "Term average", value: s.blocked && s.average === null ? "Blocked" : num(s.average), sub: s.armAverage === null ? "" : `Arm ${s.armAverage}`, tone: s.blocked ? "negative" : s.average !== null && s.armAverage !== null && s.average >= s.armAverage ? "positive" : "attention" },
-        { label: "Position", value: s.pos === null ? "—" : String(s.pos), sub: `Of ${s.outOf}` },
-        { label: "Grade", value: s.grade ?? "—", sub: s.band },
-        { label: "Best subject", value: s.best?.total === null || !s.best ? "—" : String(s.best.total), sub: s.best?.name ?? "", tone: "positive" },
-        { label: "Weakest subject", value: s.weakest?.total === null || !s.weakest ? "—" : String(s.weakest.total), sub: s.weakest?.name ?? "", tone: s.weakest && (s.weakest.total ?? 100) < 50 ? "negative" : "attention" },
-        { label: "Attendance", value: p.attendance.pct === null ? "—" : `${p.attendance.pct}%`, sub: `${plural(p.attendance.absent, "day")} absent`, tone: p.attendance.pct === null ? "neutral" : p.attendance.pct >= 92 ? "positive" : p.attendance.pct >= 75 ? "attention" : "negative" },
+        { label: "Term average", value: s.blocked && s.average === null ? "Blocked" : num(s.average), tone: s.blocked ? "negative" : s.average !== null && s.armAverage !== null && s.average >= s.armAverage ? "positive" : "attention" },
+        { label: "Position", value: s.pos === null ? "—" : String(s.pos), },
+        { label: "Grade", value: s.grade ?? "—", },
+        { label: "Best subject", value: s.best?.total === null || !s.best ? "—" : String(s.best.total), tone: "positive" },
+        { label: "Weakest subject", value: s.weakest?.total === null || !s.weakest ? "—" : String(s.weakest.total), tone: s.weakest && (s.weakest.total ?? 100) < 50 ? "negative" : "attention" },
+        { label: "Attendance", value: p.attendance.pct === null ? "—" : `${p.attendance.pct}%`, tone: p.attendance.pct === null ? "neutral" : p.attendance.pct >= 92 ? "positive" : p.attendance.pct >= 75 ? "attention" : "negative" },
       ],
     }],
   });

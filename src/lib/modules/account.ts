@@ -476,9 +476,6 @@ function securityTab(session: SessionUser, schoolName: string, profile: MyProfil
             {
               label: "Two-factor",
               value: profile.mfaEnabled ? "Enabled" : "Not enabled",
-              sub: profile.mfaEnabled
-                ? "A code is required at every sign-in"
-                : "You can approve results and waivers — enable it",
               tone: profile.mfaEnabled ? "positive" : "negative",
               link: profile.mfaEnabled ? undefined : "Enable it",
               drawer: profile.mfaEnabled ? undefined : enableTwoFactor,
@@ -486,7 +483,6 @@ function securityTab(session: SessionUser, schoolName: string, profile: MyProfil
             {
               label: "Password last changed",
               value: "118 days ago",
-              sub: "School policy asks for 180 days",
               tone: "attention",
               link: "Change it",
               drawer: changePassword,
@@ -494,12 +490,10 @@ function securityTab(session: SessionUser, schoolName: string, profile: MyProfil
             {
               label: "Active sessions",
               value: String(deviceSessions.length),
-              sub: "2 devices · 1 signed in twice",
             },
             {
               label: "Failed sign-ins",
               value: "0",
-              sub: "None in the last 30 days",
               tone: "positive",
             },
           ],
@@ -606,7 +600,6 @@ function securityTab(session: SessionUser, schoolName: string, profile: MyProfil
               keywords: entry.platform,
             }),
           ),
-          foot: "Ending a session does not lose unsynced work — it stays on that device until it syncs.",
         },
       ]),
     ],
@@ -657,11 +650,11 @@ function myActivityTab(session: SessionUser, schoolName: string): TabContent {
           type: "kpi",
           per: 5,
           cards: [
-            { label: "Decisions made", value: "96", sub: "This session · average 3.2 days", tone: "attention" },
-            { label: "Registers marked", value: "34 of 34", sub: "100% before the cutoff", tone: "positive" },
-            { label: "Remarks written", value: "612 of 1,560", sub: "Principal remarks, applied by band", tone: "attention" },
-            { label: "Messages sent", value: "9", sub: "4,120 recipients · ₦15,656 in credits" },
-            { label: "Exports taken", value: "4", sub: "Every one logged against your name" },
+            { label: "Decisions made", value: "96", tone: "attention" },
+            { label: "Registers marked", value: "34 of 34", tone: "positive" },
+            { label: "Remarks written", value: "612 of 1,560", tone: "attention" },
+            { label: "Messages sent", value: "9", },
+            { label: "Exports taken", value: "4", },
           ],
         },
       ]),

@@ -26,12 +26,12 @@ export function complianceTab(c: Compliance): TabContent {
     panels: [{
       type: "kpi", title: "Returns this school owes", per: 6,
       cards: [
-        { label: "Returns tracked", value: String(s.tracked), sub: `Across ${plural(s.bodies, "body", "bodies")}` },
-        { label: "Due within 35 days", value: String(s.dueSoon), sub: s.nextDays !== null && s.dueSoon ? `Soonest in ${s.nextDays} days` : "Nothing imminent", tone: s.dueSoon ? "attention" : "positive" },
-        { label: "Blocked", value: String(s.blocked), sub: "Missing data on file", tone: s.blocked ? "negative" : "positive" },
-        { label: "Ready to generate", value: String(s.ready), sub: "One click each", tone: "positive" },
-        { label: "Filed this session", value: String(s.filed), sub: "Archived with its source", tone: "positive" },
-        { label: "Next deadline", value: s.nextDays === null ? "—" : `${s.nextDays} days`, sub: open.length ? open.slice().sort((a, b) => a.days - b.days)[0].name : "Nothing outstanding", tone: s.nextDays !== null && s.nextDays <= 14 ? "negative" : "attention" },
+        { label: "Returns tracked", value: String(s.tracked), },
+        { label: "Due within 35 days", value: String(s.dueSoon), tone: s.dueSoon ? "attention" : "positive" },
+        { label: "Blocked", value: String(s.blocked), tone: s.blocked ? "negative" : "positive" },
+        { label: "Ready to generate", value: String(s.ready), tone: "positive" },
+        { label: "Filed this session", value: String(s.filed), tone: "positive" },
+        { label: "Next deadline", value: s.nextDays === null ? "—" : `${s.nextDays} days`, tone: s.nextDays !== null && s.nextDays <= 14 ? "negative" : "attention" },
       ],
     }],
   });
@@ -57,7 +57,6 @@ export function complianceTab(c: Compliance): TabContent {
         keywords: `${item.name} ${item.body} body:${item.body} state:${item.status} owner:${item.ownerRole ?? ""} ${item.days <= 14 ? "due:14" : ""} ${item.days <= 35 ? "due:35" : ""}`,
         cells: [nameCell(item.name, item.covers), text(item.body), text(dayLong(item.dueOn), { strong: true, tone: item.status === "FILED" ? "positive" : item.days <= 14 ? "negative" : item.days <= 35 ? "attention" : undefined }), item.status === "FILED" ? text("—") : text(String(item.days), { mono: true }), text(item.period), item.ownerRole ? nameCell(item.ownerRole, "Responsible", { avatar: false }) : text("Not named"), pill(STATE_LABEL[item.status] ?? item.status, STATE_TONE[item.status] ?? "neutral"), item.status === "FILED" ? { kind: "action" as const, label: "Download", href: archiveFor(c, item) } : item.ready ? { kind: "action" as const, label: "Generate", drawer: returnDrawer(item) } : { kind: "action" as const, label: "See what is missing", href: "/student-records/registry" }],
       })),
-      foot: "From live data, never a cache · every copy archived with who produced it",
     }],
   });
   rows.push({
@@ -70,7 +69,6 @@ export function complianceTab(c: Compliance): TabContent {
         head: ["What is missing", "Count", "Blocks", "Where to fix it", ""], noun: "gap", nounPlural: "gaps", noRowOpen: true,
         rows: c.gaps.map((gap) => ({ cells: [text(gap.what, { strong: true }), text(String(gap.count), { mono: true }), text(gap.blocks), text(gap.fix), { kind: "action" as const, label: "Fix", href: FIX[gap.fix] ?? "/student-records/registry" }] })),
         empty: "Nothing is missing. Every return can be produced from what is on file.",
-        foot: "A missing photograph is not a filing problem — it is a record problem that only becomes urgent the week a return is due.",
       },
       {
         type: "facts", title: "How a return is produced here", tuck: "How a return is produced", sub: "The same for every body.", per: 1,

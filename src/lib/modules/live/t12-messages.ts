@@ -120,10 +120,10 @@ function sentTab(v: SentView, me: TeacherWorkspaceView, details: Map<string, Sen
       row("1fr", [{
         type: "kpi", sub: "This term · every send of yours also appears in the school’s Outbound Review.", per: 4,
         cards: [
-          { label: "Messages sent", value: String(t.sent), sub: me.formArms.length ? `To ${me.formArms.map((arm) => arm.name).join(" and ")} families` : "" },
-          { label: "Credits used", value: String(t.credits), sub: "Of the school’s balance, not your own" },
-          { label: "Delivered", value: t.deliveredRate === null ? "—" : `${t.deliveredRate}%`, sub: t.failures ? `${t.failures} failure${t.failures === 1 ? "" : "s"}` : "No failures", tone: t.failures ? "attention" : "positive" },
-          { label: "Held for approval", value: String(t.held), sub: t.held ? "Waiting for the Principal" : "Nothing above the school’s threshold", tone: t.held ? "attention" : "positive" },
+          { label: "Messages sent", value: String(t.sent), },
+          { label: "Credits used", value: String(t.credits), },
+          { label: "Delivered", value: t.deliveredRate === null ? "—" : `${t.deliveredRate}%`, tone: t.failures ? "attention" : "positive" },
+          { label: "Held for approval", value: String(t.held), tone: t.held ? "attention" : "positive" },
         ],
       }]),
       row("1fr", [{
@@ -134,8 +134,7 @@ function sentTab(v: SentView, me: TeacherWorkspaceView, details: Map<string, Sen
           { label: "State", value: "All", options: ["All", "Delivered", "Sending", "Held for approval", "Returned"], column: 5 },
           { label: "Sent", value: "Any date", options: ["Any date", "Last 24 hours", "Last 7 days", "Last 30 days"], since: { "Last 24 hours": 24, "Last 7 days": 168, "Last 30 days": 720 } },
         ],
-        head: ["Message", "Sent", "To", "Channel", "Cost", "State", ""], rows, per: 10, noRowOpen: true, empty: "You have not sent a message yet.", foot: "A send above the school’s threshold is held for approval before it leaves.",
-      }]),
+        head: ["Message", "Sent", "To", "Channel", "Cost", "State", ""], rows, per: 10, noRowOpen: true, empty: "You have not sent a message yet.",       }]),
     ],
   };
 }

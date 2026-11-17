@@ -5,7 +5,6 @@ import { linkIsOpen, switchedOffSlugs } from "@/lib/api/platform-sync";
 import { getServerSession } from "@/lib/auth/session";
 import type { KpiCard, Panel, PanelFact, TabContent } from "@/lib/modules/panels";
 import { name, pill, row, text } from "@/lib/modules/panels";
-import { formatDay } from "@/lib/date-format";
 
 /**
  * M01 Command Center · Today, built from the database rather than from the
@@ -112,61 +111,41 @@ function kpiCards(data: ApiToday): KpiCard[] {
 
   return [
     {
-      label: "Total students",
-      value: data.students.active.toLocaleString(),
-      sub: `+${data.students.joinedThisTerm} this term · ${data.students.withdrawnTotal} withdrawn in total`,
+      label: "Total students",       value: data.students.active.toLocaleString(),
       link: "Open registry",
       href: "/student-records/registry",
     },
     {
-      label: "Attendance today",
-      // Nothing marked is not 0% — it is a register nobody has opened.
+      label: "Attendance today",       // Nothing marked is not 0% — it is a register nobody has opened.
       value: attendance.ratePct === null ? "Not marked" : `${attendance.ratePct}%`,
-      sub:
-        attendance.classesTotal === 0
-          ? "No classes configured"
-          : `${attendance.classesUnmarked} of ${attendance.classesTotal} classes unmarked`,
       tone: attendance.classesUnmarked > 0 ? "attention" : undefined,
       link: "See unmarked",
       href: "/attendance/register",
     },
     {
-      label: "Collected this term",
-      value: nairaShort(data.collection.collected),
-      sub: `of ${nairaShort(data.collection.expected)} expected`,
+      label: "Collected this term",       value: nairaShort(data.collection.collected),
       link: "Open collections",
       href: "/fee-management/collections",
     },
     {
-      label: "Score submissions",
-      value: data.results.expected === 0
+      label: "Score submissions",       value: data.results.expected === 0
         ? "None yet"
         : `${data.results.submitted} of ${data.results.expected}`,
-      sub:
-        data.results.expected === 0
-          ? "No sheets raised this term"
-          : `${data.results.returned} returned to teachers`,
       tone: data.results.returned > 0 ? "attention" : undefined,
       link: "Open review",
       href: "/score-entry-results/review",
     },
     {
-      label: "Message credits",
-      // A school with no wallet row has never set messaging up, which is a
+      label: "Message credits",       // A school with no wallet row has never set messaging up, which is a
       // different thing from a wallet that has run dry.
       value: data.credits.configured ? data.credits.sms.toLocaleString() : "Not set up",
-      sub: data.credits.configured
-        ? `SMS · ${data.credits.low ? "below" : "above"} your ${data.credits.threshold.toLocaleString()} threshold`
-        : "No messaging wallet on this school",
       tone: data.credits.configured && data.credits.low ? "attention" : undefined,
       link: data.credits.configured ? "Top up" : "Set up",
       href: "/subscription-billing/credits",
     },
     {
-      label: "Sync depth",
-      value: String(data.sync.pending),
+      label: "Sync depth",       value: String(data.sync.pending),
       unit: "pending",
-      sub: `Last synced ${sinceText(data.sync.lastSyncedAt)}`,
       tone: data.sync.pending > 0 ? "attention" : undefined,
       link: "Sync detail",
       href: "/sync-support/sync",
@@ -372,25 +351,21 @@ function oversightTab(
             {
               label: "Cards that exist now",
               value: String(ready),
-              sub: `of ${cards.length} cut`,
               tone: ready === cards.length && cards.length ? "positive" : "attention",
             },
             {
               label: "Students blocked",
               value: String(blockedStudents),
-              sub: blockedStudents ? `across ${blockedSheets.length} class(es)` : "Nothing incomplete",
               tone: blockedStudents ? "negative" : "positive",
             },
             {
               label: "People holding it up",
               value: String(owners.size + (teacherless.length ? 1 : 0)),
-              sub: owners.size ? Array.from(owners).slice(0, 2).join(", ") : "Nobody",
               tone: owners.size ? "attention" : "positive",
             },
             {
               label: "Days of slack",
               value: slackDays === null ? "—" : String(slackDays),
-              sub: term ? `${term.name} ends ${formatDay(new Date(term.endsOn ?? ""), { day: "numeric", month: "short" }, "en-NG")}` : "No term on file",
               tone: slackDays !== null && slackDays < 14 ? "attention" : undefined,
             },
           ],

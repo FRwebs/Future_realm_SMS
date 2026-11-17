@@ -559,7 +559,6 @@ const calendarTab: TabContent = {
             ],
           }),
         ),
-        foot: "A window that has closed can be reopened, with a reason, from its own modal.",
       },
       {
         type: "list" as const,
@@ -793,13 +792,12 @@ const curriculumTab: TabContent = {
         type: "kpi" as const,
         per: 4,
         cards: [
-          { label: "In force", value: "1", sub: "Grace International · all 42 arms", tone: "positive" as PanelTone },
-          { label: "Available to adopt", value: "3", sub: "From the FutureRealm library", tone: "neutral" as PanelTone },
-          { label: "Your own drafts", value: "1", sub: "Not in force", tone: "progress" as PanelTone },
+          { label: "In force", value: "1", tone: "positive" as PanelTone },
+          { label: "Available to adopt", value: "3", tone: "neutral" as PanelTone },
+          { label: "Your own drafts", value: "1", tone: "progress" as PanelTone },
           {
             label: "Layers needing attention",
             value: "1",
-            sub: "Assessment weights total 98",
             tone: "attention" as PanelTone,
             link: "Open the layer",
             drawer: layerDrawer("Assessment", curriculumLayers[2]!.facts as [string, string, string?][]),
@@ -866,7 +864,6 @@ const curriculumTab: TabContent = {
             keywords: `${entry.origin} ${entry.basis}`,
           }),
         ),
-        foot: "The six configuration layers live inside a curriculum — open one to set them. Putting a curriculum in force replaces the current one from the next term.",
       },
     ]),
     // The mockup reaches these from inside the curriculum in force. There is no
@@ -966,7 +963,6 @@ const curriculumTab: TabContent = {
             ],
           }),
         ),
-        foot: "Absent · excluded from the average · never scored zero",
       },
       {
         type: "table" as const,
@@ -1014,7 +1010,6 @@ const curriculumTab: TabContent = {
             ],
           }),
         ),
-        foot: "Pass mark 40 · credit threshold 50.",
       },
     ]),
     row("1fr 1.1fr", [
@@ -1246,31 +1241,21 @@ const allocationsTab: TabContent = {
             label: "Lists published",
             value: String(publishedCount),
             unit: `of ${thisTermLists.length}`,
-            sub:
-              publishedCount === thisTermLists.length
-                ? "Every class covered"
-                : `${thisTermLists.length - publishedCount} still in draft`,
             tone: (publishedCount === thisTermLists.length ? "positive" : "attention") as PanelTone,
           },
           {
             label: "Classes with no list",
             value: String(classesWithNoList),
-            sub:
-              classesWithNoList > 0
-                ? "Families there have been told nothing"
-                : "All 14 classes covered",
             tone: (classesWithNoList > 0 ? "attention" : "positive") as PanelTone,
           },
           {
             label: "Cheapest required list",
             value: naira(Math.min(...requiredTotals)),
-            sub: "Nursery 2 · starter pack",
             tone: "neutral" as PanelTone,
           },
           {
             label: "Dearest required list",
             value: naira(Math.max(...requiredTotals)),
-            sub: "A senior list carries the calculator and the practical kit",
             tone: "neutral" as PanelTone,
           },
         ],

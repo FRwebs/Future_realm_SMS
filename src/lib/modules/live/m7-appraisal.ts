@@ -53,18 +53,17 @@ export const roleHref = (role: string) => `/staff-access/appraisal/roles/${encod
 export const reviewHref = (id: string) => `/staff-access/appraisal/people/${id}`;
 
 export function appraisalTab(data: AppraisalOverview, moderation: Moderation): TabContent {
-  const { cycle, kpis, people, sets } = data;
+  const { cycle, kpis, people } = data;
   const mine = people.filter((person) => person.stage === "With you" && person.isReviewer && person.appraisalId);
   const first = mine[0];
   const publish = publishCycleDrawer(data);
-  const setNames = Object.keys(sets);
 
   const cards: KpiCard[] = [
-    { label: "Cycle", value: cycle.name.split(" ").slice(0, 2).join(" "), sub: cycle.published ? `Published ${cycle.publishedAt ? dayLong(cycle.publishedAt) : ""}${cycle.deadline ? ` · closes ${dayLong(cycle.deadline)}` : ""}` : `${cycle.name} · not yet published`, tone: cycle.published ? "neutral" : "attention", ...(cycle.published ? {} : { link: "Publish it", drawer: publish }) },
-    { label: "Published to", value: String(kpis.published), unit: "staff", sub: `Across ${plural(setNames.length, "KPI set")}`, link: "See the sets", href: SETS },
-    { label: "Completed by staff", value: String(kpis.completed), unit: `of ${kpis.published}`, tone: "progress", sub: `${kpis.writing} still writing theirs` },
-    { label: "Waiting on your review", value: String(kpis.withMe), tone: kpis.withMe ? "attention" : "positive", sub: kpis.withMe ? "They have come back to you" : "Nothing waiting", ...(kpis.withMe && first ? { link: "Review them", href: reviewHref(first.appraisalId as string) } : {}) },
-    { label: "Average rating", value: kpis.average === null ? "—" : kpis.average.toFixed(1), unit: kpis.average === null ? undefined : "of 5", sub: moderation.reviewed ? `${moderation.reviewed} reviews so far` : "No review is complete yet" },
+    { label: "Cycle", value: cycle.name.split(" ").slice(0, 2).join(" "), tone: cycle.published ? "neutral" : "attention", ...(cycle.published ? {} : { link: "Publish it", drawer: publish }) },
+    { label: "Published to", value: String(kpis.published), unit: "staff", link: "See the sets", href: SETS },
+    { label: "Completed by staff", value: String(kpis.completed), unit: `of ${kpis.published}`, tone: "progress", },
+    { label: "Waiting on your review", value: String(kpis.withMe), tone: kpis.withMe ? "attention" : "positive", ...(kpis.withMe && first ? { link: "Review them", href: reviewHref(first.appraisalId as string) } : {}) },
+    { label: "Average rating", value: kpis.average === null ? "—" : kpis.average.toFixed(1), unit: kpis.average === null ? undefined : "of 5", },
   ];
 
   const personRows: TableRow[] = people.map((person) => {
@@ -132,7 +131,6 @@ export function appraisalTab(data: AppraisalOverview, moderation: Moderation): T
             emptyTitle: "The cycle has not been published",
             emptyBody: "Publish it and every person appears here against their role’s KPIs.",
             empty: "Nobody matches.",
-            foot: "A self-assessment far above the manager’s rating is not a problem to hide — it is the most useful conversation in the cycle.",
           },
         ],
       },
@@ -220,7 +218,6 @@ export function appraisalSetsPage(data: AppraisalOverview): TabContent {
             head: ["Role", "KPI set", "KPIs", "Weight", "Where the numbers come from", "People", "State", ""],
             rows: roleRows,
             per: 11,
-            foot: "Every KPI here reads a figure the product already holds, or is rated by a named person against stated evidence.",
           },
         ],
       },
@@ -245,11 +242,11 @@ export function roleKpiPage(data: AppraisalOverview, role: string) {
   const onRole = data.people.filter((person) => person.role === role);
   const publish = publishCycleDrawer(data);
   const cards: KpiCard[] = [
-    { label: "KPIs", value: String(kpis.length), sub: `${auto.length} automatic · ${kpis.length - auto.length} rated by a manager` },
-    { label: "Weights", value: `${Math.round(total)}%`, tone: ok ? "positive" : "negative", sub: ok ? "Exactly 100 — publishable" : "Must total 100 before publishing" },
-    { label: "People on this role", value: String(onRole.length), sub: onRole.length ? onRole.slice(0, 3).map((person) => person.name.split(" ").slice(-1)[0]).join(", ") : "Nobody yet" },
-    { label: "Measured by the product", value: `${Math.round(auto.reduce((sum, item) => sum + item.weight, 0))}%`, tone: "positive", sub: "Of the total weight · not open to opinion" },
-    { label: "Last changed", value: set.changedAt ? dayLong(set.changedAt).replace(/ \d{4}$/, "") : "Standard", sub: set.changedBy ? `By ${set.changedBy}` : "As the product ships it" },
+    { label: "KPIs", value: String(kpis.length), },
+    { label: "Weights", value: `${Math.round(total)}%`, tone: ok ? "positive" : "negative", },
+    { label: "People on this role", value: String(onRole.length), },
+    { label: "Measured by the product", value: `${Math.round(auto.reduce((sum, item) => sum + item.weight, 0))}%`, tone: "positive", },
+    { label: "Last changed", value: set.changedAt ? dayLong(set.changedAt).replace(/ \d{4}$/, "") : "Standard", },
   ];
   const cells = (index: number): GridCell[] => {
     const item = kpis[index];
@@ -339,11 +336,11 @@ export function appraisalOnePage(one: AppraisalOne) {
   const complete = completeReviewDrawer(one);
   const rated = one.kpis.filter((item) => item.mine || item.auto !== null).length;
   const cards: KpiCard[] = [
-    { label: "Their rating", value: one.kpis.some((item) => item.self) ? (one.kpis.reduce((sum, item) => sum + (item.self ?? 0), 0) / Math.max(1, one.kpis.filter((item) => item.self).length)).toFixed(1) : "—", unit: "of 5", sub: one.kpis.some((item) => item.self) ? "Their own self-assessment" : "They have not self-assessed yet" },
-    { label: "The product says", value: one.kpis.some((item) => item.auto !== null) ? (one.kpis.filter((item) => item.auto !== null).reduce((sum, item) => sum + (item.auto as number), 0) / one.kpis.filter((item) => item.auto !== null).length).toFixed(1) : "—", unit: "of 5", sub: `${one.kpis.filter((item) => item.auto !== null).length} of ${one.kpis.length} KPIs have a figure behind them` },
-    { label: "Reviewer’s rating", value: one.overall ? one.overall.toFixed(1) : "—", unit: "of 5", tone: one.overall ? "positive" : "neutral", sub: one.overall ? `${one.reviewer} · weighted` : `${one.reviewer} has not rated yet` },
-    { label: "KPIs covered", value: `${rated}`, unit: `of ${one.kpis.length}`, tone: rated === one.kpis.length ? "positive" : "attention", sub: rated === one.kpis.length ? "Ready to complete" : "Each needs a rating or a figure" },
-    { label: "Status", value: draft ? "Draft" : one.status === "ACKNOWLEDGED" ? "Acknowledged" : "Shared", tone: draft ? "attention" : "positive", sub: one.sharedAt ? `Shared ${dayLong(one.sharedAt)}` : "Not shared with them yet" },
+    { label: "Their rating", value: one.kpis.some((item) => item.self) ? (one.kpis.reduce((sum, item) => sum + (item.self ?? 0), 0) / Math.max(1, one.kpis.filter((item) => item.self).length)).toFixed(1) : "—", unit: "of 5", },
+    { label: "The product says", value: one.kpis.some((item) => item.auto !== null) ? (one.kpis.filter((item) => item.auto !== null).reduce((sum, item) => sum + (item.auto as number), 0) / one.kpis.filter((item) => item.auto !== null).length).toFixed(1) : "—", unit: "of 5", },
+    { label: "Reviewer’s rating", value: one.overall ? one.overall.toFixed(1) : "—", unit: "of 5", tone: one.overall ? "positive" : "neutral", },
+    { label: "KPIs covered", value: `${rated}`, unit: `of ${one.kpis.length}`, tone: rated === one.kpis.length ? "positive" : "attention", },
+    { label: "Status", value: draft ? "Draft" : one.status === "ACKNOWLEDGED" ? "Acknowledged" : "Shared", tone: draft ? "attention" : "positive", },
   ];
   return {
     title: `${one.name} · ${one.cycle}`,
@@ -375,7 +372,6 @@ export function appraisalOnePage(one: AppraisalOne) {
                 text(kpi.source),
               ],
             })),
-            foot: "Where the product holds no figure the manager’s rating is the rating. Where it holds one, a differing rating needs a reason in the review.",
           },
         ],
       },

@@ -1663,7 +1663,6 @@ function calendarTab(
                 rows: termWindows.map((item) =>
                   windowRow(item, item.termName, componentLabels, termLabels),
                 ),
-                foot: "A window that has closed can be reopened, with a reason, from its own modal.",
               }
             : {
                 type: "note",
@@ -2352,35 +2351,21 @@ function curriculumTab(
               {
                 label: "In force",
                 value: inForce ? "1" : "0",
-                sub: inForce
-                  ? `${school.name} · ${levels.length} class levels`
-                  : "Nothing set yet",
                 tone: inForce ? "positive" : "attention",
               },
               {
                 label: "Available to adopt",
                 value: String(offered.length),
-                sub: library
-                  ? offered.length
-                    ? `Published for ${library.country} schools`
-                    : library.curricula.length
-                      ? "You have taken everything on offer"
-                      : `Nothing published for ${library.country} yet`
-                  : "The library could not be reached",
                 tone: offered.length ? "positive" : "neutral",
               },
               {
                 label: "Your own drafts",
                 value: String(built.filter((record) => record.status !== "ACTIVE").length),
-                sub: built.length ? "Built here, not in force" : "Nothing built yet",
                 tone: "neutral",
               },
               {
                 label: "Layers needing attention",
                 value: String(layersShort.length),
-                sub: layersShort.length
-                  ? layersShort.map((layer) => layer.label).join(", ")
-                  : "All six defined",
                 tone: layersShort.length ? "attention" : "positive",
               },
             ],
@@ -2424,7 +2409,6 @@ function curriculumTab(
                       keywords: `${entry.name} ${entry.market} library ${library.country}`,
                     };
                   }),
-                  foot: `Only curricula published for ${library.country} are offered. Adopting copies it into your school — it never changes what you already run until you put it in force, and never mid-term once scores are in.`,
                 },
               ],
             },
@@ -2549,7 +2533,6 @@ function curriculumTab(
                 };
               }),
             ],
-            foot: "The six configuration layers live inside a curriculum — open one to set them. Putting a curriculum in force replaces the current one from the next term.",
           },
         ],
       },
@@ -2605,17 +2588,6 @@ export function curriculumDetailContent(
         (componentsBySection.get(section) ?? []).reduce((sum, item) => sum + item.weight, 0),
       ) !== 100,
   );
-  const identical =
-    sectionNames.length > 1 &&
-    sectionNames.every((section) => {
-      const list = componentsBySection.get(section) ?? [];
-      return (
-        list.length === shared.length &&
-        list.every(
-          (item, index) => item.name === shared[index]?.name && item.weight === shared[index]?.weight,
-        )
-      );
-    });
 
   const layers = curriculumLayers(subjects, levels, scheme, componentsBySection);
   const layersSet = layers.filter((layer) => layer.set).length;
@@ -2726,32 +2698,27 @@ export function curriculumDetailContent(
               {
                 label: "State",
                 value: layersSet ? "In force" : "Draft",
-                sub: layersSet ? "Used by every arm" : "Not in force",
                 tone: layersSet ? "positive" : "progress",
               },
               {
                 label: "Layers set",
                 value: String(layersSet),
                 unit: "of 6",
-                sub: layersShort.length ? layersShort.map((layer) => layer.label).join(", ") : "All six defined",
                 tone: layersShort.length ? "attention" : "positive",
               },
               {
                 label: "Subjects",
                 value: String(subjects.length),
-                sub: `${subjectStreams.filter((stream) => stream !== "General").length} choice groups`,
               },
               {
                 label: "Assessment",
                 value: shared.length ? round1(sharedTotal) : "\u2014",
                 unit: shared.length ? "of 100" : "",
-                sub: sectionsOffTotal.length ? "Weights must total 100" : "Weights total 100",
                 tone: sectionsOffTotal.length ? "attention" : "positive",
               },
               {
                 label: "Class levels",
                 value: String(levels.length),
-                sub: levels.length ? `${levels[0]?.name} to ${levels[levels.length - 1]?.name}` : "None",
               },
             ],
           },
@@ -2814,9 +2781,6 @@ export function curriculumDetailContent(
                   ],
                   keywords: `${component.name} ${component.code ?? ""}`,
                 })),
-                foot: identical
-                  ? `Identical across all ${sectionNames.length} sections · every section totals 100.`
-                  : `Shown for ${sectionLabel(sectionNames[0] ?? null)}. Component sets differ by section.`,
               }
             : {
                 type: "note",
@@ -2848,9 +2812,6 @@ export function curriculumDetailContent(
                   ],
                   keywords: `${band.label} ${band.remark ?? ""}`,
                 })),
-                foot: `Pass mark ${scheme?.passMark ?? "—"} · ranking ${
-                  scheme?.rankingEnabled ? "on" : "off"
-                }.`,
               }
             : {
                 type: "note",
@@ -2917,9 +2878,6 @@ export function curriculumDetailContent(
             nounPlural: "subjects",
             per: 12,
             rows: subjectRows,
-            foot: unsectioned
-              ? `${unsectioned} subject(s) sit in no section, so no class level offers them.`
-              : "Every subject names the section and the class levels it is taught at. Open one for its certificate codes and timetable needs.",
           },
         ],
       },
@@ -3399,29 +3357,21 @@ function allocationsTab(
                 label: "Lists published",
                 value: String(published.length),
                 unit: `of ${scoped.length}`,
-                sub: drafts.length ? `${drafts.length} still in draft` : scoped.length ? "Every list published" : "Nothing created yet",
                 tone: drafts.length || !scoped.length ? "attention" : "positive",
               },
               {
                 label: "Classes with no list",
                 value: String(missing),
-                sub: classCount
-                  ? missing
-                    ? "Families there have been told nothing"
-                    : `All ${classCount} classes covered`
-                  : "No classes are set up",
                 tone: missing ? "attention" : "positive",
               },
               {
                 label: "Cheapest required list",
                 value: cheapest ? naira(requiredTotal(cheapest)) : "—",
-                sub: cheapest?.className ?? cheapest?.name ?? "—",
                 tone: "neutral",
               },
               {
                 label: "Dearest required list",
                 value: dearest ? naira(requiredTotal(dearest)) : "—",
-                sub: dearest?.className ?? dearest?.name ?? "—",
                 tone: "neutral",
               },
             ],
@@ -3536,14 +3486,13 @@ export function allocationDetailContent(structure: FeeStructure): TabContent {
             sub: "Prices are what the school states today. A family may buy anywhere the source column allows.",
             per: 5,
             cards: [
-              { label: "Required", value: naira(required), sub: `${items.filter((item) => !item.isOptional).length} ${items.filter((item) => !item.isOptional).length === 1 ? "item" : "items"} every child must have`, tone: "neutral" },
-              { label: "Optional", value: optional ? naira(optional) : "—", sub: `${items.filter((item) => item.isOptional).length} ${items.filter((item) => item.isOptional).length === 1 ? "item" : "items"} a family may skip`, tone: "progress" },
-              { label: "Full list", value: naira(structure.total), sub: "If a family took everything", tone: "neutral" },
-              { label: "Buy at school", value: naira(storeOnlyTotal), sub: `${storeOnly.length} item${storeOnly.length === 1 ? "" : "s"} only the school sells`, tone: "attention" },
+              { label: "Required", value: naira(required), tone: "neutral" },
+              { label: "Optional", value: optional ? naira(optional) : "—", tone: "progress" },
+              { label: "Full list", value: naira(structure.total), tone: "neutral" },
+              { label: "Buy at school", value: naira(storeOnlyTotal), tone: "attention" },
               {
                 label: "State",
                 value: state.label,
-                sub: live ? "Families can see it" : structure.listState === "DRAFT" ? "Not yet sent to anyone" : "Kept for the record",
                 tone: live ? "positive" : structure.listState === "DRAFT" ? "progress" : "neutral",
               },
             ],
@@ -3924,7 +3873,6 @@ function policiesTab(saved: PolicyItem[], country: string | null): TabContent {
             noun: "setting",
             nounPlural: "settings",
             rows: familyRows,
-            foot: "A value in regular weight is the product's default \u2014 nobody here has chosen it yet.",
           },
         ],
       },

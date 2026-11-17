@@ -26,12 +26,12 @@ export function structuresTab(data: Structures, terms: string[]): TabContent {
   const { totals, structures } = data;
   const create = createStructureDrawer(data, terms);
   const cards: KpiCard[] = [
-    { label: "Structures", value: String(totals.count), sub: `${totals.published} published · ${totals.draft} draft` },
-    { label: "Expected this term", value: nairaShort(totals.expected), sub: "Across every published structure" },
-    { label: "Classes mapped", value: String(totals.classesMapped), unit: `of ${totals.classes}`, tone: totals.classesMapped >= totals.classes ? "positive" : "attention", sub: totals.classesMapped >= totals.classes ? "Every class is on one" : "A class on none is billed nothing" },
-    { label: "Structure placements", value: totals.placements.toLocaleString("en-NG"), sub: totals.boarders ? `${totals.boarders} boarders carry two` : "Students billed on a structure" },
-    { label: "Adjustment rules", value: String(totals.rules), sub: "An explicit line on each invoice", link: "See the rules", href: "/fee-management/structures/rules" },
-    { label: "Discount exposure", value: nairaShort(totals.discount), tone: totals.discount ? "attention" : "neutral", sub: totals.expected ? `${((totals.discount / Math.max(1, totals.expected)) * 100).toFixed(1)}% of expected` : "Given on invoices so far" },
+    { label: "Structures", value: String(totals.count), },
+    { label: "Expected this term", value: nairaShort(totals.expected), },
+    { label: "Classes mapped", value: String(totals.classesMapped), unit: `of ${totals.classes}`, tone: totals.classesMapped >= totals.classes ? "positive" : "attention", },
+    { label: "Structure placements", value: totals.placements.toLocaleString("en-NG"), },
+    { label: "Adjustment rules", value: String(totals.rules), link: "See the rules", href: "/fee-management/structures/rules" },
+    { label: "Discount exposure", value: nairaShort(totals.discount), tone: totals.discount ? "attention" : "neutral", },
   ];
   const kinds = Array.from(new Set(structures.map((row) => row.kind)));
   const rows: TableRow[] = structures.map((row) => ({
@@ -86,7 +86,6 @@ export function structuresTab(data: Structures, terms: string[]): TabContent {
             per: 10,
             emptyTitle: "No fee structure yet",
             emptyBody: "Create the first one: the classes it charges and every item on it. Nothing is billed until you publish it.",
-            foot: "One of each kind per class · a boarder is billed class plus boarding",
           },
         ],
       },
@@ -144,14 +143,33 @@ export function rulesPage(data: Structures): FeePage {
             type: "table" as const,
             title: "Every rule",
             tag: plural(data.rules.length, "rule"),
-            sub: "“Second child onward” and “Every family” are applied automatically when a structure is published. A rule that depends on an event — paying early, topping the class — is applied by hand, and says so.",
+            sub: "Always a visible line on the invoice, never a quietly reduced amount.",
             noun: "rule",
             nounPlural: "rules",
             head: ["Rule", "Basis", "Value", "Which items", "Families it touches", "Runs until", ""],
             rows,
             emptyTitle: "No adjustment rule",
             emptyBody: "Add one — a sibling discount, say — and it is applied as an explicit line on every invoice it touches.",
-            foot: "An adjustment is always a visible line on an invoice, never a quietly reduced amount.",
+          },
+        ],
+      },
+      {
+        cols: "1fr",
+        panels: [
+          {
+            type: "facts" as const,
+            title: "When a rule is applied",
+            tuck: "When a rule is applied",
+            tuckIcon: "M12 6.5C10.5 5 8 4.5 4 4.5v13c4 0 6.5.5 8 2 1.5-1.5 4-2 8-2v-13c-4 0-6.5.5-8 2zM12 6.5v13",
+            tuckKicker: "How this works",
+            sub: "Two kinds, and only one of them runs on its own.",
+            per: 1,
+            facts: [
+              ["“Second child onward”", "Applied automatically", "The moment a structure is published"],
+              ["“Every family”", "Applied automatically", "On publication, to every invoice it touches"],
+              ["A rule that depends on an event", "Applied by hand", "Paying early, topping the class — the rule says so on its row"],
+              ["Either way", "A visible line on the invoice", "Never a quietly reduced amount"],
+            ] as Array<[string, string, string]>,
           },
         ],
       },
@@ -163,16 +181,15 @@ export function rulesPage(data: Structures): FeePage {
 
 export function structurePage(detail: StructureDetail, preview: PublishPreview, data: Structures, terms: string[]): FeePage {
   const draft = detail.state === "Draft";
-  const optional = detail.items.filter((item) => item.type !== "Mandatory");
   const edit = editItemsDrawer(detail);
   const publish = publishDrawer(preview);
   const cards: KpiCard[] = [
-    { label: "Compulsory a term", value: naira(detail.termly), sub: `${detail.items.filter((item) => item.type === "Mandatory").length} mandatory items` },
-    { label: detail.kind === "Boarding supplement" ? "Boarders on it" : "Students on it", value: String(detail.students), tone: detail.students ? "neutral" : "attention", sub: detail.kind === "Boarding supplement" ? "Charged on top of their class" : detail.students ? "Billed so far" : "Nobody yet" },
-    { label: "Classes mapped", value: String(detail.classes.length), sub: detail.classes.slice(0, 3).join(", ") || "None" },
-    { label: "Fee items", value: String(detail.items.length), sub: `${detail.items.length - optional.length} mandatory · ${optional.length} optional` },
-    { label: "Termly total", value: naira(detail.termlyAll), sub: "If every item is taken" },
-    { label: "Sessional items", value: naira(detail.sessional), sub: "Charged once a session" },
+    { label: "Compulsory a term", value: naira(detail.termly), },
+    { label: detail.kind === "Boarding supplement" ? "Boarders on it" : "Students on it", value: String(detail.students), tone: detail.students ? "neutral" : "attention", },
+    { label: "Classes mapped", value: String(detail.classes.length), },
+    { label: "Fee items", value: String(detail.items.length), },
+    { label: "Termly total", value: naira(detail.termlyAll), },
+    { label: "Sessional items", value: naira(detail.sessional), },
   ];
   const itemRows: TableRow[] = detail.items.map((item) => ({
     id: item.id,
@@ -240,7 +257,6 @@ export function structurePage(detail: StructureDetail, preview: PublishPreview, 
             per: 12,
             emptyTitle: "No fee item",
             emptyBody: "A structure charges at least one item.",
-            foot: "An optional item is only billed to the families who elect it, so its expected figure is lower than the roll.",
           },
         ],
       },
@@ -259,7 +275,6 @@ export function structurePage(detail: StructureDetail, preview: PublishPreview, 
             rows: levelRows,
             emptyTitle: detail.classes[0] === "All classes" ? "Every class" : "No class mapped",
             emptyBody: detail.classes[0] === "All classes" ? "This structure charges every class." : "Map the classes it charges, and the next publication bills them.",
-            foot: "A class can only be on one structure of this kind at a time — mapping it here removes it from wherever it was.",
           },
           { type: "facts", title: "How this structure behaves", tuck: "How this structure behaves", sub: "The rules that sit around the amounts.", per: 1, facts },
         ],

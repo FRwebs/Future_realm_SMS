@@ -52,7 +52,6 @@ export function permissionsTab(overview: AccessOverview): TabContent {
   const holders = new Set(groups.flatMap((group) => group.holderIds));
   const recertify = recertifyDrawer(overview);
   const due = overview.recertification.dueOn;
-  const last = overview.recertification.last;
   const asLink = (rows: Person[]) =>
     inviteDrawer(
       rows.map((person) => ({ userId: person.userId, name: person.name, role: person.role, accountDays: person.accountDays })),
@@ -60,27 +59,24 @@ export function permissionsTab(overview: AccessOverview): TabContent {
     );
 
   const cards: KpiCard[] = [
-    { label: "People with access", value: String(people.length), sub: "Everyone who can sign in" },
+    { label: "People with access", value: String(people.length), },
     {
       label: "Above their role template",
       value: String(above.length),
       tone: above.length ? "attention" : "positive",
-      sub: above.length ? "Holding more than their role gives" : "Everyone is at or below their template",
       ...(above.length ? { link: "Review them", drawer: recertify } : {}),
     },
     {
       label: "Never activated",
       value: String(never.length),
       tone: never.length ? "negative" : "positive",
-      sub: never.length ? "Holding access they have never used" : "Everyone has signed in",
       ...(never.length ? { link: "Resend invitations", drawer: asLink(never) } : {}),
     },
-    { label: "Sensitive group holders", value: String(holders.size), sub: `Across ${plural(groups.length, "group")}` },
+    { label: "Sensitive group holders", value: String(holders.size), },
     {
       label: "Recertification",
       value: due ? dayLong(due) : "Not scheduled",
       tone: due && new Date(due).getTime() < Date.now() ? "attention" : "neutral",
-      sub: last ? `Last confirmed by ${last.by}` : "Not yet done",
     },
   ];
 
@@ -196,7 +192,6 @@ export function permissionsTab(overview: AccessOverview): TabContent {
             rows: personRows,
             per: 10,
             empty: "Nobody matches this filter.",
-            foot: "Open a person’s map to see all sixteen modules and every tab inside them, and to change any tick.",
           },
         ],
       },
@@ -268,7 +263,6 @@ export function templatesPage(overview: AccessOverview): TabContent {
           ],
           head: ["Template", "People", "Modules", "Data scope", "Can approve", ""], rows, per: 12,
           empty: "No template matches.",
-          foot: "Changing a template changes it for everyone on it. One person's exception belongs on their own map.",
         }],
       },
     ],

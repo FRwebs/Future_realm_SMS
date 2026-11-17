@@ -27,7 +27,6 @@ export async function earlyWarningRows(): Promise<PanelRow[]> {
       type: "table", title: "Early warning", tag: `${v.counts.flagged} of ${v.counts.children}`, tagTone: v.counts.flagged ? "attention" : "positive",
       sub: v.term ? `${v.term.name}, ${v.term.session}. Four plain rules over attendance and results — each flagged child shows which fired. It says who may fall behind; it does not say why they should or what to do.` : "No term is current.",
       meta: `${v.counts.flagged} children flagged`, noun: "child", nounPlural: "children", search: "Find a child", head: ["Child", "Level", "Average", "Attendance", "Why"], rows, per: 10, noRowOpen: true, empty: "Nobody meets two or more of the rules right now.",
-      foot: "A rule-based early warning, not a forecast: marks against the class, the pass mark, and attendance.",
     }]),
   ];
 }

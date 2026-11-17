@@ -93,10 +93,10 @@ function timetableTab(v: TimetableView, me: TeacherWorkspaceView, schoolName: st
           ...row("1fr", [{
             type: "kpi", bare: true,
             cards: [
-              { label: "Classes", value: String(classes.length), sub: classes.map((entry) => entry.arm).join(" · ") },
-              { label: "Next", value: nextOne ? nextOne.from : "—", sub: nextOne ? `${nextOne.arm} · ${nextOne.room}` : v.published ? "Nothing else today" : "Not published yet", tone: nextOne ? "progress" : "neutral" },
-              { label: early ? "Sessions today" : "Periods today", value: String(v.periods.length), sub: v.published ? dayWords(v.date).split(" ")[0] : "Not published yet" },
-              { label: "Periods this week", value: String(v.published ? v.weekCount : v.teachingPerWeek), sub: v.published ? "Across every class" : "On your assignments", tone: "positive" },
+              { label: "Classes", value: String(classes.length), },
+              { label: "Next", value: nextOne ? nextOne.from : "—", tone: nextOne ? "progress" : "neutral" },
+              { label: early ? "Sessions today" : "Periods today", value: String(v.periods.length), },
+              { label: "Periods this week", value: String(v.published ? v.weekCount : v.teachingPerWeek), tone: "positive" },
             ],
           }]),
           show: "phone" as const,
@@ -172,12 +172,12 @@ function timetableTab(v: TimetableView, me: TeacherWorkspaceView, schoolName: st
       row("1fr", [{
         type: "kpi", sub: `${dayWords(v.date)} · your own timetable, never the school’s.`, per: 4,
         cards: [
-          { label: early ? "Sessions today" : "Periods today", value: String(teaching.length), sub: v.schoolDay ? (teaching.length ? "All teaching" : "Nothing timetabled for you") : "Today is not a school day" },
-          { label: "Next", value: next ? next.from : "—", sub: next ? `${next.subject} · ${next.room}` : "Nothing else today", tone: next ? "progress" : "neutral" },
-          { label: "This week", value: String(v.weekCount), unit: early ? "sessions" : "periods", sub: v.teachingPerWeek ? `${v.teachingPerWeek} a week on your assignments` : "Set by the school office", tone: "positive" },
+          { label: early ? "Sessions today" : "Periods today", value: String(teaching.length), },
+          { label: "Next", value: next ? next.from : "—", tone: next ? "progress" : "neutral" },
+          { label: "This week", value: String(v.weekCount), unit: early ? "sessions" : "periods", tone: "positive" },
           me.formArms.length
-            ? { label: "Form class", value: me.formArms[0].name, sub: `${me.formArms[0].roll} children${me.formArms.length > 1 ? ` · and ${me.formArms.length - 1} more` : ""}`, tone: "neutral" }
-            : { label: "Department", value: me.department?.name ?? "None", sub: me.reportsTo ? `${me.reportsTo.name} · ${me.reportsTo.title}` : "", tone: "neutral" },
+            ? { label: "Form class", value: me.formArms[0].name, tone: "neutral" }
+            : { label: "Department", value: me.department?.name ?? "None", tone: "neutral" },
         ],
       }]),
       row("1fr", [{
@@ -185,13 +185,11 @@ function timetableTab(v: TimetableView, me: TeacherWorkspaceView, schoolName: st
         sub: "Who you have, and what you teach them, in order.", meta: dayWords(v.date), noun: "period", nounPlural: "periods",
         head: ["Time", "Arm", "What to teach", "Where", "Note", ""], rows: todayRows, noRowOpen: true,
         empty: v.schoolDay ? "No period is timetabled for you today." : "Today is not a school day in this term.",
-        foot: "A cover period is marked, and disappears from this page the day the cover ends.",
       }]),
       row("1fr", [{
         type: "table", title: "Your week", sub: "The same five days a wall chart would show.", meta: `${v.weekCount} ${early ? "sessions" : "periods"}`, noun: "period", nounPlural: "periods",
         head: ["#", "Time", ...v.days], rows: weekRows, per: 8, noRowOpen: true,
         empty: "Nothing is timetabled for you this week.",
-        foot: "A blank is free — not a period nobody told you about.",
       }]),
     ]),
     ],
@@ -302,14 +300,13 @@ function teachingTab(v: TeachingView, questions: Question[], me: TeacherWorkspac
           entry.assistant ? cell("") : { kind: "action", label: "Open the sheet", href: `/score-entry-results/enter/${entry.classId}/${entry.subjectId}` },
         ] as TableCellKind[],
       })),
-      noRowOpen: true, empty: "Nothing is assigned to you yet. If you teach something, ask the office to add it below.", foot: "No assignment, no sheet.", per: 10,
+      noRowOpen: true, empty: "Nothing is assigned to you yet. If you teach something, ask the office to add it below.", per: 10,
     }]),
     questions.length
       ? row("1fr", [{
           type: "table", title: "Questions you have asked", tag: `${waiting} waiting`, tagTone: "submitted",
           sub: "The office replies here. When they change an assignment, your sheets, registers and notes follow on their own.", meta: `${questions.length} question${questions.length === 1 ? "" : "s"}`, noun: "question", nounPlural: "questions",
-          head: ["Question", "About", "Sent", "State", ""], rows: askRows, noRowOpen: true, foot: "A question changes nothing by itself.",
-        }])
+          head: ["Question", "About", "Sent", "State", ""], rows: askRows, noRowOpen: true,         }])
       : null,
     row("1fr", [{
       type: "tiles", title: "Something here not right?", sub: "Your assignments are set by the school office. Ask them to fix it at the source — the sheet, register and access change together.", per: kinds.length,

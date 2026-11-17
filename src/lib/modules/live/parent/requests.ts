@@ -35,7 +35,6 @@ export async function requestsPage(child: string, query: Record<string, string |
   const open = data.items.filter((item) => item.open);
   const closed = data.items.filter((item) => !item.open);
   const list = tab === "Open" ? open : tab === "Closed" ? closed : data.items;
-  const oldest = open[open.length - 1];
   const late = open.filter((item) => item.late).length;
 
   return {
@@ -47,10 +46,10 @@ export async function requestsPage(child: string, query: Record<string, string |
       row("1fr", [{
         type: "kpi", bare: true, per: 4,
         cards: [
-          { label: "Open", value: String(open.length), sub: oldest ? `Oldest: ${age(oldest.opened, data.today)}` : "Nothing waiting", tone: (open.length ? "progress" : "positive") as PanelTone, icon: "listCheck" },
-          { label: "Answered", value: String(closed.filter((item) => item.state === "Resolved").length), sub: "Each with a written outcome", tone: "positive" as PanelTone, icon: "person" },
-          { label: "Typical answer time", value: data.typical === null ? "—" : `${data.typical} ${data.typical === 1 ? "day" : "days"}`, sub: data.typical === null ? "Nothing answered yet" : "From sent to answered", tone: "neutral" as PanelTone, icon: "clock" },
-          { label: "Past its promised date", value: String(late), sub: late ? "Past the school’s reply time" : "None", tone: (late ? "negative" : "positive") as PanelTone, icon: "calendar" },
+          { label: "Open", value: String(open.length), tone: (open.length ? "progress" : "positive") as PanelTone, icon: "listCheck" },
+          { label: "Answered", value: String(closed.filter((item) => item.state === "Resolved").length), tone: "positive" as PanelTone, icon: "person" },
+          { label: "Typical answer time", value: data.typical === null ? "—" : `${data.typical} ${data.typical === 1 ? "day" : "days"}`, tone: "neutral" as PanelTone, icon: "clock" },
+          { label: "Past its promised date", value: String(late), tone: (late ? "negative" : "positive") as PanelTone, icon: "calendar" },
         ],
       }]),
       row("minmax(0,1.55fr) minmax(0,1fr)", [
