@@ -173,11 +173,22 @@ export function Field({
 
   if (field.kind === "static") {
     const picked = field.by ? field.by.cases[String(values?.[field.by.field] ?? "")] : undefined;
+    // A field that is the product of two others is worked out on every keystroke, so the answer is
+    // never one input behind what has been typed.
+    const product = field.times
+      ? (() => {
+          const read = (name: string) => Number(String(values?.[name] ?? "").replace(/[^0-9.-]/g, ""));
+          const [one, two] = field.times.fields.map(read);
+          if (!Number.isFinite(one) || !Number.isFinite(two) || !one || !two) return field.times.empty ?? field.value;
+          const total = one * two;
+          return field.times.money ? `₦${Math.round(total).toLocaleString("en-NG")}` : String(total);
+        })()
+      : undefined;
     return (
       <div className={wrap}>
         {label}
         <p className="text-pretty pt-[2px] text-[11.5px] font-semibold leading-normal text-[#0D2315]">
-          {picked?.value ?? field.value}
+          {product ?? picked?.value ?? field.value}
         </p>
         {/* A value that changes with another field carries its own note; the field's general
             guidance is already on the label as a tooltip. */}

@@ -79,6 +79,27 @@ describe("M11 Plan", () => {
     expect(html).toContain("began 161 days ago");
   });
 
+  // A term is renewed once. The button used to be offered whatever had already happened, so a
+  // school that renewed and came back could raise a second invoice for the same term by clicking
+  // it again, with nothing on the page saying the first one existed.
+  it("stops a second renewal once the next term is invoiced, and says where it stands", () => {
+    const invoiced = plan({
+      invoices: [{ id: "i-9", no: "FR-INV-2027-0007", kind: "TERMLY", kindLabel: "Termly plan", period: "Third Term", amount: 213600, tax: 16020, total: 229620, issued: "2026-11-01T00:00:00.000Z", due: "2026-11-15T00:00:00.000Z", paidAt: null, state: "Outstanding", termLabel: "Third Term 2025/2026" }],
+    });
+    const html = markup(planTab(invoiced, credits()));
+    expect(html).toContain("invoiced · FR-INV-2027-0007 unpaid");
+    expect(html).toContain("Pay the Third Term invoice");
+    expect(html).not.toContain("Renew for Third Term");
+
+    const paid = plan({
+      invoices: [{ id: "i-9", no: "FR-INV-2027-0007", kind: "TERMLY", kindLabel: "Termly plan", period: "Third Term", amount: 213600, tax: 16020, total: 229620, issued: "2026-11-01T00:00:00.000Z", due: "2026-11-15T00:00:00.000Z", paidAt: "2026-11-03T00:00:00.000Z", state: "Paid", termLabel: "Third Term 2025/2026" }],
+    });
+    const done = markup(planTab(paid, credits()));
+    expect(done).toContain("renewed · FR-INV-2027-0007");
+    expect(done).toContain("Open the Third Term invoice");
+    expect(done).not.toContain("Renew for Third Term");
+  });
+
   it("flags a low wallet on the line that sells the credits", () => {
     expect(markup(planTab(plan(), credits()))).toContain("Low");
   });

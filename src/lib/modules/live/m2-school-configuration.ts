@@ -3080,6 +3080,13 @@ function itemFields(item: FeeItem | null): FormField[] {
       hint: "Leave the price out of the print if you would rather families shop around",
     },
     {
+      label: "Line total",
+      kind: "static",
+      value: "—",
+      times: { fields: ["Quantity per child", "Unit price"], money: true, empty: "Enter a quantity and a price" },
+      hint: "Quantity × unit price, per child",
+    },
+    {
       label: "Where a family may buy it",
       kind: "select",
       value: source,

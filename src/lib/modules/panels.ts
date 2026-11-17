@@ -534,6 +534,13 @@ export type FormField = {
       value: string;
       /** What it says depends on another field: the case for that field's current value, else `value`. */
       by?: { field: string; cases: Record<string, { value: string; hint?: string }> };
+      /**
+       * The product of two other fields, worked out as they are typed.
+       *
+       * A quantity and a unit price with no line total beside them makes the reader do the
+       * multiplication, or save and go and look. `money` writes the answer in naira.
+       */
+      times?: { fields: [string, string]; money?: boolean; empty?: string };
     }
   /** Many people (or things) picked from a searchable list, with the chosen ones shown beside it. */
   | { kind: "picker"; options: PickerOption[]; checked?: string[]; placeholder?: string; noun?: string; nounPlural?: string; groupAll?: string }

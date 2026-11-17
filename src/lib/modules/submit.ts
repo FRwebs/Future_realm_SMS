@@ -45,10 +45,16 @@ export async function readReply<T extends { ok?: boolean; error?: string; messag
 export function readableError(raw: string | undefined): string {
   if (!raw) return "That did not save.";
   const trimmed = raw.trim();
-  if (!trimmed.startsWith("[") && !trimmed.startsWith("{")) return trimmed;
+  /*
+   * A server that answers "name: Give the send a name somebody will recognise later." is naming the
+   * field it rejected, which the reader does not need: the sentence after it already says what to
+   * do, and the prefix makes it read like a log line rather than something written for them.
+   */
+  const named = /^[a-z][A-Za-z0-9_.]*:\s+\S/.test(trimmed) ? trimmed.slice(trimmed.indexOf(":") + 1).trim() : trimmed;
+  if (!named.startsWith("[") && !named.startsWith("{")) return named;
 
   try {
-    const parsed = JSON.parse(trimmed) as unknown;
+    const parsed = JSON.parse(named) as unknown;
     const issues = Array.isArray(parsed) ? parsed : [parsed];
     const messages = issues
       .map((issue) => {
@@ -65,9 +71,9 @@ export function readableError(raw: string | undefined): string {
         return label ? `${label}: ${message}` : message;
       })
       .filter((message): message is string => Boolean(message));
-    return messages.length ? messages.join(" · ") : trimmed;
+    return messages.length ? messages.join(" · ") : named;
   } catch {
-    return trimmed;
+    return named;
   }
 }
 

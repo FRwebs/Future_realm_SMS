@@ -480,6 +480,19 @@ export function CommitDone({
  * requires an app-router context that server-rendered markup and unit tests do
  * not have.
  */
+/**
+ * What the first of the two buttons says.
+ *
+ * It used to say only "Review", which is true but does not tell a reader that this is the way to
+ * save: a tester filling in the school's identity looked for a Save button, found "Review", and
+ * reported that there was none. Naming what the review leads to — "Review and save", "Review and
+ * send" — keeps the step that exists for a reason and answers the question being asked.
+ */
+export function reviewStepLabel(commitLabel: string, isEdit: boolean): string {
+  const verb = commitLabel.trim().split(/\s+/)[0]?.toLowerCase() ?? "";
+  return /^[a-z]+$/.test(verb) && verb.length > 2 ? `Review and ${verb}` : isEdit ? "Review changes" : "Review";
+}
+
 function DrawerPanel({
   spec,
   onClose,
@@ -1076,7 +1089,7 @@ function DrawerPanel({
                     className="whitespace-nowrap rounded-[9px] px-[17px] py-[10px] text-[11.5px] font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
                     style={{ background: INK, boxShadow: "0 7px 16px -9px rgba(13,35,21,0.6)" }}
                   >
-                    {ui(isEdit ? "Review changes" : "Review")}
+                    {ui(reviewStepLabel(primaryLabel, isEdit))}
                   </button>
                 ) : null}
                 {!onLastStep && !(staged && reviewing) ? (
