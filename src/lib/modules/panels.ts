@@ -368,6 +368,14 @@ export type PanelAction = {
    * goes to a page (`href`) the ids travel on its query, comma-separated, under `key`.
    */
   selection?: { key: string; noun: string };
+  /**
+   * Drawn only at a phone's width.
+   *
+   * The page head is replaced on a phone by a plain title with no buttons, so an action the head
+   * carries would otherwise be unreachable there. The workspace repeats those on the first panel's
+   * strip and marks them with this, which hides them again on a laptop where the head has them.
+   */
+  phoneOnly?: boolean;
 } & Trigger;
 
 export type ListItem = {

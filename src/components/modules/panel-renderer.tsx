@@ -217,12 +217,14 @@ export const PANEL_SHELL =
   "panel-card min-w-0 overflow-hidden rounded-[14px] border bg-(--color-bg-surface) px-[18px] pb-[12px]";
 
 /** The mockup's two panel-action faces: ink for the primary, outlined otherwise. */
-function panelActClass(primary?: boolean) {
+function panelActClass(primary?: boolean, phoneOnly?: boolean) {
   return cn(
     "inline-flex items-center whitespace-nowrap rounded-[8px] text-[10.5px] font-semibold transition-[background,border-color] duration-150",
     primary
       ? "bg-[#0D2315] px-[11px] py-[6.5px] text-white hover:bg-[#1B3A28]"
       : "border border-[#DEE8E2] bg-white px-[10px] py-[5.5px] text-[#435048] hover:border-[#BFDCD1] hover:bg-[#F1F8F4]",
+    // The page head carries this one on a laptop and is not drawn at all on a phone.
+    phoneOnly && "md:hidden",
   );
 }
 
@@ -318,7 +320,7 @@ export function PanelHeader({
                     key={act.label}
                     type="button"
                     onClick={onExport}
-                    className={panelActClass(act.primary)}
+                    className={panelActClass(act.primary, act.phoneOnly)}
                   >
                     {act.label}
                   </button>
@@ -328,7 +330,7 @@ export function PanelHeader({
                     trigger={act}
                     label={act.label}
                     openDrawer={openDrawer}
-                    className={panelActClass(act.primary)}
+                    className={panelActClass(act.primary, act.phoneOnly)}
                   />
                 ),
               )}
