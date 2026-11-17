@@ -55,5 +55,5 @@ export function performanceTab(d: PerformanceData): TabContent {
       },
     ],
   });
-  return { title: "Performance", desc: "Are decisions actually being made?", primary: { label: "Export for review", icon: DOWNLOAD, href: "/approvals-workflow/performance/export" }, launchers: [{ label: "Open the queue", href: "/approvals-workflow/queue" }, { label: "See the routes", href: "/approvals-workflow/workflow" }], rows };
+  return { title: "Performance", desc: "Are decisions actually being made?", primary: { label: "Export for review", icon: DOWNLOAD, href: "/approvals-workflow/performance/export", download: true }, launchers: [{ label: "Open the queue", href: "/approvals-workflow/queue" }, { label: "See the routes", href: "/approvals-workflow/workflow" }], rows };
 }

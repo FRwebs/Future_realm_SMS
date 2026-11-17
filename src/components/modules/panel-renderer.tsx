@@ -172,7 +172,12 @@ function TriggerControl({
   }
 
   if (trigger.href) {
-    return (
+    // A file is fetched by the browser, not routed to by the client router.
+    return trigger.download ? (
+      <a href={trigger.href} download className={className} style={style}>
+        {body}
+      </a>
+    ) : (
       <Link href={trigger.href as Route} className={className} style={style}>
         {body}
       </Link>

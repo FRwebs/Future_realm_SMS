@@ -51,6 +51,20 @@ export function dayStrip(days: string[], current: string, href: (iso: string) =>
   };
 }
 
+/** The day on screen as a spreadsheet: the spool route, with the date on both ends of its range. */
+function dayExportHref(date: string): string {
+  const query = new URLSearchParams({
+    for: "The whole school",
+    period: "A date range",
+    from: date,
+    to: date,
+    include: "Daily marks",
+    format: "CSV · raw",
+    purpose: "School records",
+  });
+  return `/attendance/register/export?${query.toString()}`;
+}
+
 export function registerTab(o: Overview, options: Options): TabContent {
   const d = o.day;
   const unmarked = o.arms.filter((arm) => arm.state !== "Marked");
@@ -175,9 +189,18 @@ export function registerTab(o: Overview, options: Options): TabContent {
   return {
     title: "Register",
     desc: "The whole school's day, arm by arm.",
-    primary: { label: "Export the day", icon: "M12 3.5v11M7.5 10l4.5 4.5 4.5-4.5M4.5 19.5h15", drawer: spoolDrawer(options, { for: "The whole school", label: "Attendance · Register" }) },
+    /*
+     * "Export the day" exports the day.
+     *
+     * It used to open the spool form — an official extract, ten fields, defaulting to one arm for a
+     * whole term — which downloaded nothing and was not the day. The day is one request to the
+     * spool route with the date on both ends of its range; the form keeps its own name beside it,
+     * for the extracts that need a purpose on the record.
+     */
+    primary: { label: "Export the day", icon: "M12 3.5v11M7.5 10l4.5 4.5 4.5-4.5M4.5 19.5h15", href: dayExportHref(o.date), download: true },
     launchers: [
       { label: "Mark a register", href: "/attendance/mark" },
+      { label: "Spool an official record", drawer: spoolDrawer(options, { for: "The whole school", label: "Attendance · Register" }) },
       { label: "See who has not marked", href: "/attendance/compliance" },
     ],
     rows,
@@ -266,7 +289,7 @@ export function dayPage(d: Day, options: Options, correction: CorrectionOptions)
           { label: "Term attendance", value: "All", options: ["All", "Below 75%", "75–92%", "Above 92%"], match: { "Below 75%": "term:Below", "75–92%": "term:Between", "Above 92%": "term:Above" } },
         ],
         acts: [
-          { label: "Print the register", href: `/attendance/spool?for=A+class+arm&arm=${d.arm.id}&period=A+date+range&from=${d.date}&to=${d.date}&include=Daily+marks&include=Reasons+and+explanations&format=PDF&purpose=School+records&letterhead=true` },
+          { label: "Print the register", href: `/attendance/register/export?for=A+class+arm&arm=${d.arm.id}&period=A+date+range&from=${d.date}&to=${d.date}&include=Daily+marks&include=Reasons+and+explanations&format=PDF&purpose=School+records&letterhead=true`, download: true },
           { label: "Correct this register", primary: true, drawer: correct() },
         ],
         head: ["Roll", "Child", "Admission no", "Mark", "Taken", "Reason recorded", "Term %", "Guardian", ""],

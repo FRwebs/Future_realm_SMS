@@ -47,7 +47,9 @@ function MobileFab({ act, openDrawer }: { act: PanelAction; openDrawer: (spec: D
     </>
   );
   const button = act.href ? (
-    <Link href={act.href as Route} className={className} style={style}>{body}</Link>
+    act.download
+      ? <a href={act.href} download className={className} style={style}>{body}</a>
+      : <Link href={act.href as Route} className={className} style={style}>{body}</Link>
   ) : act.drawer ? (
     <button type="button" onClick={() => openDrawer(act.drawer!)} className={className} style={style}>{body}</button>
   ) : null;
@@ -98,6 +100,14 @@ function HeaderAction({
   );
 
   if (act.href) {
+    // A route that answers with a file is a plain link; the client router cannot open one.
+    if (act.download) {
+      return (
+        <a href={act.href} download className={className}>
+          {body}
+        </a>
+      );
+    }
     return (
       <Link href={act.href as Route} className={className}>
         {body}

@@ -277,6 +277,20 @@ export function OnboardingWizard() {
   /* "Progress is saved at every step — you can leave and come back." Everything but the password and the code. */
   const DRAFT_KEY = "fr:signup-draft";
   const [restored, setRestored] = useState(false);
+  /*
+   * Whether what is on screen was typed in an earlier visit.
+   *
+   * Progress is kept on purpose, so leaving and coming back finds the form as it was. It was kept
+   * silently, though: a half-filled sign-up simply reappeared, which reads as data that should have
+   * gone rather than a draft that was saved. The page says so now, and offers to start again.
+   */
+  const [fromDraft, setFromDraft] = useState(false);
+
+  function startAgain() {
+    clearDraft();
+    setFromDraft(false);
+    window.location.reload();
+  }
 
   function clearDraft() {
     try {
@@ -300,6 +314,7 @@ export function OnboardingWizard() {
         if (saved.levels && typeof saved.levels === "object") setLevels(saved.levels as Record<string, boolean>);
         if (saved.subjects && typeof saved.subjects === "object") setSubjects(saved.subjects as Record<string, boolean>);
         setView("wiz");
+        setFromDraft(true);
       }
     } catch {
       // A draft that cannot be read is simply not restored.
@@ -780,6 +795,16 @@ export function OnboardingWizard() {
           </div>
 
           <div className="max-w-[718px] flex-1 px-6 py-[23.5px] sm:px-[39.5px]">
+            {fromDraft ? (
+              <div role="status" className="mb-[18px] flex flex-wrap items-center justify-between gap-3 rounded-[12px] border border-[#dee8e2] bg-white px-[15px] py-[11px]">
+                <p className="text-[11.5px] leading-[1.6] text-[#435048]">
+                  Carried on from where you left off. Nothing has been sent to us yet.
+                </p>
+                <button type="button" onClick={startAgain} className="rounded-[9px] border border-[#cfddd5] px-[11px] py-[6px] text-[11px] font-semibold text-[#435048] hover:bg-[#f2f7f4]">
+                  Start again
+                </button>
+              </div>
+            ) : null}
             {step === 1 ? (
               <div>
                 <div className="mb-[5.5px] font-(--font-heading) text-[24.5px] font-bold tracking-[-0.015em] text-[#0d2315]">About you</div>

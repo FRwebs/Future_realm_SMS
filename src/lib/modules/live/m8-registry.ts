@@ -85,7 +85,7 @@ export function registryTab(data: Registry, rooms: Array<{ id: string; name: str
           readOnlyNote: "Ask your Future Realm contact to open a migration job for this school.",
         },
       },
-      { label: "Export the whole registry", href: "/student-records/registry/export" },
+      { label: "Export the whole registry", href: "/student-records/registry/export", download: true },
     ],
     rows: [
       { cols: "1fr", panels: [{ type: "kpi", per: 5, cards }] },

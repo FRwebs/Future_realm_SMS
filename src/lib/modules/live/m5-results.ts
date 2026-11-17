@@ -67,7 +67,7 @@ export function resultsTab(r: ResultsOverview, corrections: Correction[], option
       type: "table", title: "Every arm", tag: plural(r.arms.length, "arm"), tagTone: "neutral", sub: "How each arm performed. Open one for its broadsheet, then any child for their full result.",
       meta: `${k.total} students · ${k.incomplete} arms incomplete · school average ${num(k.average)}`, search: "Find an arm, a class or a form master",
       filters: [{ label: "Arm", value: "All", options: ["All", ...r.arms.map((arm) => arm.name)], column: 0 }, { label: "State", value: "All", options: ["All", "Complete", "Incomplete"], match: { Complete: "state:Complete", Incomplete: "state:Incomplete" } }],
-      acts: [{ label: "Export the school broadsheet", primary: true, href: "/score-entry-results/results/export" }],
+      acts: [{ label: "Export the school broadsheet", primary: true, href: "/score-entry-results/results/export", download: true }],
       head: ["Arm", "Form master", "Roll", "Computed", "Average", "Pass", "Top", "State", ""], noun: "arm", nounPlural: "arms", per: 10, selectable: true,
       bulkActs: [{ label: "Export selected", primary: true, export: true }], rows: armRows,
     }],
@@ -86,7 +86,7 @@ export function resultsTab(r: ResultsOverview, corrections: Correction[], option
       },
     ],
   });
-  return { title: "Results", desc: "The whole school, then any arm, then any child.", primary: { label: "Export the school broadsheet", icon: DOWNLOAD, href: "/score-entry-results/results/export" }, launchers: [{ label: "Request a correction", drawer: request }, { label: "Open the review queue", href: "/score-entry-results/review" }], rows };
+  return { title: "Results", desc: "The whole school, then any arm, then any child.", primary: { label: "Export the school broadsheet", icon: DOWNLOAD, href: "/score-entry-results/results/export", download: true }, launchers: [{ label: "Request a correction", drawer: request }, { label: "Open the review queue", href: "/score-entry-results/review" }], rows };
 }
 
 /* ───────────────────────── one arm ───────────────────────── */

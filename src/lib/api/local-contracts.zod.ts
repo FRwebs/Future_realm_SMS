@@ -249,7 +249,7 @@ const lib_modules_live_t9_guardians_SubmissionsView: z.ZodType<unknown> = z.loos
 export const localContracts: Record<string, z.ZodType<unknown>> = {
   "src/app/(app)/attendance/drawers/[kind]/[id]/route.ts#b529baba": z.unknown(),
   "src/app/(app)/attendance/drawers/[kind]/[id]/route.ts#f5254341": z.unknown(),
-  "src/app/(app)/attendance/spool/route.ts#d213e505": z.looseObject({ meta: z.looseObject({ title: z.string(), period: z.string(), school: z.string(), by: z.string(), generatedAt: z.string(), purpose: z.string() }), sections: z.array(z.unknown()) }),
+  "src/app/(app)/attendance/register/export/route.ts#d213e505": z.looseObject({ meta: z.looseObject({ title: z.string(), period: z.string(), school: z.string(), by: z.string(), generatedAt: z.string(), purpose: z.string() }), sections: z.array(z.unknown()) }),
   "src/app/(app)/documents/[kind]/[id]/route.ts#49018a3d": z.unknown(),
   "src/app/(app)/documents/[kind]/[id]/route.ts#81f42342": z.lazy(() => app_app_documents_kind_id_route_SchoolPayload),
   "src/app/(app)/fee-management/history/statement/csv/route.ts#a72ca256": z.lazy(() => app_app_fee_management_history_statement_csv_route_Statement),

@@ -140,7 +140,7 @@ export function payrollTab(data: PayrollOverview): TabContent {
       { label: "Pay bands", href: BANDS_HREF },
       { label: "Map staff to a band", drawer: map },
       { label: "Record an off-cycle payment", drawer: offCycle },
-      { label: "Export the payroll register", href: REGISTER_HREF },
+      { label: "Export the payroll register", href: REGISTER_HREF, download: true },
     ],
     rows: [
       { cols: "1fr", panels: [{ type: "kpi", title: "This month’s payroll", sub: hidden ? "Amounts are held to the people the payroll setup names" : "Computed from bands and steps — never typed", per: 5, cards }] },
@@ -498,7 +498,7 @@ export function runPage(data: PayrollOverview) {
   }));
   const bandCodes = Array.from(new Set(mapped.map((row) => row.band).filter((code): code is string => Boolean(code))));
   const primary = approved
-    ? { label: "Open the payroll register", href: REGISTER_HREF }
+    ? { label: "Open the payroll register", href: REGISTER_HREF, download: true }
     : stage === "approval"
       ? { label: "Approve the run", drawer: approveRunDrawer({ people: totals.people, net, month: month.monthName, preparedBy: run?.preparedBy ?? null, variations: data.variations.length }) }
       : { label: "Send for approval", icon: "M5 12h13M13 6.5l5.5 5.5L13 17.5", drawer: sendRunDrawer({ people: totals.people, net, month: month.monthName, variations: data.variations.length }) };
@@ -517,7 +517,7 @@ export function runPage(data: PayrollOverview) {
     primary,
     launchers: [
       { label: "Hold a payment", drawer: holdDrawer(rows) },
-      { label: "Export the run", href: REGISTER_HREF },
+      { label: "Export the run", href: REGISTER_HREF, download: true },
       { label: "Print the payslips", href: "/print/payslips" },
     ],
     tag: label,
