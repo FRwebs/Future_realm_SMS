@@ -2,10 +2,10 @@ import { renderToStaticMarkup } from "react-dom/server";
 
 import { PanelRows } from "@/components/modules/panel-renderer";
 import { toCsv } from "@/lib/modules/csv";
-import { appraisalTab, roleKpiPage } from "@/lib/modules/live/m7-appraisal";
-import { leaveTab } from "@/lib/modules/live/m7-leave";
+import { appraisalSetsPage, appraisalTab, roleKpiPage } from "@/lib/modules/live/m7-appraisal";
+import { leaveBalancesPage, leavePolicyPage, leaveTab } from "@/lib/modules/live/m7-leave";
 import { bandDrawer, decideLeaveDrawer, flowStageDrawer, mapStaffDrawer, naira, nairaShort } from "@/lib/modules/live/m7-pay-forms";
-import { bandPage, payrollTab, runPage } from "@/lib/modules/live/m7-payroll";
+import { bandPage, bandsPage, payrollTab, runPage } from "@/lib/modules/live/m7-payroll";
 import type { AppraisalOverview, BandDetail, LeaveOverview, LeaveRow, Moderation, PayRow, PayrollOverview } from "@/lib/modules/live/m7-types";
 import { PROCESS_FLOWS, flowPlain } from "@/lib/modules/staff-flows";
 import { KPI_SET_DEFAULTS, kpiSetFor } from "@/lib/modules/staff-policy";
@@ -55,8 +55,9 @@ describe("M07 Payroll", () => {
   });
 
   it("asks for a first band when none exists", () => {
-    const html = markup(payrollTab(payroll({ bands: [] })));
-    expect(html).toContain("No pay band exists yet");
+    const none = payroll({ bands: [] });
+    expect(markup(payrollTab(none))).toContain("Create the first band");
+    expect(markup(bandsPage(none))).toContain("No pay band exists yet");
   });
 
   it("sends the ticked people to a bulk status change", () => {
@@ -134,6 +135,34 @@ describe("M07 Leave", () => {
     expect(flowStageDrawer("leave", stages, 1).submit?.method).toBe("PUT");
     expect(flowStageDrawer("leave", stages, null).submit?.endpoint).toBe("/api/v1/staff-access/flows/leave/stages");
   });
+
+  // The tab is the queue. The terms a request is measured against and what each person has left
+  // are reference, so they are pages reached by name — and nothing is lost on the way.
+  it("keeps the queue on the tab and the policy on a page of its own", () => {
+    const data = leave([leaveRow()]);
+    const titles = (content: ReturnType<typeof leaveTab>) =>
+      content.rows.flatMap((row) => row.panels).map((panel) => ("title" in panel ? panel.title : undefined));
+    expect(titles(leaveTab(data))).toEqual(["Who is away, and who has asked", "1 request would leave classes uncovered", "Leave requests"]);
+    expect(titles(leavePolicyPage(data))).toContain("Leave types");
+    expect(titles(leavePolicyPage(data))).toContain("How a request is approved");
+    expect(titles(leaveBalancesPage(data))).toEqual(["Balances"]);
+    expect(leaveTab(data).launchers?.map((act) => act.href)).toContain("/staff-access/leave/policy");
+  });
+
+  it("states a leave type's whole policy in eight columns, cover included", () => {
+    const withType = leave([leaveRow()]);
+    withType.types = [{
+      code: "ANNUAL", name: "Annual leave", entitlement: 24, unit: "Working days", per: "a session", accrual: "Accrues monthly",
+      carry: "5 days", pay: "Paid in full", evidence: "Not required", decides: "The Principal", threshold: null, notice: "Two weeks",
+      restricted: [], coverRequired: true, halfDays: true, statutory: false, visible: true, requests: 3,
+    }];
+    const page = leavePolicyPage(withType);
+    const table = page.rows.flatMap((row) => row.panels).find((panel) => panel.type === "table");
+    expect(table?.type === "table" ? table.head.length : 0).toBe(8);
+    expect(table?.type === "table" ? table.rows[0]?.cells.length : 0).toBe(8);
+    expect(markup(page)).toContain("Cover required");
+    expect(markup(page)).toContain("Accrues monthly");
+  });
 });
 
 function appraisal(): AppraisalOverview {
@@ -161,6 +190,18 @@ describe("M07 Appraisal", () => {
     data.sets.teaching.kpis = data.sets.teaching.kpis.map((kpi, index) => (index === 0 ? { ...kpi, weight: 10 } : kpi));
     const page = roleKpiPage(data, "Form Master");
     expect(page?.primary.label).toBe("Weights must total 100 to publish");
+  });
+
+  // The tab is the review queue. What each role is measured on and the order the cycle runs in
+  // are the cycle's setup, and sat between the queue and the reader.
+  it("keeps the review queue on the tab and the cycle's setup on a page of its own", () => {
+    const data = appraisal();
+    const titles = (rows: ReturnType<typeof appraisalSetsPage>["rows"]) =>
+      rows.flatMap((row) => row.panels).map((panel) => ("title" in panel ? panel.title : undefined));
+    expect(titles(appraisalTab(data, moderation).rows)).toEqual(["Where the cycle stands", "Where each person is"]);
+    expect(titles(appraisalSetsPage(data).rows)).toEqual(["How a rating is arrived at", "KPI sets, by role", "How this cycle runs"]);
+    expect(appraisalTab(data, moderation).launchers?.map((act) => act.href)).toContain("/staff-access/appraisal/sets");
+    expect(markup(appraisalSetsPage(data))).toContain("KPI sets, by role");
   });
 
   it("puts every role on a set, and every default set on exactly 100", () => {

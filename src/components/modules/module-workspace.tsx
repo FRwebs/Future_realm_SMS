@@ -311,6 +311,19 @@ function ModuleHead({
 }
 
 /**
+ * What the head cannot hold, plus what it holds but a phone never draws.
+ *
+ * The head keeps one shortcut beside a primary and two without one. Everything after that goes to
+ * the panels. The ones the head does show are repeated for the phone alone, so every launcher a tab
+ * offers is reachable at both widths without either showing it twice.
+ */
+export function spilled(launchers: PanelAction[] | undefined, primary?: PanelAction): PanelAction[] {
+  const all = launchers ?? [];
+  const onHead = all.slice(0, primary ? 1 : 2);
+  return [...onHead.map((act) => ({ ...act, primary: false, phoneOnly: true })), ...all.slice(onHead.length)];
+}
+
+/**
  * One tab of a module: its header, its panels, and the drawer they share.
  *
  * The drawer lives here rather than inside the panels so that the header's
@@ -454,7 +467,10 @@ export function ModuleWorkspace({
 
       {body}
 
-      <PanelRowsWithDrawer rows={rows} openDrawer={setDrawer} spill={(launchers ?? []).slice(primary ? 1 : 2)} />
+      {/* Two decisions on the head card, never three; the rest land on the first panel's strip. On a
+          phone the head card is not drawn at all, so the two it holds are repeated there and hidden
+          again at a laptop's width — otherwise a page reached only from the head has no way in. */}
+      <PanelRowsWithDrawer rows={rows} openDrawer={setDrawer} spill={spilled(launchers, primary)} />
 
       {hasPhoneBar && floats && (phonePrimary ?? primary) ? <MobileFab act={(phonePrimary ?? primary)!} openDrawer={setDrawer} /> : null}
     </div>
