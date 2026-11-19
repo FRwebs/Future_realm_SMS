@@ -104,14 +104,32 @@ async function call<T>(path: string, method: "GET" | "POST", body?: unknown): Pr
 
 /* ───────────────────────────── nothing is written over ───────────────────────────── */
 
-async function refuseIfAnyExists() {
-  const emails = [CONFIG.owner.email, CONFIG.teacher.email, CONFIG.parent.email];
-  const taken = await prisma.user.findMany({ where: { email: { in: emails } }, select: { email: true } });
-  if (taken.length) {
-    throw new Error(`These accounts already exist, so nothing was written: ${taken.map((row) => row.email).join(", ")}. Use different addresses, or remove them first.`);
+/*
+ * What is already here, and whether to go on.
+ *
+ * Sign-up does a great deal of writing, and over a long link the answer can be lost after the work
+ * has landed — which leaves a school that exists and is only part-built. Refusing outright would
+ * strand it, so the check reports what it finds and `RESUME=1` says to carry on from there. Without
+ * that word it still refuses, because a second run that half-recognises a school is how duplicates
+ * are made.
+ */
+async function standing() {
+  const school = await prisma.school.findFirst({ where: { OR: [{ name: CONFIG.schoolName }, ...(CONFIG.slug ? [{ slug: CONFIG.slug }] : [])] }, select: { id: true, name: true, slug: true } });
+  const taken = await prisma.user.findMany({ where: { email: { in: [CONFIG.owner.email, CONFIG.teacher.email, CONFIG.parent.email] } }, select: { email: true, schoolId: true } });
+  const resume = process.env.RESUME === "1";
+
+  if (!school && !taken.length) return { school: null };
+  const elsewhere = taken.filter((row) => !school || row.schoolId !== school.id);
+  if (elsewhere.length) throw new Error(`These addresses are already in use under another school, so nothing was written: ${elsewhere.map((row) => row.email).join(", ")}.`);
+  if (!resume) {
+    throw new Error(
+      `"${school?.name ?? CONFIG.schoolName}" is already here${school ? ` (${school.slug})` : ""}, so nothing was written. ` +
+        `If an earlier run was cut short and you want this one to finish it, run again with RESUME=1.`,
+    );
   }
-  const named = await prisma.school.findFirst({ where: { name: CONFIG.schoolName }, select: { name: true, slug: true } });
-  if (named) throw new Error(`A school called "${named.name}" is already here (${named.slug}), so nothing was written.`);
+  if (!school) throw new Error("RESUME=1 was given, but there is no school of that name to carry on with.");
+  console.log(`  resuming    ${school.name} · ${school.slug}`);
+  return { school };
 }
 
 /* ───────────────────────────── the steps ───────────────────────────── */
@@ -124,11 +142,17 @@ type Overview = {
 
 async function main() {
   console.log(`Building "${CONFIG.schoolName}" through ${BASE}`);
-  await refuseIfAnyExists();
+  const already = await standing();
 
   // 1 · the school itself, by the same path a real sign-up takes: session, terms, grading scheme,
-  //     assessment components, subjects, class levels and their arms, and the trial.
-  const registered = await call<Registered>("/api/v1/onboarding/schools", "POST", {
+  //     assessment components, subjects, class levels and their arms, and the trial. A school that
+  //     is already standing is signed into instead.
+  const registered = already.school
+    ? await (async (): Promise<Registered> => {
+        await call("/api/v1/auth/login", "POST", { identifier: CONFIG.owner.email, password: CONFIG.password });
+        return { school: already.school! };
+      })()
+    : await call<Registered>("/api/v1/onboarding/schools", "POST", {
     schoolName: CONFIG.schoolName,
     ...(CONFIG.slug ? { slug: CONFIG.slug } : {}),
     category: "MIXED",
@@ -141,7 +165,7 @@ async function main() {
     startTrial: true,
     // Real rungs, so the school has classes of its own and not only the demonstration one.
     levels: ["Primary / Elementary", "Junior Secondary", "Senior Secondary"],
-  });
+      });
   const school = registered.school;
   console.log(`  school      ${school.name} · ${school.slug}`);
 
@@ -156,7 +180,8 @@ async function main() {
   console.log(`  class       ${level.name} · ${arm.name}`);
 
   // 2 · the form master, named on that arm
-  await call("/api/v1/staff-access/staff", "POST", {
+  const teacherAlready = await prisma.user.findFirst({ where: { schoolId: school.id, email: CONFIG.teacher.email }, select: { id: true } });
+  if (!teacherAlready) await call("/api/v1/staff-access/staff", "POST", {
     name: CONFIG.teacher.name,
     email: CONFIG.teacher.email,
     phone: CONFIG.teacher.phone,
@@ -166,10 +191,12 @@ async function main() {
     formArm: arm.id,
     arms: [arm.id],
   });
-  console.log(`  form master ${CONFIG.teacher.name}`);
+  console.log(`  form master ${CONFIG.teacher.name}${teacherAlready ? " (already named)" : ""}`);
 
   // 3 · the child in that arm, and the parent against the child, in one enrolment
-  await call("/api/v1/student-records/registry/enrol", "POST", {
+  const [wantFirst, ...wantRest] = CONFIG.student.name.trim().split(/\s+/);
+  const childAlready = await prisma.student.findFirst({ where: { schoolId: school.id, firstName: wantFirst, lastName: wantRest.join(" ") }, select: { id: true } });
+  if (!childAlready) await call("/api/v1/student-records/registry/enrol", "POST", {
     name: CONFIG.student.name,
     dob: CONFIG.student.dob,
     gender: "Female",
@@ -185,7 +212,7 @@ async function main() {
     // The basis for holding the record at all; the product refuses an enrolment without it.
     consent: ["Core record processing"],
   });
-  console.log(`  student     ${CONFIG.student.name}`);
+  console.log(`  student     ${CONFIG.student.name}${childAlready ? " (already enrolled)" : ""}`);
   console.log(`  parent      ${CONFIG.parent.name}`);
 
   /*
