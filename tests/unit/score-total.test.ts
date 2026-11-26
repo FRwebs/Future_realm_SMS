@@ -1,3 +1,4 @@
+import { isRanked, scoreTotal } from "../../src/lib/domain/score-total";
 import { totalOf, type CellValue, type Column } from "../../backend/src/modules/score-results/scores.shared";
 
 const column = (key: string, max: number): Column => ({ key, id: null, code: key.toUpperCase(), name: key, short: key, max, weight: max, exam: false });
@@ -27,5 +28,28 @@ describe("a child's total on a score sheet", () => {
     expect(result.total).toBe(70);
     expect(result.blank).toBe(1);
     expect(result.complete).toBe(false);
+  });
+});
+
+describe("who is ranked on a sheet", () => {
+  const full = [column("a", 10), column("b", 10), column("exam", 30)];
+
+  it("ranks a child absent for one assessment, over what they sat", () => {
+    const absent = scoreTotal(full, { a: 8, b: "ABS", exam: 20 });
+    expect(absent.total).toBe(35); // 28 of the 40 sat, scaled to the full 50
+    expect(isRanked(absent)).toBe(true);
+  });
+
+  it("does not rank a child with a blank, however much else is entered", () => {
+    expect(isRanked(scoreTotal(full, { a: 8, b: null, exam: 20 }))).toBe(false);
+  });
+
+  it("does not rank a child absent for everything, who has no total", () => {
+    expect(isRanked(scoreTotal(full, { a: "ABS", b: "ABS", exam: "ABS" }))).toBe(false);
+  });
+
+  it("gives the browser and the server the same total, so no screen ranks a child differently", () => {
+    const cells = { a: 8, b: "ABS" as const, exam: 20 };
+    expect(scoreTotal(full, cells).total).toBe(totalOf(full, cells).total);
   });
 });

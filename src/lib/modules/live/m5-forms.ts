@@ -38,7 +38,7 @@ function decisionFacts(page: SheetPage): PanelFact[] {
     ["Below the pass mark", String(s.failed), `Under ${page.subject.passMark}`],
     ["Grade spread", spread(page), "Against this school's own bands"],
     ["Open flags", String(page.openFlags), page.openFlags ? "Each needs an outcome recorded before approval" : "Nothing flagged"],
-    ["Validation", "Passed — no mark exceeds its maximum", "Absences excluded from the average, never scored zero"],
+    ["Validation", "Passed — no mark exceeds its maximum", "Absences worked out over what was sat, never scored zero"],
   ];
 }
 
@@ -142,7 +142,7 @@ export function submitDrawer(g: Grid): DrawerSpec {
       ["Sheet", `${g.subject.name} · ${g.arm.name}`, `${g.term.name} ${g.term.session}`],
       ["Children", String(s.roll), "Every one of them needs a mark or an A"],
       ["Scored", `${s.scored} of ${s.roll}`, s.blanks ? `${s.blanks} still blank — they will have no total` : "No blanks"],
-      ["Marked absent", String(s.absences), "Excluded from the average, never scored zero"],
+      ["Marked absent", String(s.absences), "Worked out over what was sat, never scored zero"],
       ["Highest", s.high ? String(s.high.total) : "—", s.high?.name ?? ""],
       ["Lowest", s.low ? String(s.low.total) : "—", s.low ? `${s.low.name}${best.length && s.low.total < g.passMark ? " · below the pass mark" : ""}` : ""],
       ["Average", s.mean === null ? "—" : String(s.mean), s.armMean === null ? "" : `Arm average ${s.armMean}`],

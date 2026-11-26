@@ -208,7 +208,7 @@ export function studentResultPage(p: StudentPage, from: "review" | "results", op
         facts: [
           ["Framework", keys.map((column) => `${column.name} ${column.weight}%`).join(" · "), "The components pinned to each sheet when it was begun"],
           ["Aggregation", "Sum across the components of a subject", "Then the mean across subjects that count"],
-          ["Absence handling", "Excluded from the average", "Never scored zero"],
+          ["Absence handling", "Worked out over what was sat", "Never scored zero"],
           ["Grading", p.scheme, p.bands.map((band) => `${band.label} ${band.min}–${Math.floor(band.max)}`).join(" · ")],
           ["Position", "By arm and by class", "Ties share the position"],
           ["Corrections", p.corrections.length ? `${p.corrections.length} on this child's scores` : "None", "A published result is revised, not replaced"],

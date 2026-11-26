@@ -1,4 +1,5 @@
 import { apiGet, observe } from "@/lib/api/server";
+import { isRanked } from "@/lib/domain/score-total";
 import { localContracts } from "@/lib/api/local-contracts.zod";
 import type { TeacherWorkspaceView } from "@/lib/api/teacher-workspace";
 import { schoolPermissionKey } from "@/lib/modules/school-modules";
@@ -283,7 +284,7 @@ export function teacherPreviewPage(g: Grid, v: SheetsView): Content {
   const state = g.state;
   const locked = !own || state === "Submitted" || state === "Approved";
   const blanks = g.rows.filter((entry) => !entry.complete).length;
-  const ranked = g.rows.filter((entry) => entry.total !== null && entry.complete && entry.absent === 0);
+  const ranked = g.rows.filter((entry) => isRanked(entry));
   const credit = ranked.filter((entry) => (entry.total as number) >= 50).length;
   const maxTotal = g.columns.reduce((sum, column) => sum + column.max, 0);
   const high = ranked.slice().sort((a, b) => (b.total as number) - (a.total as number))[0];
@@ -300,7 +301,7 @@ export function teacherPreviewPage(g: Grid, v: SheetsView): Content {
       ["Sheet", `${g.subject.name} · ${g.arm.name}`, `${g.term.name} ${g.term.session}`],
       ["Entered", `${g.rows.length - blanks} of ${g.rows.length}`, blanks ? `${blanks} still blank` : "Complete"],
       ["Class average", meanRanked === null ? "—" : String(meanRanked), `${ranked.length - failed} of ${ranked.length} at the pass mark or above`],
-      ["Absent", plural(absMarks, "mark"), "Excluded from the average, never zero"],
+      ["Absent", plural(absMarks, "mark"), "Worked out over what was sat, never zero"],
       ["Goes to", "The review queue", "An Exam Officer, who decides it — because you entered it, you cannot approve it"],
       ["After submission", "Locked to you", "A change needs the reviewer to return it"],
     ],
@@ -308,23 +309,23 @@ export function teacherPreviewPage(g: Grid, v: SheetsView): Content {
     next: { label: "Back to your sheets", href: "/score-entry-results/enter" },
     submit: { endpoint: `/api/v1/score-results/enter/${g.arm.id}/${g.subject.id}/submit`, method: "POST" },
   };
-  const ordered = g.rows.map((entry, index) => ({ entry, index })).sort((a, b) => ((b.entry.complete && b.entry.absent === 0 && b.entry.total !== null ? b.entry.total : -1) - (a.entry.complete && a.entry.absent === 0 && a.entry.total !== null ? a.entry.total : -1)));
+  const ordered = g.rows.map((entry, index) => ({ entry, index })).sort((a, b) => ((isRanked(b.entry) ? (b.entry.total as number) : -1) - (isRanked(a.entry) ? (a.entry.total as number) : -1)));
   const comp = (value: number | "ABS" | null | undefined): TableCellKind => (value === null || value === undefined ? text("—", { tone: "neutral" }) : value === "ABS" ? pill("ABS", "withheld") : text(String(value), { mono: true }));
   const gradeCounts = g.bands.map((band) => ({ band, count: ranked.filter((entry) => entry.grade === band.label).length }));
   const tableRows: TableRow[] = ordered.map(({ entry, index }) => {
-    const isRanked = entry.complete && entry.absent === 0 && entry.total !== null;
+    const counted = isRanked(entry);
     return {
-      keywords: `${entry.name} ${roll(index + 1)} grade:${entry.grade ?? "none"}| rating:${bandWord(entry.rating, isRanked, entry.absent > 0)}|`,
+      keywords: `${entry.name} ${roll(index + 1)} grade:${entry.grade ?? "none"}| rating:${bandWord(entry.rating, counted, entry.absent > 0)}|`,
       cells: [
-        text(isRanked && entry.pos ? String(entry.pos) : "—", { mono: true, strong: true }), { kind: "name", name: entry.name, sub: roll(index + 1) },
+        text(counted && entry.pos ? String(entry.pos) : "—", { mono: true, strong: true }), { kind: "name", name: entry.name, sub: roll(index + 1) },
         ...g.columns.map((column) => comp(entry.cells[column.key])),
         entry.complete && entry.total !== null ? text(String(entry.total), { mono: true, strong: true }) : text("—", { tone: "neutral" }),
-        entry.complete && entry.grade ? pill(entry.grade, gradeTone(entry.grade)) : pill("—", "neutral"), text(bandWord(entry.rating, isRanked, entry.absent > 0)),
+        entry.complete && entry.grade ? pill(entry.grade, gradeTone(entry.grade)) : pill("—", "neutral"), text(bandWord(entry.rating, counted, entry.absent > 0)),
         locked ? (own ? { kind: "action", label: "Open", href: studentHref(g.arm.id, g.subject.id, entry.id) } : text("")) : { kind: "action", label: "Edit", href: back },
       ] as TableCellKind[],
     };
   });
-  const ratings = unique(ordered.map(({ entry }) => bandWord(entry.rating, entry.complete && entry.absent === 0 && entry.total !== null, entry.absent > 0))).sort();
+  const ratings = unique(ordered.map(({ entry }) => bandWord(entry.rating, isRanked(entry), entry.absent > 0))).sort();
   const panels: Array<PanelRow | null> = [
     row("1fr", [{
       type: "kpi", per: 6, title: locked ? "This sheet" : "What you are about to submit",
@@ -356,7 +357,7 @@ export function teacherPreviewPage(g: Grid, v: SheetsView): Content {
         facts: [
           ["Marks within their maxima", "Passed", g.columns.map((column) => `${column.short} ${column.max}`).join(" · ")],
           ["Blanks", blanks ? `${blanks} — they will have no total` : "None", ""],
-          ["Absences", plural(absMarks, "mark"), "Excluded from the average, never scored zero"],
+          ["Absences", plural(absMarks, "mark"), "Worked out over what was sat, never scored zero"],
           ["Goes to", "The review queue", "An Exam Officer decides it"],
           ["Entered by", g.enteredBy.length ? g.enteredBy.join(", ") : own ? "You" : "Another teacher", own ? "Because you entered it, you cannot approve it" : ""],
         ] as PanelFact[],

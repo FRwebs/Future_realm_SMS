@@ -1,6 +1,7 @@
 import type { ScoreSheet } from "@prisma/client";
 
 import { prisma } from "../../../../src/lib/db/prisma";
+import { isRanked } from "../../../../src/lib/domain/score-total";
 import {
   ABSENT, type Band, type CellValue, type Column, type Flag, type FlagOutcome, type SectionName, armName, flagsFor, fullName, gradeOf, liveFramework, loadBands, mean, rank, ratingOf, readFramework,
   round1, round2, totalOf, CREDIT_MARK
@@ -152,7 +153,8 @@ export async function loadArm(schoolId: string, term: Term, classId: string, sha
         const band = gradeOf(bandInfo.bands, sum.total);
         return { id: student.id, name: student.name, adm: student.adm, cells, total: sum.total, blank: sum.blank, absent: sum.absent, complete: sum.complete, grade: band?.label ?? null, rating: ratingOf(sum.total, bandInfo.bands, entry.passMark), pos: null, standing: "—" };
       });
-      const scoredRows = rows.filter((row) => row.total !== null);
+      // Ranked, and counted in the class statistics: children whose row is complete and has a total. A half-entered row is neither.
+      const scoredRows = rows.filter(isRanked);
       const average = mean(scoredRows.map((row) => row.total as number));
       const ranks = rank(scoredRows.map((row) => ({ id: row.id, value: row.total as number })));
       for (const row of rows) {

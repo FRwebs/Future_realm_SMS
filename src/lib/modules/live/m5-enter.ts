@@ -191,7 +191,7 @@ export function previewPage(g: Grid): { content: TabContent & Crumb } {
         facts: [
           ["Marks within their maxima", `Passed · nothing exceeds ${g.columns.map((column) => `${column.short} ${column.max}`).join(", ")}`],
           ["Blanks", blanks ? `${blanks} — they will have no total` : "None"],
-          ["Absences", "Excluded from the average, never scored zero"],
+          ["Absences", "Worked out over what was sat, never scored zero"],
           ["Framework", g.pinned ? `Pinned to this sheet on ${when(g.frameworkAt)}` : "Pinned when the first mark is saved"],
           ["Goes to", "The review queue · an Exam Officer"],
           ["After submission", "You cannot edit it — a change needs a correction request"],

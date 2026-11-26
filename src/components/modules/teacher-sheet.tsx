@@ -5,6 +5,7 @@ import type { Route } from "next";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import { PanelView } from "@/components/modules/panel-renderer";
+import { scoreTotal, type ScoreCell } from "@/lib/domain/score-total";
 import type { DrawerSpec, KpiCard, PanelAction, PanelTone, TableCellKind, TableRow } from "@/lib/modules/panels";
 import { sendJson } from "@/lib/modules/submit";
 import { readDevicePreferences } from "@/lib/preferences";
@@ -80,21 +81,24 @@ export function TeacherSheet(props: TeacherSheetProps) {
   const read = useMemo(
     () =>
       rows.map((row) => {
-        let total = 0;
-        let blank = 0;
-        let abs = 0;
         let bad = 0;
+        const parsed: Record<string, ScoreCell> = {};
         columns.forEach((column) => {
           const value = cells[row.id]?.[column.key] ?? "";
-          if (value === "ABS") { abs += 1; return; }
-          if (value === "") { blank += 1; return; }
+          if (value === "ABS") { parsed[column.key] = "ABS"; return; }
+          if (value === "") { parsed[column.key] = null; return; }
           const number = Number(value);
-          if (Number.isNaN(number) || number > column.max) { bad += 1; return; }
-          total += number;
+          if (Number.isNaN(number) || number > column.max) { bad += 1; parsed[column.key] = null; return; }
+          parsed[column.key] = number;
         });
+        // The one rule the server uses: an absence is worked out over what was sat, a blank keeps the row out of the ranking.
+        const sum = scoreTotal(columns, parsed);
+        const total = sum.total ?? 0;
+        const blank = sum.blank - bad;
+        const abs = sum.absent;
         const complete = blank === 0 && bad === 0;
         const state = bad ? "Out of range" : blank === columns.length ? "Blank" : blank ? "Part entered" : abs ? "Absent" : "Scored";
-        return { row, total, blank, abs, bad, complete, ranked: complete && abs === 0, grade: complete ? gradeOf(bands, total) : null, state };
+        return { row, total, blank, abs, bad, complete, ranked: complete && sum.total !== null, grade: complete && sum.total !== null ? gradeOf(bands, total) : null, state };
       }),
     [bands, cells, columns, rows],
   );
@@ -184,7 +188,7 @@ export function TeacherSheet(props: TeacherSheetProps) {
     k("Entered", String(stats.complete), stats.complete === stats.roll ? "Every child has a mark" : blankOnly && !stats.blankRows ? `${blankOnly} need correcting` : `${stats.roll - stats.complete} still to enter`, stats.complete === stats.roll ? "positive" : "attention", `of ${stats.roll}`),
     k("Class average", stats.avg === null ? "—" : String(stats.avg), "Recomputes as you type", undefined, stats.ranked ? `/ ${maxTotal}` : undefined),
     k("Blank rows", String(stats.blankRows), "Blank is not zero", stats.blankRows ? "attention" : "neutral"),
-    k("Absent", String(stats.abs), "Excluded from the average", stats.abs ? "withheld" : "neutral", stats.abs === 1 ? "mark" : "marks"),
+    k("Absent", String(stats.abs), "Worked out over what was sat", stats.abs ? "withheld" : "neutral", stats.abs === 1 ? "mark" : "marks"),
     k("Out of range", String(stats.bad), stats.bad ? "Above the column maximum" : "Every mark is within its maximum", stats.bad ? "negative" : "positive"),
   ];
 

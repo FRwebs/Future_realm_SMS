@@ -3,6 +3,7 @@ import { z } from "zod";
 
 import type { SessionPayload } from "../../../../src/lib/auth/session-core";
 import { prisma } from "../../../../src/lib/db/prisma";
+import { isRanked as rankedRow } from "../../../../src/lib/domain/score-total";
 import { loadAll, loadArm, type SubjectView } from "../score-results/arm";
 import { letterhead } from "./lesson-notes/shared";
 import { CREDIT_MARK, armName, fullName, gradeOf, rank, round1 } from "../score-results/scores.shared";
@@ -80,7 +81,7 @@ export class TeacherScoresService {
     const live = rows.filter((row) => row.ranked > 0);
     const ranked = live.reduce((sum, row) => sum + row.ranked, 0);
     const base = sheets.flatMap(({ arm, subject }) =>
-      subject.rows.filter((row) => row.total !== null && row.complete && row.absent === 0).map((row) => ({ classId: arm.room.id, subjectId: subject.subjectId, studentId: row.id, child: row.name, subject: subject.name, arm: arm.room.name, total: row.total as number, grade: row.grade, passMark: subject.passMark }))
+      subject.rows.filter((row) => rankedRow(row)).map((row) => ({ classId: arm.room.id, subjectId: subject.subjectId, studentId: row.id, child: row.name, subject: subject.name, arm: arm.room.name, total: row.total as number, grade: row.grade, passMark: subject.passMark }))
     );
     const term = { id: me.term!.id };
     // The children worth a look: under the pass mark, near it, or well down on last term.
@@ -175,7 +176,7 @@ export class TeacherScoresService {
       prisma.subjectComment.findMany({ where: { schoolId: session.schoolId, termId: term.id, classId, subjectId }, select: { studentId: true, text: true } }),
     ]);
     const written = new Set(comments.filter((comment) => comment.text.trim()).map((comment) => comment.studentId));
-    const ranked = subject.rows.filter((row) => row.total !== null && row.complete && row.absent === 0).length;
+    const ranked = subject.rows.filter((row) => rankedRow(row)).length;
     const order = new Map(arm.students.map((student, index) => [student.id, index + 1]));
     const third = (pos: number | null, isRanked: boolean) => (!isRanked || pos === null ? "Not ranked" : pos <= Math.ceil(ranked / 3) ? "Top third" : pos <= Math.ceil((2 * ranked) / 3) ? "Middle third" : "Bottom third");
     const sameSubject = me.teaching.filter((entry) => !entry.assistant && entry.subjectId === subjectId).map((entry) => ({ id: entry.classId, name: entry.arm }));
@@ -193,7 +194,7 @@ export class TeacherScoresService {
       distribution: arm.bands.map((band) => ({ label: band.label, count: grades.get(band.label) ?? 0, range: `${band.min}–${band.max}` })),
       hasLast: last.size > 0, letterhead: await letterhead(session.schoolId), session: me.term?.session ?? "",
       rows: subject.rows.slice().sort((a, b) => (a.pos ?? 999) - (b.pos ?? 999)).map((entry) => {
-        const isRanked = entry.total !== null && entry.complete && entry.absent === 0;
+        const isRanked = rankedRow(entry);
         const before = last.get(entry.id) ?? null;
         return {
           id: entry.id, name: entry.name, adm: entry.adm, roll: order.get(entry.id) ?? 0, cells: entry.cells, total: entry.total, grade: entry.grade, pos: isRanked ? entry.pos : null, rating: entry.rating, standing: entry.standing,
@@ -221,8 +222,8 @@ export class TeacherScoresService {
     const people = await prisma.user.findMany({ where: { id: { in: [...new Set(entries.map((entry) => entry.enteredById))] } }, select: { id: true, firstName: true, lastName: true } });
     const nameOf = new Map(people.map((person) => [person.id, fullName(person)]));
     const means = this.columnMeans(subject);
-    const isRanked = row.total !== null && row.complete && row.absent === 0;
-    const ranked = subject.rows.filter((entry) => entry.total !== null && entry.complete && entry.absent === 0).length;
+    const isRanked = rankedRow(row);
+    const ranked = subject.rows.filter((entry) => rankedRow(entry)).length;
     const before = last.get(studentId) ?? null;
     const commented = new Set(comments.map((entry) => entry.studentId));
     return {

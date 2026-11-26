@@ -5,6 +5,7 @@ import type { Route } from "next";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 
+import { scoreTotal, type ScoreCell } from "@/lib/domain/score-total";
 import type { DrawerSpec, SheetEntryPanel } from "@/lib/modules/panels";
 import { sendJson } from "@/lib/modules/submit";
 import { INK, MUTED, toneOf } from "@/lib/modules/tones";
@@ -51,26 +52,23 @@ export function SheetEntry({ panel, openDrawer }: { panel: SheetEntryPanel; open
   const read = useMemo(
     () =>
       panel.rows.map((row) => {
-        let total = 0;
-        let blank = 0;
-        let absent = 0;
         let bad = 0;
-        let entered = 0;
+        const parsed: Record<string, ScoreCell> = {};
         for (const column of panel.columns) {
           const value = cells[row.id]?.[column.key] ?? "";
-          if (value === "") blank += 1;
-          else if (value === "ABS") absent += 1;
+          if (value === "") parsed[column.key] = null;
+          else if (value === "ABS") parsed[column.key] = "ABS";
           else {
             const number = Number(value);
-            if (Number.isNaN(number) || number > column.max) bad += 1;
-            else {
-              total += number;
-              entered += 1;
-            }
+            if (Number.isNaN(number) || number > column.max) { bad += 1; parsed[column.key] = null; }
+            else parsed[column.key] = number;
           }
         }
+        // The server's own rule: an absence is worked out over what was sat; a blank keeps the row out of the totals.
+        const sum = scoreTotal(panel.columns, parsed);
+        const blank = sum.blank - bad;
         const done = blank === 0 && bad === 0;
-        return { row, total: entered ? total : null, blank, absent, bad, done, grade: done && entered ? gradeOf(panel.bands, total) : null, state: bad ? "Out of range" : blank ? "Blank" : "Scored" };
+        return { row, total: sum.total, blank, absent: sum.absent, bad, done, grade: done && sum.total !== null ? gradeOf(panel.bands, sum.total) : null, state: bad ? "Out of range" : blank ? "Blank" : "Scored" };
       }),
     [cells, panel.bands, panel.columns, panel.rows],
   );
@@ -158,7 +156,7 @@ export function SheetEntry({ panel, openDrawer }: { panel: SheetEntryPanel; open
         {kpi("Entered", `${stats.entered} of ${stats.total}`, "A fraction, never a percentage", stats.blankRows ? "attention" : "positive")}
         {kpi("Class average", stats.average === null ? "—" : String(stats.average), "Recomputes as you type")}
         {kpi("Blank", String(stats.blankRows), "Blank is not zero", stats.blankRows ? "attention" : "neutral")}
-        {kpi("Absent", String(stats.absent), "Excluded from the average, not scored zero", "withheld")}
+        {kpi("Absent", String(stats.absent), "Worked out over what was sat, not scored zero", "withheld")}
         {kpi("Out of range", String(stats.bad), stats.bad ? "Above the column maximum" : "Every entry is within its maximum", stats.bad ? "negative" : "positive")}
       </div>
 
@@ -257,7 +255,7 @@ export function SheetEntry({ panel, openDrawer }: { panel: SheetEntryPanel; open
         </div>
 
         <div className="mx-[-18px] mb-[-12px] flex flex-wrap items-center justify-between gap-[10px] border-t px-[18px] py-[10px]" style={{ borderColor: "#EDF3EF", background: "#F7FAF8" }}>
-          <p className="max-w-[560px] text-[10.5px] leading-normal" style={{ color: MUTED }}>A = absent, excluded from the average. A blank cell is not a zero — it is a score that has not been entered.</p>
+          <p className="max-w-[560px] text-[10.5px] leading-normal" style={{ color: MUTED }}>A = absent: the total is worked out over what was sat. A blank cell is not a zero — it is a score that has not been entered.</p>
           <div className="flex flex-wrap items-center gap-[6px]">
             {pages > 1 ? (
               <>

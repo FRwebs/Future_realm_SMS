@@ -117,7 +117,7 @@ export const curriculumLayers: CurriculumLayer[] = [
       ["Examination", "Maximum 60 · weight 60%"],
       ["Total weight", "100 · must total exactly 100"],
       ["Aggregation", "Sum across the term"],
-      ["Absent handling", "Excluded from the average — never scored zero"],
+      ["Absent handling", "Worked out over the assessments sat — never scored zero"],
       ["Cumulative average", "Running across the session"],
       ["Locks", "On the first score entered against it"],
     ],

@@ -952,7 +952,7 @@ const curriculumTab: TabContent = {
                     ["Maximum", max],
                     ["Weight", weight, component === "Project" ? "Raising this to 10% brings the total to 100" : ""],
                     ["Aggregation", "Sum across term"],
-                    ["Absent handling", "Excluded from the average, never scored zero"],
+                    ["Absent handling", "Worked out over the assessments sat, never scored zero"],
                     ["Locks", "On the first score entered against it"],
                   ],
                   commitLabel: `Save ${component}`,
