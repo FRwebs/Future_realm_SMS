@@ -1867,7 +1867,7 @@ function subjectDrawer(
 }
 
 /** Add or change one assessment component. */
-function componentDrawer(component: SectionComponent | null, sections: string[], sectionTotal: number) {
+function componentDrawer(component: SectionComponent | null, sections: string[], total: number, defaultSection?: string) {
   const kindName =
     Object.entries(COMPONENT_KINDS).find(([, value]) => value === component?.type)?.[0] ?? "Test";
 
@@ -1876,7 +1876,7 @@ function componentDrawer(component: SectionComponent | null, sections: string[],
     kicker: component ? `Edit component \u00b7 ${sectionLabel(component.section)}` : "New component",
     title: component ? component.name : "Add a component",
     sub: component
-      ? `This section totals ${round1(sectionTotal)} today. It must still total 100 when you save.`
+      ? `This section totals ${round1(total)} today. It must still total 100 when you save.`
       : "A new component has to take its weight from the others \u2014 the section must still total 100.",
     commitLabel: component ? "Save the component" : "Add the component",
     commitNote:
@@ -1907,7 +1907,7 @@ function componentDrawer(component: SectionComponent | null, sections: string[],
               label: "Section",
               required: true,
               options: sections,
-              value: sections[0],
+              value: defaultSection && sections.includes(defaultSection) ? defaultSection : sections[0],
             },
           ]),
       {
@@ -2042,6 +2042,16 @@ function round1(value: number): string {
  */
 function bandRange(band: GradingBand): string {
   return `${Math.floor(band.minScore)}–${Math.floor(band.maxScore)}`;
+}
+
+/** What a section's components come to: how many, and what their weights total. */
+const sectionTotal = (list: SectionComponent[]) => list.reduce((sum, item) => sum + item.weight, 0);
+
+/** The same set of components, weights and maximums in every section, or not. Sections are shown one by one either way. */
+function sectionsAlike(bySection: Map<string, SectionComponent[]>): boolean {
+  const signature = (list: SectionComponent[]) => list.map((item) => `${item.name}|${item.weight}|${item.maxScore}`).join(";");
+  const all = Array.from(bySection.values()).map(signature);
+  return all.every((entry) => entry === all[0]);
 }
 
 /**
@@ -2312,9 +2322,13 @@ function curriculumTab(
       [
         "Assessment",
         shared.length
-          ? `${shared.length} components, totalling ${round1(sharedTotal)}`
+          ? sectionsAlike(componentsBySection)
+            ? `${shared.length} components, totalling ${round1(sharedTotal)}`
+            : `${componentsBySection.size} sections, set separately`
           : "Not set",
-        shared.map((item) => `${item.name} ${round1(item.weight)}`).join(", "),
+        sectionsAlike(componentsBySection)
+          ? shared.map((item) => `${item.name} ${round1(item.weight)}`).join(", ")
+          : Array.from(componentsBySection.entries()).map(([section, list]) => `${sectionLabel(section)} ${list.length} totalling ${round1(sectionTotal(list))}`).join(" · "),
       ],
       [
         "Absent handling",
@@ -2761,50 +2775,54 @@ export function curriculumDetailContent(
           },
         ],
       },
+      // Each section keeps its own components, so each is shown as its own table with its own total, its own Add and its own Edit —
+      // a school that keeps them identical sees the same rows three times and changes each where it is shown.
+      ...(sectionNames.length
+        ? sectionNames.map((name) => {
+            const list = componentsBySection.get(name) ?? [];
+            const total = sectionTotal(list);
+            return {
+              cols: "1fr" as const,
+              panels: [
+                {
+                  type: "table" as const,
+                  title: `Assessment components · ${sectionLabel(name)}`,
+                  tag: Math.round(total) === 100 ? "Totals 100" : `Totals ${round1(total)}`,
+                  tagTone: (Math.round(total) === 100 ? "positive" : "attention") as PanelTone,
+                  meta: `${list.length} components · weights total ${round1(total)}`,
+                  head: ["Component", "Max", "Weight", "Aggregation", "Edit"],
+                  nounPlural: "components",
+                  acts: [{ label: "Add a component", drawer: componentDrawer(null, subjectSectionOptions, total, sectionLabel(name)) }],
+                  rows: list.map((component) => ({
+                    cells: [
+                      nameCell(component.name, componentLabel(component.type).toLowerCase() === component.name.toLowerCase() ? undefined : componentLabel(component.type)),
+                      text(round1(component.maxScore), { mono: true }),
+                      text(`${round1(component.weight)}%`, { mono: true }),
+                      text("Sum across term"),
+                      { kind: "action" as const, label: "Edit", drawer: componentDrawer(component, subjectSectionOptions, total) },
+                    ],
+                    keywords: `${component.name} ${component.code ?? ""}`,
+                  })),
+                },
+              ],
+            };
+          })
+        : [
+            {
+              cols: "1fr" as const,
+              panels: [
+                {
+                  type: "note" as const,
+                  tone: "attention" as const,
+                  title: "No assessment components are set",
+                  body: "A term cannot become one number until components and their weights exist.",
+                },
+              ],
+            },
+          ]),
       {
-        cols: "1.1fr 1fr",
+        cols: "1fr",
         panels: [
-          shared.length
-            ? {
-                type: "table",
-                title: "Assessment components",
-                tag: Math.round(sharedTotal) === 100 ? "Totals 100" : `Totals ${round1(sharedTotal)}`,
-                tagTone: Math.round(sharedTotal) === 100 ? "positive" : "attention",
-                meta: `${shared.length} components · weights total ${round1(sharedTotal)}`,
-                head: ["Component", "Max", "Weight", "Aggregation", "Edit"],
-                nounPlural: "components",
-                acts: [
-                  {
-                    label: "Add a component",
-                    drawer: componentDrawer(null, subjectSectionOptions, sharedTotal),
-                  },
-                ],
-                rows: shared.map((component) => ({
-                  cells: [
-                    nameCell(
-                      component.name,
-                      componentLabel(component.type).toLowerCase() === component.name.toLowerCase()
-                        ? undefined
-                        : componentLabel(component.type),
-                    ),
-                    text(round1(component.maxScore), { mono: true }),
-                    text(`${round1(component.weight)}%`, { mono: true }),
-                    text("Sum across term"),
-                    {
-                      kind: "action" as const,
-                      label: "Edit",
-                      drawer: componentDrawer(component, subjectSectionOptions, sharedTotal),
-                    },
-                  ],
-                  keywords: `${component.name} ${component.code ?? ""}`,
-                })),
-              }
-            : {
-                type: "note",
-                tone: "attention",
-                title: "No assessment components are set",
-                body: "A term cannot become one number until components and their weights exist.",
-              },
           bands.length
             ? {
                 type: "table",
