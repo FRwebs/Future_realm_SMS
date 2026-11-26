@@ -2,7 +2,7 @@ import { apiGet, observe } from "@/lib/api/server";
 import { localContracts } from "@/lib/api/local-contracts.zod";
 import type { TeacherWorkspaceView } from "@/lib/api/teacher-workspace";
 import { teacherModules, teacherNavigation } from "@/lib/modules/teacher-workspace";
-import type { KpiCard, Panel, PanelRow, PanelTone, TabContent, TableRow, TrackerRow } from "@/lib/modules/panels";
+import type { DrawerSpec, KpiCard, Panel, PanelRow, PanelTone, TabContent, TableRow, TrackerRow } from "@/lib/modules/panels";
 import { pill, row, text } from "@/lib/modules/panels";
 import { formatDay } from "@/lib/date-format";
 
@@ -34,11 +34,20 @@ type DayView = {
   sync: { pending: number; lastSyncedAt: string | null; items: Array<{ kind: string; at: string }> };
 };
 
+const BELL = "M6 16.5V11a6 6 0 0 1 12 0v5.5l1.5 2h-15zM10 20.5a2 2 0 0 0 4 0";
+
 type OversightView = {
   department: string;
   term: string;
+  week: number | null;
   reportsTo: { name: string; title: string } | null;
-  kpis: { submitted: number; sheets: number; withTeacher: number; returnedByMe: number; mineSubmitted: number; mine: number; waitingOnMe: number };
+  kpis: {
+    submitted: number; sheets: number; withTeacher: number; returnedByMe: number; mineSubmitted: number; mine: number; waitingOnMe: number;
+    /** The department's period registers today: how many were marked while the period was still running. */
+    registersOnTime?: number; registersTaught?: number;
+    /** This week's lesson notes: how many of the department's subject-arms have one in. */
+    notesIn?: number; notesDue?: number;
+  };
   closes: string | null;
   rows: Array<{ classId: string; subjectId: string; unit: string; sub: string; owner: string; ownerId: string | null; state: string; age: string; overdue: boolean }>;
 };
@@ -82,7 +91,6 @@ function todayTab(d: DayView, me: TeacherWorkspaceView, permissions: string[]): 
   if (d.registers.length) {
     cards.push({
       label: "Registers to mark", value: String(open.length), unit: `of ${d.registers.length}`,
-      sub: !d.schoolDay ? "Today is not a school day" : open.length ? `The cutoff was ${d.cutoff}` : "Every register is in",
       tone: open.length && d.schoolDay ? "negative" : "positive",
       link: open.length ? "Mark one now" : "Open the registers",
       href: open.length ? `/attendance/mark/${open[0].classId}` : "/attendance/mark",
@@ -91,24 +99,21 @@ function todayTab(d: DayView, me: TeacherWorkspaceView, permissions: string[]): 
   if (d.sheets.length && !early) {
     cards.push({
       label: "Score sheets due", value: String(dueSheets.length), unit: `of ${d.sheets.length}`,
-      sub: d.closes ? `The window closes ${shortDay(d.closes)}` : "No closing date has been set",
       tone: dueSheets.length ? "attention" : "positive", link: "Open your sheets", href: "/score-entry-results/enter",
     });
   }
   if (d.returned.length) {
-    cards.push({ label: "Returned to you", value: String(d.returned.length), sub: "A return is a conversation, not a task", tone: "negative", link: "Read the comment", href: `/score-entry-results/enter/${d.returned[0].classId}/${d.returned[0].subjectId}` });
+    cards.push({ label: "Returned to you", value: String(d.returned.length), tone: "negative", link: "Read the comment", href: `/score-entry-results/enter/${d.returned[0].classId}/${d.returned[0].subjectId}` });
   }
   if (d.remarks && held.has("report-cards.remarks.view")) {
     const left = d.remarks.roll - d.remarks.written;
     cards.push({
       label: "Remarks outstanding", value: String(left), unit: `of ${d.remarks.roll}`,
-      sub: d.remarks.due ? `Due ${shortDay(d.remarks.due)}${d.remarks.days !== null ? ` · ${Math.max(0, d.remarks.days)} days` : ""}` : "No publication date is set",
       tone: left ? "neutral" : "positive", link: d.remarks.written ? "Continue writing" : "Start writing", href: "/report-cards/remarks",
     });
   }
   cards.push({
     label: "Waiting to sync", value: String(d.sync.pending), unit: d.sync.pending === 1 ? "item" : "items",
-    sub: d.sync.pending ? `Saved on this device since ${clockOf(d.sync.items[0].at)}` : "Nothing is waiting",
     tone: d.sync.pending ? "offline" : "positive", link: "What is queued", href: "/sync-support/sync",
   });
   const kpis = cards.slice(0, 5);
@@ -174,14 +179,12 @@ function todayTab(d: DayView, me: TeacherWorkspaceView, permissions: string[]): 
         sub: "In deadline order. One tap opens the screen that clears it.", meta: `${dayWords(d.date)} · nothing here belongs to anybody else`,
         noun: "item", nounPlural: "items", search: "Find something you owe", head: ["Work", "What it is", "Due", "State", ""], rows: queueRows, per: 8, noRowOpen: true,
         empty: "Nothing is waiting on you. An item appears here the moment something is yours to do.",
-        foot: "An item leaves this list when the work is done — never because you looked at it.",
       },
       {
         type: "table", title: early ? "Today’s sessions" : "Today", sub: "In order. What is happening now and what is next are marked.",
         meta: d.schoolDay ? `${d.periods.length} period${d.periods.length === 1 ? "" : "s"}${nextPeriod ? ` · next is ${nextPeriod.what.split(" · ")[0]}` : ""}` : "Not a school day",
         noun: "period", nounPlural: "periods", head: ["Time", "What", "Where", "Note"], rows: periodRows, noRowOpen: true,
         empty: d.schoolDay ? "No period is timetabled for you today." : "Today is not a school day in this term.",
-        foot: "A cover period is marked as cover, and leaves this page when the cover ends.",
       },
     ]),
     row("1fr 1fr", [
@@ -252,18 +255,66 @@ function todayTab(d: DayView, me: TeacherWorkspaceView, permissions: string[]): 
 
 function oversightTab(o: OversightView): TabContent {
   const k = o.kpis;
+  const late = k.registersTaught === undefined ? 0 : (k.registersTaught ?? 0) - (k.registersOnTime ?? 0);
+  /*
+   * The people holding the department up, and the one act this page is for.
+   *
+   * Only a sheet nobody has started is nudged: a sheet in progress is being worked on, and a
+   * notification about it is noise. Each person is told what they personally owe and nothing about
+   * anybody else — the same rule the department's own review queue follows.
+   */
+  const owing = [...new Map(
+    o.rows
+      .filter((entry) => entry.state === "Not started" && entry.ownerId && entry.ownerId !== null && entry.owner !== "You")
+      .map((entry) => [entry.ownerId as string, { id: entry.ownerId as string, name: entry.owner }] as const),
+  ).values()];
+  const nudge: DrawerSpec | null = owing.length
+    ? {
+        mode: "commit", kicker: `${o.department} · score entry`, title: `Notify ${owing.length} ${owing.length === 1 ? "teacher" : "teachers"}`,
+        sub: "This sends a notification. It is not an approval, and it changes nothing on any record.",
+        facts: [
+          ["Who is notified", String(owing.length), `Teachers in ${o.department} with an unstarted sheet · ${owing.map((person) => person.name).slice(0, 3).join(", ")}${owing.length > 3 ? "…" : ""}`],
+          ["What they see", "Which sheet is outstanding, and the day the window closes", "Nothing is disclosed about anyone else"],
+          ["Changes anything?", "No", "A notification never alters a record, a state or a deadline"],
+        ],
+        commitLabel: "Send the notification", commitDone: `Notification sent to ${owing.length} ${owing.length === 1 ? "person" : "people"}`,
+        commitDoneBody: "It is in their inbox now. Each one received only what they personally owe.",
+        submit: {
+          endpoint: "/api/v1/score-results/notify", method: "POST",
+          body: {
+            users: owing.map((person) => person.id), channels: ["In-app inbox"],
+            message: `Your ${o.department} score sheet is not started yet${o.closes ? ` — the window closes ${shortDay(o.closes)}` : ""}.`,
+            kicker: `${o.department} · score entry`, urgency: "Reminder", href: "/score-entry-results/enter",
+          },
+        },
+      }
+    : null;
   const rows: Array<PanelRow | null> = [
     row("1fr", [{
-      type: "kpi", per: 4, sub: `${o.term} · you hold this because you head ${o.department}.`,
+      type: "kpi", per: 5, sub: `${o.term} · you hold this because you head ${o.department}.`,
       cards: [
-        { label: "Sheets submitted", value: `${k.submitted} of ${k.sheets}`, sub: `${k.withTeacher} still with their teacher`, tone: k.submitted < k.sheets ? "attention" : "positive", link: "Open the queue", href: "/score-entry-results/review" },
-        { label: "Waiting on you", value: String(k.waitingOnMe), sub: k.waitingOnMe ? "Submitted and not yet decided" : "Nothing is waiting for your decision", tone: k.waitingOnMe ? "attention" : "positive", link: k.waitingOnMe ? "Decide them" : undefined, href: k.waitingOnMe ? "/score-entry-results/review" : undefined },
-        { label: "Returned by you", value: String(k.returnedByMe), sub: k.returnedByMe ? "Sent back for correction" : "Nothing sent back this term" },
-        { label: "Your own sheets", value: `${k.mineSubmitted} of ${k.mine}`, sub: "You are counted like everyone else", tone: k.mine && k.mineSubmitted < k.mine ? "negative" : k.mine ? "positive" : "neutral" },
+        { label: "Sheets submitted", value: `${k.submitted} of ${k.sheets}`, tone: k.submitted < k.sheets ? "attention" : "positive", link: "Open the queue", href: "/score-entry-results/review" },
+        // The department's registers and its notes are the head's two other answerables; they sit
+        // beside the sheets rather than being reached for one tab at a time.
+        {
+          label: "Period registers on time",
+          value: k.registersTaught === undefined ? "—" : `${k.registersOnTime ?? 0} of ${k.registersTaught}`,
+          tone: k.registersTaught === undefined ? "neutral" : late ? "attention" : "positive",
+          link: "See who", href: "/attendance/compliance",
+        },
+        {
+          label: o.week ? `Week ${o.week} notes in` : "Notes in",
+          value: k.notesDue === undefined ? "—" : `${k.notesIn ?? 0} of ${k.notesDue}`,
+          tone: k.notesDue === undefined ? "neutral" : (k.notesIn ?? 0) >= (k.notesDue ?? 0) ? "positive" : "attention",
+          link: "Sign them", href: "/lesson-notes/review",
+        },
+        { label: "Returned by you", value: String(k.returnedByMe), },
+        { label: "Your own sheets", value: `${k.mineSubmitted} of ${k.mine}`, tone: k.mine && k.mineSubmitted < k.mine ? "negative" : k.mine ? "positive" : "neutral" },
       ],
     }]),
     row("1fr", [{
       type: "tracker", title: `Score sheets · ${o.department}`, sub: "The unit of work is a subject-arm.", meta: `${k.sheets} sheet${k.sheets === 1 ? "" : "s"} · ${k.sheets - k.submitted} outstanding`, noun: "sheets submitted",
+      groups: ["By state", "By teacher", "By arm", "By age"],
       clear: { title: "Every sheet is in", body: `All ${k.sheets} ${o.department} sheets have been submitted for this component.` },
       rows: o.rows.filter((entry) => entry.state !== "Submitted" && entry.state !== "Approved").concat(o.rows.filter((entry) => entry.state === "Submitted" || entry.state === "Approved")).map((entry): TrackerRow => ({
         unit: entry.unit, sub: entry.sub, owner: entry.owner, role: "Subject teacher", state: entry.state, age: entry.age, overdue: entry.overdue,
@@ -282,7 +333,14 @@ function oversightTab(o: OversightView): TabContent {
   ];
   return {
     title: "Oversight", desc: `The ${o.department} department, and nothing outside it.`,
-    primary: { label: "Open the review queue", icon: ARROW, href: "/score-entry-results/review" },
+    // The one thing this page is for is moving the people who are holding the department up; the
+    // queue and the coverage audit are where it leads, not what it is for.
+    primary: nudge
+      ? { label: `Nudge the ${owing.length} who ${owing.length === 1 ? "has" : "have"} not submitted`, icon: BELL, drawer: nudge }
+      : { label: "Open the review queue", icon: ARROW, href: "/score-entry-results/review" },
+    launchers: nudge
+      ? [{ label: "Open the review queue", href: "/score-entry-results/review" }]
+      : [{ label: "Lesson note coverage", href: "/lesson-notes/coverage" }],
     rows: rows.filter((entry): entry is PanelRow => Boolean(entry)),
   };
 }

@@ -29,17 +29,16 @@ const kids = (row: Pick<FamilyRow, "children">) => row.children.map((child) => `
 export function guardiansTab(data: Families): TabContent {
   const { totals, rows } = data;
   const never = rows.filter((row) => row.portal !== "Active" && !row.phoneOnly);
-  const average = totals.families ? (totals.children / totals.families).toFixed(1) : "0";
   const add = { label: "Add guardian", primary: true, href: "/parents-guardians/guardians/new" };
   const invite = inviteDrawer(never.length, totals.neverChildren);
   const phoneOnly = phoneOnlyDrawer(never.map((row) => ({ id: row.id, name: row.name, phone: row.phone })));
 
   const cards: KpiCard[] = [
-    { label: "Guardians", value: String(totals.families), sub: "One account per family", tone: "neutral" },
-    { label: "Children mapped", value: String(totals.children), sub: `Average ${average} per family` },
-    { label: "Portal activated", value: String(totals.active), unit: `of ${totals.families}`, sub: `${totals.families ? Math.round((totals.active / totals.families) * 100) : 0}% of families`, tone: "positive" },
-    { label: "Never activated", value: String(never.length), sub: `${plural(totals.neverChildren, "child", "children")} unreachable`, tone: never.length ? "negative" : "positive", link: never.length ? "Resend the invites" : undefined, drawer: never.length ? invite : undefined },
-    { label: "Delivery failing", value: String(totals.failing), sub: "Wrong number or opted out", tone: totals.failing ? "attention" : "positive" },
+    { label: "Guardians", value: String(totals.families), tone: "neutral" },
+    { label: "Children mapped", value: String(totals.children), },
+    { label: "Portal activated", value: String(totals.active), unit: `of ${totals.families}`, tone: "positive" },
+    { label: "Never activated", value: String(never.length), tone: never.length ? "negative" : "positive", link: never.length ? "Resend the invites" : undefined, drawer: never.length ? invite : undefined },
+    { label: "Delivery failing", value: String(totals.failing), tone: totals.failing ? "attention" : "positive" },
   ];
 
   const tableRows: TableRow[] = rows.map((row) => ({
@@ -109,7 +108,6 @@ export function guardiansTab(data: Families): TabContent {
               { label: "Export to Excel", primary: true, export: true },
             ],
             rows: tableRows,
-            foot: "A guardian with four children has one account, one login and one set of notifications — never four.",
           },
         ],
       },
@@ -162,8 +160,8 @@ export function familyPage(f: Family, o: GuardianOptions, rows: FamilyRow[]): Fa
       rows: [
         ...(portalNote ? [{ cols: "1fr", panels: [{ type: "note" as const, tone: "negative" as PanelTone, title: "This family has never activated the portal", body: `Nothing digital reaches them — no published report card, no fee reminder, no emergency broadcast. ${plural(f.children.length, "child")} ${f.children.length === 1 ? "is" : "are"} affected, and no screen in this product will look wrong until somebody asks why they never replied.`, acts: [{ label: "Resend the invite", drawer: inviteDrawer(1, f.children.length, [f.id]) }, { label: "Mark them phone-only", drawer: phoneOnly }] }] }] : []),
         ...(f.invalidPhone ? [{ cols: "1fr", panels: [{ type: "note" as const, tone: "attention" as PanelTone, title: "The phone number on file does not look like a Nigerian mobile", body: `${f.phone} would not receive an SMS. Correct it, or every message to this family fails.`, acts: [{ label: "Edit the contact", drawer: editContactDrawer(f) }] }] }] : []),
-        { cols: "1fr", panels: [{ type: "kpi", title: "This family", per: 6, cards: [{ label: "Children", value: String(f.children.length), sub: f.children.map((child) => child.arm).join(", ").slice(0, 40), tone: "neutral" }, { label: "Portal", value: f.phoneOnly ? "Phone-only" : f.portal, sub: f.portal === "Active" ? "One login for all" : f.phoneOnly ? "Marked deliberately" : "Never signed in", tone: f.phoneOnly ? "neutral" : PORTAL_TONE[f.portal] }, { label: "Owes", value: f.owes ? naira(f.amount) : "Settled", sub: f.owes ? `${f.owes} of ${f.children.length} children` : "Nothing outstanding", tone: f.owes ? "attention" : "positive", link: f.owes ? "Open fees" : undefined, href: f.owes && f.familyHref ? f.familyHref : undefined }, { label: "Attendance", value: f.attendance === null ? "—" : `${f.attendance}%`, sub: "Across their children", tone: attTone(f.attendance) }, { label: "Consent", value: f.consent, sub: f.consent === "Complete" ? "Everything required is on file" : "Something is missing", tone: CONSENT_TONE[f.consent], link: f.consent !== "Complete" ? "Request it" : undefined, href: f.consent !== "Complete" ? "/parents-guardians/consent" : undefined }, { label: "Delivery", value: f.delivery, sub: f.delivery === "Delivered" ? "Messages arrive" : "Messages are bouncing", tone: DELIVERY_TONE[f.delivery] }] }] },
-        { cols: "1fr", panels: [{ type: "table", title: "Children mapped to this guardian", tag: plural(f.children.length, "child", "children"), tagTone: "neutral", sub: "Open any child for their full record — the same page their class roster opens.", meta: f.children.map((child) => `${child.name.split(" ")[0]} · ${child.arm}`).join("  ·  "), acts: [{ label: "Message about one child", href: "/communication-center/compose" }, { label: "Map another child", primary: true, drawer: mapChildDrawer(f, o.students) }], head: ["Child", "Admission no", "Arm", "Att %", "Avg", "Grade", "Pos", "Fees", ""], noun: "child", nounPlural: "children", per: 8, rows: children, emptyTitle: "No child is mapped", emptyBody: "Map a child so the family can be reached about them.", foot: "Every child here shares one guardian account. A message about one child goes to this one inbox, never four." }] },
+        { cols: "1fr", panels: [{ type: "kpi", title: "This family", per: 6, cards: [{ label: "Children", value: String(f.children.length), tone: "neutral" }, { label: "Portal", value: f.phoneOnly ? "Phone-only" : f.portal, tone: f.phoneOnly ? "neutral" : PORTAL_TONE[f.portal] }, { label: "Owes", value: f.owes ? naira(f.amount) : "Settled", tone: f.owes ? "attention" : "positive", link: f.owes ? "Open fees" : undefined, href: f.owes && f.familyHref ? f.familyHref : undefined }, { label: "Attendance", value: f.attendance === null ? "—" : `${f.attendance}%`, tone: attTone(f.attendance) }, { label: "Consent", value: f.consent, tone: CONSENT_TONE[f.consent], link: f.consent !== "Complete" ? "Request it" : undefined, href: f.consent !== "Complete" ? "/parents-guardians/consent" : undefined }, { label: "Delivery", value: f.delivery, tone: DELIVERY_TONE[f.delivery] }] }] },
+        { cols: "1fr", panels: [{ type: "table", title: "Children mapped to this guardian", tag: plural(f.children.length, "child", "children"), tagTone: "neutral", sub: "Open any child for their full record — the same page their class roster opens.", meta: f.children.map((child) => `${child.name.split(" ")[0]} · ${child.arm}`).join("  ·  "), acts: [{ label: "Message about one child", href: "/communication-center/compose" }, { label: "Map another child", primary: true, drawer: mapChildDrawer(f, o.students) }], head: ["Child", "Admission no", "Arm", "Att %", "Avg", "Grade", "Pos", "Fees", ""], noun: "child", nounPlural: "children", per: 8, rows: children, emptyTitle: "No child is mapped", emptyBody: "Map a child so the family can be reached about them.", }] },
         {
           cols: "1.2fr 1fr",
           panels: [

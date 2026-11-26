@@ -5,9 +5,11 @@ import type { Route } from "next";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
-import { cardIcon } from "@/lib/modules/card-icons";
+import { assignIcons, iconPaths } from "@/lib/modules/card-icons";
+import { onDevice, useHeldCounts } from "@/lib/offline/use-held";
 import type { DrawerSpec, KpiCard, Panel, PanelAction, PanelTone, TableCellKind, TableRow } from "@/lib/modules/panels";
 import { toneOf } from "@/lib/modules/tones";
+import { tightFor } from "@/lib/ui/tight-copy";
 import { useUiText } from "@/hooks/use-ui-text";
 import { cn } from "@/lib/utils/cn";
 
@@ -57,7 +59,9 @@ function Chevron() {
 /** A block's heading sits above its card, as the mockup draws it: the name, a small tag beside it, one line under. */
 export function BlockHead({ title, sub, tag, tagTone, acts, openDrawer }: { title?: string; sub?: string; tag?: string; tagTone?: PanelTone; acts?: PanelAction[]; openDrawer: OpenDrawer }) {
   const ui = useUiText();
-  if (!title && !sub) return null;
+  // The phone's copy rule, same as a panel's sub-heading on a laptop.
+  const line = tightFor(true, "bsub", sub);
+  if (!title && !line) return null;
   return (
     <div className="mb-[10px] px-[2px]">
       <div className="flex items-center justify-between gap-[10px]">
@@ -73,23 +77,32 @@ export function BlockHead({ title, sub, tag, tagTone, acts, openDrawer }: { titl
           ) : null,
         )}
       </div>
-      {sub ? <p className="mt-[4px] text-pretty text-[13px] leading-[1.45] text-[#5F6E65]">{sub}</p> : null}
+      {line ? <p className="mt-[4px] text-pretty text-[13px] leading-[1.45] text-[#5F6E65]">{line}</p> : null}
     </div>
   );
+}
+
+/** A panel's footnote on a phone: it keeps the figure it carries, or it is not drawn. */
+function PhoneFoot({ foot }: { foot?: string }) {
+  const line = tightFor(true, "foot", foot);
+  return line ? <p className="mt-[10px] px-[4px] text-pretty text-[12.5px] leading-[1.5] text-[#5C6B62]">{line}</p> : null;
 }
 
 /* ───────────────────────── stat cards ───────────────────────── */
 
 export function PhoneStats({ panel, openDrawer }: { panel: Extract<Panel, { type: "kpi" }>; openDrawer: OpenDrawer }) {
   const router = useRouter();
-  const cards = panel.cards;
+  const held = useHeldCounts(panel.cards.some((card) => card.device));
+  const cards = onDevice(panel.cards, held);
+  // One glyph per card here too: the same rule as the laptop's, decided for the row as a whole.
+  const glyphs = assignIcons(cards);
   return (
     <section className="min-w-0">
       <div className="grid grid-cols-2 gap-[10px]">
         {cards.map((card: KpiCard, index) => {
           const dark = index === 0 && cards.length > 1;
           const swatch = card.tone && card.tone !== "neutral" ? toneOf(card.tone) : null;
-          const [outline] = cardIcon(card);
+          const [outline] = iconPaths(glyphs[index] ?? "bars");
           const span = cards.length % 2 === 1 && index === cards.length - 1;
           const value = String(card.value ?? "—");
           const big = value.length <= 7;
@@ -125,7 +138,8 @@ export function PhoneStats({ panel, openDrawer }: { panel: Extract<Panel, { type
                 </span>
                 {card.unit ? <span className="whitespace-nowrap text-[12px] font-bold" style={{ color: dark ? "rgba(255,255,255,0.62)" : "#5C6B62" }}>{card.unit}</span> : null}
               </div>
-              {card.sub ? <span className="relative mt-[6px] text-pretty text-[12px] font-medium leading-[1.4]" style={{ color: dark ? "rgba(255,255,255,0.72)" : "#5C6B62" }}>{card.sub}</span> : null}
+              {/* The same line the laptop's card carries, cut by the same rule: a phone has least room
+                  of all for a sentence that repeats the label above it. */}
             </div>
           );
         })}
@@ -270,7 +284,7 @@ export function PhoneTable({ panel, openDrawer }: { panel: Extract<Panel, { type
     <section className="min-w-0">
       <BlockHead title={panel.title} sub={panel.sub} tag={panel.tag} tagTone={panel.tagTone} acts={panel.acts} openDrawer={openDrawer} />
       <RowsCard rows={rows} empty={panel.empty ?? "Nothing here yet."} per={panel.per === 0 ? 0 : Math.min(panel.per ?? 10, 10)} />
-      {panel.foot ? <p className="mt-[10px] px-[4px] text-pretty text-[12.5px] leading-[1.5] text-[#5C6B62]">{panel.foot}</p> : null}
+      {/* Nothing under a table, on a phone either. */}
     </section>
   );
 }
@@ -284,7 +298,8 @@ export function PhoneList({ panel, openDrawer }: { panel: Extract<Panel, { type:
     const drawer = item.drawer ?? (item.facts?.length ? ({ title: item.label, sub: item.sub, facts: item.facts, readOnly: panel.readOnly } as DrawerSpec) : undefined);
     const act = item.act ? { label: item.act.label, icon: item.act.icon, href: item.act.href, run: item.act.drawer ? () => openDrawer(item.act!.drawer!) : undefined } : undefined;
     return {
-      key: `${index}-${item.label}`, title: item.label, sub: item.sub,
+      // The phone's copy rule on a row's second line. The drawer behind the row keeps the full sentence.
+      key: `${index}-${item.label}`, title: item.label, sub: tightFor(true, "opt", item.sub),
       lead: item.lead ? { top: item.lead.top, value: item.lead.value, tone: item.lead.tone ?? item.tone } : item.avatar ? { value: item.avatar, round: true, tone: item.tone } : item.icon ? { value: "", icon: item.icon, tone: item.tone } : undefined,
       pill: item.pill ? { label: item.pill, tone: item.tone } : undefined,
       side: item.side, figure: item.figure, bar: item.bar, quote: item.quote, act,
@@ -305,7 +320,7 @@ export function PhoneList({ panel, openDrawer }: { panel: Extract<Panel, { type:
       ) : null}
       <BlockHead title={panel.title} sub={panel.sub} tag={panel.tag} tagTone={panel.tagTone} acts={panel.acts} openDrawer={openDrawer} />
       <RowsCard rows={shown} empty={needle ? "Nothing matches that." : panel.empty ?? "Nothing here yet."} per={shown.length > 8 && !panel.noFind ? 6 : 0} />
-      {panel.foot ? <p className="mt-[10px] px-[4px] text-pretty text-[12.5px] leading-[1.5] text-[#5C6B62]">{panel.foot}</p> : null}
+      <PhoneFoot foot={panel.foot} />
     </section>
   );
 }
@@ -315,14 +330,17 @@ export function PhoneList({ panel, openDrawer }: { panel: Extract<Panel, { type:
 export function PhoneNote({ panel, openDrawer }: { panel: Extract<Panel, { type: "note" }>; openDrawer: OpenDrawer }) {
   const swatch = toneOf(panel.tone ?? "neutral");
   const tinted = panel.tone && panel.tone !== "neutral";
+  // The phone's copy rule: a note's heading keeps its first thought and its body keeps whole sentences up to a phone's worth.
+  const title = tightFor(true, "title", panel.title);
+  const body = tightFor(true, "body", panel.body);
   return (
     <div className="flex items-start gap-[12px] rounded-[20px] px-[16px] py-[15px]" style={{ background: tinted ? swatch.bg : "#fff", boxShadow: tinted ? undefined : RAISED, border: tinted ? `1px solid ${swatch.bd}` : undefined }}>
       <span className="flex h-[36px] w-[36px] flex-none items-center justify-center rounded-full bg-white" style={{ color: swatch.fg }} aria-hidden>
         <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round"><path d={panel.icon ?? "M12 8.2v4.6M12 16h.02M12 3.6 21 19.4H3z"} /></svg>
       </span>
       <div className="min-w-0 flex-1 pt-[2px]">
-        {panel.title ? <p className="text-pretty text-[13.5px] font-extrabold leading-[1.3]" style={{ color: tinted ? swatch.fg : "#0D2315" }}>{panel.title}</p> : null}
-        <p className="mt-[4px] text-pretty text-[12.5px] font-medium leading-[1.55] text-[#435048]">{panel.body}</p>
+        {title ? <p className="text-pretty text-[14px] font-extrabold leading-[1.3]" style={{ color: tinted ? swatch.fg : "#0D2315" }}>{title}</p> : null}
+        {body ? <p className="mt-[4px] text-pretty text-[12.5px] font-medium leading-[1.55] text-[#435048]">{body}</p> : null}
         {panel.acts?.length ? (
           <div className="mt-[12px] flex flex-wrap gap-[8px]">
             {panel.acts.map((act) => {
@@ -426,7 +444,7 @@ export function PhoneSteps({ panel }: { panel: Extract<Panel, { type: "steps" }>
           );
         })}
       </ol>
-      {panel.foot ? <p className="mt-[10px] px-[4px] text-pretty text-[12.5px] leading-[1.5] text-[#5C6B62]">{panel.foot}</p> : null}
+      <PhoneFoot foot={panel.foot} />
     </section>
   );
 }

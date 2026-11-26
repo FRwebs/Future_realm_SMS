@@ -13,6 +13,13 @@ export const DEFAULT_BANDS = ["Emerging", "Developing", "Secure", "Exceeding"];
 const DAY = 86_400_000;
 
 const saveSchema = z.object({ areas: z.record(z.string(), z.string()).default({}), note: z.string().trim().max(2000).optional(), photoA: z.string().optional(), photoB: z.string().optional() });
+/** Several children, one activity. The words are shared; the record each child gets is their own. */
+const groupSchema = z.object({
+  studentIds: z.array(z.string().min(1)).min(2, "Choose at least two children — one child is an ordinary observation.").max(30),
+  /** One area and descriptor for the activity, which each child then carries until theirs is changed. */
+  area: z.string().trim().optional(),
+  band: z.string().trim().optional(),
+});
 const MAX_PHOTO = 1_400_000;
 const IMAGE = /^data:image\/(png|jpe?g|webp);base64,[A-Za-z0-9+/=]+$/;
 
@@ -95,7 +102,8 @@ export class TeacherObservationsService {
     };
   }
 
-  async save(session: SessionPayload, studentId: string, body: unknown) {
+  /** `capturedAt` dates the observation the day it was written, for one that waited on a device. */
+  async save(session: SessionPayload, studentId: string, body: unknown, options: { capturedAt?: Date } = {}) {
     const input = saveSchema.parse(body);
     const { arms, term, half } = await this.arms(session);
     const student = await prisma.student.findFirst({ where: { id: studentId, schoolId: session.schoolId, status: "ACTIVE", currentClassId: { in: arms.map((arm) => arm.id) } }, select: { id: true, currentClassId: true, firstName: true, lastName: true } });
@@ -115,9 +123,36 @@ export class TeacherObservationsService {
       if (photo.length > MAX_PHOTO) throw new BadRequestException("A photograph is too large. Use a smaller one — it is shrunk before it is sent, but this one is still over the limit.");
       if (!IMAGE.test(photo)) throw new BadRequestException("A photograph must be a picture (JPEG, PNG or WebP).");
     }
-    const created = await prisma.childObservation.create({ data: { schoolId: session.schoolId, studentId, classId: student.currentClassId!, termId: term.id, halfTerm: half, areas, note: input.note, photos, observedById: session.userId } });
+    const created = await prisma.childObservation.create({ data: { schoolId: session.schoolId, studentId, classId: student.currentClassId!, termId: term.id, halfTerm: half, areas, note: input.note, photos, observedById: session.userId, ...(options.capturedAt ? { observedAt: options.capturedAt } : {}) } });
     await prisma.auditLog.create({ data: { schoolId: session.schoolId, actorId: session.userId, action: AuditAction.CREATE, entityType: "ChildObservation", entityId: created.id, metadata: { summary: `Observation recorded · ${fullName(student)}`, areas: Object.keys(areas).length } } });
-    return { id: created.id };
+    return { id: created.id, child: fullName(student) };
+  }
+
+  /**
+   * One activity, several children.
+   *
+   * An early-years teacher watches a group at the sand tray, not one child at a time, and the
+   * mockup offers exactly this. What they write is shared, but each child is given their **own**
+   * observation record: a shared row would make one child's evidence unreadable without the
+   * others', and a family reads only their own child's.
+   */
+  async saveGroup(session: SessionPayload, body: unknown) {
+    const { studentIds, area, band } = groupSchema.parse(body);
+    const ids = [...new Set(studentIds)];
+    /*
+     * The activity's area is chosen once, so it is composed into the record shape a single
+     * observation uses rather than asking the drawer to name a key it cannot know on the server.
+     */
+    const each = { ...(body as Record<string, unknown>), areas: area && band ? { [area]: band } : {} };
+    const written: string[] = [];
+    for (const studentId of ids) written.push((await this.save(session, studentId, each)).id);
+    await prisma.auditLog.create({
+      data: {
+        schoolId: session.schoolId, actorId: session.userId, action: AuditAction.CREATE, entityType: "ChildObservation", entityId: written[0] ?? "",
+        metadata: { summary: `Group observation · ${ids.length} children`, children: ids.length },
+      },
+    });
+    return { written: written.length };
   }
 
   /** One photograph, as the bytes — only to the class teacher of the arm the child is in. */

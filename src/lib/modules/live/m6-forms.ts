@@ -3,7 +3,7 @@ import { nudgeDrawer } from "@/lib/modules/live/m4-forms";
 import type { ArchiveOverview, RemarkPage } from "@/lib/modules/live/m6-types";
 import { area, checks, choice, fixed, select, toggle } from "@/lib/modules/live/m7-forms";
 import { plural } from "@/lib/modules/live/m7-format";
-import type { DrawerSpec, FormField, PickerOption } from "@/lib/modules/panels";
+import type { DrawerSpec, FormField, Panel, PickerOption } from "@/lib/modules/panels";
 
 /** Every modal in Report Cards, as data. */
 
@@ -52,6 +52,27 @@ export function formMasterDrawer(p: RemarkPage): DrawerSpec {
       choice("Save as", ["Final · ready for the card", "Draft · I will come back to it"], { span: 2, value: "Final · ready for the card" }),
     ],
     submit: { endpoint: RC + "/remarks", method: "POST", body: { student: p.student.id, author: "FORM_MASTER" }, map: { Remark: "text", Tone: "tone", "Also flag to the school": "flags", "Save as": "final" }, encode: { "Save as": { "Final · ready for the card": "true", "Draft · I will come back to it": "false" } } },
+  };
+}
+
+/**
+ * The same remark, written on the page rather than in a drawer over it.
+ *
+ * The mockup writes it inline: the figures it is written from, the subject comments it prints above
+ * and the box itself are all in view at once, and a modal would hide the record behind the thing
+ * being written about it. The fields and what they post are the drawer's, exactly — one form, two
+ * places to meet it.
+ */
+export function formMasterForm(p: RemarkPage): Extract<Panel, { type: "form" }> {
+  const drawer = formMasterDrawer(p);
+  return {
+    type: "form", per: 1, title: "Your remark",
+    tag: p.teacher.state === "Submitted" ? "Written" : p.teacher.state, tagTone: p.teacher.state === "Submitted" ? "positive" : p.teacher.state === "Draft" ? "progress" : "attention",
+    sub: "One paragraph, in your own words. It is the sentence a family reads most carefully.",
+    meta: "Saving needs a connection",
+    fields: drawer.fields ?? [],
+    submit: { ...drawer.submit!, method: "POST", map: drawer.submit!.map ?? {}, done: "Remark saved", refreshAfter: true },
+    formNote: "Nothing reaches a family until the Principal publishes the card.",
   };
 }
 

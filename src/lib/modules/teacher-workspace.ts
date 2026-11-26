@@ -66,7 +66,7 @@ type TeacherModule = {
 export const teacherModules: TeacherModule[] = [
   { code: "m1", label: "My Day", description: "What you owe, and by when.", icon: "M3 12h4l2.5-6 4 12 2.5-6h5", tabOrder: ["today", "oversight"] },
   { code: "m3", label: "Timetable", description: "Your periods, your rooms, your arms.", icon: "M4 5h16v15H4zM4 9.5h16M9 9.5V20M14.5 9.5V20", tabOrder: ["timetable", "teaching"] },
-  { code: "m17", label: "Lesson Notes", description: "Your scheme of work and your notes. Plan the term once, then teach from it every week.", icon: "M5 4.5h9.5A2.5 2.5 0 0 1 17 7v12.5H7.5A2.5 2.5 0 0 1 5 17zM9 8.5h5M9 12h5", tabOrder: ["notes", "curriculum", "review", "coverage"] },
+  { code: "m17", label: "Lesson Notes", description: "Your scheme of work and your notes. Plan the term once, then teach from it every week.", icon: "M5 4.5h9.5A2.5 2.5 0 0 1 17 7v12.5H7.5A2.5 2.5 0 0 1 5 17zM9 8.5h5M9 12h5", tabOrder: ["curriculum", "notes", "review", "coverage"] },
   { code: "m8", label: "My Students", description: "The children you are answerable for.", icon: "M12 4 3.5 8 12 12l8.5-4zM6 10.5v4.8c0 1.7 2.7 3.2 6 3.2s6-1.5 6-3.2v-4.8", tabOrder: ["registry"] },
   { code: "m4", label: "Attendance", description: "Your registers — marked in under a minute, online or not.", icon: "M4 5.5h16V20H4zM8 3v4M16 3v4M8.5 14l2 2 4-4.5", tabOrder: ["mark", "register", "compliance"] },
   {

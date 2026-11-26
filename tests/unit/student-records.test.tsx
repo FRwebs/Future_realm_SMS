@@ -46,7 +46,7 @@ describe("M8 Registry", () => {
 
   it("counts families, not children, against fees", () => {
     const html = markup(registryTab(registry(), rooms));
-    expect(html).toContain("Families, not children");
+    expect(html).toContain("families, not children");
   });
 
   it("opens each student at their own record", () => {
@@ -240,7 +240,7 @@ describe("M8 Admissions", () => {
   it("reads each stage as a count that opens the list behind it", () => {
     const html = markup(admissionsTab(board(), options));
     expect(html).toContain("/student-records/admissions/pipeline/Applied");
-    expect(html).toContain("1 awaiting a screening date");
+    expect(html).toContain("1 awaiting screening");
   });
 
   it("says who is holding the cycle up", () => {

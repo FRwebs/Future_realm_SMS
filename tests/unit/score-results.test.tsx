@@ -79,7 +79,9 @@ describe("M5 the chooser", () => {
   it("names the sheets nobody can enter because nobody teaches them", () => {
     const html = markup(enterTab(chooser()));
     expect(html).toContain("Impossible to enter");
-    expect(html).toContain("Civic JSS 2 A have no teacher");
+    // The card is the count; the sheet it names is on the list under it, now that a stat carries
+    // no second line.
+    expect(html).toContain("Civic");
     expect(html).toContain("Assign");
   });
 
@@ -141,7 +143,7 @@ describe("M5 review", () => {
 
   it("says how long the oldest returned sheet has been sitting", () => {
     const html = markup(reviewTab(overview()));
-    expect(html).toContain("Oldest sitting 9 days");
+    expect(html).toContain("9 days");
     expect(html).toContain("1 sheet is returned and waiting on a teacher");
   });
 
@@ -202,7 +204,7 @@ describe("M5 results", () => {
     };
     const html = markup(armResultPage(sheetData, [], options).content);
     expect(html).toContain("Blocked");
-    expect(html).toContain("never given a zero");
+    expect(html).toContain("never a zero");
   });
 
   it("explains a child's result — what was left out and why — from the page itself", () => {

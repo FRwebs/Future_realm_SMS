@@ -49,11 +49,11 @@ export function queueTab(o: QueueOverview): TabContent {
     panels: [{
       type: "kpi", title: "What is waiting", sub: `${plural(k.inFlight, "decision")} in flight across the school`, per: 5,
       cards: [
-        { label: "Waiting on me", value: String(k.waiting), sub: "Priority, then age", tone: k.waiting ? "attention" : "positive" },
-        { label: "Escalating today", value: String(k.escalating), sub: "Past their routing period", tone: k.escalating ? "negative" : "positive" },
-        { label: "Oldest item", value: k.oldest ? ageText(k.oldest.days) : "—", sub: k.oldest ? k.oldest.type : "Nothing is waiting", tone: k.oldest && k.oldest.days > 7 ? "negative" : k.oldest ? "attention" : "positive" },
-        { label: "Work blocked", value: String(k.blocked.items), unit: k.blocked.items === 1 ? "decision" : "decisions", sub: k.blocked.text || "Nothing is held up", tone: k.blocked.items ? "negative" : "positive" },
-        { label: "Decided this session", value: String(k.decided.count), sub: k.decided.avgDays === null ? "Nothing decided yet" : `Average ${k.decided.avgDays} days`, tone: "positive", link: "Open performance", href: "/approvals-workflow/performance" },
+        { label: "Waiting on me", value: String(k.waiting), tone: k.waiting ? "attention" : "positive" },
+        { label: "Escalating today", value: String(k.escalating), tone: k.escalating ? "negative" : "positive" },
+        { label: "Oldest item", value: k.oldest ? ageText(k.oldest.days) : "—", tone: k.oldest && k.oldest.days > 7 ? "negative" : k.oldest ? "attention" : "positive" },
+        { label: "Work blocked", value: String(k.blocked.items), unit: k.blocked.items === 1 ? "decision" : "decisions", tone: k.blocked.items ? "negative" : "positive" },
+        { label: "Decided this session", value: String(k.decided.count), tone: "positive", link: "Open performance", href: "/approvals-workflow/performance" },
       ],
     }],
   });
@@ -88,7 +88,6 @@ export function queueTab(o: QueueOverview): TabContent {
       head: ["Decision", "Type", "Requester", "Blocking", "Age", "State", ""], noun: "decision", nounPlural: "decisions", per: 10, selectable: bulkable && o.scope === "me",
       ...(bulkable && o.scope === "me" ? { bulkActs: [{ label: "Approve the ticked", drawer: bulkDrawer("approve"), selection: { key: "keys", noun: "decision" } }, { label: "Return the ticked", drawer: bulkDrawer("return"), selection: { key: "keys", noun: "decision" } }] } : {}),
       rows: o.list.map(rowOf), empty: o.scope === "me" ? "Nothing is waiting on you." : "Nothing is in this view.",
-      foot: "A score correction, a waiver or an access grant is decided one at a time — it cannot be ticked into a batch.",
     }],
   });
 

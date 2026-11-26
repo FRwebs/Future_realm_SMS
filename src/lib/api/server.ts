@@ -22,6 +22,23 @@ function toCookieHeader(entries: Array<{ name: string; value: string }>) {
   return entries.map((item) => `${item.name}=${item.value}`).join("; ");
 }
 
+/**
+ * A read the API turned down, with the status it turned it down with.
+ *
+ * The difference between "you may not see this" and "this is broken" matters to a page: a cockpit
+ * shared by every internal role has sections some of them are deliberately not allowed, and a 403
+ * on one of those should cost that section, not the page. Everything else still throws loudly.
+ */
+export class ApiRequestError extends Error {
+  constructor(message: string, readonly status: number, readonly path: string) {
+    super(message);
+    this.name = "ApiRequestError";
+  }
+}
+
+/** Whether a failed read was a refusal rather than a fault — the caller may choose to live without it. */
+export const isRefusal = (error: unknown) => error instanceof ApiRequestError && (error.status === 403 || error.status === 404);
+
 export interface ApiEnvelope<T> {
   ok?: boolean;
   success?: boolean;
@@ -76,7 +93,7 @@ const cachedApiEnvelopeRequest = cache(
 
   if (!response.ok || body.ok === false || body.data === undefined) {
     const message = body.error ?? `Failed to fetch ${path}`;
-    throw new Error(`${message} (status ${response.status})`);
+    throw new ApiRequestError(`${message} (status ${response.status})`, response.status, path);
   }
 
     return body;

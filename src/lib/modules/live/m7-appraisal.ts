@@ -43,6 +43,8 @@ export const loadAppraisalOne = (id: string) => apiGet(`${API}/appraisal/people/
 
 const STAGE_TONE: Record<string, PanelTone> = { Complete: "positive", "With you": "attention", "Self-assessment": "progress", "Not started": "neutral" };
 const REGISTER = "/staff-access/appraisal/export";
+const SETS = "/staff-access/appraisal/sets";
+const BOOK = "M12 6.5C10.5 5 8 4.5 4 4.5v13c4 0 6.5.5 8 2 1.5-1.5 4-2 8-2v-13c-4 0-6.5.5-8 2zM12 6.5v13";
 const cap = (value: string) => `${value.charAt(0).toUpperCase()}${value.slice(1)}`;
 const five = (value: number | null) => (value === null ? "—" : `${value.toFixed(1)} of 5`);
 const token = (kind: string, value: string) => `${kind}:${value}|`;
@@ -51,35 +53,18 @@ export const roleHref = (role: string) => `/staff-access/appraisal/roles/${encod
 export const reviewHref = (id: string) => `/staff-access/appraisal/people/${id}`;
 
 export function appraisalTab(data: AppraisalOverview, moderation: Moderation): TabContent {
-  const { cycle, kpis, people, roles, sets, flow } = data;
+  const { cycle, kpis, people } = data;
   const mine = people.filter((person) => person.stage === "With you" && person.isReviewer && person.appraisalId);
   const first = mine[0];
   const publish = publishCycleDrawer(data);
-  const setNames = Object.keys(sets);
 
   const cards: KpiCard[] = [
-    { label: "Cycle", value: cycle.name.split(" ").slice(0, 2).join(" "), sub: cycle.published ? `Published ${cycle.publishedAt ? dayLong(cycle.publishedAt) : ""}${cycle.deadline ? ` · closes ${dayLong(cycle.deadline)}` : ""}` : `${cycle.name} · not yet published`, tone: cycle.published ? "neutral" : "attention", ...(cycle.published ? {} : { link: "Publish it", drawer: publish }) },
-    { label: "Published to", value: String(kpis.published), unit: "staff", sub: `Across ${plural(setNames.length, "KPI set")}` },
-    { label: "Completed by staff", value: String(kpis.completed), unit: `of ${kpis.published}`, tone: "progress", sub: `${kpis.writing} still writing theirs` },
-    { label: "Waiting on your review", value: String(kpis.withMe), tone: kpis.withMe ? "attention" : "positive", sub: kpis.withMe ? "They have come back to you" : "Nothing waiting", ...(kpis.withMe && first ? { link: "Review them", href: reviewHref(first.appraisalId as string) } : {}) },
-    { label: "Average rating", value: kpis.average === null ? "—" : kpis.average.toFixed(1), unit: kpis.average === null ? undefined : "of 5", sub: moderation.reviewed ? `${moderation.reviewed} reviews so far` : "No review is complete yet" },
+    { label: "Cycle", value: cycle.name.split(" ").slice(0, 2).join(" "), tone: cycle.published ? "neutral" : "attention", ...(cycle.published ? {} : { link: "Publish it", drawer: publish }) },
+    { label: "Published to", value: String(kpis.published), unit: "staff", link: "See the sets", href: SETS },
+    { label: "Completed by staff", value: String(kpis.completed), unit: `of ${kpis.published}`, tone: "progress", },
+    { label: "Waiting on your review", value: String(kpis.withMe), tone: kpis.withMe ? "attention" : "positive", ...(kpis.withMe && first ? { link: "Review them", href: reviewHref(first.appraisalId as string) } : {}) },
+    { label: "Average rating", value: kpis.average === null ? "—" : kpis.average.toFixed(1), unit: kpis.average === null ? undefined : "of 5", },
   ];
-
-  const roleRows: TableRow[] = roles.map((role) => ({
-    id: role.role,
-    cells: [
-      text(role.role, { strong: true }),
-      text(cap(role.set)),
-      text(String(role.kpis)),
-      text(`${Math.round(role.weight)}%`, { mono: true, strong: true, tone: role.publishable ? "positive" : "negative" }),
-      text(`${role.automatic} read from the product · ${role.kpis - role.automatic} rated by the manager`),
-      text(String(role.people)),
-      pill(role.people ? (role.publishable ? "Publishable" : "Weights off") : "Not in use", role.people ? (role.publishable ? "positive" : "negative") : "neutral"),
-      { kind: "action", label: "Open", href: roleHref(role.role) },
-    ],
-    href: roleHref(role.role),
-    keywords: `${token("set", cap(role.set))}${token("pub", role.people ? (role.publishable ? "Publishable" : "Weights off") : "Not in use")}`,
-  }));
 
   const personRows: TableRow[] = people.map((person) => {
     const href = person.appraisalId ? reviewHref(person.appraisalId) : undefined;
@@ -106,16 +91,90 @@ export function appraisalTab(data: AppraisalOverview, moderation: Moderation): T
     title: "Appraisal",
     desc: "KPIs per role: published, self-assessed, then reviewed by the manager.",
     ...(first ? { primary: { label: `Review the ${mine.length} that ${mine.length === 1 ? "has" : "have"} come back`, icon: "M5 12h13M13 6.5l5.5 5.5L13 17.5", href: reviewHref(first.appraisalId as string) } } : {}),
+    // The head holds the review queue's own decision. Defining what is measured, publishing it
+    // and changing the sequence are the cycle's setup, and live on the page that holds them.
     launchers: [
-      { label: "Define a KPI", drawer: defineKpiDrawer() },
-      { label: "Publish the cycle to staff", drawer: publish },
-      { label: "Change how the cycle runs", drawer: flowStageDrawer("appraisal", flow, 0) },
+      { label: "KPI sets and the cycle", href: SETS },
       { label: "Moderate the ratings", drawer: moderationDrawer(moderation) },
-      { label: "Export the cycle", href: REGISTER },
+      { label: "Export the cycle", href: REGISTER, download: true },
     ],
     rows: [
       { cols: "1fr", panels: [{ type: "kpi", title: "Where the cycle stands", sub: cycle.name, per: 5, cards }] },
-      { cols: "1fr", panels: [flowPanel("appraisal", flow, { title: "How this cycle runs", sub: `Where the ${cycle.name} cycle stands. Edit, reorder or remove any stage.`, tag: cycle.published ? "Published" : "Not published", tagTone: cycle.published ? "progress" : "attention", nowIndex: !cycle.published ? 0 : kpis.withMe ? 2 : kpis.writing ? 1 : 3 })] },
+      {
+        cols: "1fr",
+        panels: [
+          {
+            type: "table",
+            title: "Where each person is",
+            tag: `${mine.length} with you`,
+            tagTone: mine.length ? "attention" : "positive",
+            sub: "One line per person. Open anyone to read their self-assessment and write the review.",
+            meta: `${cycle.name}${cycle.deadline ? ` · closes ${dayLong(cycle.deadline)}` : ""} · ${people.filter((person) => person.stage === "Complete").length} complete`,
+            noun: "staff member",
+            nounPlural: "staff",
+            search: "Find a staff member",
+            filters: [
+              { label: "Stage", value: "All", options: ["All", "Not started", "Self-assessment", "With you", "Complete"], match: Object.fromEntries(["Not started", "Self-assessment", "With you", "Complete"].map((name) => [name, token("stage", name)])) },
+              { label: "KPI set", value: "All", options: ["All", "Teaching", "Leadership", "Support"], match: Object.fromEntries(["Teaching", "Leadership", "Support"].map((name) => [name, token("set", name)])) },
+              { label: "Rating", value: "All", options: ["All", "4 and above", "3 to 4", "Below 3", "Not rated"], match: Object.fromEntries(["4 and above", "3 to 4", "Below 3", "Not rated"].map((name) => [name, token("rating", name)])) },
+            ],
+            acts: [{ label: "Send a reminder", primary: true, drawer: remindDrawer() }],
+            selectable: true,
+            bulkActs: [
+              { label: "Send a reminder", drawer: remindDrawer(), selection: { key: "people", noun: "person" } },
+              { label: "Extend the deadline", drawer: deadlineDrawer(cycle.deadline) },
+              { label: "Export selected", primary: true, export: true },
+            ],
+            head: ["Staff member", "Role", "KPI set", "Self-assessment", "Evidence", "Their score", "Reviewer’s score", "Stage", ""],
+            rows: personRows,
+            per: 10,
+            emptyTitle: "The cycle has not been published",
+            emptyBody: "Publish it and every person appears here against their role’s KPIs.",
+            empty: "Nobody matches.",
+          },
+        ],
+      },
+    ],
+  };
+}
+
+/* ─────────────── what is measured, and in what order — a page of its own ───────────────
+ *
+ * A KPI set is written once a cycle and read when something is being set up; the sequence is the
+ * school's own and changed about as often. Below the queue they were two thirds of the tab, so
+ * the review queue — the work — opened under the fold. They are reached by name instead.
+ */
+
+export function appraisalSetsPage(data: AppraisalOverview): TabContent {
+  const { cycle, kpis, roles, flow } = data;
+  const publish = publishCycleDrawer(data);
+  const roleRows: TableRow[] = roles.map((role) => ({
+    id: role.role,
+    cells: [
+      text(role.role, { strong: true }),
+      text(cap(role.set)),
+      text(String(role.kpis)),
+      text(`${Math.round(role.weight)}%`, { mono: true, strong: true, tone: role.publishable ? "positive" : "negative" }),
+      text(`${role.automatic} read from the product · ${role.kpis - role.automatic} rated by the manager`),
+      text(String(role.people)),
+      pill(role.people ? (role.publishable ? "Publishable" : "Weights off") : "Not in use", role.people ? (role.publishable ? "positive" : "negative") : "neutral"),
+      { kind: "action", label: "Open", href: roleHref(role.role) },
+    ],
+    href: roleHref(role.role),
+    keywords: `${token("set", cap(role.set))}${token("pub", role.people ? (role.publishable ? "Publishable" : "Weights off") : "Not in use")}`,
+  }));
+
+  return {
+    title: "KPI sets and the cycle",
+    desc: "What each role is measured on, and the order the cycle runs in.",
+    tag: cycle.published ? "Published" : "Not published",
+    tagTone: cycle.published ? "progress" : "attention",
+    primary: { label: cycle.published ? "Publish to anyone new" : "Publish the cycle to staff", icon: "M5 12h13M13 6.5l5.5 5.5L13 17.5", drawer: publish },
+    launchers: [
+      { label: "Define a KPI", drawer: defineKpiDrawer() },
+      { label: "Change how the cycle runs", drawer: flowStageDrawer("appraisal", flow, 0) },
+    ],
+    rows: [
       {
         cols: "1fr",
         panels: [
@@ -123,6 +182,8 @@ export function appraisalTab(data: AppraisalOverview, moderation: Moderation): T
             type: "facts",
             title: "How a rating is arrived at",
             tuck: "How a rating is arrived at",
+            tuckIcon: BOOK,
+            tuckKicker: "How this works",
             sub: "So the same performance gets the same number in every department.",
             per: 1,
             facts: [
@@ -154,52 +215,17 @@ export function appraisalTab(data: AppraisalOverview, moderation: Moderation): T
               { label: "Set", value: "All", options: ["All", "Teaching", "Leadership", "Support"], match: Object.fromEntries(["Teaching", "Leadership", "Support"].map((name) => [name, token("set", name)])) },
               { label: "Published", value: "All", options: ["All", "Publishable", "Weights off", "Not in use"], match: Object.fromEntries(["Publishable", "Weights off", "Not in use"].map((name) => [name, token("pub", name)])) },
             ],
-            acts: [{ label: "Define a KPI", drawer: defineKpiDrawer() }, { label: "Publish the cycle", primary: true, drawer: publish }],
             head: ["Role", "KPI set", "KPIs", "Weight", "Where the numbers come from", "People", "State", ""],
             rows: roleRows,
             per: 11,
-            foot: "A KPI a school cannot measure is not a KPI — it is a hope. Every KPI here either reads a figure the product already holds, or is rated by a named person against stated evidence.",
           },
         ],
       },
-      {
-        cols: "1fr",
-        panels: [
-          {
-            type: "table",
-            title: "Where each person is",
-            tag: `${mine.length} with you`,
-            tagTone: mine.length ? "attention" : "positive",
-            sub: "One line per person. Open anyone to read their self-assessment and write the review.",
-            meta: `${cycle.name}${cycle.deadline ? ` · closes ${dayLong(cycle.deadline)}` : ""} · ${people.filter((person) => person.stage === "Complete").length} complete`,
-            noun: "staff member",
-            nounPlural: "staff",
-            search: "Find a staff member",
-            filters: [
-              { label: "Stage", value: "All", options: ["All", "Not started", "Self-assessment", "With you", "Complete"], match: Object.fromEntries(["Not started", "Self-assessment", "With you", "Complete"].map((name) => [name, token("stage", name)])) },
-              { label: "KPI set", value: "All", options: ["All", "Teaching", "Leadership", "Support"], match: Object.fromEntries(["Teaching", "Leadership", "Support"].map((name) => [name, token("set", name)])) },
-              { label: "Rating", value: "All", options: ["All", "4 and above", "3 to 4", "Below 3", "Not rated"], match: Object.fromEntries(["4 and above", "3 to 4", "Below 3", "Not rated"].map((name) => [name, token("rating", name)])) },
-            ],
-            acts: [{ label: "Send a reminder", drawer: remindDrawer() }, ...(first ? [{ label: "Review the next one", primary: true, href: reviewHref(first.appraisalId as string) }] : [])],
-            selectable: true,
-            bulkActs: [
-              { label: "Send a reminder", drawer: remindDrawer(), selection: { key: "people", noun: "person" } },
-              { label: "Extend the deadline", drawer: deadlineDrawer(cycle.deadline) },
-              { label: "Export selected", primary: true, export: true },
-            ],
-            head: ["Staff member", "Role", "KPI set", "Self-assessment", "Evidence", "Their score", "Reviewer’s score", "Stage", ""],
-            rows: personRows,
-            per: 10,
-            emptyTitle: "The cycle has not been published",
-            emptyBody: "Publish it and every person appears here against their role’s KPIs.",
-            empty: "Nobody matches.",
-            foot: "A self-assessment far above the manager’s rating is not a problem to hide — it is the most useful conversation in the cycle.",
-          },
-        ],
-      },
+      { cols: "1fr", panels: [flowPanel("appraisal", flow, { title: "How this cycle runs", sub: `Where the ${cycle.name} cycle stands. Edit, reorder or remove any stage.`, tag: cycle.published ? "Published" : "Not published", tagTone: cycle.published ? "progress" : "attention", nowIndex: !cycle.published ? 0 : kpis.withMe ? 2 : kpis.writing ? 1 : 3 })] },
     ],
   };
 }
+
 
 /* ───────────────────────────── one role's KPIs ───────────────────────────── */
 
@@ -216,11 +242,11 @@ export function roleKpiPage(data: AppraisalOverview, role: string) {
   const onRole = data.people.filter((person) => person.role === role);
   const publish = publishCycleDrawer(data);
   const cards: KpiCard[] = [
-    { label: "KPIs", value: String(kpis.length), sub: `${auto.length} automatic · ${kpis.length - auto.length} rated by a manager` },
-    { label: "Weights", value: `${Math.round(total)}%`, tone: ok ? "positive" : "negative", sub: ok ? "Exactly 100 — publishable" : "Must total 100 before publishing" },
-    { label: "People on this role", value: String(onRole.length), sub: onRole.length ? onRole.slice(0, 3).map((person) => person.name.split(" ").slice(-1)[0]).join(", ") : "Nobody yet" },
-    { label: "Measured by the product", value: `${Math.round(auto.reduce((sum, item) => sum + item.weight, 0))}%`, tone: "positive", sub: "Of the total weight · not open to opinion" },
-    { label: "Last changed", value: set.changedAt ? dayLong(set.changedAt).replace(/ \d{4}$/, "") : "Standard", sub: set.changedBy ? `By ${set.changedBy}` : "As the product ships it" },
+    { label: "KPIs", value: String(kpis.length), },
+    { label: "Weights", value: `${Math.round(total)}%`, tone: ok ? "positive" : "negative", },
+    { label: "People on this role", value: String(onRole.length), },
+    { label: "Measured by the product", value: `${Math.round(auto.reduce((sum, item) => sum + item.weight, 0))}%`, tone: "positive", },
+    { label: "Last changed", value: set.changedAt ? dayLong(set.changedAt).replace(/ \d{4}$/, "") : "Standard", },
   ];
   const cells = (index: number): GridCell[] => {
     const item = kpis[index];
@@ -310,11 +336,11 @@ export function appraisalOnePage(one: AppraisalOne) {
   const complete = completeReviewDrawer(one);
   const rated = one.kpis.filter((item) => item.mine || item.auto !== null).length;
   const cards: KpiCard[] = [
-    { label: "Their rating", value: one.kpis.some((item) => item.self) ? (one.kpis.reduce((sum, item) => sum + (item.self ?? 0), 0) / Math.max(1, one.kpis.filter((item) => item.self).length)).toFixed(1) : "—", unit: "of 5", sub: one.kpis.some((item) => item.self) ? "Their own self-assessment" : "They have not self-assessed yet" },
-    { label: "The product says", value: one.kpis.some((item) => item.auto !== null) ? (one.kpis.filter((item) => item.auto !== null).reduce((sum, item) => sum + (item.auto as number), 0) / one.kpis.filter((item) => item.auto !== null).length).toFixed(1) : "—", unit: "of 5", sub: `${one.kpis.filter((item) => item.auto !== null).length} of ${one.kpis.length} KPIs have a figure behind them` },
-    { label: "Reviewer’s rating", value: one.overall ? one.overall.toFixed(1) : "—", unit: "of 5", tone: one.overall ? "positive" : "neutral", sub: one.overall ? `${one.reviewer} · weighted` : `${one.reviewer} has not rated yet` },
-    { label: "KPIs covered", value: `${rated}`, unit: `of ${one.kpis.length}`, tone: rated === one.kpis.length ? "positive" : "attention", sub: rated === one.kpis.length ? "Ready to complete" : "Each needs a rating or a figure" },
-    { label: "Status", value: draft ? "Draft" : one.status === "ACKNOWLEDGED" ? "Acknowledged" : "Shared", tone: draft ? "attention" : "positive", sub: one.sharedAt ? `Shared ${dayLong(one.sharedAt)}` : "Not shared with them yet" },
+    { label: "Their rating", value: one.kpis.some((item) => item.self) ? (one.kpis.reduce((sum, item) => sum + (item.self ?? 0), 0) / Math.max(1, one.kpis.filter((item) => item.self).length)).toFixed(1) : "—", unit: "of 5", },
+    { label: "The product says", value: one.kpis.some((item) => item.auto !== null) ? (one.kpis.filter((item) => item.auto !== null).reduce((sum, item) => sum + (item.auto as number), 0) / one.kpis.filter((item) => item.auto !== null).length).toFixed(1) : "—", unit: "of 5", },
+    { label: "Reviewer’s rating", value: one.overall ? one.overall.toFixed(1) : "—", unit: "of 5", tone: one.overall ? "positive" : "neutral", },
+    { label: "KPIs covered", value: `${rated}`, unit: `of ${one.kpis.length}`, tone: rated === one.kpis.length ? "positive" : "attention", },
+    { label: "Status", value: draft ? "Draft" : one.status === "ACKNOWLEDGED" ? "Acknowledged" : "Shared", tone: draft ? "attention" : "positive", },
   ];
   return {
     title: `${one.name} · ${one.cycle}`,
@@ -346,7 +372,6 @@ export function appraisalOnePage(one: AppraisalOne) {
                 text(kpi.source),
               ],
             })),
-            foot: "Where the product holds no figure the manager’s rating is the rating. Where it holds one, a differing rating needs a reason in the review.",
           },
         ],
       },

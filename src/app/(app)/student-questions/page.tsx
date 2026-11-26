@@ -50,7 +50,7 @@ export default async function StudentQuestionsPage() {
       eyebrow="My Day" title="Students are asking" back={{ label: "Back to My Day", href: "/command-center/today" }}
       description="Questions your students have put to you. Your answer reaches them in their Messages; nobody else sees it."
       rows={[
-        row("1fr", [{ type: "kpi", per: 2, cards: [{ label: "Waiting on you", value: String(data.waiting), sub: data.waiting ? "Answer the oldest first" : "Nothing is waiting", tone: data.waiting ? "attention" : "positive", icon: "message" }, { label: "Asked in all", value: String(data.items.length), sub: "Newest first", icon: "inbox" }] }]),
+        row("1fr", [{ type: "kpi", per: 2, cards: [{ label: "Waiting on you", value: String(data.waiting), tone: data.waiting ? "attention" : "positive", icon: "message" }, { label: "Asked in all", value: String(data.items.length), icon: "inbox" }] }]),
         row("1fr", [{ type: "table", title: "Questions", sub: "Open one to read it and answer.", noun: "question", nounPlural: "questions", head: ["Student", "About", "Asked", "State", ""], rows, per: 12, dense: true, empty: "No student has asked you anything yet." }]),
         ...(data.observed !== undefined && (data.observed.length || observed.length) ? [row("1fr", [{ type: "table" as const, title: "Your arm’s questions to other teachers", sub: "Read only. Your school lets a form master see what its arm asks, as a safeguard — the teacher who was asked answers.", noun: "question", nounPlural: "questions", head: ["Student", "About", "Asked of", "Asked"], rows: observed, per: 12, dense: true, noRowOpen: false, empty: "Nothing yet." }])] : []),
       ]}

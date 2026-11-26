@@ -36,10 +36,12 @@ describe("the teaching workspace", () => {
   it("orders a module's tabs the way the teacher meets them, then whatever an administrator added", () => {
     expect(orderTeacherTabs("m5", ["results", "enter", "review"])).toEqual(["enter", "review", "results"]);
     expect(orderTeacherTabs("m4", ["register", "extra", "mark"])).toEqual(["mark", "register", "extra"]);
-    expect(defaultTeacherTabs("m17", "subject-teacher")).toEqual(["notes", "curriculum"]);
+    // Lesson Notes opens on the scheme of work: the term is planned once, and every week's note is
+    // written out of it. The mobile mockup opens on Notes; this is a deliberate departure.
+    expect(defaultTeacherTabs("m17", "subject-teacher")).toEqual(["curriculum", "notes"]);
     // Messages opens on what was sent; writing one is the button, as in the teacher mobile mockup.
     expect(orderTeacherTabs("m12", ["compose", "sent"])).toEqual(["sent", "compose"]);
-    expect(defaultTeacherTabs("m17", "head-of-department")).toEqual(["notes", "curriculum", "review", "coverage"]);
+    expect(defaultTeacherTabs("m17", "head-of-department")).toEqual(["curriculum", "notes", "review", "coverage"]);
   });
 
   it("lets a teacher only read the tabs it does not work in", () => {

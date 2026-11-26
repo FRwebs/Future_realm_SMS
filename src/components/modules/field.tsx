@@ -3,6 +3,9 @@
 import { AddableChecks, LinesField, MatrixField, PickerField } from "@/components/modules/field-extras";
 import type { FormField } from "@/lib/modules/panels";
 import { CARD_BORDER, MUTED } from "@/lib/modules/tones";
+import { usePhoneKind } from "@/components/layout/phone-shell";
+import { tightFor } from "@/lib/ui/tight-copy";
+import { useNarrow, useTightLine } from "@/components/modules/tight-line";
 
 const CONTROL =
   "w-full min-w-0 rounded-[10px] border-[1.5px] px-[11.5px] py-[10px] text-[12px] font-medium leading-normal text-[#0D2315] outline-hidden min-h-[38px] box-border focus:border-[#12796A]";
@@ -72,44 +75,124 @@ export function fieldVisible(field: FormField, values: Record<string, unknown>):
   return true;
 }
 
+/**
+ * A field's hint, under the phone's copy rule.
+ *
+ * Its own component because the rule is a hook, and a hint has to be drawn from more than one place.
+ * Kept for the two places a hint is the field's whole content — a read-only value and a group of
+ * options, where there is no single box for a tooltip to hang off.
+ */
+function Hint({ text }: { text?: string }) {
+  const { node, hidePhone } = useTightLine("hint", text);
+  if (!node) return null;
+  return <p className={cn("mt-[5px] text-[10px] leading-[1.45] text-[#6B7A71]", hidePhone && "max-md:hidden")}>{node}</p>;
+}
+
+/**
+ * A field's guidance, moved off the form and onto a mark beside its label.
+ *
+ * A hint under every box turned a form of eight fields into a page of prose, and the longest
+ * sentences in the product live in forms. The guidance has not gone: it is one tap or one hover
+ * away, it is read out by a screen reader through `aria-describedby`, and the browser's own
+ * tooltip carries it for anyone who finds the mark without either.
+ */
+function FieldHelp({ text, id }: { text: string; id: string }) {
+  return (
+    <span className="group/hint relative inline-flex">
+      <button
+        type="button"
+        aria-label={`What to put here: ${text}`}
+        title={text}
+        aria-describedby={id}
+        className="flex h-[13px] w-[13px] items-center justify-center rounded-full border border-[#CFE0D6] text-[8.5px] font-bold text-[#6B7A71] transition hover:border-[#12796A] hover:text-[#12796A] focus-visible:border-[#12796A] focus-visible:text-[#12796A] focus-visible:outline-hidden"
+      >
+        ?
+      </button>
+      <span
+        id={id}
+        role="tooltip"
+        className="pointer-events-none absolute bottom-[calc(100%+6px)] left-[-6px] z-30 w-[220px] max-w-[70vw] rounded-[8px] px-[9px] py-[7px] text-[10px] font-normal leading-[1.45] text-white opacity-0 shadow-[0_10px_24px_-12px_rgba(13,35,21,0.9)] transition-opacity duration-100 group-hover/hint:opacity-100 group-focus-within/hint:opacity-100"
+        style={{ background: "#0D2315" }}
+      >
+        {text}
+      </span>
+    </span>
+  );
+}
+
+/** What a switch says it is set to, in the shorter words a phone has room for. */
+function ToggleLabel({ text }: { text: string }) {
+  const { node } = useTightLine("toggle", text);
+  return <>{node}</>;
+}
+
 export function Field({
   field,
   value,
   setValue,
   values,
+  missing,
 }: {
   field: FormField;
   value: unknown;
   setValue: (next: unknown) => void;
   /** Every field's value, for the fields that depend on another. */
   values?: Record<string, unknown>;
+  /** Set once someone has tried to go on without answering this one. */
+  missing?: boolean;
 }) {
+  const slug = field.label.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
   const label = (
     <div className="mb-[7px] flex flex-wrap items-baseline gap-x-[6px]">
       <span className="text-[10.5px] font-semibold leading-[1.4] text-[#435048]">{field.label}</span>
-      {field.required ? <span className="text-[10px] text-[#B23B3B]">Required</span> : null}
+      {/* Required is a mark, not a word: a column of red "Required" labels says nothing a reader
+          cannot see from the one field that is blank. The word appears on the field that stopped
+          them, and only once they have tried to go on. */}
+      {field.required ? (
+        missing
+          ? <span className="text-[10px] font-semibold text-[#B23B3B]">Required</span>
+          : <span aria-label="Required" title="Required" className="text-[12px] leading-none text-[#B23B3B]">*</span>
+      ) : null}
       {field.optional ? <span className="text-[10px] text-[#8B9A91]">Optional</span> : null}
       {field.unit ? <span className="text-[10px] text-[#8B9A91]">{field.unit}</span> : null}
+      {field.hint ? <FieldHelp text={field.hint} id={`hint-${slug}`} /> : null}
     </div>
   );
 
-  const hint = field.hint ? (
-    <p className="mt-[5px] text-[10px] leading-[1.45] text-[#6B7A71]">{field.hint}</p>
-  ) : null;
+  // The guidance now hangs off the label as a tooltip; the two kinds of field that have no single
+  // box of their own keep it underneath, where there is nothing for a mark to point at.
+  const hint = null;
+  // A placeholder cannot be written twice and hidden one way or the other, so this one slot asks the
+  // browser how wide it is instead of leaving the choice to CSS. Both are read every render: a hook
+  // behind a short-circuit is not a hook.
+  const inPortal = usePhoneKind() !== null;
+  const narrow = useNarrow();
+  const phoneWidth = inPortal && narrow;
 
   const wrap = cn("min-w-0", field.span === 2 && "col-span-full");
 
   if (field.kind === "static") {
     const picked = field.by ? field.by.cases[String(values?.[field.by.field] ?? "")] : undefined;
+    // A field that is the product of two others is worked out on every keystroke, so the answer is
+    // never one input behind what has been typed.
+    const product = field.times
+      ? (() => {
+          const read = (name: string) => Number(String(values?.[name] ?? "").replace(/[^0-9.-]/g, ""));
+          const [one, two] = field.times.fields.map(read);
+          if (!Number.isFinite(one) || !Number.isFinite(two) || !one || !two) return field.times.empty ?? field.value;
+          const total = one * two;
+          return field.times.money ? `₦${Math.round(total).toLocaleString("en-NG")}` : String(total);
+        })()
+      : undefined;
     return (
       <div className={wrap}>
         {label}
         <p className="text-pretty pt-[2px] text-[11.5px] font-semibold leading-normal text-[#0D2315]">
-          {picked?.value ?? field.value}
+          {product ?? picked?.value ?? field.value}
         </p>
-        {picked?.hint ?? field.hint ? (
-          <p className="mt-[5px] text-[10px] leading-[1.45] text-[#6B7A71]">{picked?.hint ?? field.hint}</p>
-        ) : null}
+        {/* A value that changes with another field carries its own note; the field's general
+            guidance is already on the label as a tooltip. */}
+        <Hint text={picked?.hint && picked.hint !== field.hint ? picked.hint : undefined} />
       </div>
     );
   }
@@ -267,7 +350,7 @@ export function Field({
             className="text-[11.5px] font-semibold"
             style={{ color: on ? "#12796A" : MUTED }}
           >
-            {on ? (field.onLabel ?? "On") : (field.offLabel ?? "Off")}
+            <ToggleLabel text={on ? (field.onLabel ?? "On") : (field.offLabel ?? "Off")} />
           </span>
         </button>
         {hint}
@@ -403,7 +486,7 @@ export function Field({
         <textarea
           value={value as string}
           onChange={(event) => setValue(event.target.value)}
-          placeholder={field.placeholder}
+          placeholder={tightFor(phoneWidth, "ph", field.placeholder)}
           aria-label={field.label}
           className={cn(CONTROL, "min-h-[80px] resize-y bg-white leading-[1.55]")}
           style={{ borderColor: CARD_BORDER }}
@@ -422,7 +505,7 @@ export function Field({
         type={field.type ?? "text"}
         value={value as string}
         onChange={(event) => setValue(event.target.value)}
-        placeholder={field.placeholder}
+        placeholder={tightFor(phoneWidth, "ph", field.placeholder)}
         readOnly={field.readOnly}
         aria-label={field.label}
         className={CONTROL}

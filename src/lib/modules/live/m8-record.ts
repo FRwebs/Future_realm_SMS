@@ -100,12 +100,12 @@ function overview({ d, wrap }: Body): RecordPage {
   const portals = d.family.guardians.filter((guardian) => guardian.portal === "Active").length;
   const sheet = d.academic.sheet;
   const cards: KpiCard[] = [
-    { label: "Class and arm", value: d.arm?.name ?? "No arm", sub: d.arm ? `${d.arm.level} · ${plural(d.roll, "student")} in the arm` : "In no register", tone: d.arm ? "neutral" : "negative", link: d.arm ? `Open ${d.arm.name}` : undefined, href: d.arm ? `/class-timetable/classes/${d.arm.id}` : undefined },
-    { label: "Attendance", value: d.attendance.pct === null ? "—" : `${d.attendance.pct}%`, sub: d.attendance.days ? `${d.attendance.present} of ${d.attendance.days} days` : "No register marked yet", tone: attTone(d.attendance.pct), link: "Open attendance", href: sectionHref(d, "attendance") },
-    { label: "Term average", value: sheet ? String(sheet.avg) : "—", sub: sheet ? `Position ${sheet.position ?? "—"} of ${sheet.outOf}` : "No result sheet yet", tone: sheet ? gradeTone(sheet.avg) : "neutral", link: "Open academic", href: sectionHref(d, "academic") },
-    { label: "Report card", value: d.cards.find((card) => card.termId === d.term?.id)?.state ?? "Not generated", sub: sheet ? `Sheet ${sheet.status.toLowerCase()}` : "Waiting on score sheets", tone: stateTone(d.cards.find((card) => card.termId === d.term?.id)?.state ?? "Not generated"), link: "Open report cards", href: sectionHref(d, "report-cards") },
-    { label: "Fee balance", value: d.fees.owing ? naira(d.fees.owing) : d.fees.billed ? "Settled" : "Not billed", sub: d.fees.owing ? `${plural(d.fees.days, "day")} old` : d.fees.billed ? "Nothing outstanding" : "No invoice this term", tone: d.fees.owing ? "attention" : d.fees.billed ? "positive" : "neutral", link: "Open fees", href: sectionHref(d, "fees") },
-    { label: "Guardian portal", value: `${portals} of ${d.family.guardians.length}`, sub: d.family.guardians.length ? (portals === d.family.guardians.length ? "All active" : "One has never activated") : "No guardian mapped", tone: !d.family.guardians.length ? "negative" : portals === d.family.guardians.length ? "positive" : "attention", link: "Open family", href: sectionHref(d, "family") },
+    { label: "Class and arm", value: d.arm?.name ?? "No arm", tone: d.arm ? "neutral" : "negative", link: d.arm ? `Open ${d.arm.name}` : undefined, href: d.arm ? `/class-timetable/classes/${d.arm.id}` : undefined },
+    { label: "Attendance", value: d.attendance.pct === null ? "—" : `${d.attendance.pct}%`, tone: attTone(d.attendance.pct), link: "Open attendance", href: sectionHref(d, "attendance") },
+    { label: "Term average", value: sheet ? String(sheet.avg) : "—", tone: sheet ? gradeTone(sheet.avg) : "neutral", link: "Open academic", href: sectionHref(d, "academic") },
+    { label: "Report card", value: d.cards.find((card) => card.termId === d.term?.id)?.state ?? "Not generated", tone: stateTone(d.cards.find((card) => card.termId === d.term?.id)?.state ?? "Not generated"), link: "Open report cards", href: sectionHref(d, "report-cards") },
+    { label: "Fee balance", value: d.fees.owing ? naira(d.fees.owing) : d.fees.billed ? "Settled" : "Not billed", tone: d.fees.owing ? "attention" : d.fees.billed ? "positive" : "neutral", link: "Open fees", href: sectionHref(d, "fees") },
+    { label: "Guardian portal", value: `${portals} of ${d.family.guardians.length}`, tone: !d.family.guardians.length ? "negative" : portals === d.family.guardians.length ? "positive" : "attention", link: "Open family", href: sectionHref(d, "family") },
   ];
   const identity: PanelFact[] = [
     ["Full name", d.fullName, ""],
@@ -183,7 +183,6 @@ function overview({ d, wrap }: Body): RecordPage {
             per: 10,
             rows: subjectRows,
             empty: "No subject is offered to this child's arm yet.",
-            foot: `Pass mark ${d.academic.passMark}. A dash is a component nobody has entered yet.`,
           },
         ],
       },
@@ -234,7 +233,7 @@ function academic({ d, termResult, wrap }: Body): RecordPage {
       ],
       crumb: { label: "Back to all terms", href: sectionHref(d, "academic") },
       rows: [
-        { cols: "1fr", panels: [{ type: "kpi", title: `${t.term.name} ${t.term.session}`, per: 5, cards: [{ label: "Term average", value: String(t.avg), unit: "/ 100", sub: `Total ${t.total}`, tone: gradeTone(t.avg) }, { label: "Position", value: t.position === null ? "—" : String(t.position), sub: `Of ${t.outOf}` }, { label: "Grade", value: t.grade, sub: "On the school's own bands" }, { label: "Subjects scored", value: String(t.subjects.length), sub: "Every sheet in", tone: "positive" }, { label: "Card", value: t.state, sub: t.published ? `Published ${dayLabel(t.published)}` : "Not with the family yet", tone: stateTone(t.state) }] }] },
+        { cols: "1fr", panels: [{ type: "kpi", title: `${t.term.name} ${t.term.session}`, per: 5, cards: [{ label: "Term average", value: String(t.avg), unit: "/ 100", tone: gradeTone(t.avg) }, { label: "Position", value: t.position === null ? "—" : String(t.position), }, { label: "Grade", value: t.grade, }, { label: "Subjects scored", value: String(t.subjects.length), tone: "positive" }, { label: "Card", value: t.state, tone: stateTone(t.state) }] }] },
         {
           cols: "1fr",
           panels: [
@@ -249,7 +248,6 @@ function academic({ d, termResult, wrap }: Body): RecordPage {
               nounPlural: "subjects",
               noRowOpen: true,
               rows,
-              foot: "A dash is a component the teacher never entered. It is not a zero, and it is not averaged in.",
             },
           ],
         },
@@ -289,11 +287,11 @@ function academic({ d, termResult, wrap }: Body): RecordPage {
             sub: `${d.term?.label ?? "No current term"}.`,
             per: 5,
             cards: [
-              { label: "Term average", value: sheet ? String(sheet.avg) : "—", unit: sheet ? "/ 100" : undefined, sub: sheet ? `Total ${sheet.total}` : "No result sheet yet", tone: sheet ? gradeTone(sheet.avg) : "neutral" },
-              { label: "Position", value: sheet?.position ? String(sheet.position) : "—", sub: `In a class of ${d.roll}` },
-              { label: "Subjects scored", value: String(d.academic.scored), unit: `of ${subjects.length}`, sub: `${sheet?.passed ?? 0} at credit or above`, tone: d.academic.scored === subjects.length && subjects.length ? "positive" : "attention" },
-              { label: "Strongest", value: d.academic.strongest?.total === null || !d.academic.strongest ? "—" : String(d.academic.strongest.total), sub: d.academic.strongest?.name ?? "", tone: "positive" },
-              { label: "Weakest", value: d.academic.weakest?.total === null || !d.academic.weakest ? "—" : String(d.academic.weakest.total), sub: d.academic.weakest?.name ?? "", tone: d.academic.weakest && (d.academic.weakest.total ?? 100) < 50 ? "negative" : "attention" },
+              { label: "Term average", value: sheet ? String(sheet.avg) : "—", unit: sheet ? "/ 100" : undefined, tone: sheet ? gradeTone(sheet.avg) : "neutral" },
+              { label: "Position", value: sheet?.position ? String(sheet.position) : "—", },
+              { label: "Subjects scored", value: String(d.academic.scored), unit: `of ${subjects.length}`, tone: d.academic.scored === subjects.length && subjects.length ? "positive" : "attention" },
+              { label: "Strongest", value: d.academic.strongest?.total === null || !d.academic.strongest ? "—" : String(d.academic.strongest.total), tone: "positive" },
+              { label: "Weakest", value: d.academic.weakest?.total === null || !d.academic.weakest ? "—" : String(d.academic.weakest.total), tone: d.academic.weakest && (d.academic.weakest.total ?? 100) < 50 ? "negative" : "attention" },
             ],
           },
         ],
@@ -320,8 +318,8 @@ function reportCards({ d, wrap }: Body): RecordPage {
   }));
   return wrap({
     rows: [
-      { cols: "1fr", panels: [{ type: "kpi", title: "What this family has been given", sub: "Every card ever issued for this child.", per: 4, cards: [{ label: "Cards published", value: String(published), unit: `of ${d.cards.length}`, sub: d.cards.length ? `Since ${d.cards[d.cards.length - 1].session}` : "None yet", tone: published ? "positive" : "neutral" }, { label: "This term", value: current?.state ?? "Not generated", sub: d.academic.sheet ? `Sheet ${d.academic.sheet.status.toLowerCase()}` : "Waits on the score sheets", tone: stateTone(current?.state ?? "Not generated"), link: "Open completion", href: "/report-cards/completion" }, { label: "Remark for this term", value: "Open", sub: `Owed by ${d.formMaster?.name ?? "the form master"}`, tone: "attention", link: "Write it now", href: "/report-cards/remarks" }, { label: "Portal", value: `${d.family.guardians.filter((guardian) => guardian.portal === "Active").length} of ${d.family.guardians.length}`, sub: "Guardians who can open a published card", tone: d.family.guardians.every((guardian) => guardian.portal === "Active") && d.family.guardians.length ? "positive" : "attention" }] }] },
-      { cols: "1fr", panels: [{ type: "table", title: "Report card history", sub: "Preview any card exactly as the family sees it.", meta: `${plural(d.cards.length, "term")} · ${published} published`, head: ["Session", "Term", "Average", "Position", "Grade", "State", "Published", ""], noun: "card", nounPlural: "cards", noRowOpen: true, rows, empty: "No report card has been generated for this child yet.", foot: "A published card is never silently restated. A correction reissues it and tells the family why." }] },
+      { cols: "1fr", panels: [{ type: "kpi", title: "What this family has been given", sub: "Every card ever issued for this child.", per: 4, cards: [{ label: "Cards published", value: String(published), unit: `of ${d.cards.length}`, tone: published ? "positive" : "neutral" }, { label: "This term", value: current?.state ?? "Not generated", tone: stateTone(current?.state ?? "Not generated"), link: "Open completion", href: "/report-cards/completion" }, { label: "Remark for this term", value: "Open", tone: "attention", link: "Write it now", href: "/report-cards/remarks" }, { label: "Portal", value: `${d.family.guardians.filter((guardian) => guardian.portal === "Active").length} of ${d.family.guardians.length}`, tone: d.family.guardians.every((guardian) => guardian.portal === "Active") && d.family.guardians.length ? "positive" : "attention" }] }] },
+      { cols: "1fr", panels: [{ type: "table", title: "Report card history", sub: "Preview any card exactly as the family sees it.", meta: `${plural(d.cards.length, "term")} · ${published} published`, head: ["Session", "Term", "Average", "Position", "Grade", "State", "Published", ""], noun: "card", nounPlural: "cards", noRowOpen: true, rows, empty: "No report card has been generated for this child yet.", }] },
       {
         cols: "1.1fr 1fr",
         panels: [
@@ -346,9 +344,9 @@ function attendance({ d, wrap }: Body): RecordPage {
   const lastSession = a.sessions[1];
   return wrap({
     rows: [
-      { cols: "1fr", panels: [{ type: "kpi", title: "Attendance", sub: `${d.term?.label ?? "This term"} · ${plural(a.days, "register")} marked so far.`, per: 5, cards: [{ label: "This term", value: a.pct === null ? "—" : `${a.pct}%`, sub: a.days ? `${a.present} of ${a.days} days` : "Nothing marked", tone: attTone(a.pct) }, { label: "Absent", value: String(a.absent), unit: "days", sub: `${a.excused} excused · ${Math.max(0, a.absent - a.excused)} unexplained`, tone: a.absent > 4 ? "negative" : "neutral" }, { label: "Late", value: String(a.late), unit: "days", sub: "Arrived after the bell", tone: a.late ? "attention" : "positive" }, { label: "Chronic threshold", value: "75%", sub: a.pct !== null && a.pct < 75 ? "Below it — flagged to the form master" : "Above it", tone: a.pct !== null && a.pct < 75 ? "negative" : "positive" }, { label: "Last session", value: lastSession?.pct === null || !lastSession ? "—" : `${lastSession.pct}%`, sub: lastSession ? lastSession.session : "No earlier session", tone: lastSession?.pct ? attTone(lastSession.pct) : "neutral" }] }] },
-      { cols: "1fr", panels: [{ type: "table", title: "Attendance by session", tag: plural(a.sessions.length, "session"), tagTone: "neutral", sub: "Open a session for every term in it.", meta: `Target ${TARGET}% · chronic threshold 75%`, head: ["Session", "Terms marked", "Days", "Present", "Absent", "Late", "Excused", "Attendance", "Where it stands", ""], noun: "session", nounPlural: "sessions", noRowOpen: true, rows: sessions, empty: "No register has ever been marked for this child.", foot: "A session is three terms. Opening one shows each term." }] },
-      { cols: "1fr", panels: [{ type: "table", title: "Every mark that is not “present”", sub: "With the reason, and whether it was accepted.", meta: `${plural(a.entries.length, "entry", "entries")} this term`, head: ["Date", "Mark", "Reason given", "Accepted", "Source"], noun: "entry", nounPlural: "entries", noRowOpen: true, rows: marks, emptyTitle: "Nothing but present marks", emptyBody: "Every register this term has this child present.", foot: a.pct !== null && a.pct < 75 ? "Below the 75% chronic threshold. The school's policy is to meet the guardian." : "Excusing an absence changes the term percentage, so it is logged with a name." }] },
+      { cols: "1fr", panels: [{ type: "kpi", title: "Attendance", sub: `${d.term?.label ?? "This term"} · ${plural(a.days, "register")} marked so far.`, per: 5, cards: [{ label: "This term", value: a.pct === null ? "—" : `${a.pct}%`, tone: attTone(a.pct) }, { label: "Absent", value: String(a.absent), unit: "days", tone: a.absent > 4 ? "negative" : "neutral" }, { label: "Late", value: String(a.late), unit: "days", tone: a.late ? "attention" : "positive" }, { label: "Chronic threshold", value: "75%", tone: a.pct !== null && a.pct < 75 ? "negative" : "positive" }, { label: "Last session", value: lastSession?.pct === null || !lastSession ? "—" : `${lastSession.pct}%`, tone: lastSession?.pct ? attTone(lastSession.pct) : "neutral" }] }] },
+      { cols: "1fr", panels: [{ type: "table", title: "Attendance by session", tag: plural(a.sessions.length, "session"), tagTone: "neutral", sub: "Open a session for every term in it.", meta: `Target ${TARGET}% · chronic threshold 75%`, head: ["Session", "Terms marked", "Days", "Present", "Absent", "Late", "Excused", "Attendance", "Where it stands", ""], noun: "session", nounPlural: "sessions", noRowOpen: true, rows: sessions, empty: "No register has ever been marked for this child.", }] },
+      { cols: "1fr", panels: [{ type: "table", title: "Every mark that is not “present”", sub: "With the reason, and whether it was accepted.", meta: `${plural(a.entries.length, "entry", "entries")} this term`, head: ["Date", "Mark", "Reason given", "Accepted", "Source"], noun: "entry", nounPlural: "entries", noRowOpen: true, rows: marks, emptyTitle: "Nothing but present marks", emptyBody: "Every register this term has this child present.", }] },
     ],
   });
 }
@@ -362,7 +360,7 @@ function wellbeing({ d, wrap }: Body): RecordPage {
   const health = w.health;
   return wrap({
     rows: [
-      { cols: "1fr", panels: [{ type: "kpi", title: "Wellbeing", sub: "Recorded by the form master, the counsellor and the school nurse.", per: 3, cards: [{ label: "Conduct", value: incidents ? "Occasional" : "Clean", sub: incidents ? plural(incidents, "incident") : "No incidents on record", tone: incidents ? "attention" : "positive" }, { label: "Guidance and counselling", value: String(w.counselling), unit: w.counselling === 1 ? "session" : "sessions", sub: `${w.visits} sick-bay ${w.visits === 1 ? "visit" : "visits"}`, tone: "neutral" }, { label: "Health", value: health ? "On file" : "Nothing on file", sub: health?.conditions ?? "No known conditions recorded", tone: "sensitive", link: "Reveal the record", drawer: sensitiveDrawer(d) }] }] },
+      { cols: "1fr", panels: [{ type: "kpi", title: "Wellbeing", sub: "Recorded by the form master, the counsellor and the school nurse.", per: 3, cards: [{ label: "Conduct", value: incidents ? "Occasional" : "Clean", tone: incidents ? "attention" : "positive" }, { label: "Guidance and counselling", value: String(w.counselling), unit: w.counselling === 1 ? "session" : "sessions", tone: "neutral" }, { label: "Health", value: health ? "On file" : "Nothing on file", tone: "sensitive", link: "Reveal the record", drawer: sensitiveDrawer(d) }] }] },
       ...(d.support && (d.support.plan || d.support.canManage)
         ? [{
             cols: "1fr",
@@ -397,14 +395,13 @@ function wellbeing({ d, wrap }: Body): RecordPage {
             rows,
             emptyTitle: "Nothing has been recorded",
             emptyBody: "A guidance note, a commendation or a conduct entry will appear here.",
-            foot: "A guidance note is visible to the form master, the counsellor and school leadership — never to a subject teacher.",
           },
           {
             type: "facts",
             title: "Health and welfare",
             tag: "Sensitive",
             tagTone: "sensitive",
-            sub: "Summary only. Opening the full record writes your name and the time to the audit log — at the moment you continue.",
+            sub: "Opening the full record writes your name to the audit log. Summary only until then.",
             per: 1,
             acts: [{ label: "Reveal the full record", primary: true, drawer: sensitiveDrawer(d) }],
             facts: [["Known conditions", health?.conditions ?? "None recorded"], ["Allergies", health?.allergies ?? "None recorded"], ["Emergency contact", d.family.guardians[0] ? `${d.family.guardians[0].name} · ${d.family.guardians[0].phone}` : "No guardian on file"], ["Second emergency contact", d.family.guardians[1] ? `${d.family.guardians[1].name} · ${d.family.guardians[1].phone}` : "None on file"], ["Behind the reveal", "Blood group, genotype, counselling notes, disciplinary file"]],
@@ -457,7 +454,7 @@ function family({ d, registry, pool, wrap }: Body): RecordPage {
   return wrap({
     rows: [
       ...(!f.guardians.length ? [{ cols: "1fr", panels: [{ type: "note" as const, tone: "negative" as PanelTone, title: "No guardian is mapped to this child", body: "Nothing can be published to a family that does not exist on the record — no report card, no invoice, no attendance message. Map one now, or link an existing guardian who already has other children here.", acts: [{ label: "Map a guardian to this child", drawer: mapGuardianDrawer(d, false, pool) }, { label: "Link an existing guardian", drawer: mapGuardianDrawer(d, true, pool) }] }] }] : []),
-      { cols: "1fr", panels: [{ type: "table", title: "Guardians", tag: `${f.guardians.length} on file`, tagTone: "neutral", sub: "Who the school writes to, and what each of them can see.", meta: `${f.guardians.filter((guardian) => guardian.portal === "Active").length} of ${f.guardians.length} have activated the portal`, acts: [{ label: "Map another guardian", primary: true, drawer: mapGuardianDrawer(d, false, pool) }, { label: "Link an existing guardian", drawer: mapGuardianDrawer(d, true, pool) }], head: ["Guardian", "Relation", "Phone", "Email", "Contact", "Portal", "Delivery", ""], noun: "guardian", nounPlural: "guardians", noRowOpen: true, rows: guardianRows, emptyTitle: "Nobody is mapped", emptyBody: "Map a guardian so the family can be reached.", foot: "One guardian, one login — even with four children in the school." }] },
+      { cols: "1fr", panels: [{ type: "table", title: "Guardians", tag: `${f.guardians.length} on file`, tagTone: "neutral", sub: "Who the school writes to, and what each of them can see.", meta: `${f.guardians.filter((guardian) => guardian.portal === "Active").length} of ${f.guardians.length} have activated the portal`, acts: [{ label: "Map another guardian", primary: true, drawer: mapGuardianDrawer(d, false, pool) }, { label: "Link an existing guardian", drawer: mapGuardianDrawer(d, true, pool) }], head: ["Guardian", "Relation", "Phone", "Email", "Contact", "Portal", "Delivery", ""], noun: "guardian", nounPlural: "guardians", noRowOpen: true, rows: guardianRows, emptyTitle: "Nobody is mapped", emptyBody: "Map a guardian so the family can be reached.", }] },
       {
         cols: "1.05fr 1fr",
         panels: [
@@ -479,15 +476,15 @@ function fees({ d, wrap }: Body): RecordPage {
   const receipts: TableRow[] = f.receipts.map((receipt) => ({ cells: [text(receipt.ref, { mono: true, strong: true }), text(receipt.at ? dayLabel(receipt.at) : "—", { mono: true }), text(receipt.term), text(receipt.mode), text(naira(receipt.amount), { mono: true, strong: true }), text(receipt.reference, { mono: true }), text(receipt.by), { kind: "action" as const, label: "Print receipt", drawer: receiptDrawer(receipt.id, receipt.ref) }] }));
   return wrap({
     rows: [
-      { cols: "1fr", panels: [{ type: "kpi", title: "This term", per: 5, cards: [{ label: "Billed", value: naira(f.billed), sub: `${plural(f.items.length, "fee item")} billed`, tone: "neutral" }, { label: "Paid", value: naira(f.paid), sub: f.paid ? `${plural(f.receipts.length, "receipt")} on record` : "Nothing received", tone: f.paid ? "positive" : f.billed ? "negative" : "neutral" }, { label: "Outstanding", value: naira(f.owing), sub: f.owing ? `${plural(f.days, "day")} old` : f.billed ? "Settled in full" : "Not billed", tone: f.owing ? "attention" : "positive" }, { label: "Family", value: d.family.siblings ? `${d.family.siblings + 1} children` : "One child", sub: d.family.siblings ? "A family pays once" : "Only child on the roll", tone: "neutral" }, { label: "State", value: f.state, sub: "Read from the invoices", tone: FEE_TONE[f.state], link: "Open the family", href: `/fee-management/collections/families/${encodeURIComponent(f.familyId)}` }] }] },
+      { cols: "1fr", panels: [{ type: "kpi", title: "This term", per: 5, cards: [{ label: "Billed", value: naira(f.billed), tone: "neutral" }, { label: "Paid", value: naira(f.paid), tone: f.paid ? "positive" : f.billed ? "negative" : "neutral" }, { label: "Outstanding", value: naira(f.owing), tone: f.owing ? "attention" : "positive" }, { label: "Family", value: d.family.siblings ? `${d.family.siblings + 1} children` : "One child", tone: "neutral" }, { label: "State", value: f.state, tone: FEE_TONE[f.state], link: "Open the family", href: `/fee-management/collections/families/${encodeURIComponent(f.familyId)}` }] }] },
       {
         cols: "1.05fr 1fr",
         panels: [
-          { type: "table", title: "What was billed", tag: f.structures.length > 1 ? `${f.structures.length} structures` : undefined, tagTone: "neutral", sub: "The fee items this child carries, exactly as the structure lists them.", meta: f.structures.length ? `Structure: ${f.structures.join(" + ")} · ${d.term?.label ?? ""}` : "No invoice this term", acts: [{ label: "Open the structure", href: "/fee-management/structures" }], head: ["Fee item", "Structure", "Amount", "Status"], noun: "item", nounPlural: "items", noRowOpen: true, rows: items, emptyTitle: "Nothing has been billed", emptyBody: "No invoice has been raised for this child this term.", foot: "Every item on the invoice is listed, so the rows add up to the total billed." },
+          { type: "table", title: "What was billed", tag: f.structures.length > 1 ? `${f.structures.length} structures` : undefined, tagTone: "neutral", sub: "The fee items this child carries, exactly as the structure lists them.", meta: f.structures.length ? `Structure: ${f.structures.join(" + ")} · ${d.term?.label ?? ""}` : "No invoice this term", acts: [{ label: "Open the structure", href: "/fee-management/structures" }], head: ["Fee item", "Structure", "Amount", "Status"], noun: "item", nounPlural: "items", noRowOpen: true, rows: items, emptyTitle: "Nothing has been billed", emptyBody: "No invoice has been raised for this child this term.", },
           { type: "table", title: "Invoices", sub: "Every invoice raised for this child.", meta: `${plural(f.invoices.length, "invoice")}`, head: ["Invoice", "Term", "Total", "Balance", "State"], noun: "invoice", nounPlural: "invoices", noRowOpen: true, rows: f.invoices.map((invoice) => ({ cells: [text(invoice.number, { mono: true, strong: true }), text(invoice.term), text(naira(invoice.total), { mono: true }), text(naira(invoice.balance), { mono: true, tone: invoice.balance ? "attention" : undefined }), pill(invoice.status.replace(/_/g, " ").toLowerCase().replace(/^./, (c) => c.toUpperCase()), invoice.status === "PAID" ? "positive" : invoice.status === "OVERDUE" ? "negative" : "attention")] })), empty: "No invoice has been raised." },
         ],
       },
-      { cols: "1fr", panels: [{ type: "table", title: "Payment history · every payment ever made", tag: plural(receipts.length, "receipt"), tagTone: receipts.length ? "positive" : "neutral", sub: "Every receipt this child has ever been issued by this school, newest first. Reprint any of them.", meta: `${plural(receipts.length, "receipt")} · ${naira(f.receipts.reduce((sum, receipt) => sum + receipt.amount, 0))} received`, search: "Find a receipt by number or reference", head: ["Receipt", "Date", "Term", "Method", "Amount", "Reference", "Recorded by", ""], noun: "receipt", nounPlural: "receipts", noRowOpen: true, per: 10, rows: receipts, emptyTitle: "Nothing has ever been received", emptyBody: `The full ${naira(f.billed)} is outstanding.`, foot: "A receipt number is sequential and is never reissued. A reprint carries the same number, stamped DUPLICATE." }] },
+      { cols: "1fr", panels: [{ type: "table", title: "Payment history · every payment ever made", tag: plural(receipts.length, "receipt"), tagTone: receipts.length ? "positive" : "neutral", sub: "A receipt number is never reissued; a reprint is stamped DUPLICATE.", meta: `${plural(receipts.length, "receipt")} · ${naira(f.receipts.reduce((sum, receipt) => sum + receipt.amount, 0))} received`, search: "Find a receipt by number or reference", head: ["Receipt", "Date", "Term", "Method", "Amount", "Reference", "Recorded by", ""], noun: "receipt", nounPlural: "receipts", noRowOpen: true, per: 10, rows: receipts, emptyTitle: "Nothing has ever been received", emptyBody: `The full ${naira(f.billed)} is outstanding.`, }] },
     ],
   });
 }
@@ -503,11 +500,11 @@ function records({ d, registry, wrap }: Body): RecordPage {
   const stateWord = (value: string) => value;
   return wrap({
     rows: [
-      { cols: "1fr", panels: [{ type: "kpi", title: "Record completeness", sub: "What is missing blocks something specific later.", per: 4, cards: [{ label: "Documents on file", value: String(have), unit: `of ${r.required}`, sub: r.missing.length ? `${r.missing[0]} not recorded` : "Everything required is on file", tone: r.missing.length ? "attention" : "positive" }, { label: "Photograph", value: d.hasPhoto ? "On file" : "Not on file", sub: d.hasPhoto ? "Uploaded" : "The identity card prints without one", tone: d.hasPhoto ? "positive" : "attention" }, { label: "Change requests", value: String(r.pending), sub: r.pending ? "Awaiting a decision" : "None waiting", tone: r.pending ? "attention" : "neutral", link: r.pending ? "Open changes" : undefined, href: r.pending ? "/student-records/changes" : undefined }, { label: "Audit entries", value: String(r.audit.length), sub: "Every touch on this record", tone: "neutral" }] }] },
+      { cols: "1fr", panels: [{ type: "kpi", title: "Record completeness", sub: "What is missing blocks something specific later.", per: 4, cards: [{ label: "Documents on file", value: String(have), unit: `of ${r.required}`, tone: r.missing.length ? "attention" : "positive" }, { label: "Photograph", value: d.hasPhoto ? "On file" : "Not on file", tone: d.hasPhoto ? "positive" : "attention" }, { label: "Change requests", value: String(r.pending), tone: r.pending ? "attention" : "neutral", link: r.pending ? "Open changes" : undefined, href: r.pending ? "/student-records/changes" : undefined }, { label: "Audit entries", value: String(r.audit.length), tone: "neutral" }] }] },
       {
         cols: "1.05fr 1fr",
         panels: [
-          { type: "table", title: "Documents", sub: "Uploaded by the school or submitted by the family.", meta: `${have} on file · ${r.missing.length} missing`, acts: [{ label: "Upload a document", primary: true, drawer: documentDrawer(d) }], head: ["Document", "Source", "Recorded", "State", ""], noun: "document", nounPlural: "documents", noRowOpen: true, rows: docs, foot: r.missing.includes("Transfer certificate") ? "A missing transfer certificate blocks the WAEC entry file, not today's register." : "A missing document blocks the transcript or the examination entry file." },
+          { type: "table", title: "Documents", sub: "Uploaded by the school or submitted by the family.", meta: `${have} on file · ${r.missing.length} missing`, acts: [{ label: "Upload a document", primary: true, drawer: documentDrawer(d) }], head: ["Document", "Source", "Recorded", "State", ""], noun: "document", nounPlural: "documents", noRowOpen: true, rows: docs, },
           { type: "facts", title: "Identity and enrolment", sub: "The record itself. Any change here is routed for approval.", per: 2, acts: [{ label: "Request a change", drawer: requestChangeDrawer(["Given name", "Surname", "Date of birth", "Gender", "Status", "Arm", "Home address", "Nationality", "Previous school", "Languages at home", "House"], registry?.rows ?? [], { id: d.id, name: d.name }) }], facts: [["Full name", d.fullName], ["Admission number", d.adm], ["Date of birth", `${dayLong(d.dob)} · age ${d.age}`], ["Gender", d.gender], ["Nationality", d.nationality], ["Languages at home", d.language], ["Home address", d.address ?? "Not recorded"], ["House", d.house ?? "Not recorded"], ["Admitted", dayLong(d.admitted)], ["Previous school", d.previousSchool ?? "Not recorded"], ["Enrolment type", d.boarding.is ? "Boarding" : "Day"], ["Status", stateWord(d.state)]] },
         ],
       },

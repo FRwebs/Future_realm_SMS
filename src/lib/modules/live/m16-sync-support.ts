@@ -26,7 +26,6 @@ const sinceText = (iso: string | null) => {
   const minutes = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 60_000));
   return minutes < 1 ? "Just now" : minutes < 60 ? `${minutes} min ago` : minutes < 1440 ? `${Math.round(minutes / 60)} h ago` : `${Math.round(minutes / 1440)} d ago`;
 };
-const when = (iso: string | null) => (iso ? new Date(iso).toLocaleString("en-GB", { day: "numeric", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit" }) : "—");
 const mark = (ok: boolean): TableCellKind => ({ kind: "mark", ok });
 
 /** What the product is built to do with no connection, and what always needs one. */
@@ -52,10 +51,10 @@ export function syncTab(o: SyncOverview): TabContent {
     panels: [{
       type: "kpi", title: "At the school", sub: "What the school's record holds, wherever the device is.", per: 4,
       cards: [
-        { label: "Pending records", value: String(o.pending), sub: o.pending ? `Oldest is ${minutesText(o.oldestMinutes)} old · held on ${plural(o.devices, "device")}` : "Nothing is waiting to reach the record", tone: o.pending ? "attention" : "positive" },
-        { label: "Last write to the record", value: sinceText(o.lastWriteAt), sub: when(o.lastWriteAt), tone: "neutral" },
-        { label: "Your last save", value: sinceText(o.lastWriteMineAt), sub: o.lastWriteMineAt ? when(o.lastWriteMineAt) : "You have not saved anything yet", tone: "neutral" },
-        { label: "Unresolved conflicts", value: String(o.conflicts.length), sub: o.conflicts.length ? "Two versions of one record, waiting for a choice" : "Nothing to resolve", tone: o.conflicts.length ? "negative" : "positive" },
+        { label: "Pending records", value: String(o.pending), tone: o.pending ? "attention" : "positive" },
+        { label: "Last write to the record", value: sinceText(o.lastWriteAt), tone: "neutral" },
+        { label: "Your last save", value: sinceText(o.lastWriteMineAt), tone: "neutral" },
+        { label: "Unresolved conflicts", value: String(o.conflicts.length), tone: o.conflicts.length ? "negative" : "positive" },
       ],
     }],
   });
@@ -88,7 +87,6 @@ export function syncTab(o: SyncOverview): TabContent {
       sub: "Eleven things the product is built to do with no connection, and eleven that always need one.",
       head: ["Works offline", "", "Requires a connection", ""], noun: "capability", nounPlural: "capabilities", noRowOpen: true, per: 11,
       rows: OFFLINE.map(([works, needs]) => ({ cells: [text(works), mark(true), text(needs), mark(false)] })),
-      foot: "Registers and score sheets are held on the device when there is no connection and sent by themselves when it returns. A page has to be open already: the browser does not yet keep pages for use after a reload with no connection. Other work — payments, messages, edits to a record — needs a connection and says so.",
     }],
   });
   return { title: "Sync", desc: "Is everything saved, what is waiting, and what does this device hold?", primary: { label: "Sync now", icon: REFRESH, href: "/sync-support/sync" }, launchers: [{ label: "Help & support", href: "/sync-support/help-support" }, { label: "Raise a sync ticket", drawer: raiseTicketDrawer({ category: "SYNC_OFFLINE_ISSUE", subject: "My work is not syncing" }) }], rows };
@@ -135,7 +133,6 @@ export function supportTab(o: SupportOverview): TabContent {
         head: ["Ticket", "Subject", "Priority", "Raised", "State", ""], noun: "ticket", nounPlural: "tickets", per: 6, noRowOpen: true,
         rows: t.tickets.map((ticket) => ({ keywords: `${ticket.ticketNo} ${ticket.subject} ${categoryName(ticket.category)}`, cells: [text(ticket.ticketNo, { strong: true, mono: true }), nameCell(ticket.subject, categoryName(ticket.category), { avatar: false }), pill(priorityName(ticket.priority), ticket.priority === "CRITICAL" || ticket.priority === "HIGH" ? "negative" : ticket.priority === "LOW" ? "neutral" : "progress"), text(ticket.ageDays === 0 ? "Today" : dayLabel(ticket.createdAt)), pill(ticket.waitingOnSchool ? "Waiting on you" : readable(ticket.status), ticketTone(ticket)), { kind: "action" as const, label: "Open", drawer: ticketDrawer(ticket) }] })),
         empty: "This school has not raised a ticket yet.",
-        foot: t.waitingOnSchool ? `${plural(t.waitingOnSchool, "ticket")} waiting on an answer from this school — support has stopped until somebody replies.` : undefined,
       },
       {
         type: "list", title: "Articles and walkthroughs", sub: o.articles.length ? "Read by the schools that use the product." : "Nothing has been published yet.",

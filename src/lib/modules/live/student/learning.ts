@@ -123,7 +123,6 @@ async function pastSubjects(me: Me, cardId: string): Promise<StudentContent | nu
     parts: subject.parts.map((part) => ({ name: part.name, value: num(part.score), max: String(part.max), pending: false, fill: `${Math.min(100, Math.round((part.score / part.max) * 100))}%` })),
     foot: `Published ${dLong(card.published)}`, drawer: traceDrawer(card, subject, me), scheme: null,
   }));
-  const best = [...card.subjects].sort((a, b) => b.total - a.total)[0];
   return {
     eyebrow: `${card.arm} · ${card.term} ${card.session}`, title: "Subjects",
     desc: `What you studied in ${card.arm} that term. Every mark is final, exactly as published on ${dLong(card.published)}.`,
@@ -132,11 +131,11 @@ async function pastSubjects(me: Me, cardId: string): Promise<StudentContent | nu
       row("1fr", [{
         type: "kpi", bare: true, per: 5,
         cards: [
-          { label: "Class and arm", value: card.arm, sub: me.formMaster ? `Form master ${me.formMaster.name}` : "", icon: "people" },
-          { label: "Subjects that term", value: String(card.subjects.length), sub: "As published", icon: "layers" },
-          { label: "Term average", value: num(card.average), sub: card.grade ? `Overall grade ${card.grade}` : "", tone: "progress", icon: "bars" },
-          { label: "Position in arm", value: card.position ? `${ord(card.position)} of ${card.size}` : "—", sub: best ? `Best: ${best.name}` : "", tone: "positive", icon: "star" },
-          { label: "Attendance", value: `${card.attendance.present} of ${card.attendance.days}`, sub: "Days present that term", icon: "calendar" },
+          { label: "Class and arm", value: card.arm, icon: "people" },
+          { label: "Subjects that term", value: String(card.subjects.length), icon: "layers" },
+          { label: "Term average", value: num(card.average), tone: "progress", icon: "bars" },
+          { label: "Position in arm", value: card.position ? `${ord(card.position)} of ${card.size}` : "—", tone: "positive", icon: "star" },
+          { label: "Attendance", value: `${card.attendance.present} of ${card.attendance.days}`, icon: "calendar" },
         ],
       }]),
       row("1fr", [{ type: "embed", component: "student-subjects", props: { groups: [{ label: "All subjects", cards: subjectCards }] } }]),
@@ -155,7 +154,6 @@ export async function subjectsPage(query: Record<string, string | undefined> = {
   const core = data.subjects.filter((subject) => subject.core);
   const rest = data.subjects.filter((subject) => !subject.core);
   const periods = data.subjects.reduce((sum, subject) => sum + subject.periods, 0);
-  const labs = data.subjects.reduce((sum, subject) => sum + subject.labs, 0);
   const releasedComponents = data.components.filter((component) => data.subjects.some((subject) => subject.parts.find((part) => part.code === component.code)?.score != null)).length;
   const tomorrow = addDays(me.today, 1);
   const test = tt.exams.find((exam) => exam.date === tomorrow);
@@ -192,11 +190,11 @@ export async function subjectsPage(query: Record<string, string | undefined> = {
       row("1fr", [{
         type: "kpi", bare: true, per: 5,
         cards: [
-          { label: "Class and arm", value: me.arm, sub: me.formMaster ? `Form master ${me.formMaster.name}` : "No form master named yet", icon: "people", href: "/portals/student/profile" },
-          { label: "Subjects this term", value: String(data.subjects.length), sub: `${core.length} compulsory · ${rest.length} electives`, icon: "layers" },
-          { label: "Periods a week", value: String(periods), sub: `${labs} of them in the laboratory`, icon: "grid", href: "/portals/student/timetable" },
-          { label: "Assessments released", value: `${releasedComponents} of ${data.components.length}`, sub: data.components.length - releasedComponents ? "The rest follow as they are marked" : "All released", icon: "check", href: "/portals/student/timetable?tab=Tests+and+exams" },
-          { label: "Week of term", value: me.term ? String(me.term.week) : "—", sub: me.term?.end ? `Term ends ${dShort(me.term.end)}` : "", icon: "calendar", href: "/portals/student/calendar" },
+          { label: "Class and arm", value: me.arm, icon: "people", href: "/portals/student/profile" },
+          { label: "Subjects this term", value: String(data.subjects.length), icon: "layers" },
+          { label: "Periods a week", value: String(periods), icon: "grid", href: "/portals/student/timetable" },
+          { label: "Assessments released", value: `${releasedComponents} of ${data.components.length}`, icon: "check", href: "/portals/student/timetable?tab=Tests+and+exams" },
+          { label: "Week of term", value: me.term ? String(me.term.week) : "—", icon: "calendar", href: "/portals/student/calendar" },
         ],
       }]),
       ...(data.subjects.length ? [row("1fr", [{ type: "embed", component: "student-subjects", props: { groups } }])] : [row("1fr", [{ type: "note", tone: "neutral", title: "No subjects yet", body: "Your class has no subjects set up for this term. The school adds them when it builds the term." }])]),
@@ -241,8 +239,7 @@ export async function assignmentsPage(query: Record<string, string | undefined>)
     table = {
       type: "table", title: "Handed in", sub: "Waiting for your teacher to mark.", noun: "piece of work", nounPlural: "pieces of work", head: ["Assignment", "Teacher", "Handed in", "Was due", "Status", ""], per: 10, dense: true,
       rows: handed.map((item): TableRow => ({ drawer: workDrawer(item, today), keywords: `${item.title} ${item.subject}`, cells: [nameCell(item), txt(item.teacher), txt(item.handedAt ? dDow(item.handedAt.slice(0, 10)) : "—"), txt(dDow(item.due)), pillCell(item), { kind: "action", label: "Open", drawer: workDrawer(item, today) }] })),
-      empty: "Nothing is waiting to be marked.", foot: "Most teachers mark homework within a week. You are told as soon as it is returned.",
-    };
+      empty: "Nothing is waiting to be marked.",     };
   } else if (tab === "Marked") {
     table = {
       type: "table", title: "Marked", sub: "Open one to read your teacher’s feedback.", noun: "piece of work", nounPlural: "pieces of work", head: ["Assignment", "Teacher", "Marked", "Score", ""], per: 10, dense: true,
@@ -253,13 +250,13 @@ export async function assignmentsPage(query: Record<string, string | undefined>)
     table = {
       type: "table", title: "To do", sub: todo.length ? "Late work first, then by due date." : "You are all caught up.", noun: "piece of work", nounPlural: "pieces of work", head: ["Assignment", "Teacher", "Set", "Due", "Status", ""], per: 10, dense: true,
       rows: todo.map((item): TableRow => ({ drawer: workDrawer(item, today), keywords: `${item.title} ${item.subject}`, cells: [nameCell(item), txt(item.teacher), txt(dDow(item.set)), txt(dueText(item, today), item.state === "overdue" ? "negative" : undefined), pillCell(item), { kind: "action", label: me.policy?.homework === false ? "Open" : "Hand in", drawer: me.policy?.homework === false ? workDrawer(item, today) : handInDrawer(item) }] })),
-      empty: "Nothing to hand in.", foot: late.length ? `${late.length} ${late.length === 1 ? "piece of work is" : "pieces of work are"} late. Hand ${late.length === 1 ? "it" : "them"} in anyway — your teacher is told it is late.` : undefined,
-    };
+      empty: "Nothing to hand in.",     };
   }
   return {
     eyebrow: `${me.arm}${me.term ? ` · Week ${me.term.week}` : ""}`, title: "Assignments", desc: "Homework from all your subjects, in one place. Homework is practice — it is not part of your CA.", tabs, tab,
-    // The phone's floating button hands in the most urgent piece (late work first) when the school lets homework be handed in here.
-    ...(tab === "To do" && todo.length && me.policy?.homework !== false ? { phonePrimary: { label: "Hand in work", drawer: handInDrawer(todo[0]!) } } : {}),
+    // The phone floats this, as the mockup does, and only while something is actually waiting: it opens the oldest piece still
+    // to hand in — the late one first — because that is the one a student has come to the page for.
+    ...(todo.length && me.policy?.homework !== false ? { primary: { label: "Hand in work", drawer: handInDrawer(todo[0]!) } } : {}),
     launchers: askable.people.length ? [
       { label: "Ask for more time", drawer: askDrawer(askable.people, { topic: "More time for an assignment", fmReads: askable.formMasterReads }) },
       { label: "Ask about the work", drawer: askDrawer(askable.people, { topic: "A question about work", fmReads: askable.formMasterReads }) },
@@ -268,10 +265,10 @@ export async function assignmentsPage(query: Record<string, string | undefined>)
       row("1fr", [{
         type: "kpi", bare: true, per: 4,
         cards: [
-          { label: "To do", value: String(todo.length), sub: todo.length ? `Next: ${dueText(todo.find((item) => item.state === "todo") ?? todo[0]!, today).replace(/^(Today|Tomorrow)/, (word) => word.toLowerCase())}` : "Nothing to hand in", tone: todo.length ? "attention" : "positive", icon: "check" },
-          { label: "Late", value: String(late.length), sub: late.length ? `${late[0]!.subject} · ${dueText(late[0]!, today)}` : "Nothing late", tone: late.length ? "negative" : "positive", icon: "hourglass" },
-          { label: "Waiting to be marked", value: String(handed.length), sub: !handed.length ? "Nothing waiting" : handed.some((item) => item.late) ? `${handed.filter((item) => item.late).length} handed in late` : "All handed in on time", tone: "submitted", icon: "inbox" },
-          { label: "Average mark", value: avg === null ? "—" : `${avg}%`, sub: `Across ${scored.length} marked ${scored.length === 1 ? "piece" : "pieces"}`, tone: avg !== null && avg >= 75 ? "positive" : "progress", icon: "bars" },
+          { label: "To do", value: String(todo.length), tone: todo.length ? "attention" : "positive", icon: "check" },
+          { label: "Late", value: String(late.length), tone: late.length ? "negative" : "positive", icon: "hourglass" },
+          { label: "Waiting to be marked", value: String(handed.length), tone: "submitted", icon: "inbox" },
+          { label: "Average mark", value: avg === null ? "—" : `${avg}%`, tone: avg !== null && avg >= 75 ? "positive" : "progress", icon: "bars" },
         ],
       }]),
       row("1fr", [table]),
@@ -305,7 +302,10 @@ function cardDrawer(card: Card, me: Me): DrawerSpec {
       ["Average", num(card.average), card.position ? `${ord(card.position)} of ${card.size} in ${card.arm}` : "Not ranked"], ["Grade", card.grade || "—", ""],
       ["Attendance", `${card.attendance.present} of ${card.attendance.days} days`, ""],
       ...card.subjects.map((subject): PanelFact => [subject.name, `${num(subject.total)} · ${subject.grade}`, head.map((part, index) => `${part.name} ${num(subject.parts[index]?.score ?? 0)}`).join(" · ")]),
-      ["Class teacher’s remark", card.teacherComment || "No remark was written.", ""], ["Principal’s remark", card.principalComment || "No remark was written.", ""],
+      // The ratings beside the marks, where the school published them: an earlier card opened from
+      // the list is the whole card, not a shorter version of the one on the page.
+      ...(card.traits ?? []).flatMap((group) => group.items.map((item): PanelFact => [item.label, item.value, group.title])),
+      ["Class teacher’s remark", card.teacherComment || "No remark was written.", card.teacherBy ?? ""], ["Principal’s remark", card.principalComment || "No remark was written.", card.principalBy ?? ""],
     ],
   };
 }
@@ -339,10 +339,10 @@ export async function resultsPage(query: Record<string, string | undefined>): Pr
         row("1fr", [{
           type: "kpi", bare: true, per: 4,
           cards: [
-            { label: "Report cards on record", value: String(cards.length), sub: `Since ${oldest.term} ${oldest.session}`, icon: "doc" },
-            { label: "Latest average", value: num(latest.average), sub: `${latest.term} ${latest.session}`, tone: "progress", icon: "bars" },
-            { label: "Change since the first card", value: `${change >= 0 ? "+" : "−"}${num(Math.abs(Math.round(change * 100) / 100))}`, sub: `${num(oldest.average)} → ${num(latest.average)}`, tone: change >= 0 ? "positive" : "attention", icon: "trendUp" },
-            { label: "Best position", value: best.position ? `${ord(best.position)} of ${best.size}` : "—", sub: `${best.term} ${best.session}`, tone: "positive", icon: "trophy" },
+            { label: "Report cards on record", value: String(cards.length), icon: "doc" },
+            { label: "Latest average", value: num(latest.average), tone: "progress", icon: "bars" },
+            { label: "Change since the first card", value: `${change >= 0 ? "+" : "−"}${num(Math.abs(Math.round(change * 100) / 100))}`, tone: change >= 0 ? "positive" : "attention", icon: "trendUp" },
+            { label: "Best position", value: best.position ? `${ord(best.position)} of ${best.size}` : "—", tone: "positive", icon: "trophy" },
           ],
         }]),
         row("1fr", [{
@@ -351,7 +351,6 @@ export async function resultsPage(query: Record<string, string | undefined>): Pr
             drawer: cardDrawer(card, me), keywords: `${card.term} ${card.session}`,
             cells: [{ kind: "name", name: card.term, sub: `${card.session}${index === 0 ? " · latest" : ""}`, avatar: false }, { kind: "text", text: card.arm }, { kind: "text", text: num(card.average), strong: true }, { kind: "text", text: card.position ? `${ord(card.position)} of ${card.size}` : "—" }, { kind: "pill", label: card.grade || "—", tone: card.grade ? gradeTone(card.grade) : "neutral" }, { kind: "text", text: `${card.attendance.present} of ${card.attendance.days}` }, { kind: "text", text: dShort(card.published) }, { kind: "action", label: "Open", drawer: cardDrawer(card, me) }],
           })),
-          foot: "A corrected card is issued as a new version. The original is never replaced.",
         }]),
         row(same.length > 1 ? "minmax(0,1fr) minmax(0,1.2fr)" : "1fr", [
           { type: "line", title: "Term average over time", sub: "Every report card, oldest first.", unit: "", points: [...cards].reverse().map((card): LinePoint => ({ label: termShort(card.term, card.session), v: card.average, tip: `${card.term} ${card.session} · average ${num(card.average)}`, tone: card === latest ? "positive" : "progress", on: card === latest })), foot: `${change >= 0 ? "Up" : "Down"} ${num(Math.abs(Math.round(change * 100) / 100))} points across ${cards.length} report cards.` },
@@ -362,7 +361,6 @@ export async function resultsPage(query: Record<string, string | undefined>): Pr
               const first = vals.find((value) => value !== null) ?? null; const last = vals[vals.length - 1] ?? null; const delta = first !== null && last !== null ? last - first : null;
               return { cells: [{ kind: "text", text: subject.name, strong: true }, ...vals.map((value, index): TableCellKind => ({ kind: "text", text: value === null ? "—" : num(value), strong: index === vals.length - 1 })), { kind: "text", text: delta === null ? "—" : `${delta >= 0 ? "+" : "−"}${num(Math.abs(delta))}`, tone: delta === null ? "neutral" : delta >= 0 ? "positive" : "negative" }] };
             }),
-            foot: "Green is a rise since the first of these cards; red is a fall.",
           }] : []),
         ]),
       ],
@@ -388,10 +386,10 @@ export async function resultsPage(query: Record<string, string | undefined>): Pr
       row("1fr", [{
         type: "kpi", bare: true, per: 4,
         cards: [
-          { label: "Average", value: num(latest.average), sub: `${latest.term} ${latest.session}`, tone: "progress", icon: "bars" },
-          { label: "Position", value: latest.position ? `${ord(latest.position)} of ${latest.size}` : "Not ranked", sub: `In ${latest.arm}`, icon: "trophy" },
-          { label: "Strongest", value: strongest?.name ?? "—", sub: strongest ? `${num(strongest.total)} · ${strongest.grade}` : "", tone: "positive", icon: "star" },
-          { label: "Attendance that term", value: `${latest.attendance.present} of ${latest.attendance.days}`, sub: "School days", icon: "calendar" },
+          { label: "Average", value: num(latest.average), tone: "progress", icon: "bars" },
+          { label: "Position", value: latest.position ? `${ord(latest.position)} of ${latest.size}` : "Not ranked", icon: "trophy" },
+          { label: "Strongest", value: strongest?.name ?? "—", tone: "positive", icon: "star" },
+          { label: "Attendance that term", value: `${latest.attendance.present} of ${latest.attendance.days}`, icon: "calendar" },
         ],
       }]),
       row("1fr", [{
@@ -401,10 +399,17 @@ export async function resultsPage(query: Record<string, string | undefined>): Pr
           drawer: traceDrawer(latest, subject, me),
           cells: [{ kind: "name", name: subject.name, sub: teacherOf.get(subject.name) || undefined, avatar: false }, ...comps.map((part, index): TableCellKind => ({ kind: "text", text: subject.parts[index] ? num(subject.parts[index]!.score) : "—" })), { kind: "text", text: num(subject.total), strong: true }, { kind: "pill", label: subject.grade, tone: gradeTone(subject.grade) }, { kind: "text", text: subject.position ? ord(subject.position) : "—" }, { kind: "action", label: "Explain", drawer: traceDrawer(latest, subject, me) }],
         })),
-        foot: "Each total is the parts added together, exactly as the school stored them. Grades follow your school’s grading scale.",
       }]),
+      // The half of a report card that is not a number: what the form master rated you on. It is
+      // drawn only where the school published it, rather than an empty frame suggesting it is coming.
+      ...((latest.traits ?? []).length
+        ? [row("1fr", [{
+            type: "facts" as const, title: "Conduct and skills", sub: `Rated by your ${latest.formMaster ? "form master" : "school"}.`, per: 3,
+            facts: (latest.traits ?? []).flatMap((group) => group.items.map((item): PanelFact => [item.label, item.value, group.title])),
+          }])]
+        : []),
       row("minmax(0,1.2fr) minmax(0,1fr)", [
-        { type: "list", title: "What the teachers wrote", items: [{ label: latest.teacherComment || "No remark was written.", sub: me.formMaster ? `Form master · ${me.formMaster.name}` : "Form master" }, { label: latest.principalComment || "No remark was written.", sub: "Principal" }] },
+        { type: "list", title: "What the teachers wrote", items: [{ label: latest.teacherComment || "No remark was written.", sub: latest.teacherBy ? `Form master · ${latest.teacherBy}` : latest.formMaster ? `Form master · ${latest.formMaster}` : me.formMaster ? `Form master · ${me.formMaster.name}` : "Form master" }, { label: latest.principalComment || "No remark was written.", sub: latest.principalBy ? `Principal · ${latest.principalBy}` : "Principal" }] },
         { type: "list", title: "Earlier report cards", acts: [{ label: "All of them", href: "/portals/student/results?tab=Progress+over+time" }], empty: "This is your first report card.", items: cards.slice(1, 4).map((card): ListItem => ({ label: `${card.term} ${card.session}`, sub: `${card.arm} · average ${num(card.average)} · published ${dShort(card.published)}`, pill: "Open", tone: "progress", drawer: cardDrawer(card, me) })) },
       ]),
     ],

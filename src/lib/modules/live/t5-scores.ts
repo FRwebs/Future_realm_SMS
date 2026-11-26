@@ -176,10 +176,10 @@ function enterTab(v: SheetsView, me: TeacherWorkspaceView): TabContent {
     { ...row("1fr", [{
       type: "kpi", bare: true,
       cards: [
-        { label: "Sheets outstanding", value: String(k.open), unit: `of ${k.sheets}`, sub: v.daysLeft !== null ? `${v.daysLeft} day${v.daysLeft === 1 ? "" : "s"} left` : "No closing date set", tone: k.open ? "negative" : "positive" },
-        { label: "Marks entered", value: String(k.entered), unit: `of ${k.children}`, sub: "Across your sheets", tone: k.entered < k.children ? "attention" : "positive" },
-        { label: "Returned to you", value: String(k.returned), sub: k.firstReturned ? `${k.firstReturned.subject} ${k.firstReturned.arm}` : "Nothing sent back", tone: k.returned ? "negative" : "positive" },
-        { label: "Blank is not zero", value: String(Math.max(0, k.children - k.entered)), unit: "blanks", sub: "A blank means no total", tone: k.children - k.entered > 0 ? "attention" : "positive" },
+        { label: "Sheets outstanding", value: String(k.open), unit: `of ${k.sheets}`, tone: k.open ? "negative" : "positive" },
+        { label: "Marks entered", value: String(k.entered), unit: `of ${k.children}`, tone: k.entered < k.children ? "attention" : "positive" },
+        { label: "Returned to you", value: String(k.returned), tone: k.returned ? "negative" : "positive" },
+        { label: "Blank is not zero", value: String(Math.max(0, k.children - k.entered)), unit: "blanks", tone: k.children - k.entered > 0 ? "attention" : "positive" },
       ],
     }]), show: "phone" as const },
     { ...row("1fr", [{
@@ -201,11 +201,11 @@ function enterTab(v: SheetsView, me: TeacherWorkspaceView): TabContent {
     { ...row("1fr", [{
       type: "kpi", sub: `${v.windowName ?? "Scores"} · ${v.term}${v.closes ? ` · the window closes ${short(v.closes)}` : ""}.`, per: 5,
       cards: [
-        { label: "Sheets outstanding", value: String(k.open), unit: `of ${k.sheets}`, sub: v.daysLeft !== null ? `${v.daysLeft} day${v.daysLeft === 1 ? "" : "s"} left` : "No closing date set", tone: k.open ? "negative" : "positive" },
-        { label: "Marks entered", value: String(k.entered), unit: `of ${k.children}`, sub: "Across your sheets", tone: k.entered < k.children ? "attention" : "positive" },
-        { label: "Returned to you", value: String(k.returned), sub: k.firstReturned ? `${k.firstReturned.subject} ${k.firstReturned.arm} · read the comment` : "Nothing sent back", tone: k.returned ? "negative" : "positive", link: k.firstReturned ? "Open it" : undefined, href: k.firstReturned ? gridHref(k.firstReturned.classId, k.firstReturned.subjectId) : undefined },
-        { label: "Saved on this device", value: String(v.pending), unit: "marks", sub: "Queued, provisional", tone: "offline" },
-        { label: "Blank is not zero", value: String(Math.max(0, k.children - k.entered)), unit: "blanks", sub: "A blank leaves a child without a total", tone: k.children - k.entered > 0 ? "attention" : "positive" },
+        { label: "Sheets outstanding", value: String(k.open), unit: `of ${k.sheets}`, tone: k.open ? "negative" : "positive" },
+        { label: "Marks entered", value: String(k.entered), unit: `of ${k.children}`, tone: k.entered < k.children ? "attention" : "positive" },
+        { label: "Returned to you", value: String(k.returned), tone: k.returned ? "negative" : "positive", link: k.firstReturned ? "Open it" : undefined, href: k.firstReturned ? gridHref(k.firstReturned.classId, k.firstReturned.subjectId) : undefined },
+        { label: "Saved on this device", value: String(v.pending), unit: "marks", tone: "offline" },
+        { label: "Blank is not zero", value: String(Math.max(0, k.children - k.entered)), unit: "blanks", tone: k.children - k.entered > 0 ? "attention" : "positive" },
       ],
     }]), show: "desktop" as const },
     { ...row("1fr", [{
@@ -214,12 +214,11 @@ function enterTab(v: SheetsView, me: TeacherWorkspaceView): TabContent {
       filters: total > 1 ? [{ label: "Subject", value: "All", options: ["All", ...subjects], column: 0 }, { label: "Arm", value: "All", options: ["All", ...arms], column: 1 }, { label: "State", value: "All", options: ["All", "Not started", "In progress", "Submitted", "Returned", "Approved", "Not granted"], column: 3 }] : undefined,
       head: ["Subject", "Arm", "Roll", "State", "Entered", "Avg", "Note", ""], rows, noRowOpen: true, per: 12,
       empty: "Nothing is assigned to you for score entry. If you teach a subject, ask the office to add it in Timetable → Teaching.",
-      foot: "Type a mark, Tab moves across, A marks a child absent.",
     }]), show: "desktop" as const },
     row("1.1fr 1fr", [
       { type: "steps", title: "Where a sheet of yours can be", steps: [{ label: "Draft · yours alone", sub: "Editable, saved on this phone, visible to nobody else", state: "current" }, { label: "Submitted · locked to you", sub: "Visible to your reviewer · online only", state: "todo" }, { label: "Returned or approved", sub: "Returned comes back with a comment; approved feeds the report cards", state: "todo" }] },
       {
-        type: "facts", show: "desktop", title: "What the states mean", per: 1,
+        type: "facts", show: "desktop", title: "What the states mean", tuck: "What the states mean", tuckIcon: "M12 6.5C10.5 5 8 4.5 4 4.5v13c4 0 6.5.5 8 2 1.5-1.5 4-2 8-2v-13c-4 0-6.5.5-8 2zM12 6.5v13", tuckKicker: "How this works", per: 1,
         facts: [
           ["Draft", "Editable, saved as you go, visible to nobody else", "Not counted in any review"],
           ["Submitted", "Locked to you, visible to your reviewer", "Online only"],
@@ -330,12 +329,12 @@ export function teacherPreviewPage(g: Grid, v: SheetsView): Content {
     row("1fr", [{
       type: "kpi", per: 6, title: locked ? "This sheet" : "What you are about to submit",
       cards: [
-        { label: "Entered", value: `${g.rows.length - blanks} of ${g.rows.length}`, sub: blanks ? `${blanks} still blank` : "No blanks", tone: blanks ? "attention" : "positive" },
-        { label: "Class average", value: meanRanked === null ? "—" : String(meanRanked), unit: ranked.length ? `/ ${maxTotal}` : undefined, sub: `Over ${ranked.length} ranked ${ranked.length === 1 ? "child" : "children"}` },
-        { label: "Highest", value: high ? String(high.total) : "—", sub: high ? high.name : "", tone: "positive" },
-        { label: "Lowest", value: low ? String(low.total) : "—", sub: low ? low.name : "", tone: low && (low.total as number) < g.passMark ? "negative" : "attention" },
-        { label: "At credit or above", value: String(credit), unit: `of ${ranked.length}`, sub: "50 and above", tone: "positive" },
-        { label: "Below the pass mark", value: String(failed), sub: `Under ${g.passMark}`, tone: failed ? "negative" : "positive" },
+        { label: "Entered", value: `${g.rows.length - blanks} of ${g.rows.length}`, tone: blanks ? "attention" : "positive" },
+        { label: "Class average", value: meanRanked === null ? "—" : String(meanRanked), unit: ranked.length ? `/ ${maxTotal}` : undefined, },
+        { label: "Highest", value: high ? String(high.total) : "—", tone: "positive" },
+        { label: "Lowest", value: low ? String(low.total) : "—", tone: low && (low.total as number) < g.passMark ? "negative" : "attention" },
+        { label: "At credit or above", value: String(credit), unit: `of ${ranked.length}`, tone: "positive" },
+        { label: "Below the pass mark", value: String(failed), tone: failed ? "negative" : "positive" },
       ],
     }]),
     !locked && blanks ? row("1fr", [{
@@ -349,7 +348,6 @@ export function teacherPreviewPage(g: Grid, v: SheetsView): Content {
       filters: [{ label: "Grade", value: "All", options: ["All", ...g.bands.map((band) => band.label)], match: Object.fromEntries(g.bands.map((band) => [band.label, `grade:${band.label}|`])) }, { label: "Rating", value: "All", options: ["All", ...ratings], match: Object.fromEntries(ratings.map((rating) => [rating, `rating:${rating}|`])) }],
       acts: locked ? [] : [{ label: "Keep editing", href: back }, { label: state === "Returned" ? "Resubmit" : "Submit for approval", primary: true, drawer: submit }],
       head: ["Pos", "Student", ...g.columns.map((column) => column.short), "Total", "Grade", "Rating", ""], rows: tableRows, noun: "child", nounPlural: "children", noRowOpen: true, per: 40,
-      foot: locked ? "A submitted sheet is locked to its teacher." : "This is the sheet as it will be submitted.",
     }]),
     row("1fr 1fr", [
       { type: "bars", title: "Grade spread", sub: "Against this school’s own bands.", rows: gradeCounts.map(({ band, count }) => ({ label: `${band.label} · ${band.min}–${band.max}`, value: ranked.length ? Math.round((count / ranked.length) * 100) : 0, display: String(count), tone: gradeTone(band.label) })) },
@@ -444,17 +442,16 @@ function resultsTab(r: ResultsView, permissions: string[]): TabContent {
     row("1fr", [{
       type: "kpi", per: 4,
       cards: [
-        { label: "Your average", value: r.average === null ? "—" : String(r.average), unit: r.average === null ? undefined : "/ 100", sub: `Across ${r.ranked} ranked ${r.ranked === 1 ? "child" : "children"}`, tone: "positive" },
-        { label: "Children", value: String(r.children), sub: plural(r.rows.length, "subject-arm") },
-        { label: "Below the pass mark", value: String(r.below), sub: r.below ? "Under 40 · each one is a conversation" : "Nobody under 40", tone: r.below ? "negative" : "positive" },
-        { label: "Final", value: String(r.approved), unit: `of ${r.rows.length}`, sub: "Approved sheets · the rest are provisional", tone: r.approved === r.rows.length ? "positive" : "attention" },
+        { label: "Your average", value: r.average === null ? "—" : String(r.average), unit: r.average === null ? undefined : "/ 100", tone: "positive" },
+        { label: "Children", value: String(r.children), },
+        { label: "Below the pass mark", value: String(r.below), tone: r.below ? "negative" : "positive" },
+        { label: "Final", value: String(r.approved), unit: `of ${r.rows.length}`, tone: r.approved === r.rows.length ? "positive" : "attention" },
       ],
     }]),
     row("1fr", [{
       type: "table", dense: true, title: "Your subject-arms", sub: "Open one for every child, ranked, with the components behind each total.", noun: "subject-arm", nounPlural: "subject-arms",
       filters: r.rows.length > 1 ? [{ label: "Subject", value: "All", options: ["All", ...subjects], column: 0 }, { label: "Arm", value: "All", options: ["All", ...arms], column: 1 }, { label: "State", value: "All", options: ["All", "Not entered", "Provisional", "Final"], column: 7 }] : undefined,
-      head: ["Subject", "Arm", "Roll", "Entered", "Average", "Pass", "Highest", "State", ""], rows, noRowOpen: true, per: 12, empty: "No result yet — nothing is assigned to you for score entry.", foot: "Provisional until the sheet is approved.",
-    }]),
+      head: ["Subject", "Arm", "Roll", "Entered", "Average", "Pass", "Highest", "State", ""], rows, noRowOpen: true, per: 12, empty: "No result yet — nothing is assigned to you for score entry.",     }]),
     r.rows.some((entry) => entry.ranked)
       ? row("1fr 1.15fr", [
           { type: "bars", title: "Average by subject-arm", sub: "Out of 100, over the children ranked so far.", rows: bars },
@@ -512,7 +509,6 @@ export function subjectResultPage(s: SubjectResult): Content {
   const firstNo = s.rows.find((entry) => entry.ranked && !entry.comment);
   const order = [...s.rows.filter((entry) => entry.ranked), ...s.rows.filter((entry) => !entry.ranked)];
   const maxTotal = s.columns.reduce((sum, column) => sum + column.max, 0);
-  const others = s.others.map((other) => `${other.name} ${other.mean}`).join(" · ");
   const tableRows: TableRow[] = order.map((entry) => {
     const since = entry.since;
     return {
@@ -539,12 +535,12 @@ export function subjectResultPage(s: SubjectResult): Content {
     row("1fr", [{
       type: "kpi", per: 6,
       cards: [
-        { label: "Class average", value: st.mean === null ? "—" : String(st.mean), unit: `/ ${maxTotal}`, sub: others || `Over ${n} children`, tone: s.others.length && s.others[0]!.mean > (st.mean ?? 0) ? "attention" : "positive" },
-        { label: "Highest", value: s.high ? String(s.high.total) : "—", sub: s.high?.name ?? "", tone: "positive" },
-        { label: "Lowest", value: s.low ? String(s.low.total) : "—", sub: s.low?.name ?? "", tone: s.low && s.low.total < s.passMark ? "negative" : "attention" },
-        { label: "Pass rate", value: st.passRate === null ? "—" : `${st.passRate}%`, sub: `${st.pass} of ${n} at ${s.passMark} or above`, tone: st.pass === n ? "positive" : "attention" },
-        { label: "Credit or above", value: st.creditRate === null ? "—" : `${st.creditRate}%`, sub: `${st.credit} of ${n} at ${s.creditMark} or above` },
-        { label: "Comments written", value: String(st.comments), unit: `of ${st.roll}`, sub: `Print beside the ${s.subject.name} line`, tone: st.comments === st.roll ? "positive" : "attention" },
+        { label: "Class average", value: st.mean === null ? "—" : String(st.mean), unit: `/ ${maxTotal}`, tone: s.others.length && s.others[0]!.mean > (st.mean ?? 0) ? "attention" : "positive" },
+        { label: "Highest", value: s.high ? String(s.high.total) : "—", tone: "positive" },
+        { label: "Lowest", value: s.low ? String(s.low.total) : "—", tone: s.low && s.low.total < s.passMark ? "negative" : "attention" },
+        { label: "Pass rate", value: st.passRate === null ? "—" : `${st.passRate}%`, tone: st.pass === n ? "positive" : "attention" },
+        { label: "Credit or above", value: st.creditRate === null ? "—" : `${st.creditRate}%`, },
+        { label: "Comments written", value: String(st.comments), unit: `of ${st.roll}`, tone: st.comments === st.roll ? "positive" : "attention" },
       ],
     }]),
     weak && (weak.pct as number) < 70
@@ -561,7 +557,6 @@ export function subjectResultPage(s: SubjectResult): Content {
       noun: "child", nounPlural: "children", search: "Find a child by name or roll number", filters, selectable: true, bulkActs: [{ label: "Export the selected results", primary: true, export: true }],
       acts: [{ label: "Export these rows", export: true }],
       head: ["Pos", "Student", ...s.columns.map((column) => column.short), "Total", "Grade", "Since last", "Standing", "Comment", ""], rows: tableRows, noRowOpen: true, per: 40,
-      foot: "A child with a blank or an absence is listed last and not ranked.",
     }]),
     row("1fr 1fr", [
       { type: "bars", title: "Grade spread", sub: "Against this school’s own bands.", rows: grades.map(({ band, count }) => ({ label: `${band.label} · ${band.min}–${band.max}`, value: Math.round((count / Math.max(1, n)) * 100), display: String(count), tone: gradeTone(band.label) })) },
@@ -577,10 +572,10 @@ export function subjectResultPage(s: SubjectResult): Content {
     { ...row("1fr", [{
       type: "kpi", bare: true,
       cards: [
-        { label: "Class average", value: st.mean === null ? "—" : String(st.mean), unit: `/ ${maxTotal}`, sub: others || `Over ${n} children`, tone: s.others.length && s.others[0]!.mean > (st.mean ?? 0) ? "attention" : "positive" },
-        { label: "Highest", value: s.high ? String(s.high.total) : "—", sub: s.high?.name ?? "", tone: "positive" },
-        { label: "Lowest", value: s.low ? String(s.low.total) : "—", sub: s.low?.name ?? "", tone: s.low && s.low.total < s.passMark ? "negative" : "attention" },
-        { label: "Pass rate", value: st.passRate === null ? "—" : `${st.passRate}%`, sub: `${st.pass} of ${n} at ${s.passMark} or above`, tone: st.pass === n ? "positive" : "attention" },
+        { label: "Class average", value: st.mean === null ? "—" : String(st.mean), unit: `/ ${maxTotal}`, tone: s.others.length && s.others[0]!.mean > (st.mean ?? 0) ? "attention" : "positive" },
+        { label: "Highest", value: s.high ? String(s.high.total) : "—", tone: "positive" },
+        { label: "Lowest", value: s.low ? String(s.low.total) : "—", tone: s.low && s.low.total < s.passMark ? "negative" : "attention" },
+        { label: "Pass rate", value: st.passRate === null ? "—" : `${st.passRate}%`, tone: st.pass === n ? "positive" : "attention" },
       ],
     }]), show: "phone" as const },
     { ...row("1fr", [{
@@ -669,7 +664,6 @@ export function studentWorkingPage(st: StudentResult): Content {
       ] as TableCellKind[],
     })),
     summaryRows: [[{ kind: "name", name: "Total", sub: st.ranked ? `Grade ${st.grade} · position ${st.pos} of ${st.of}` : "Not ranked", avatar: false }, st.complete && st.total !== null ? text(`${st.total} of ${maxTotal}`, { mono: true, strong: true }) : text("—", { tone: "neutral" }), text(""), st.classMean === null ? text("—", { tone: "neutral" }) : text(String(st.classMean), { mono: true })]],
-    foot: "An absence is excluded from the average and from positions.",
   };
   void cell;
   const from = Math.max(0, Math.min(at - 4, st.peers.length - 10));
@@ -686,11 +680,11 @@ export function studentWorkingPage(st: StudentResult): Content {
       row("1fr", [{
         type: "kpi", per: 5, title: `This term in ${st.subject.name}`,
         cards: [
-          { label: "Total", value: st.complete && st.total !== null ? String(st.total) : "—", unit: st.complete ? `/ ${maxTotal}` : undefined, sub: st.ranked ? `Class average ${st.classMean}` : st.absent ? "An absence — not ranked" : "Not complete yet", tone: !st.ranked ? "attention" : (st.total as number) < 40 ? "negative" : st.classMean !== null && (st.total as number) >= st.classMean ? "positive" : "neutral" },
-          { label: "Grade", value: st.grade ?? "—", sub: st.ranked ? st.band : "" },
-          { label: "Position", value: st.pos ? `${st.pos}${ordinal(st.pos)}` : "—", unit: st.pos ? `of ${st.of}` : undefined, sub: "Ties share a position" },
-          { label: "Since last term", value: st.since === null ? "—" : `${st.since > 0 ? "+" : st.since < 0 ? "−" : ""}${Math.abs(st.since)}`, sub: st.last === null ? "No total from last term on record" : `Last term ${st.last}`, tone: st.since === null ? "neutral" : st.since >= 3 ? "positive" : st.since <= -3 ? "negative" : "neutral" },
-          { label: "Attendance", value: st.attendance === null ? "—" : `${st.attendance}%`, sub: "This term", tone: st.attendance !== null && st.attendance < 85 ? "attention" : "positive" },
+          { label: "Total", value: st.complete && st.total !== null ? String(st.total) : "—", unit: st.complete ? `/ ${maxTotal}` : undefined, tone: !st.ranked ? "attention" : (st.total as number) < 40 ? "negative" : st.classMean !== null && (st.total as number) >= st.classMean ? "positive" : "neutral" },
+          { label: "Grade", value: st.grade ?? "—", },
+          { label: "Position", value: st.pos ? `${st.pos}${ordinal(st.pos)}` : "—", unit: st.pos ? `of ${st.of}` : undefined, },
+          { label: "Since last term", value: st.since === null ? "—" : `${st.since > 0 ? "+" : st.since < 0 ? "−" : ""}${Math.abs(st.since)}`, tone: st.since === null ? "neutral" : st.since >= 3 ? "positive" : st.since <= -3 ? "negative" : "neutral" },
+          { label: "Attendance", value: st.attendance === null ? "—" : `${st.attendance}%`, tone: st.attendance !== null && st.attendance < 85 ? "attention" : "positive" },
         ],
       }]),
       embed("student-working", {
@@ -741,22 +735,20 @@ export function formBroadsheetPage(b: FormBroadsheet): Content {
       row("1fr", [{
         type: "kpi", per: 4,
         cards: [
-          { label: "Children complete", value: String(k.complete), unit: `of ${b.roll}`, sub: k.complete === b.roll ? "Every subject in for everyone" : `${b.roll - k.complete} have a subject missing`, tone: k.complete === b.roll ? "positive" : "attention" },
-          { label: "Marks missing", value: String(k.missing), sub: k.missing ? "Each one holds back a report card" : "Nothing outstanding", tone: k.missing ? "negative" : "positive" },
-          { label: "Class average", value: k.average === null ? "—" : String(k.average), unit: k.average === null ? undefined : "/ 100", sub: "Over the children complete" },
-          { label: "Your remarks", value: String(k.remarks), unit: `of ${b.roll}`, sub: "For the report cards", tone: k.remarks === b.roll ? "positive" : "attention" },
+          { label: "Children complete", value: String(k.complete), unit: `of ${b.roll}`, tone: k.complete === b.roll ? "positive" : "attention" },
+          { label: "Marks missing", value: String(k.missing), tone: k.missing ? "negative" : "positive" },
+          { label: "Class average", value: k.average === null ? "—" : String(k.average), unit: k.average === null ? undefined : "/ 100", },
+          { label: "Your remarks", value: String(k.remarks), unit: `of ${b.roll}`, tone: k.remarks === b.roll ? "positive" : "attention" },
         ],
       }]),
       row("1fr", [{
         type: "table", dense: true, title: `Broadsheet · ${b.arm.name}`, tag: "Ranked by average", tagTone: "neutral", noun: "child", nounPlural: "children",
         sub: "A dash is a mark nobody has entered yet. It is never a zero, and it is not averaged in.", search: "Find a child by name or admission number",
         filters: [{ label: "Grade", value: "All", options: ["All", ...b.bands.map((band) => band.label)], match: Object.fromEntries(b.bands.map((band) => [band.label, `grade:${band.label}|`])) }, { label: "Standing", value: "All", options: ["All", "Complete", "Marks missing"], match: { Complete: "standing:Complete|", "Marks missing": "standing:Marks missing|" } }],
-        head: ["#", "Student", ...b.subjects.map(code), "Avg", "Grade", "Standing", ""], rows, noRowOpen: true, per: 40, foot: "Each column is a subject, shortened to its first letters.",
-      }]),
+        head: ["#", "Student", ...b.subjects.map(code), "Avg", "Grade", "Standing", ""], rows, noRowOpen: true, per: 40,       }]),
       row("1fr", [{
         type: "table", dense: true, title: "Where each subject stands", sub: "Who owns each sheet, and how much of it is in.", noun: "subject", nounPlural: "subjects",
-        head: ["Subject", "Code", "Teacher", "Entered", "Missing", "Average"], rows: standing, noRowOpen: true, foot: "You see where each sheet stands.",
-      }]),
+        head: ["Subject", "Code", "Teacher", "Entered", "Missing", "Average"], rows: standing, noRowOpen: true,       }]),
     ],
   };
 }
@@ -765,10 +757,7 @@ export function formBroadsheetPage(b: FormBroadsheet): Content {
 
 function reviewTab(o: OversightView): TabContent {
   const k = o.kpis;
-  const now = Date.now();
-  const days = (iso: string | null) => (iso ? Math.max(0, Math.floor((now - new Date(iso).getTime()) / 86_400_000)) : 0);
   const waiting = o.rows.find((entry) => entry.state === "Submitted" && entry.owner !== "You");
-  const newest = o.rows.filter((entry) => entry.state === "Approved" && entry.decidedAt).sort((a, b) => (b.decidedAt as string).localeCompare(a.decidedAt as string))[0];
   const owing = unique(o.rows.filter((entry) => entry.state === "Not started" && entry.ownerId).map((entry) => `${entry.ownerId}|${entry.owner}`)).map((pair) => { const [id, name] = pair.split("|") as [string, string]; return { id, name }; });
   const nudge: DrawerSpec | null = owing.length
     ? {
@@ -798,18 +787,39 @@ function reviewTab(o: OversightView): TabContent {
     row("1fr", [{
       type: "kpi", sub: `Department scope: ${o.department}. It gives you nothing at all over any other department.`, per: 4,
       cards: [
-        { label: "Waiting on you", value: String(k.waitingOnMe), unit: k.waitingOnMe === 1 ? "sheet" : "sheets", sub: waiting ? `${waiting.unit} · ${days(waiting.submittedAt) ? `${days(waiting.submittedAt)} days ago` : "today"}` : "Nothing waiting for your decision", tone: k.waitingOnMe ? "attention" : "positive" },
-        { label: "Not started", value: String(k.notStarted), unit: k.notStarted === 1 ? "sheet" : "sheets", sub: o.closes ? `Window closes in ${Math.max(0, Math.ceil((new Date(o.closes).getTime() - now) / 86_400_000))} days` : "No closing date set", tone: k.notStarted ? "negative" : "positive" },
-        { label: "Approved", value: String(k.approved), sub: newest ? `${newest.unit} · ${shortDay(newest.decidedAt as string)}` : "None yet", tone: "positive" },
-        { label: "Yours, escalated", value: String(k.mine), sub: k.mine ? `Your own sheets go to ${o.reportsTo?.name ?? "the office"}` : "You teach no sheet of your own", tone: "withheld" },
+        { label: "Waiting on you", value: String(k.waitingOnMe), unit: k.waitingOnMe === 1 ? "sheet" : "sheets", tone: k.waitingOnMe ? "attention" : "positive" },
+        { label: "Not started", value: String(k.notStarted), unit: k.notStarted === 1 ? "sheet" : "sheets", tone: k.notStarted ? "negative" : "positive" },
+        { label: "Approved", value: String(k.approved), tone: "positive" },
+        { label: "Yours, escalated", value: String(k.mine), tone: "withheld" },
       ],
     }]),
     row("1fr", [{
       type: "table", dense: true, title: `${o.department} sheets`, sub: "You can see where a sheet stands. You cannot change a score inside it.", meta: `${o.rows.length} sheets · ${k.waitingOnMe} waiting on you`, noun: "sheet", nounPlural: "sheets",
-      search: "Find a subject, arm or teacher", selectable: true, bulkActs: [{ label: "Export selected", primary: true, export: true }],
+      search: "Find a subject, arm or teacher", selectable: true,
+      bulkActs: [
+        // Nudging from the rows is how a head actually works: pick the two sheets that are late and
+        // tell those teachers, rather than everyone with an unstarted sheet.
+        {
+          label: "Nudge their teachers",
+          selection: { key: "users", noun: "teacher" },
+          drawer: {
+            mode: "commit", kicker: `${o.department} · score entry`, title: "Notify the teachers of the selected sheets",
+            sub: "This sends a notification. It is not an approval, and it changes nothing on any record.",
+            facts: [
+              ["What they see", "Which sheet is outstanding, and the day the window closes", "Nothing is disclosed about anyone else"],
+              ["Changes anything?", "No", "A notification never alters a record, a state or a deadline"],
+            ],
+            commitLabel: "Send the notification", commitDone: "Notification sent", commitDoneBody: "Each one received only what they personally owe.",
+            submit: {
+              endpoint: "/api/v1/score-results/notify", method: "POST",
+              body: { channels: ["In-app inbox"], message: `Your ${o.department} score sheet is outstanding${o.closes ? ` — the window closes ${short(o.closes)}` : ""}.`, kicker: `${o.department} · score entry`, urgency: "Reminder", href: "/score-entry-results/enter" },
+            },
+          } as DrawerSpec,
+        },
+        { label: "Export selected", primary: true, export: true },
+      ],
       filters: [{ label: "State", value: "All", options: ["All", "Not started", "In progress", "Submitted", "Returned", "Approved"], column: 3 }, { label: "Teacher", value: "All", options: ["All", ...teachers], column: 2 }, { label: "Arm", value: "All", options: ["All", ...arms], column: 1 }],
       head: ["Subject", "Arm", "Teacher", "State", "Entered", "Avg", "Note", ""], rows, noRowOpen: true, per: 8, empty: `${o.department} has no sheet this term.`,
-      foot: "Three outcomes only: approve, return for correction, or decline — each with a comment.",
     }]),
     k.mine ? row("1fr", [{ type: "note", tone: "withheld", icon: SHIELD, title: "Nobody approves their own submission", body: `Your own ${k.mine === 1 ? "sheet routes" : `${k.mine} sheets route`} to ${o.reportsTo?.name ?? "the office"}. The item escalates rather than resolving.`, acts: [{ label: "See the route", href: "/approvals-workflow/queue" }] }]) : null,
   ];

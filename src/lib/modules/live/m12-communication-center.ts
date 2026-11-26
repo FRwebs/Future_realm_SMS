@@ -314,7 +314,7 @@ function composeTab(audiences: Audience[], to: string): TabContent {
             meta: `Sent as ${chosen.key} · ${chosen.reach} will receive`,
             per: 1,
             fields: [
-              { label: "Name this send", kind: "text", value: "", placeholder: "Fee reminder · second" },
+              { label: "Name this send", kind: "text", value: "", placeholder: "Fee reminder · second", required: true, hint: "What it is called in Sent, so it can be found again" },
               {
                 label: "Channel",
                 kind: "choice",
@@ -442,30 +442,26 @@ function sentTab(payload: CampaignsPayload): TabContent {
   const awaiting = campaigns.filter((item) => item.status === "AWAITING_APPROVAL");
 
   const cards: KpiCard[] = [
-    { label: "Campaigns this term", value: String(stats.campaigns), sub: "Sent, scheduled and recurring" },
+    { label: "Campaigns this term", value: String(stats.campaigns), },
     {
       label: "Credits used",
       value: stats.creditsUsed.toLocaleString("en-NG"),
-      sub: naira(stats.naira),
     },
     {
       label: "Awaiting approval",
       value: String(stats.awaiting),
       tone: stats.awaiting > 0 ? "submitted" : "positive",
-      sub: threshold ? `Above the ${threshold}-recipient threshold` : "No threshold set",
       ...(stats.awaiting > 0 ? { link: "Decide", href: "/approvals-workflow/queue" } : {}),
     },
     {
       label: "Failed deliveries",
       value: String(stats.failed),
       tone: stats.failed > 0 ? "attention" : "positive",
-      sub: failures.length ? `Across ${new Set(failures.map((f) => f.campaignName)).size} campaigns` : "Nothing has failed",
     },
     {
       label: "Credits left",
       value: wallet ? wallet.sms.toLocaleString("en-NG") : "—",
       tone: wallet?.low ? "attention" : "neutral",
-      sub: wallet ? (wallet.low ? "Below your threshold" : "SMS balance") : "No wallet set up",
     },
   ];
 
@@ -640,18 +636,16 @@ function automationTab(payload: RulesPayload, templates: Template[]): TabContent
   const { stats, rules } = payload;
 
   const cards: KpiCard[] = [
-    { label: "Notification rules", value: String(stats.total), sub: "Channel, timing and audience each" },
-    { label: "Enabled", value: String(stats.enabled), tone: "positive", sub: "Editable by the school" },
+    { label: "Notification rules", value: String(stats.total), },
+    { label: "Enabled", value: String(stats.enabled), tone: "positive", },
     {
       label: "Mandatory and locked",
       value: String(stats.mandatory),
       tone: "withheld",
-      sub: "Each says why, in one sentence",
     },
     {
       label: "Templates",
       value: String(templates.length),
-      sub: `${templates.filter((item) => item.owner === "SCHOOL").length} school-owned · versioned`,
     },
   ];
 

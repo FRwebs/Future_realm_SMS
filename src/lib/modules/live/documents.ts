@@ -86,11 +86,11 @@ export function cardPaper(view: CardView): DocumentSpec {
       },
     ],
     totals: [
-      { label: "Subjects", value: `${scored.length} of ${card.subjects.length}`, sub: `${card.passed} at pass mark or above` },
-      { label: "Total scored", value: String(card.total), sub: `Out of ${scored.length * 100}` },
-      { label: "Average", value: card.average === null ? "—" : String(card.average), sub: card.gradeRemark ?? undefined, tone: "positive" },
-      { label: "Position", value: card.position ? String(card.position) : "—", sub: `In a class of ${card.outOf}` },
-      { label: "Grade", value: card.grade ?? "—", sub: card.gradeRemark ?? undefined },
+      { label: "Subjects", sub: `${card.passed} at pass mark or above`, value: `${scored.length} of ${card.subjects.length}`, },
+      { label: "Total scored", sub: `Out of ${scored.length * 100}`, value: String(card.total), },
+      { label: "Average", sub: card.gradeRemark ?? undefined, value: card.average === null ? "—" : String(card.average), tone: "positive" },
+      { label: "Position", sub: `In a class of ${card.outOf}`, value: card.position ? String(card.position) : "—", },
+      { label: "Grade", value: card.grade ?? "—", },
     ],
     groups: card.traits.map((group) => ({ title: group.title, items: group.items.map((item): [string, string] => [item.label, item.value]) })),
     blocks: [
@@ -132,10 +132,10 @@ export function receiptPaper(receipt: ReceiptDoc, duplicate: boolean): DocumentS
       },
     ],
     totals: [
-      { label: "Billed this term", value: naira(receipt.billed), sub: receipt.invoice ?? `${receipt.items.length} fee items` },
-      { label: "This payment", value: naira(receipt.paid), sub: receipt.mode, tone: "positive" },
-      { label: "Paid to date", value: naira(receipt.paidToDate), sub: "Including this payment" },
-      { label: "Still outstanding", value: naira(receipt.balance), sub: receipt.balance ? receipt.ageing : "Settled in full", tone: receipt.balance ? "attention" : "positive" },
+      { label: "Billed this term", sub: receipt.invoice ?? `${receipt.items.length} fee items`, value: naira(receipt.billed), },
+      { label: "This payment", value: naira(receipt.paid), tone: "positive" },
+      { label: "Paid to date", sub: "Including this payment", value: naira(receipt.paidToDate), },
+      { label: "Still outstanding", sub: receipt.balance ? receipt.ageing : "Settled in full", value: naira(receipt.balance), tone: receipt.balance ? "attention" : "positive" },
     ],
     blocks: [
       {
@@ -177,10 +177,10 @@ export function structurePaper(structure: StructureDetail, school: { name: strin
       rows: group.items.map((item) => [item.name, { text: item.type, tone: "neutral" as const }, { text: naira(item.amount), mono: true, bold: true }]),
     })),
     totals: [
-      { label: "Compulsory each term", value: naira(structure.termly), sub: "Mandatory items only", tone: "positive" },
-      { label: "Every item, each term", value: naira(structure.termlyAll), sub: "If every optional item is taken" },
-      { label: "Charged once a session", value: naira(structure.sessional), sub: "Sessional items" },
-      { label: "Classes", value: String(structure.classes.length), sub: structure.classes.slice(0, 3).join(", ") },
+      { label: "Compulsory each term", sub: "Mandatory items only", value: naira(structure.termly), tone: "positive" },
+      { label: "Every item, each term", sub: "If every optional item is taken", value: naira(structure.termlyAll), },
+      { label: "Charged once a session", sub: "Sessional items", value: naira(structure.sessional), },
+      { label: "Classes", sub: structure.classes.slice(0, 3).join(", "), value: String(structure.classes.length), },
     ],
     blocks: structure.rules.length ? [{ label: "What is deducted from this", body: structure.rules.map((rule) => `${rule.name} (${rule.appliesTo})`).join(". ") + ".", by: "Applied automatically at invoice time" }] : undefined,
     footNote: "An optional item is billed only to the families who elect it. Discounts and concessions appear as their own line on the invoice.",

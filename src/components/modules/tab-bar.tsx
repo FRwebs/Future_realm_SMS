@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import type { Route } from "next";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import { useCallback, useEffect, useRef } from "react";
 
 import { usePhoneKind } from "@/components/layout/phone-shell";
 import { useUiText } from "@/hooks/use-ui-text";
@@ -27,6 +28,44 @@ export function TabBar({ items, ariaLabel, hideOnTeacherPhone }: { items: TabBar
   const pathname = usePathname();
   const ui = useUiText();
   const teacherPhone = usePhoneKind() !== null;
+  const router = useRouter();
+  const asked = useRef<Set<string>>(new Set());
+
+  /**
+   * Fetch the tab before it is clicked.
+   *
+   * A tab is a route of its own, so switching to one is a round trip to the server and the module
+   * blinks through its skeleton on the way. Next prefetches a dynamic route's shell only; asking
+   * for it outright the moment a pointer or the keyboard reaches the tab means the page is usually
+   * already in hand by the time it is pressed. Each tab is asked for once per visit, so hovering
+   * along a row of them costs one request each, not one per movement.
+   */
+  const warm = useCallback((href: string) => {
+    if (asked.current.has(href)) return;
+    asked.current.add(href);
+    router.prefetch(href as Route);
+  }, [router]);
+
+  /**
+   * The other tabs of this module, fetched once the page has settled.
+   *
+   * Hovering warms a tab, but a touch screen has no hover and a keyboard reaches it only on the
+   * way in. A module has a handful of tabs and someone who opened one is very likely to open
+   * another, so they are asked for at the browser's own idle moment — after the page it is on has
+   * finished, never competing with it.
+   */
+  useEffect(() => {
+    const others = items.map((item) => item.href).filter((href) => href !== pathname);
+    if (!others.length) return undefined;
+    const run = () => others.forEach((href) => { if (!asked.current.has(href)) { asked.current.add(href); router.prefetch(href as Route); } });
+    const idle = window.requestIdleCallback;
+    if (typeof idle === "function") {
+      const handle = idle(run, { timeout: 3000 });
+      return () => window.cancelIdleCallback?.(handle);
+    }
+    const timer = window.setTimeout(run, 1200);
+    return () => window.clearTimeout(timer);
+  }, [items, pathname, router]);
 
   if (items.length <= 1) return null;
 
@@ -43,6 +82,8 @@ export function TabBar({ items, ariaLabel, hideOnTeacherPhone }: { items: TabBar
                 key={item.href}
                 href={item.href as Route}
                 aria-current={active ? "page" : undefined}
+                onTouchStart={() => warm(item.href)}
+                onFocus={() => warm(item.href)}
                 className={cn(
                   "flex min-h-[44px] flex-1 basis-0 items-center justify-center gap-[6px] whitespace-nowrap rounded-[11px] px-[8px] text-[13px] font-extrabold transition-colors",
                   active ? "bg-[#0D2315] text-white" : "text-[#435048]",
@@ -68,6 +109,8 @@ export function TabBar({ items, ariaLabel, hideOnTeacherPhone }: { items: TabBar
             key={item.href}
             href={item.href as Route}
             aria-current={active ? "page" : undefined}
+            onMouseEnter={() => warm(item.href)}
+            onFocus={() => warm(item.href)}
             className={cn(
               "group -mb-px flex flex-none items-center gap-[7px] whitespace-nowrap border-b-2 px-[13px] py-[9px] text-[11.5px] transition-[color,border-color] duration-150 hover:border-b-[#BFDCD1] hover:text-[#0D2315]",
               active

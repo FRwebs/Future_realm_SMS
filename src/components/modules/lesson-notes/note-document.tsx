@@ -218,8 +218,18 @@ export function NoteDocument({ data }: { data: NoteData }) {
             <p className="text-[12.5px] font-extrabold" style={{ color: INK }}>{data.state === "Approved" ? "Signed" : data.state === "Submitted" ? "With the reviewer" : "Before you submit"}</p>
             <ul className="mt-2 grid gap-1.5">
               {sections.filter((s) => s.required).map((section) => <li key={section.key} className="flex items-center gap-2 text-[12px]" style={{ color: has(text[section.key]) ? "#17714F" : "#8A6410" }}><span aria-hidden>{has(text[section.key]) ? "✓" : "○"}</span>{section.label}</li>)}
-              <li className="text-[11px]" style={{ color: MUTED }}>{written.length} of {sections.length} sections written</li>
             </ul>
+            {/* How far through the note is, as the mockup draws it: a bar, because "4 of 9" read on
+                its own does not say at a glance whether this is nearly done or barely begun. */}
+            <div className="mt-3">
+              <div className="h-[5px] w-full overflow-hidden rounded-full" style={{ background: "#EDF3EF" }}>
+                <div
+                  className="h-full rounded-full transition-[width] duration-300"
+                  style={{ width: `${Math.round((written.length / Math.max(1, sections.length)) * 100)}%`, background: written.length === sections.length ? "#22A06B" : "#4A83CE" }}
+                />
+              </div>
+              <p className="mt-[6px] text-[11px]" style={{ color: MUTED }}>{written.length} of {sections.length} sections written</p>
+            </div>
             <div className="mt-3 grid gap-2">
               {editable ? (
                 <>

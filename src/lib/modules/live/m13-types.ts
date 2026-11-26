@@ -33,7 +33,7 @@ export type QueueOverview = {
   featured: (ItemView & { facts: Fact[] }) | null;
   waiting: ItemView[];
   list: ItemView[];
-  raised: Array<{ key: string; title: string; state: string; line: string }>;
+  raised: Array<{ key: string; title: string; state: string; line: string; age?: number | null }>;
   types: Array<{ type: string; name: string }>;
   counts: Record<string, number>;
 };

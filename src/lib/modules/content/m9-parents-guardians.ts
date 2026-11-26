@@ -8,7 +8,7 @@ import {
   type ModuleContent,
   type TableRow,
 } from "@/lib/modules/panels";
-import { families, registrySummary } from "@/lib/modules/students-data";
+import { families, } from "@/lib/modules/students-data";
 
 /**
  * M09 · Parents & Guardians — "The families, and everything they send in."
@@ -19,7 +19,6 @@ import { families, registrySummary } from "@/lib/modules/students-data";
  */
 
 const households = families();
-const summary = registrySummary();
 const noPortal = households.filter((family) => family.portal !== "Active");
 const phoneOnly = households.filter((family) => !family.hasSecondContact);
 const owingFamilies = households.filter((family) => family.owing > 0);
@@ -144,24 +143,20 @@ export const parentsGuardiansContent: ModuleContent = {
             {
               label: "Households",
               value: households.length.toLocaleString(),
-              sub: `${summary.enrolled.toLocaleString()} children`,
             },
             {
               label: "Never activated",
               value: noPortal.length.toLocaleString(),
-              sub: "Nothing digital reaches them",
               tone: "negative",
             },
             {
               label: "Phone only",
               value: phoneOnly.length.toLocaleString(),
-              sub: "No second contact on file",
               tone: "attention",
             },
             {
               label: "With a balance",
               value: owingFamilies.length.toLocaleString(),
-              sub: "Families, not children",
               tone: "attention",
               link: "Open the debtor list",
               href: "/fee-management/collections",
@@ -169,7 +164,6 @@ export const parentsGuardiansContent: ModuleContent = {
             {
               label: "More than one child",
               value: households.filter((family) => family.children.length > 1).length.toLocaleString(),
-              sub: "Sibling discount applies",
               tone: "positive",
             },
           ],
@@ -224,7 +218,6 @@ export const parentsGuardiansContent: ModuleContent = {
           ],
           head: ["Family", "Children", "Arms", "Phone", "Portal", "Second contact", "Fees", ""],
           rows: familyRows,
-          foot: "A household is identified by the guardian's full name. A child who does not fit one is re-homed into another, never dropped — dropping one leaves a real debtor billed in the headline and absent from the debtor list.",
         },
       ]),
     ],
@@ -244,20 +237,17 @@ export const parentsGuardiansContent: ModuleContent = {
             {
               label: "Waiting on the school",
               value: "28",
-              sub: "Absence notes, evidence and corrections",
               tone: "attention",
             },
-            { label: "Decided this term", value: "214", sub: "Average 1.1 days", tone: "positive" },
+            { label: "Decided this term", value: "214", tone: "positive" },
             {
               label: "Oldest waiting",
               value: "4 days",
-              sub: "An absence explanation",
               tone: "attention",
             },
             {
               label: "Returned for more",
               value: "9",
-              sub: "Evidence missing or unreadable",
               tone: "withheld",
             },
           ],
@@ -403,7 +393,6 @@ export const parentsGuardiansContent: ModuleContent = {
               ],
             },
           ],
-          foot: "A guardian never changes a record directly. They submit, the school decides, and the decision is logged.",
         },
       ]),
     ],
@@ -441,20 +430,17 @@ export const parentsGuardiansContent: ModuleContent = {
             {
               label: "Core consent on file",
               value: `${(((households.length - 6) / households.length) * 100).toFixed(1)}%`,
-              sub: `${households.length - 6} of ${households.length.toLocaleString()} families`,
               tone: "positive",
             },
             {
               label: "Missing core consent",
               value: "6",
-              sub: "Results cannot be published to them",
               tone: "negative",
             },
-            { label: "Withdrawn", value: "3", sub: "A family may withdraw at any time", tone: "withheld" },
+            { label: "Withdrawn", value: "3", tone: "withheld" },
             {
               label: "Renewed this session",
               value: "1,418",
-              sub: "Consent is asked for once a session",
               tone: "positive",
             },
           ],
@@ -514,7 +500,6 @@ export const parentsGuardiansContent: ModuleContent = {
               ],
             },
           ],
-          foot: "Consent is evidenced by who gave it, when, and through which channel. A family may withdraw any of it at any time, and the withdrawal is logged the same way.",
         },
       ]),
       row("1fr", [

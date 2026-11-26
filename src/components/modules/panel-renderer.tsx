@@ -9,7 +9,7 @@ import { FlowPanelView, GridPanelView, QuotesPanelView } from "@/components/modu
 import Link from "next/link";
 import type { Route } from "next";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { createContext, useContext, useEffect, useMemo, useState, useTransition } from "react";
 import {
   ArrowRight,
   ChevronDown,
@@ -17,12 +17,14 @@ import {
   ChevronRight,
   Minus,
   Search,
+  SlidersHorizontal,
   X,
 } from "lucide-react";
 
 import { usePhoneKind } from "@/components/layout/phone-shell";
-import { tightPanel } from "@/lib/ui/phone-copy";
+import { useTightLine } from "@/components/modules/tight-line";
 import { Field, initialValue } from "@/components/modules/field";
+import { buildBody } from "@/components/modules/module-drawer";
 import { PhoneFacts, PhoneList, PhoneNote, PhoneStats, PhoneSteps, PhoneTable } from "@/components/modules/phone-teacher-panels";
 import { ModuleDrawer } from "@/components/modules/lazy-drawer";
 import type {
@@ -35,16 +37,20 @@ import type {
   PanelRow,
   PanelTone,
   TableCellKind,
+  TableFilter,
   TableRow,
   Trigger,
 } from "@/lib/modules/panels";
 import { readCookie, readableError } from "@/lib/modules/submit";
 import { tableCsv, csvFileName } from "@/lib/modules/table-query";
-import { useLocalTable, useServedTable, type TableEngine } from "@/components/modules/use-table-engine";
-import { cardIcon } from "@/lib/modules/card-icons";
+import { TABLE_PAGE_SIZE, useLocalTable, useServedTable, type TableEngine } from "@/components/modules/use-table-engine";
+import { assignIcons, iconPaths } from "@/lib/modules/card-icons";
 import { CARD_BORDER, INK, MUTED, toneOf } from "@/lib/modules/tones";
 import { useUiText } from "@/hooks/use-ui-text";
 import { cn } from "@/lib/utils/cn";
+import { onDevice, useHeldCounts } from "@/lib/offline/use-held";
+import { columnWidths, planColumns } from "@/lib/ui/table-columns";
+import { deskTrim } from "@/lib/ui/tight-copy";
 
 /*
  * The large interactive panels only some tabs draw are fetched when a tab draws one, not with every page: a register marker or a score grid is not part of
@@ -54,7 +60,6 @@ const AttendanceGrid = dynamic(() => import("@/components/modules/attendance-gri
 const DayStrip = dynamic(() => import("@/components/modules/day-strip").then((loaded) => loaded.DayStrip));
 const SheetEntry = dynamic(() => import("@/components/modules/sheet-entry").then((loaded) => loaded.SheetEntry));
 const RegisterMarker = dynamic(() => import("@/components/modules/register-marker").then((loaded) => loaded.RegisterMarker));
-const ScoreGrid = dynamic(() => import("@/components/modules/score-grid").then((loaded) => loaded.ScoreGrid));
 
 const TierChange = dynamic(() => import("@/components/modules/tier-change").then((loaded) => loaded.TierChange));
 
@@ -63,31 +68,6 @@ type OpenDrawer = (spec: DrawerSpec) => void;
 
 /** The mockup's default note icon: the warning triangle. */
 const NOTE_ICON = "M12 8.2v4.6M12 16h.02M12 3.6 21 19.4H3z";
-
-/**
- * The supporting line under a figure earns its place by adding something the
- * label and the number do not already say. Anything longer than a glance is cut
- * back to the clauses that do — the rest belongs on the list the card links to.
- */
-function slimSub(value: string, label?: string): string {
-  const text = value.replace(/\s+/g, " ").trim().replace(/\.$/, "");
-  // A line that only says what the label already says is not carried at all.
-  if (!text || (label && text.toLowerCase() === label.toLowerCase())) return "";
-  if (text.length <= 40) return text;
-
-  for (const separator of [" · ", " — ", "; ", ", "]) {
-    const parts = text.split(separator);
-    if (parts.length > 1 && parts[0]!.length <= 40) {
-      let out = parts[0]!;
-      for (const part of parts.slice(1)) {
-        if (`${out}${separator}${part}`.length > 40) break;
-        out += `${separator}${part}`;
-      }
-      return out;
-    }
-  }
-  return text;
-}
 
 /** Two letters, as the mockup's avatars carry. */
 function initialsOf(value: string): string {
@@ -192,7 +172,12 @@ function TriggerControl({
   }
 
   if (trigger.href) {
-    return (
+    // A file is fetched by the browser, not routed to by the client router.
+    return trigger.download ? (
+      <a href={trigger.href} download className={className} style={style}>
+        {body}
+      </a>
+    ) : (
       <Link href={trigger.href as Route} className={className} style={style}>
         {body}
       </Link>
@@ -236,12 +221,14 @@ export const PANEL_SHELL =
   "panel-card min-w-0 overflow-hidden rounded-[14px] border bg-(--color-bg-surface) px-[18px] pb-[12px]";
 
 /** The mockup's two panel-action faces: ink for the primary, outlined otherwise. */
-function panelActClass(primary?: boolean) {
+function panelActClass(primary?: boolean, phoneOnly?: boolean) {
   return cn(
     "inline-flex items-center whitespace-nowrap rounded-[8px] text-[10.5px] font-semibold transition-[background,border-color] duration-150",
     primary
       ? "bg-[#0D2315] px-[11px] py-[6.5px] text-white hover:bg-[#1B3A28]"
       : "border border-[#DEE8E2] bg-white px-[10px] py-[5.5px] text-[#435048] hover:border-[#BFDCD1] hover:bg-[#F1F8F4]",
+    // The page head carries this one on a laptop and is not drawn at all on a phone.
+    phoneOnly && "md:hidden",
   );
 }
 
@@ -272,6 +259,11 @@ export function PanelHeader({
   joined?: boolean;
 }) {
   const swatch = toneOf(tagTone);
+  // The copy rule: a panel heading that restates itself underneath loses the restatement rather than
+  // wrapping — on a phone to its own budget, on a laptop to the wider one.
+  const { node: line, hidePhone: subOffPhone } = useTightLine("bsub", sub, "sub");
+  // The figure at the top right is a count, not a sentence.
+  const metaLine = deskTrim("meta", meta);
 
   return (
     <div
@@ -302,23 +294,26 @@ export function PanelHeader({
             </span>
           ) : null}
         </div>
-        {sub ? (
+        {line ? (
           <p
-            className="panel-sub mt-[3.5px] text-pretty text-[10.5px] leading-normal"
+            className={cn(
+              "panel-sub mt-[3.5px] text-pretty text-[10.5px] leading-normal",
+              subOffPhone && "max-md:hidden",
+            )}
             style={{ color: MUTED }}
           >
-            {sub}
+            {line}
           </p>
         ) : null}
       </div>
-      {meta || acts?.length ? (
+      {metaLine || acts?.length ? (
         <div className="flex min-w-0 flex-[0_1_auto] items-center justify-end gap-[12px]">
-          {meta ? (
+          {metaLine ? (
             <p
               className="text-pretty text-right text-[10.5px] leading-[1.45]"
               style={{ color: MUTED }}
             >
-              {meta}
+              {metaLine}
             </p>
           ) : null}
           {acts?.length ? (
@@ -329,7 +324,7 @@ export function PanelHeader({
                     key={act.label}
                     type="button"
                     onClick={onExport}
-                    className={panelActClass(act.primary)}
+                    className={panelActClass(act.primary, act.phoneOnly)}
                   >
                     {act.label}
                   </button>
@@ -339,7 +334,7 @@ export function PanelHeader({
                     trigger={act}
                     label={act.label}
                     openDrawer={openDrawer}
-                    className={panelActClass(act.primary)}
+                    className={panelActClass(act.primary, act.phoneOnly)}
                   />
                 ),
               )}
@@ -358,15 +353,19 @@ function PanelFoot({
   children: string;
   className?: string;
 }) {
+  // A footnote is one line that qualifies what is above it. Where one has grown into a paragraph it
+  // is cut back to the clause that does the qualifying, at every width.
+  const line = deskTrim("foot", children);
+  if (!line) return null;
   return (
     <p
       className={cn(
-        "mx-[-18px] mb-[-12px] mt-[12px] border-t bg-[#F7FAF8] px-[18px] py-[10px] text-pretty text-[10.5px] leading-normal",
+        "mx-[-18px] mb-[-12px] mt-[12px] border-t bg-[#F7FAF8] px-[18px] py-[9px] text-pretty text-[10.5px] leading-normal",
         className,
       )}
       style={{ borderColor: "#EDF3EF", color: MUTED }}
     >
-      {children}
+      {line}
     </p>
   );
 }
@@ -563,12 +562,14 @@ function Cell({
           >
             {cell.name}
           </span>
-          {cell.sub ? (
+          {/* The line under a name is a role or a reference, not a sentence about them. */}
+          {deskTrim("rowsub", cell.sub) ? (
             <span
               className={cn("block truncate", dense ? "mt-[1.5px] text-[10px]" : "mt-[3px] text-[11px]")}
               style={{ color: MUTED }}
+              title={cell.sub}
             >
-              {cell.sub}
+              {deskTrim("rowsub", cell.sub)}
             </span>
           ) : null}
         </span>
@@ -689,7 +690,80 @@ function pageNumbers(count: number, current: number): Array<number | null> {
  * The engine under it is TanStack: Table searches, filters, pages and selects; and a long list, which arrives one page at a time, has the
  * page asked for fetched with TanStack Query (the one on screen stays until the next is ready). See `use-table-engine`.
  */
-function TablePanel({ panel, openDrawer }: { panel: Extract<Panel, { type: "table" }>; openDrawer: OpenDrawer }) {
+/**
+ * The filter a table needs and was not given.
+ *
+ * A long table with a state column and no way to narrow it makes the reader page through looking
+ * for the four rows they came for. Where a column is plainly a state — every cell a chip, a handful
+ * of distinct words — it becomes a filter. Nothing is derived for a table short enough to read
+ * whole, for one whose rows the server pages (its filters have to be the server's), or where two of
+ * the values contain each other: "Paid" would narrow to "Unpaid" as well, and a filter that lies is
+ * worse than no filter.
+ */
+function derivedFilters(panel: Extract<Panel, { type: "table" }>): TableFilter[] | undefined {
+  if (panel.filters?.length || panel.window || panel.rows.length <= TABLE_PAGE_SIZE) return panel.filters;
+  const out: TableFilter[] = [];
+  panel.head.forEach((heading, index) => {
+    if (out.length >= 2 || !heading.trim()) return;
+    const cells = panel.rows.map((row) => row.cells[index]);
+    if (!cells.length || !cells.every((cell) => cell?.kind === "pill")) return;
+    const values = [...new Set(cells.map((cell) => (cell as Extract<TableCellKind, { kind: "pill" }>).label.trim()).filter(Boolean))];
+    if (values.length < 2 || values.length > 8) return;
+    const overlapping = values.some((one) => values.some((other) => one !== other && other.toLowerCase().includes(one.toLowerCase())));
+    if (overlapping) return;
+    out.push({ label: heading.trim(), value: "All", options: ["All", ...values.sort((a, b) => a.localeCompare(b))], column: index });
+  });
+  return out.length ? out : undefined;
+}
+
+/** Words that say only "this row opens" — which the row itself already says by being clickable. */
+const SAYS_ONLY_OPEN = new Set(["open", "view", "see", "open it", "view it", "see it", "details", "open record", "view record"]);
+
+/**
+ * The trailing button whose whole job is to open the row.
+ *
+ * A row that opens something is already clickable along its whole width, so a last column holding
+ * nothing but "Open" asks for a smaller target to do what the larger one does, and spends a column
+ * saying it. The button goes and what it opened becomes the row's own.
+ *
+ * Only a bare column of bare words: the column has no heading, every row has exactly one action and
+ * it is that one, and its label names no destination. "Decide", "Payslip", "Resend" and "Open the
+ * map" each say something the rest of the row does not, so each stays where it was written.
+ */
+function withoutRepeatedOpen(panel: Extract<Panel, { type: "table" }>): Extract<Panel, { type: "table" }> {
+  const last = panel.head.length - 1;
+  if (last < 1 || panel.head[last]?.trim() || !panel.rows.length) return panel;
+  const repeated = panel.rows.every((row) => {
+    const cell = row.cells[last];
+    return (
+      row.cells.length === panel.head.length &&
+      cell?.kind === "action" &&
+      Boolean(cell.href || cell.drawer) &&
+      SAYS_ONLY_OPEN.has(cell.label.trim().toLowerCase()) &&
+      row.cells.filter((one) => one.kind === "action").length === 1
+    );
+  });
+  if (!repeated) return panel;
+  return {
+    ...panel,
+    head: panel.head.slice(0, last),
+    rows: panel.rows.map((row) => {
+      const cell = row.cells[last] as Extract<TableCellKind, { kind: "action" }>;
+      return {
+        ...row,
+        cells: row.cells.slice(0, last),
+        href: row.href ?? (row.drawer ? undefined : cell.href),
+        drawer: row.drawer ?? (row.href ? undefined : cell.drawer),
+      };
+    }),
+    summaryRows: panel.summaryRows?.map((cells) => (cells.length === panel.head.length ? cells.slice(0, last) : cells)),
+  };
+}
+
+function TablePanel({ panel: authored, openDrawer }: { panel: Extract<Panel, { type: "table" }>; openDrawer: OpenDrawer }) {
+  const opened = withoutRepeatedOpen(authored);
+  const filters = derivedFilters(opened);
+  const panel = filters === opened.filters ? opened : { ...opened, filters };
   return panel.window ? <ServedTablePanel panel={panel} openDrawer={openDrawer} /> : <LocalTablePanel panel={panel} openDrawer={openDrawer} />;
 }
 
@@ -705,12 +779,31 @@ function ServedTablePanel({ panel, openDrawer }: { panel: Extract<Panel, { type:
 
 function TableView({ panel, openDrawer, engine }: { panel: Extract<Panel, { type: "table" }>; openDrawer: OpenDrawer; engine: TableEngine }) {
   const router = useRouter();
+  const [switching, startSwitching] = useTransition();
+
+  /**
+   * A filter whose choices are other pages — the sheet switchers, which swap the arm or the subject
+   * rather than narrow what is on screen.
+   *
+   * It is still a filter to the person using it, so it must not behave like leaving the page. Inside
+   * a transition React keeps the current table on screen while the next one is fetched, instead of
+   * dropping to the route's loading screen; `scroll: false` leaves the page where they were reading.
+   */
+  const applyFilter = (filter: TableFilter, value: string) => {
+    const target = filter.go?.[value];
+    if (target) {
+      startSwitching(() => router.push(target as Route, { scroll: false }));
+      return;
+    }
+    engine.setFilter(filter, value);
+  };
   const ui = useUiText();
   const noun = panel.noun ?? "row";
   const nounPlural = panel.nounPlural ?? `${noun}s`;
   const { query, filterValues, visible, filteredRows, perPage, pageCount, shownTotal, everyRow, turnTo } = engine;
   const safePage = engine.pageIndex;
-  const navigating = engine.busy;
+  // Narrowing the rows and switching to another sheet both leave the table waiting, and both dim it.
+  const navigating = engine.busy || switching;
   const allVisibleSelected = engine.allVisibleSelected;
   const served = panel.window ? { exportUrl: engine.exportUrl ?? panel.window.exportUrl } : null;
   const toggleRow = engine.toggleRow;
@@ -720,6 +813,10 @@ function TableView({ panel, openDrawer, engine }: { panel: Extract<Panel, { type
   const filtered = filteredRows;
 
   const hasControls = Boolean(panel.search || panel.filters?.length);
+  // The filters, opened as a screen of their own on a phone.
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  /** How many filters are actually narrowing the list, so the phone's button can say so. */
+  const narrowed = (panel.filters ?? []).filter((filter) => (filterValues[filter.label] ?? filter.value) !== filter.value).length;
 
   /** The ticked rows, or every row that passes the filters when none is ticked. On a long table "every row" is the server's to say. */
   function exportRows(onlySelected: boolean) {
@@ -783,6 +880,12 @@ function TableView({ panel, openDrawer, engine }: { panel: Extract<Panel, { type
   const lastIndex = panel.head.length - 1;
   // A dense table fits its panel: cells sit closer, headings wrap, and nothing asks for a slider.
   const dense = Boolean(panel.dense);
+  // Column widths, by the one rule every table in the product shares: a column holding chips,
+  // ticks or figures is given its own content, and the rest divide what is left in proportion to
+  // what they actually hold. Measured from every row on the page, not only the ones in view, so
+  // turning a page never shifts the columns under the reader.
+  const plan = planColumns(panel.head, filteredRows, { authored: panel.cols, align: aligns, selectable: panel.selectable });
+  const widths = columnWidths(plan, Boolean(panel.selectable));
   // A dense table is one asked to fit its panel, so it gives the outer edges back some of
   // their padding on a narrow screen — 18px on each end of a four-column table is a tenth
   // of a phone's width, and spending it on margin is what pushes the table into a slider.
@@ -861,43 +964,142 @@ function TableView({ panel, openDrawer, engine }: { panel: Extract<Panel, { type
             </label>
           ) : null}
 
-          {(panel.filters ?? []).map((filter) => (
-            <label
-              key={filter.label}
-              className="relative flex cursor-pointer items-center gap-[6px] whitespace-nowrap rounded-[9px] border bg-white py-[7px] pl-[10px] pr-[26px] text-[11px] transition border-[#DEE8E2] focus-within:border-[#12796A] hover:border-[#BFDCD1] hover:bg-[#F7FAF8]"
-              style={{ color: INK }}
+          {/* On a phone the filters are a screen of their own: four or five pills of a laptop's
+              size wrap into a wall above the table a thumb has come to read, and each select is
+              too small to aim at. The button below opens them full width instead, as the mockup
+              does, and says how many are narrowing the list. */}
+          {(panel.filters ?? []).length ? (
+            <button
+              type="button"
+              onClick={() => setFiltersOpen(true)}
+              className="flex min-h-[38px] flex-1 items-center justify-between gap-[8px] rounded-[9px] border bg-white px-[12px] text-[12.5px] font-semibold md:hidden"
+              style={{ borderColor: "#DEE8E2", color: INK }}
             >
-              <span style={{ color: MUTED }}>{filter.label}</span>
-              <select
-                value={filterValues[filter.label] ?? filter.value}
-                onChange={(event) => {
-                  const target = filter.go?.[event.target.value];
-                  if (target) {
-                    router.push(target as Route);
-                    return;
-                  }
-                  engine.setFilter(filter, event.target.value);
-                }}
-                className="cursor-pointer appearance-none border-none bg-transparent font-semibold outline-hidden"
-              >
-                {filter.options.map((option) => (
-                  <option key={option} value={option}>
-                    {option}
-                  </option>
-                ))}
-              </select>
-              <ChevronDown
-                className="pointer-events-none absolute right-[10px] top-1/2 h-[11px] w-[11px] -translate-y-1/2"
-                style={{ color: "#6B7A71" }}
-                strokeWidth={2.4}
-              />
-            </label>
-          ))}
+              <span className="flex items-center gap-[7px]">
+                <SlidersHorizontal className="h-[14px] w-[14px]" strokeWidth={2} style={{ color: "#6B7A71" }} />
+                {ui("Filters")}
+              </span>
+              {narrowed ? (
+                <span className="flex h-[20px] min-w-[20px] items-center justify-center rounded-full px-[6px] text-[11px] font-black" style={{ background: "#0D2315", color: "#fff" }}>{narrowed}</span>
+              ) : null}
+            </button>
+          ) : null}
 
-          <span className="ml-auto text-[10.5px]" style={{ color: MUTED }}>
+          {/* A filter pill says what it is narrowing by, and shows plainly when it is narrowing
+              anything: the control is a native select, because that is what a keyboard, a screen
+              reader and a phone all already know how to drive, dressed as the mockup's chip. */}
+          {(panel.filters ?? []).map((filter) => {
+            const current = filterValues[filter.label] ?? filter.value;
+            const on = current !== filter.options[0];
+            return (
+              <label
+                key={filter.label}
+                className={cn(
+                  "relative hidden cursor-pointer items-center gap-[6px] whitespace-nowrap rounded-full border py-[6.5px] pl-[11px] pr-[26px] text-[11px] transition md:flex",
+                  on
+                    ? "border-[#0D2315] bg-[#0D2315] text-white hover:bg-[#1B3A28]"
+                    : "border-[#DEE8E2] bg-white hover:border-[#BFDCD1] hover:bg-[#F7FAF8] focus-within:border-[#12796A]",
+                )}
+                style={on ? undefined : { color: INK }}
+              >
+                <span style={{ color: on ? "rgba(255,255,255,0.62)" : MUTED }}>{filter.label}</span>
+                <select
+                  value={current}
+                  onChange={(event) => applyFilter(filter, event.target.value)}
+                  aria-label={filter.label}
+                  className="cursor-pointer appearance-none border-none bg-transparent font-semibold outline-hidden"
+                  style={on ? { color: "#fff" } : undefined}
+                >
+                  {filter.options.map((option) => (
+                    <option key={option} value={option} style={{ color: INK }}>
+                      {option}
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown
+                  className="pointer-events-none absolute right-[10px] top-1/2 h-[11px] w-[11px] -translate-y-1/2"
+                  style={{ color: on ? "rgba(255,255,255,0.7)" : "#6B7A71" }}
+                  strokeWidth={2.4}
+                />
+              </label>
+            );
+          })}
+
+          {/* One control puts every filter back, rather than setting each one to All in turn. */}
+          {narrowed ? (
+            <button
+              type="button"
+              onClick={() => (panel.filters ?? []).forEach((filter) => applyFilter(filter, filter.options[0] ?? filter.value))}
+              className="hidden items-center gap-[5px] rounded-full border border-transparent px-[8px] py-[6.5px] text-[10.5px] font-semibold transition hover:bg-[#F1F8F4] md:flex"
+              style={{ color: "#12796A" }}
+            >
+              <X className="h-[11px] w-[11px]" strokeWidth={2.4} />
+              {ui("Clear filters")}
+            </button>
+          ) : null}
+
+          <span className="ml-auto text-[10.5px] max-md:hidden" style={{ color: MUTED }}>
             {filterNote}
           </span>
         </div>
+      ) : null}
+
+      {filtersOpen ? (
+        <>
+          <button type="button" aria-label={ui("Close")} onClick={() => setFiltersOpen(false)} className="fixed inset-0 z-[37] bg-[rgba(13,35,21,0.5)] md:hidden" />
+          <div role="dialog" aria-label={ui("Filters")} className="fixed inset-x-0 bottom-0 z-[38] max-h-[85vh] overflow-y-auto overscroll-contain rounded-t-[26px] bg-white px-[16px] pb-[calc(18px+env(safe-area-inset-bottom))] pt-[10px] md:hidden" style={{ boxShadow: "0 -12px 30px -18px rgba(13,35,21,0.55)" }}>
+            <span className="mx-auto mb-[12px] block h-[4px] w-[38px] rounded-full" style={{ background: "#DEE8E2" }} />
+            <div className="mb-[4px] flex items-center justify-between">
+              <h2 className="text-[19px] font-extrabold tracking-[-0.01em]" style={{ color: INK }}>{ui("Filters")}</h2>
+              <button type="button" onClick={() => setFiltersOpen(false)} aria-label={ui("Close")} className="flex h-[38px] w-[38px] items-center justify-center rounded-full" style={{ background: "#F2F7F4", color: INK }}>
+                <X className="h-[16px] w-[16px]" strokeWidth={2.2} />
+              </button>
+            </div>
+            <p className="mb-[14px] text-[12px]" style={{ color: MUTED }}>{filterNote}</p>
+            {(panel.filters ?? []).map((filter) => {
+              const current = filterValues[filter.label] ?? filter.value;
+              return (
+                <div key={filter.label} className="mb-[16px]">
+                  <p className="mb-[8px] text-[11px] font-bold uppercase tracking-[0.07em]" style={{ color: MUTED }}>{filter.label}</p>
+                  {/* A short list is chips a thumb can hit; a long one stays a select, because
+                      twenty chips is the same wall of options in a taller shape. */}
+                  {filter.options.length > 8 ? (
+                    <select
+                      value={current}
+                      onChange={(event) => applyFilter(filter, event.target.value)}
+                      aria-label={filter.label}
+                      className="h-[46px] w-full rounded-[11px] border bg-white px-[12px] text-[14px] font-semibold outline-hidden"
+                      style={{ borderColor: "#DEE8E2", color: INK }}
+                    >
+                      {filter.options.map((option) => <option key={option} value={option}>{option}</option>)}
+                    </select>
+                  ) : (
+                    <div className="flex flex-wrap gap-[8px]">
+                      {filter.options.map((option) => {
+                        const on = option === current;
+                        return (
+                          <button
+                            key={option}
+                            type="button"
+                            aria-pressed={on}
+                            onClick={() => applyFilter(filter, option)}
+                            className="min-h-[40px] rounded-full border px-[14px] text-[13px] font-bold"
+                            style={on ? { background: "#0D2315", borderColor: "#0D2315", color: "#fff" } : { background: "#fff", borderColor: "#DEE8E2", color: "#435048" }}
+                          >
+                            {option}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+            <button type="button" onClick={() => setFiltersOpen(false)} className="mt-[4px] h-[50px] w-full rounded-[14px] text-[15px] font-extrabold text-white" style={{ background: "#0D2315" }}>
+              {ui("Show results")}
+            </button>
+          </div>
+        </>
       ) : null}
 
       {engine.failure ? (
@@ -1006,13 +1208,26 @@ function TableView({ panel, openDrawer, engine }: { panel: Extract<Panel, { type
         {/* Wide tables scroll sideways; a keyboard has to be able to reach the scrolling region to move it (axe: scrollable-region-focusable). */}
         {/* eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex */}
         <div className="mx-[-18px] hidden min-w-0 overflow-x-auto md:block" tabIndex={0} role="region" aria-label={panel.title ? `${panel.title} — scrolls sideways` : "Table — scrolls sideways"}>
-          <table className={cn("w-full border-collapse", dense ? "min-w-0" : "min-w-[640px]")}>
+          <table
+            className={cn("w-full border-collapse", dense && "min-w-0")}
+            /*
+             * The floor stops a table being squashed into unreadability, but it is an estimate made
+             * on the server from the text, and an estimate that lands a few pixels over its panel
+             * buys a sideways scrollbar for nothing. Within 24px of fitting, the table simply fits;
+             * a table genuinely wider than its panel still scrolls, as it has to.
+             */
+            style={dense ? { tableLayout: "fixed" } : { tableLayout: "fixed", minWidth: `min(${plan.minWidth}px, max(100%, ${Math.max(0, plan.minWidth - 24)}px))` }}
+          >
+            <colgroup>
+              {/* `widths` already carries the tick column when the table has one. */}
+              {widths.map((width, index) => <col key={index} style={{ width }} />)}
+            </colgroup>
             <thead>
               <tr style={{ background: INK }}>
                 {panel.selectable ? (
                   <th
                     scope="col"
-                    className="w-[42px] py-[13px] pl-[18px] pr-[9px] text-left"
+                    className="w-[42px] py-[13px] pl-[18px] pr-[4px] text-left"
                   >
                     <input
                       type="checkbox"
@@ -1071,7 +1286,7 @@ function TableView({ panel, openDrawer, engine }: { panel: Extract<Panel, { type
                     }
                   >
                     {panel.selectable ? (
-                      <td className={cn("pl-[18px] pr-[9px] align-middle", dense ? "py-[10px]" : "py-[16px]")}>
+                      <td className={cn("pl-[18px] pr-[4px] align-middle", dense ? "py-[10px]" : "py-[16px]")}>
                         <input
                           type="checkbox"
                           checked={rowSelected}
@@ -1091,7 +1306,24 @@ function TableView({ panel, openDrawer, engine }: { panel: Extract<Panel, { type
                           aligns[cellIndex] === "center" && "text-center",
                         )}
                       >
-                        <Cell cell={cell} openDrawer={openDrawer} dense={dense} />
+                        {/*
+                          * The whole row is clickable, and the cell that names the row is the control
+                          * that makes it reachable without a mouse: a real link where the row goes to a
+                          * page, a button where it opens a drawer. A row that opened only on click left
+                          * a keyboard with no way in and took away "open in a new tab" — which is what
+                          * the trailing "Open" button used to provide before it was dropped as a repeat.
+                          */}
+                        {cellIndex === 0 && rowHref ? (
+                          <Link href={rowHref as Route} className="block w-full min-w-0 overflow-hidden text-inherit no-underline" tabIndex={0}>
+                            <Cell cell={cell} openDrawer={openDrawer} dense={dense} />
+                          </Link>
+                        ) : cellIndex === 0 && rowDrawer ? (
+                          <button type="button" onClick={() => openDrawer(rowDrawer)} className="block w-full min-w-0 overflow-hidden text-left text-inherit">
+                            <Cell cell={cell} openDrawer={openDrawer} dense={dense} />
+                          </button>
+                        ) : (
+                          <Cell cell={cell} openDrawer={openDrawer} dense={dense} />
+                        )}
                       </td>
                     ))}
                   </tr>
@@ -1172,23 +1404,9 @@ function TableView({ panel, openDrawer, engine }: { panel: Extract<Panel, { type
         </div>
       ) : null}
 
-      {panel.foot || panel.footActs?.length ? (
-        <div
-          className="mx-[-18px] mb-[-12px] flex flex-wrap items-center justify-between gap-[10px] border-t bg-[#F7FAF8] px-[18px] py-[10px]"
-          style={{ borderColor: "#EDF3EF" }}
-        >
-          <p className="min-w-0 flex-1 text-pretty text-[10.5px] leading-normal" style={{ color: MUTED }}>
-            {panel.foot}
-          </p>
-          {panel.footActs?.length ? (
-            <div className="flex flex-none flex-wrap items-center gap-[7px]">
-              {panel.footActs.map((act) => (
-                <TriggerControl key={act.label} trigger={act} label={act.label} openDrawer={openDrawer} className={panelActClass(act.primary)} />
-              ))}
-            </div>
-          ) : null}
-        </div>
-      ) : null}
+      {/* Nothing sits under a table. A line qualifying the rows was read after they had already been
+          read, so it changed nothing; what it had to say belongs in the heading, in the panel's own
+          sub-line, or on the chip at the foot of the page that opens the rule in full. */}
     </section>
   );
 }
@@ -1365,12 +1583,22 @@ function pagerClass(active: boolean) {
 }
 
 /**
+ * Which icon each card on this screen was given.
+ *
+ * The rules that pick an icon look at one card at a time, so two cards that both count days, or
+ * both count people, drew the same glyph — and a row of figures read as one figure repeated. The
+ * page assigns them together instead, keyed by the card's label, and each tile looks its own up
+ * here. A card rendered outside a page (a story, a test) finds nothing and falls back to the rules.
+ */
+const CardIcons = createContext<Record<string, string>>({});
+
+/**
  * The icon tile at the head of a figure card: 28px, a soft tint and a hairline in the card's tone (a calm green when it has none),
  * and a drawn icon — the card's own, or the one its label or its figure calls for.
  */
-function CardTile({ card }: { card: KpiCard }) {
+function CardTile({ card, name }: { card: KpiCard; name?: string }) {
   const swatch = card.tone && card.tone !== "neutral" ? toneOf(card.tone) : null;
-  const [outline, fill] = cardIcon(card);
+  const [outline, fill] = iconPaths(name ?? card.icon ?? "bars");
   const stroke = swatch ? swatch.fg : "#12796A";
   return (
     <span
@@ -1398,7 +1626,14 @@ export function PanelView({ panel, openDrawer }: { panel: Panel; openDrawer: Ope
   if (!phone) return <PanelViewDesktop panel={panel} openDrawer={openDrawer} />;
   return (
     <>
-      {only === "desktop" ? null : <PhonePanel panel={panel} openDrawer={openDrawer} />}
+      {only === "desktop" ? null : <div className="md:hidden">
+        {panel.type === "kpi" ? <PhoneStats panel={panel} openDrawer={openDrawer} /> : null}
+        {panel.type === "table" ? <PhoneTable panel={panel} openDrawer={openDrawer} /> : null}
+        {panel.type === "list" ? <PhoneList panel={panel} openDrawer={openDrawer} /> : null}
+        {panel.type === "note" ? <PhoneNote panel={panel} openDrawer={openDrawer} /> : null}
+        {panel.type === "facts" ? <PhoneFacts panel={panel} openDrawer={openDrawer} /> : null}
+        {panel.type === "steps" ? <PhoneSteps panel={panel} /> : null}
+      </div>}
       {only === "phone" ? null : <div className="max-md:hidden">
         <PanelViewDesktop panel={panel} openDrawer={openDrawer} />
       </div>}
@@ -1406,18 +1641,17 @@ export function PanelView({ panel, openDrawer }: { panel: Panel; openDrawer: Ope
   );
 }
 
-/** What a phone draws of a panel — with the mockups' tight copy: the lines under a title say less than they do on a laptop. */
-function PhonePanel({ panel: full, openDrawer }: { panel: Panel; openDrawer: OpenDrawer }) {
-  const panel = useMemo(() => tightPanel(full), [full]);
+/** A tile's second line, which the phone's copy rule may shorten or take away entirely. */
+function TileSub({ sub }: { sub?: string }) {
+  const { node, hidePhone } = useTightLine("tile", sub);
+  if (!node) return null;
   return (
-    <div className="md:hidden">
-      {panel.type === "kpi" ? <PhoneStats panel={panel} openDrawer={openDrawer} /> : null}
-      {panel.type === "table" ? <PhoneTable panel={panel} openDrawer={openDrawer} /> : null}
-      {panel.type === "list" ? <PhoneList panel={panel} openDrawer={openDrawer} /> : null}
-      {panel.type === "note" ? <PhoneNote panel={panel} openDrawer={openDrawer} /> : null}
-      {panel.type === "facts" ? <PhoneFacts panel={panel} openDrawer={openDrawer} /> : null}
-      {panel.type === "steps" ? <PhoneSteps panel={panel} /> : null}
-    </div>
+    <span
+      className={cn("mt-[2.5px] block text-pretty text-[10px] leading-[1.45]", hidePhone && "max-md:hidden")}
+      style={{ color: MUTED }}
+    >
+      {node}
+    </span>
   );
 }
 
@@ -1428,6 +1662,11 @@ function PanelViewDesktop({
   panel: Panel;
   openDrawer: OpenDrawer;
 }) {
+  // A figure that belongs to this device rather than to the school — what is still waiting here.
+  const held = useHeldCounts(panel.type === "kpi" && panel.cards.some((card) => card.device));
+  // One glyph per card across the whole screen, decided by the page rather than card by card.
+  const icons = useContext(CardIcons);
+  // Whether a phone is reading this, for the slots whose copy shortens there.
   if (panel.type === "kpi") {
     // ONE card, everywhere in the product: same box, same 1px border, same label
     // scale, same numeral scale, same link affordance, same height. The state a
@@ -1476,14 +1715,14 @@ function PanelViewDesktop({
           className="grid grid-cols-2 items-stretch gap-[10px] md:[grid-template-columns:var(--kpi-cols)]"
           style={{ "--kpi-cols": `repeat(auto-fit, minmax(${minCol}px, 1fr))` } as React.CSSProperties}
         >
-          {panel.cards.map((card) => {
+          {onDevice(panel.cards, held).map((card) => {
             const swatch = card.tone ? toneOf(card.tone) : null;
             // A card that offers a link always goes somewhere: with no page or form of its own it
             // opens a plain reading of the figure, so the link is never a dead end.
             const drawerSpec: DrawerSpec | undefined =
               card.drawer ??
               (card.link && !card.href
-                ? { mode: "view", kicker: panel.title ?? "Summary", title: card.label, facts: [[card.label, `${card.value}${card.unit ? ` ${card.unit}` : ""}`, card.sub ?? ""].filter((part, index) => index < 2 || part) as PanelFact], readOnly: true, readOnlyNote: "A figure, read as it stands." }
+                ? { mode: "view", kicker: panel.title ?? "Summary", title: card.label, facts: [[card.label, `${card.value}${card.unit ? ` ${card.unit}` : ""}`] as PanelFact], readOnly: true, readOnlyNote: "A figure, read as it stands." }
                 : undefined);
             const linked = Boolean(card.href || drawerSpec || card.link);
 
@@ -1496,7 +1735,7 @@ function PanelViewDesktop({
                   >
                     {card.label}
                   </span>
-                  <CardTile card={card} />
+                  <CardTile card={card} name={icons[card.label]} />
                 </div>
 
                 <div className="flex flex-wrap items-baseline gap-[6px]">
@@ -1513,14 +1752,7 @@ function PanelViewDesktop({
                   ) : null}
                 </div>
 
-                {slimSub(card.sub ?? "", card.label) ? (
-                  <p
-                    className="mt-[6px] line-clamp-2 text-pretty text-[10.5px] leading-[1.4]"
-                    style={{ color: MUTED }}
-                  >
-                    {slimSub(card.sub ?? "", card.label)}
-                  </p>
-                ) : null}
+                {/* A stat is the label, the figure and the way through to it. Nothing else. */}
 
                 {card.link ? (
                   <span
@@ -1971,7 +2203,11 @@ function PanelViewDesktop({
   if (panel.type === "tray") {
     const lit = panel.items.find((item) => item.on) ?? panel.items[0];
     return (
-      <section className="min-w-0 rounded-[13px] p-[5px]" style={{ background: INK }} aria-label="Browse by section">
+      <section className="min-w-0" aria-label={panel.eyebrow ?? "Browse by section"}>
+        {panel.eyebrow ? (
+          <p className="mb-[7px] text-[9.5px] font-bold uppercase tracking-[0.1em]" style={{ color: MUTED }}>{panel.eyebrow}</p>
+        ) : null}
+        <div className="min-w-0 rounded-[13px] p-[5px]" style={{ background: INK }}>
         <div className="flex gap-[3px] overflow-x-auto" style={{ scrollbarWidth: "none" }}>
           {panel.items.map((item) => (
             <TriggerControl
@@ -2015,6 +2251,7 @@ function PanelViewDesktop({
             </div>
           </div>
         ) : null}
+        </div>
       </section>
     );
   }
@@ -2075,14 +2312,8 @@ function PanelViewDesktop({
                   >
                     {tile.label}
                   </span>
-                  {tile.sub ? (
-                    <span
-                      className="mt-[2.5px] block text-pretty text-[10px] leading-[1.45]"
-                      style={{ color: MUTED }}
-                    >
-                      {tile.sub}
-                    </span>
-                  ) : null}
+                  {/* The phone's copy rule: a tile is a button with a label, and its second line earns its place or goes. */}
+                  <TileSub sub={tile.sub} />
                 </span>
               </TriggerControl>
             );
@@ -2332,23 +2563,30 @@ function FormPanel({
   }, [savedKey]);
   const minCol = panel.per === 1 ? 300 : 210;
   const submit = panel.submit;
+  // Which required boxes are still empty, and whether anyone has tried to save over them yet. The
+  // button is never dead: the press that cannot go through says what is stopping it.
+  const [tried, setTried] = useState(false);
+  const unanswered = panel.fields.filter((field) => {
+    if (!field.required) return false;
+    const value = values[field.label];
+    if (Array.isArray(value)) return value.length === 0;
+    return value === undefined || value === null || String(value).trim() === "";
+  });
 
   async function save() {
     if (!submit) return;
+    if (unanswered.length) {
+      setTried(true);
+      setState({ kind: "failed", message: `Fill in ${unanswered.map((field) => field.label).join(", ")} before saving.` });
+      return;
+    }
+    setTried(false);
     setState({ kind: "saving" });
 
-    const payload: Record<string, unknown> = {};
-    for (const [label, key] of Object.entries(submit.map)) {
-      const value = values[label];
-      // An emptied box is sent as "" so a field can be cleared; the API turns
-      // that into null. Only a field with no value at all is left out.
-      if (value === undefined) continue;
-      // A key written "preferences.density" lands inside a nested object, for settings the API keeps together.
-      const path = key.split(".");
-      let into = payload;
-      for (const step of path.slice(0, -1)) into = (into[step] ??= {}) as Record<string, unknown>;
-      into[path[path.length - 1]!] = value;
-    }
+    // The same rule a drawer's form follows, so a form on the page and the same form in a drawer
+    // post the same thing: an emptied box travels as "" to clear the value, a field with no value
+    // at all is left out, a hidden field never travels, and `encode`/`nest` mean what they mean there.
+    const payload = buildBody(submit, panel.fields, values, "");
 
     try {
       const response = await fetch(submit.endpoint, {
@@ -2429,6 +2667,7 @@ function FormPanel({
               setValues((current) => ({ ...current, [field.label]: next }));
               setState({ kind: "idle" });
             }}
+            missing={tried && unanswered.includes(field)}
           />
         ))}
       </div>
@@ -2588,10 +2827,6 @@ function FormPanel({
     return <TierChange panel={panel} />;
   }
 
-  if (panel.type === "scores") {
-    return <ScoreGrid panel={panel} />;
-  }
-
   if (panel.type === "embed") return <EmbeddedPanel component={panel.component} props={panel.props} openDrawer={openDrawer} />;
   if (panel.type === "marker") return <RegisterMarker panel={panel} openDrawer={openDrawer} />;
   if (panel.type === "sheet") return <SheetEntry panel={panel} openDrawer={openDrawer} />;
@@ -2632,9 +2867,18 @@ function FormPanel({
 export function PanelRowsWithDrawer({
   rows,
   openDrawer,
+  spill,
 }: {
   rows: PanelRow[];
   openDrawer: OpenDrawer;
+  /**
+   * Shortcuts the page's head card had no room for.
+   *
+   * A head carries two decisions and no more. The rest are not dropped — they are offered by the
+   * first panel that has a strip of its own acts, which is where they would have taken you anyway:
+   * "Create a band" belongs over the bands, not over the page.
+   */
+  spill?: PanelAction[];
 }) {
   // A panel marked `tuck` is not on the page: it is one line at the foot of it that opens the
   // same content, so the rules a page runs on stay reachable without the page being half rules.
@@ -2655,7 +2899,36 @@ export function PanelRowsWithDrawer({
     })
     .filter((row): row is PanelRow => row !== null);
 
+  // The head's overflow, given to the first panel that can carry it.
+  if (spill?.length) {
+    outer: for (const panelRow of kept) {
+      for (let index = 0; index < panelRow.panels.length; index += 1) {
+        const panel = panelRow.panels[index]!;
+        if (panel.type !== "table" && panel.type !== "list" && panel.type !== "facts") continue;
+        panelRow.panels[index] = { ...panel, acts: [...spill, ...(panel.acts ?? [])] };
+        break outer;
+      }
+    }
+  }
+
+  // Every figure card on this screen, in the order it is drawn, so each one can be given an icon
+  // nothing else here is already using. A card whose label repeats across two rows — the desktop
+  // row and its phone counterpart — is the same card twice and keeps the one glyph.
+  const icons = useMemo(() => {
+    const taken = new Set<string>();
+    const map: Record<string, string> = {};
+    for (const panelRow of kept) {
+      for (const panel of panelRow.panels) {
+        if (panel.type !== "kpi") continue;
+        const fresh = panel.cards.filter((card) => !(card.label in map));
+        assignIcons(fresh, taken).forEach((name, index) => { map[fresh[index]!.label] = name; });
+      }
+    }
+    return map;
+  }, [kept]);
+
   return (
+    <CardIcons.Provider value={icons}>
     <div className="grid min-w-0 gap-4">
       {kept.map((panelRow, index) => (
         <div
@@ -2693,6 +2966,7 @@ export function PanelRowsWithDrawer({
         </div>
       ) : null}
     </div>
+    </CardIcons.Provider>
   );
 }
 

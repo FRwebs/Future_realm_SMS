@@ -509,7 +509,7 @@ export function addSubjectDrawer(teaching: Teaching, overview: Overview): Drawer
         kind: "static",
         value: "Not recorded yet",
         span: 2,
-        hint: "Which choice group a subject belongs to is not stored, so registration rules cannot be enforced from here.",
+        hint: "Registration rules cannot be enforced from here, because which choice group a subject belongs to is not stored.",
       },
     ],
     submit: {

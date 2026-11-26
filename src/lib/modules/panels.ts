@@ -237,6 +237,14 @@ export type DrawerSpec = {
 export type Trigger = {
   href?: string;
   drawer?: DrawerSpec;
+  /**
+   * The href hands back a file rather than a page.
+   *
+   * A route that answers with a CSV is not somewhere the router can go: asked through the client
+   * router it fetches, finds no page, and nothing happens — which is how "Export the day" came to
+   * do nothing at all. Marked this way it is drawn as a plain link the browser downloads.
+   */
+  download?: boolean;
   /** Runs in the browser — for a surface that is built on the client and holds its own state. Never authored on the server. */
   run?: () => void;
 };
@@ -260,12 +268,22 @@ export type KpiCard = {
   label: string;
   value: string;
   unit?: string;
-  sub?: string;
+  /*
+   * A card has no second line. The figure and what it is called are the whole card; a sentence
+   * under it was read after the number it qualified, which is too late to change how it was read.
+   * Where the qualification matters it belongs in the label, or on the page the card links to.
+   */
   tone?: PanelTone;
   /** Text of the card's link through to the list or record behind the figure. */
   link?: string;
   /** A name from the card icon set; left out, the label (then the shape of the figure) picks one. */
   icon?: string;
+  /**
+   * A figure that belongs to the device, not the school: how much work of this kind is still
+   * waiting here. The page is drawn on the server, which cannot know, so the authored value stands
+   * until the device has been read and then the real count replaces it.
+   */
+  device?: "ATTENDANCE" | "SCORE_ENTRY" | "OBSERVATION";
 } & Trigger;
 
 export type TableCellKind =
@@ -337,6 +355,12 @@ export type TableFilter = {
    * is the "all" one and never narrows.
    */
   since?: Record<string, number>;
+  /**
+   * Option → hours, looking the other way. Choosing one keeps the rows whose `at` falls between now
+   * and that many hours ahead: "Next 7 days" on a calendar, where what has already happened is the
+   * part you are trying to get past. The first option is the "all" one and never narrows.
+   */
+  within?: Record<string, number>;
   /** Option → page. Choosing one goes there instead of narrowing the rows: a switcher between arms or subjects. */
   go?: Record<string, string>;
 };
@@ -356,6 +380,14 @@ export type PanelAction = {
    * goes to a page (`href`) the ids travel on its query, comma-separated, under `key`.
    */
   selection?: { key: string; noun: string };
+  /**
+   * Drawn only at a phone's width.
+   *
+   * The page head is replaced on a phone by a plain title with no buttons, so an action the head
+   * carries would otherwise be unreachable there. The workspace repeats those on the first panel's
+   * strip and marks them with this, which hides them again on a laptop where the head has them.
+   */
+  phoneOnly?: boolean;
 } & Trigger;
 
 export type ListItem = {
@@ -510,6 +542,13 @@ export type FormField = {
       value: string;
       /** What it says depends on another field: the case for that field's current value, else `value`. */
       by?: { field: string; cases: Record<string, { value: string; hint?: string }> };
+      /**
+       * The product of two other fields, worked out as they are typed.
+       *
+       * A quantity and a unit price with no line total beside them makes the reader do the
+       * multiplication, or save and go and look. `money` writes the answer in naira.
+       */
+      times?: { fields: [string, string]; money?: boolean; empty?: string };
     }
   /** Many people (or things) picked from a searchable list, with the chosen ones shown beside it. */
   | { kind: "picker"; options: PickerOption[]; checked?: string[]; placeholder?: string; noun?: string; nounPlural?: string; groupAll?: string }
@@ -561,8 +600,18 @@ export type FormField = {
 export type FormSubmit = {
   endpoint: string;
   method?: "PATCH" | "POST";
+  /** Sent as-is, beside whatever the fields contribute. */
+  body?: Record<string, unknown>;
   /** Field label → payload key. A field not listed here is never sent. */
   map: Record<string, string>;
+  /**
+   * Field label → (what the person picked → what the endpoint stores), and field label →
+   * [record key, entry key] for an endpoint that takes many fields as one object. Both mean exactly
+   * what they mean on a drawer: a form written on the page and the same form in a drawer post the
+   * same thing.
+   */
+  encode?: Record<string, Record<string, string>>;
+  nest?: Record<string, [key: string, entry: string]>;
   /** What to say once it has saved. */
   done: string;
   /** Clear these fields after a successful save, e.g. password boxes. */
@@ -660,42 +709,6 @@ export type RosterPanel = {
   endpoint: string;
   done: string;
   /** Shown instead of the grid when there is nobody to mark. */
-  emptyNote?: string;
-};
-
-
-/**
- * A score sheet: a class's marks for one subject, entered together.
- *
- * Sibling of RosterPanel. Both are "a value per child, submitted as one
- * action", which is the shape triggers cannot express — but the values differ
- * enough (a choice of four versus two bounded numbers) that one panel trying
- * to be both would be worse than two that are each clear.
- */
-export type ScoreStudent = {
-  id: string;
-  name: string;
-  admissionNumber: string | null;
-  continuousAssessment: number | null;
-  exam: number | null;
-  /** A published or approved sheet cannot be typed into, and says so. */
-  locked: boolean;
-  sheetStatus: string | null;
-};
-
-export type ScoreSheetPanel = {
-  type: "scores";
-  title: string;
-  sub?: string;
-  classId: string;
-  subjectId: string;
-  subjectName: string;
-  students: ScoreStudent[];
-  /** Highest mark each column accepts, from the school's components. */
-  maxCa: number;
-  maxExam: number;
-  endpoint: string;
-  done: string;
   emptyNote?: string;
 };
 
@@ -947,11 +960,21 @@ export type Panel =
       tag?: string;
       tagTone?: PanelTone;
       head: string[];
+      /**
+       * A hand-written weight per column, e.g. "1.25fr 0.95fr 1.5fr".
+       *
+       * An opinion, not a rule: it is averaged with what the column actually holds, so a template
+       * written before the data grew cannot squeeze a column of long names. Left out, the content
+       * decides on its own.
+       */
+      cols?: string;
       rows: TableRow[];
       acts?: PanelAction[];
-      foot?: string;
-      /** Actions laid in the foot bar, to the right of `foot` — where a long sheet ends and what to do with it begins. */
-      footActs?: PanelAction[];
+      /*
+       * A table has no foot. Nothing is drawn under the rows, so there is no field to write one
+       * into: a qualifier is read after the rows it qualifies, which is too late to change how they
+       * were read. Say it in the heading, in `sub`, or `tuck` the rule to the foot of the page.
+       */
       /** Shown instead of rows when there are none. */
       empty?: string;
       /** The cells are themselves the controls, so a row does not also open a record behind them. */
@@ -1038,7 +1061,6 @@ export type Panel =
       show?: "desktop" | "phone";
     }
   | RosterPanel
-  | ScoreSheetPanel
   | TierChangePanel
   | MarkerPanel
   | DayStripPanel
@@ -1099,7 +1121,7 @@ export type Panel =
    * A segmented shelf: every section on one line with its count, the one you are on lit, and beneath it one line on what that section
    * holds, what it costs and who awards it. Each segment goes to its own page, so which one is lit is the server's to say.
    */
-  | { type: "tray"; items: TrayItem[] }
+  | { type: "tray"; items: TrayItem[]; /** The small line of type above the shelf saying what the segments are. */ eyebrow?: string }
   /**
    * Two rows of chips that pick a session and then a term inside it, with what
    * that term's figures are worth beside them — "In progress · week 7", or
@@ -1208,6 +1230,14 @@ export type TabContent = {
   /** Overrides the module heading for this tab, as the mockup does on Today. */
   title?: string;
   desc?: string;
+  /**
+   * A short state beside the title — "Observed this half-term", "3 of 10 ready".
+   *
+   * The mockup gives its per-record pages one: where this one record stands, said once at the top
+   * instead of being worked out from the panels below.
+   */
+  tag?: string;
+  tagTone?: PanelTone;
   /** The tab's single most important action, shown in the header. */
   primary?: PanelAction;
   /** Secondary jumps out of this tab, beside the primary action. */

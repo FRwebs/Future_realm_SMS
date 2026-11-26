@@ -72,8 +72,8 @@ export function accountTab(a: Account): TabContent {
       {
         cols: "1.15fr 1fr",
         panels: [
-          { type: "table", title: "Full exports", sub: "Every export taken, whether it was downloaded, and when it lapses.", meta: `${plural(a.exports.length, "export")}`, acts: [{ label: "Generate a full export", primary: true, drawer: exportDrawer(a) }], head: ["Taken", "Datasets", "Rows", "Available", "State", ""], noun: "export", nounPlural: "exports", noRowOpen: true, rows: exports, emptyTitle: "No export has been taken", emptyBody: "Every export needs your password, notifies the leadership, and is logged.", foot: "Available on every tier, as CSV that Excel opens. An export lapses after 24 hours." },
-          { type: "facts", title: "What a full export holds", sub: "Every dataset in the workspace, and how big it is today.", per: 3, facts: datasets },
+          { type: "table", title: "Full exports", sub: "Every export taken, whether it was downloaded, and when it lapses.", meta: `${plural(a.exports.length, "export")}`, acts: [{ label: "Generate a full export", primary: true, drawer: exportDrawer(a) }], head: ["Taken", "Datasets", "Rows", "Available", "State", ""], noun: "export", nounPlural: "exports", noRowOpen: true, rows: exports, emptyTitle: "No export has been taken", emptyBody: "Every export needs your password, notifies the leadership, and is logged.", },
+          { type: "facts", title: "What a full export holds", tuck: "What a full export holds", tuckIcon: "M12 6.5C10.5 5 8 4.5 4 4.5v13c4 0 6.5.5 8 2 1.5-1.5 4-2 8-2v-13c-4 0-6.5.5-8 2zM12 6.5v13", tuckKicker: "How this works", sub: "Every dataset in the workspace, and how big it is today.", per: 3, facts: datasets },
         ],
       },
     ],

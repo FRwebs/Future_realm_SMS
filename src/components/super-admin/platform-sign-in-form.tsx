@@ -6,7 +6,6 @@ import { useState } from "react";
 
 type AccessControl = {
   idleMinutes: number;
-  trustDays: number;
   ipAllowListEnforced: boolean;
   levels: Array<{ level: string; role: string; scope: string }>;
 };
@@ -17,8 +16,11 @@ type AccessControl = {
  * It posts to the same `/v1/auth/login` the school uses, because there is one
  * password check and one session in this product and a second copy of either is
  * how the weaker one gets found. What differs is what the API does afterwards
- * for a platform role, and what this form asks for: a second factor every time,
- * and the option to trust the browser for thirty days.
+ * for a platform role, and what this form asks for: a second factor, every time.
+ *
+ * There is deliberately no "remember this browser" here. One existed, and it did nothing — the
+ * field went to an endpoint that ignored it — but the reason not to put it back is that it would
+ * be a way past the code, and the back office says there is none.
  */
 export function PlatformSignInForm({ access }: { access: AccessControl }) {
   const router = useRouter();
@@ -26,8 +28,9 @@ export function PlatformSignInForm({ access }: { access: AccessControl }) {
   const [password, setPassword] = useState("");
   const [code, setCode] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [remember, setRemember] = useState(true);
   const [stage, setStage] = useState<"credentials" | "verify">("credentials");
+  /** Where the code went, in the API's own words, so the page does not claim an app that was never used. */
+  const [sentTo, setSentTo] = useState<{ channel: string; address: string | null } | null>(null);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -47,25 +50,31 @@ export function PlatformSignInForm({ access }: { access: AccessControl }) {
         body: JSON.stringify({
           identifier: email,
           password,
-          ...(stage === "verify" ? { mfaCode: code, trustDevice: remember } : {}),
+          ...(stage === "verify" ? { mfaCode: code } : {}),
         }),
       });
       const result = (await response.json().catch(() => ({}))) as {
         ok?: boolean;
         error?: string;
         message?: string;
+        code?: string;
+        channel?: string;
+        sentTo?: string;
         data?: { mfaRequired?: boolean };
       };
 
-      // The API asks for the second factor by refusing the first leg; that is
-      // the signal to show the code box rather than an error.
+      // The API asks for the second factor by refusing the first leg, and says so in `code`.
+      // Reading the sentence instead was how a reworded message turned a challenge into an error
+      // and left the person on a form with nowhere to type the code.
       const needsCode =
+        result.code === "MFA_REQUIRED" ||
         result.data?.mfaRequired ||
-        /multi-factor|mfa|verification code|six-digit/i.test(result.error ?? result.message ?? "");
+        /multi-factor|mfa|verification code|\d-digit|six-digit/i.test(result.error ?? result.message ?? "");
 
       if (!response.ok || result.ok === false) {
         if (needsCode && stage === "credentials") {
           setStage("verify");
+          setSentTo({ channel: result.channel ?? "APP", address: result.sentTo ?? null });
           setError(null);
           return;
         }
@@ -107,7 +116,9 @@ export function PlatformSignInForm({ access }: { access: AccessControl }) {
       <p className="mb-[27px] text-[12px] text-[#5f6e65]">
         {stage === "credentials"
           ? "FutureRealm team accounts only. Schools sign in at their own workspace."
-          : "Enter the six-digit code from your authenticator."}
+          : sentTo?.channel === "EMAIL"
+            ? `Enter the six-digit code sent to ${sentTo.address ?? "your work email"}.`
+            : "Enter the six-digit code from your authenticator."}
       </p>
 
       <form onSubmit={submit} noValidate>
@@ -186,28 +197,6 @@ export function PlatformSignInForm({ access }: { access: AccessControl }) {
           </>
         )}
 
-        <label className="mb-5 flex cursor-pointer items-center gap-[7px]">
-          <input
-            type="checkbox"
-            className="sr-only"
-            checked={remember}
-            onChange={(event) => setRemember(event.target.checked)}
-          />
-          <span
-            className="flex h-[15.5px] w-[15.5px] flex-none items-center justify-center rounded-[5px]"
-            style={{ background: remember ? "#0D2315" : "transparent", border: remember ? "none" : "1.5px solid #DEE8E2" }}
-            aria-hidden
-          >
-            {remember ? (
-              <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3.6" strokeLinecap="round" strokeLinejoin="round">
-                <path d="m5 12 5 5 9-10" />
-              </svg>
-            ) : null}
-          </span>
-          <span className="text-[11.5px] text-[#435048]">
-            Remember this device for MFA ({access.trustDays} days)
-          </span>
-        </label>
 
         {error ? (
           <p

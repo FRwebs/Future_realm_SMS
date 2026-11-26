@@ -21,10 +21,10 @@ export function reviewTab(data: Review): TabContent {
   const unapplied = data.flags.find((flag) => flag.key === "unapplied");
   const oldest = data.cashup.filter((day) => day.state === "Unreconciled").slice(-1)[0];
   const cards: KpiCard[] = [
-    { label: "Unreconciled days", value: String(data.unreconciled), tone: data.unreconciled ? "negative" : "positive", sub: data.oldestUnreconciled ? `Oldest is ${dayText(data.oldestUnreconciled)}` : "Every day is closed" },
-    { label: "Open variance", value: `${data.openVariance < 0 ? "−" : ""}${naira(Math.abs(data.openVariance))}`, tone: data.openVariance ? "attention" : "positive", sub: data.openVariance ? "Counted against recorded, on days not yet closed" : "Nothing unexplained" },
-    { label: "Integrity flags", value: String(data.flagCount), tone: data.flagCount ? "attention" : "positive", sub: data.flagCount ? "Reviewable, and each says what it found" : "The books show nothing to review" },
-    { label: "Pending waivers", value: String(data.waivers.length), tone: data.waivers.length ? "negative" : "positive", sub: data.waivers.length ? `${naira(data.waiverValue)} · oldest ${data.oldestWaiver} days` : "Nothing waiting", ...(data.waivers.length ? { link: "Decide", drawer: waiverDrawer(data.waivers[0]) } : {}) },
+    { label: "Unreconciled days", value: String(data.unreconciled), tone: data.unreconciled ? "negative" : "positive", },
+    { label: "Open variance", value: `${data.openVariance < 0 ? "−" : ""}${naira(Math.abs(data.openVariance))}`, tone: data.openVariance ? "attention" : "positive", },
+    { label: "Integrity flags", value: String(data.flagCount), tone: data.flagCount ? "attention" : "positive", },
+    { label: "Pending waivers", value: String(data.waivers.length), tone: data.waivers.length ? "negative" : "positive", ...(data.waivers.length ? { link: "Decide", drawer: waiverDrawer(data.waivers[0]) } : {}) },
   ];
   const dayRows: TableRow[] = data.cashup.map((day) => {
     const open = day.state !== "Closed";
@@ -79,7 +79,6 @@ export function reviewTab(data: Review): TabContent {
             per: 8,
             emptyTitle: "No cash has been taken",
             emptyBody: "A day appears here once a cash or cheque payment is recorded on it.",
-            foot: "Card and transfer payments are reconciled against the bank, not counted. Whoever counts a day cannot close it.",
           },
         ],
       },

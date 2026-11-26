@@ -34,11 +34,11 @@ export function completionTab(o: CompletionOverview, school: string): TabContent
     panels: [{
       type: "kpi", title: "The school this term", sub: `${o.term.name} ${o.term.session}`, per: 6,
       cards: [
-        { label: "Ready to publish", value: String(k.ready), unit: `of ${k.cards - k.published}`, sub: `${clear} arms complete`, tone: k.ready && k.ready === k.cards - k.published ? "positive" : "attention" },
-        { label: "Arms clear", value: String(clear), unit: `of ${k.arms}`, sub: clear ? "Every child ready or already out" : "No arm is fully ready yet", tone: clear === k.arms ? "positive" : "attention" },
-        { label: "Blocked on scores", value: String(k.blocked), sub: "No approved result yet", tone: k.blocked ? "negative" : "positive", link: "Open review", href: "/score-entry-results/review" },
-        { label: "Remarks owed", value: String(k.owed), sub: `Across ${plural(k.owedArms, "arm")}`, tone: k.owed ? "attention" : "positive", link: k.owed ? "Write them" : undefined, href: k.owed ? "/report-cards/remarks" : undefined },
-        { label: "Published", value: String(k.published), sub: k.published ? "Already with families" : "Nothing has reached a family", tone: k.published ? "positive" : "neutral" },
+        { label: "Ready to publish", value: String(k.ready), unit: `of ${k.cards - k.published}`, tone: k.ready && k.ready === k.cards - k.published ? "positive" : "attention" },
+        { label: "Arms clear", value: String(clear), unit: `of ${k.arms}`, tone: clear === k.arms ? "positive" : "attention" },
+        { label: "Blocked on scores", value: String(k.blocked), tone: k.blocked ? "negative" : "positive", link: "Open review", href: "/score-entry-results/review" },
+        { label: "Remarks owed", value: String(k.owed), tone: k.owed ? "attention" : "positive", link: k.owed ? "Write them" : undefined, href: k.owed ? "/report-cards/remarks" : undefined },
+        { label: "Published", value: String(k.published), tone: k.published ? "positive" : "neutral" },
         { ...publish, link: "Open calendar", href: "/school-configuration/calendar" },
       ],
     }],
@@ -71,8 +71,7 @@ export function completionTab(o: CompletionOverview, school: string): TabContent
         { label: "Notify their form masters", drawer: notifyBehind([], school, "Notify the selected form masters"), selection: { key: "arms", noun: "arm" } },
         { label: "Export selected", primary: true, export: true },
       ],
-      rows: armRows, foot: "An arm is Ready when every child has scores, a form master's remark and the Principal's review. A half-finished card never reaches a family.",
-    }],
+      rows: armRows,     }],
   });
   const items = [
     k.blocked ? { label: `${plural(k.blocked, "card")} blocked on scores`, sub: `In ${k.blockedArms.slice(0, 4).join(", ")}. A sheet is unapproved, or the child has no result yet. Nobody is being given a zero — the card simply cannot compute.`, pill: "Blocked", tone: "negative" as PanelTone, viewLabel: "Open review", href: "/score-entry-results/review" } : null,
@@ -124,11 +123,11 @@ export function completionArmPage(a: CompletionArmPage, school: string): { conte
     panels: [{
       type: "kpi", title: `${a.arm.name} · ${term}`, per: 6,
       cards: [
-        { label: "Ready to publish", value: String(sum.ready), unit: `of ${todo}`, sub: "Scores, remark and review all in", tone: sum.ready === todo && todo ? "positive" : "attention" },
-        { label: "Blocked on scores", value: String(sum.blocked), sub: sum.blocked ? (a.subjects.approved < a.subjects.of ? "A sheet is unapproved" : "No result for them yet") : "Every sheet in", tone: sum.blocked ? "negative" : "positive", link: sum.blocked ? "Open review" : undefined, href: sum.blocked ? `/score-entry-results/review/${a.arm.id}` : undefined },
-        { label: "Remark owed", value: String(sum.owed), sub: sum.owed ? `By ${a.master?.name ?? "the form master"}` : "All written", tone: sum.owed ? "attention" : "positive", link: sum.owed ? "Write them" : undefined, href: sum.owed ? "/report-cards/remarks" : undefined },
-        { label: "Awaiting review", value: String(sum.inReview), sub: "Result checked before it goes out", tone: sum.inReview ? "submitted" : "positive" },
-        { label: "Published", value: String(sum.published), sub: sum.published ? "Already with families" : "Nothing has reached a family", tone: sum.published ? "positive" : "neutral" },
+        { label: "Ready to publish", value: String(sum.ready), unit: `of ${todo}`, tone: sum.ready === todo && todo ? "positive" : "attention" },
+        { label: "Blocked on scores", value: String(sum.blocked), tone: sum.blocked ? "negative" : "positive", link: sum.blocked ? "Open review" : undefined, href: sum.blocked ? `/score-entry-results/review/${a.arm.id}` : undefined },
+        { label: "Remark owed", value: String(sum.owed), tone: sum.owed ? "attention" : "positive", link: sum.owed ? "Write them" : undefined, href: sum.owed ? "/report-cards/remarks" : undefined },
+        { label: "Awaiting review", value: String(sum.inReview), tone: sum.inReview ? "submitted" : "positive" },
+        { label: "Published", value: String(sum.published), tone: sum.published ? "positive" : "neutral" },
         { ...publishCard(a.publishDate), link: undefined },
       ],
     }],
@@ -171,7 +170,7 @@ export function completionArmPage(a: CompletionArmPage, school: string): { conte
       {
         type: "list", title: "How these cards go out", sub: "Publishing is in-app. Anything else is a separate send.",
         items: [
-          { label: "Publish to the student and guardian portal", sub: "Free · instant · both portals at once. The family is notified in-app.", pill: sum.ready ? `${sum.ready} ready` : "Nothing ready", tone: sum.ready ? "positive" : "neutral", viewLabel: "Publish", drawer: sum.ready ? publish : undefined },
+          { label: "Publish to the student and guardian portal", sub: "Free · instant · both portals · the family is notified in-app", pill: sum.ready ? `${sum.ready} ready` : "Nothing ready", tone: sum.ready ? "positive" : "neutral", viewLabel: "Publish", drawer: sum.ready ? publish : undefined },
           { label: "Send by SMS with a portal link", sub: `1 credit per guardian · ${plural(a.guardians, "guardian")} · the card is not attached, only linked.`, pill: "Costed", tone: "attention", viewLabel: "Send", drawer: send },
           { label: "Email a link to the card", sub: `Free · ${plural(a.emails, "guardian")} with an email on file.`, pill: "Free", tone: "positive", viewLabel: "Send", drawer: send },
           { label: "Print for collection", sub: `One run, ${sum.roll - sum.blocked} pages, in roll order, with the school stamp block.`, pill: "Print", tone: "neutral", viewLabel: "Print", drawer: print },

@@ -25,7 +25,7 @@ async function gate() {
 type Page = TabContent & { crumb: { label: string; href: string } };
 
 function Workspace({ content, children }: { content: Page; children?: React.ReactNode }) {
-  return <ModuleWorkspace eyebrow="Report Cards" title={content.title ?? "Report Cards"} description={content.desc ?? ""} primary={content.primary} launchers={content.launchers} rows={content.rows} back={content.crumb}>{children}</ModuleWorkspace>;
+  return <ModuleWorkspace eyebrow="Report Cards" title={content.title ?? "Report Cards"} description={content.desc ?? ""} tag={content.tag} tagTone={content.tagTone} primary={content.primary} launchers={content.launchers} rows={content.rows} back={content.crumb}>{children}</ModuleWorkspace>;
 }
 
 export async function RemarkView({ classId, studentId }: { classId: string; studentId: string }) {

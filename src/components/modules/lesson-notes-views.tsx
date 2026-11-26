@@ -20,7 +20,7 @@ async function gate() {
 type Page = TabContent & { crumb: { label: string; href: string } };
 
 function Workspace({ content }: { content: Page }) {
-  return <ModuleWorkspace eyebrow="Lesson Notes" title={content.title ?? "Lesson Notes"} description={content.desc ?? ""} primary={content.primary} launchers={content.launchers} rows={content.rows} back={content.crumb} />;
+  return <ModuleWorkspace eyebrow="Lesson Notes" title={content.title ?? "Lesson Notes"} description={content.desc ?? ""} tag={content.tag} tagTone={content.tagTone} primary={content.primary} launchers={content.launchers} rows={content.rows} back={content.crumb} />;
 }
 
 async function open(build: () => Promise<Page>) {

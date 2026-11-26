@@ -164,23 +164,9 @@ export function StudentAttendance({ terms, records, today, current, first, guard
 
   // The "since the first term" card reads the first term's figure against the
   // latest one. With a single term on record there is nothing to compare.
-  const allSub = (() => {
-    if (terms.length < 2) return "Only one term on record so far";
-    const firstTerm = terms[0]!;
-    const lastTerm = terms[terms.length - 1]!;
-    const a = summary(past.filter(inScope("Term", firstTerm.id)));
-    const b = summary(past.filter(inScope("Term", lastTerm.id)));
-    return `${firstTerm.name.replace(/ Term$/, "")} ${pct(a.pct)} → now ${pct(b.pct)}`;
-  })();
 
   // "2 not explained · 1 excused" — the kinds actually in this period, not a
   // fixed pair of counts that reads "0 excused" most of the time.
-  const awaySub = (() => {
-    if (!S.away.length) return "None";
-    const kinds: Record<string, number> = {};
-    for (const day of S.away) { const word = day.status === "ABSENT" ? "not explained" : (NAME[day.status] ?? day.status).toLowerCase(); kinds[word] = (kinds[word] ?? 0) + 1; }
-    return Object.entries(kinds).map(([word, count]) => `${count} ${word}`).join(" · ");
-  })();
 
   // The chart says which period it is drawing, the way the mockup does — "Week
   // by week · Second Term", not a bare "Week by week".
@@ -224,16 +210,15 @@ export function StudentAttendance({ terms, records, today, current, first, guard
 
       <section className="grid gap-[10px]" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))" }}>
         {[
-          { label: "Attendance", value: pct(S.pct), sub: `${S.present} of ${S.n} school days`, tone: toneFor(S.pct) },
-          { label: "Days away", value: String(S.away.length), sub: awaySub, tone: S.away.some((day) => day.status === "ABSENT") ? ("attention" as PanelTone) : S.away.length ? ("neutral" as PanelTone) : ("positive" as PanelTone) },
-          { label: "Late arrivals", value: String(S.late), sub: S.late ? "Still counted as present" : "None", tone: S.late ? ("attention" as PanelTone) : ("positive" as PanelTone) },
-          { label: view === "All" ? "Since the first term" : `Compared with ${prevName}`, value: view === "All" && terms.length < 2 ? "—" : pts(delta), sub: view === "All" ? allSub : PS && PS.pct !== null ? `${prevName.charAt(0).toUpperCase()}${prevName.slice(1)} was ${pct(PS.pct)}` : "Nothing earlier on record", tone: delta === null ? ("neutral" as PanelTone) : delta >= 0 ? ("positive" as PanelTone) : ("attention" as PanelTone) },
-          { label: "Longest run present", value: `${S.best} ${S.best === 1 ? "day" : "days"}`, sub: S.best ? `In a row, up to ${short(S.bestEnd)}` : "No school days yet", tone: "neutral" as PanelTone },
+          { label: "Attendance", value: pct(S.pct), tone: toneFor(S.pct) },
+          { label: "Days away", value: String(S.away.length), tone: S.away.some((day) => day.status === "ABSENT") ? ("attention" as PanelTone) : S.away.length ? ("neutral" as PanelTone) : ("positive" as PanelTone) },
+          { label: "Late arrivals", value: String(S.late), tone: S.late ? ("attention" as PanelTone) : ("positive" as PanelTone) },
+          { label: view === "All" ? "Since the first term" : `Compared with ${prevName}`, value: view === "All" && terms.length < 2 ? "—" : pts(delta), tone: delta === null ? ("neutral" as PanelTone) : delta >= 0 ? ("positive" as PanelTone) : ("attention" as PanelTone) },
+          { label: "Longest run present", value: `${S.best} ${S.best === 1 ? "day" : "days"}`, tone: "neutral" as PanelTone },
         ].map((card) => (
           <article key={card.label} className="rounded-[14px] border bg-(--color-bg-surface) px-[14px] pb-[14px] pt-[13px]" style={{ borderColor: "#DEE8E2" }}>
             <p className="text-[9.5px] font-semibold uppercase tracking-wider" style={{ color: "#5E6D64" }}>{card.label}</p>
             <p className="mt-[8px] text-[20.5px] font-extrabold leading-none tracking-[-0.03em] tabular-nums" style={{ color: toneOf(card.tone).fg }}>{card.value}</p>
-            <p className="mt-[6px] text-[10.5px] leading-[1.4]" style={{ color: "#5E6D64" }}>{card.sub}</p>
           </article>
         ))}
       </section>

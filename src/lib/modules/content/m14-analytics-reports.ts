@@ -70,26 +70,22 @@ const insightsTab: TabContent = {
           {
             label: "School average",
             value: "68.4",
-            sub: "Up 2.1 from First Term · using this school's own bands",
             tone: "positive",
           },
-          { label: "Attendance", value: "94.2%", sub: "Down 0.8 from First Term", tone: "attention" },
+          { label: "Attendance", value: "94.2%", tone: "attention" },
           {
             label: "Collection rate",
             value: "77.3%",
-            sub: "Up 5.5 points against this point last term",
             tone: "positive",
           },
           {
             label: "Portal activation",
             value: "1,161 of 1,182",
-            sub: "98.2% of families · 21 never activated",
             tone: "positive",
           },
           {
             label: "Net enrolment growth",
             value: "+14",
-            sub: "20 admitted · 3 withdrawn · 3 transferred in",
             tone: "positive",
           },
         ],
@@ -101,11 +97,10 @@ const insightsTab: TabContent = {
         title: "Academic · grade distribution",
         sub: "A1 to F9 with the school's own labels, not a generic scale.",
         rows: gradeDistribution.map((band) => ({
-          label: band.label,
+          label: band.label, sub: "note" in band ? band.note : undefined,
           value: band.pct,
           display: `${band.students} students`,
           tone: band.tone as PanelTone,
-          sub: "note" in band ? band.note : undefined,
         })),
         foot: "The bands are this school's own, set in School Configuration · Curriculum — never a generic scale imposed on it.",
       },
@@ -189,7 +184,6 @@ const insightsTab: TabContent = {
             keywords: entry.difficulty,
           }),
         ),
-        foot: "A subject with no data is not a subject that went badly — it is one nobody taught, and it is named as such rather than averaged away.",
       },
     ]),
     row("1fr 1fr 1fr", [
@@ -198,11 +192,10 @@ const insightsTab: TabContent = {
         title: "Attendance & enrolment",
         sub: "By weekday — the pattern a school can actually act on.",
         rows: attendanceByWeekday.map((day) => ({
-          label: day.label,
+          label: day.label, sub: "note" in day ? day.note : undefined,
           value: day.pct,
           display: day.display,
           tone: day.tone as PanelTone,
-          sub: "note" in day ? day.note : undefined,
         })),
       },
       {
@@ -365,15 +358,14 @@ const reportsTab: TabContent = {
         type: "kpi",
         per: 4,
         cards: [
-          { label: "Standard reports", value: String(standardReports.length), sub: "School-branded, dated, referenced" },
-          { label: "Custom definitions", value: String(customReports.length), sub: "2 scheduled to named recipients" },
+          { label: "Standard reports", value: String(standardReports.length), },
+          { label: "Custom definitions", value: String(customReports.length), },
           {
             label: "Datasets exportable",
             value: "9",
-            sub: "Excel and CSV · every tier",
             tone: "positive",
           },
-          { label: "Exports this session", value: "14", sub: "Every one written to the audit log" },
+          { label: "Exports this session", value: "14", },
         ],
       },
     ]),
@@ -633,37 +625,30 @@ const complianceTab: TabContent = {
         type: "kpi",
         per: 6,
         cards: [
-          { label: "Returns tracked", value: String(complianceReturns.length), sub: "Across 6 bodies" },
+          { label: "Returns tracked", value: String(complianceReturns.length), },
           {
             label: "Due within 35 days",
             value: String(dueSoonReturns.length),
-            sub: dueSoonReturns.length
-              ? `Soonest in ${Math.min(...dueSoonReturns.map((entry) => entry.days))} days`
-              : "Nothing imminent",
             tone: dueSoonReturns.length ? "attention" : "positive",
           },
           {
             label: "Blocked",
             value: String(blockedReturns.length),
-            sub: "Missing data on file",
             tone: blockedReturns.length ? "negative" : "positive",
           },
           {
             label: "Ready to generate",
             value: String(readyReturns.length),
-            sub: "One click each",
             tone: "positive",
           },
           {
             label: "Filed this session",
             value: String(filedReturns.length),
-            sub: "Archived with evidence",
             tone: "positive",
           },
           {
             label: "Next deadline",
             value: `${nextDeadlineDays} days`,
-            sub: "Termly enrolment return",
             tone: "attention",
           },
         ],
@@ -791,7 +776,6 @@ const complianceTab: TabContent = {
             keywords: `${entry.body} ${entry.owner}`,
           };
         }),
-        foot: "A return is built from live data at the moment you generate it, never from a cached figure — and every generated copy is archived with who produced it.",
       },
     ]),
     row("1.1fr 1fr", [
@@ -816,7 +800,6 @@ const complianceTab: TabContent = {
             keywords: gap.blocks,
           }),
         ),
-        foot: "A missing transfer certificate is not a filing problem — it is a record problem that only becomes urgent the week a return is due.",
       },
       {
         type: "facts",

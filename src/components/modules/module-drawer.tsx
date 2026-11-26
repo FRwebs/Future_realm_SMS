@@ -7,11 +7,12 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
 import { DocumentModal } from "@/components/modules/document-modal";
-import type { DrawerSpec, FormField, PanelFact } from "@/lib/modules/panels";
+import type { DrawerSpec, FormField, FormSubmit, PanelFact } from "@/lib/modules/panels";
 import { Field, assetSummary, fieldVisible, initialValue } from "@/components/modules/field";
 import { sendJson, sendJsonForData } from "@/lib/modules/submit";
 import { INK, MUTED } from "@/lib/modules/tones";
 import { usePhoneKind } from "@/components/layout/phone-shell";
+import { tightFor } from "@/lib/ui/tight-copy";
 import { useUiText } from "@/hooks/use-ui-text";
 import { focusOnMount, useFocusTrap } from "@/lib/ui/focus";
 import { apiRaw } from "@/lib/api/client";
@@ -281,11 +282,14 @@ export function describe(field: FormField, value: unknown): string {
 }
 
 /**
- * What a form sends: only the fields named in `map` travel, exactly as a form panel does, so a
- * drawer can show a value the endpoint would reject beside ones it takes.
+ * What a form sends: only the fields named in `map` travel, so a drawer or a form panel can show a
+ * value the endpoint would reject beside the ones it takes.
+ *
+ * One rule for both, because a form on a page and the same form in a drawer must post the same
+ * thing: a descriptor chosen on the page cannot mean one payload here and another there.
  */
 export function buildBody(
-  submit: NonNullable<DrawerSpec["submit"]>,
+  submit: NonNullable<DrawerSpec["submit"]> | FormSubmit,
   allFields: FormField[],
   values: Record<string, unknown>,
   reason: string,
@@ -317,11 +321,17 @@ export function buildBody(
     // A select shows a label and the endpoint stores a code; `encode` is
     // the pairing, so what travels is what the column actually holds.
     const table = submit.encode?.[label];
-    edited[key] = Array.isArray(value) && table
+    const encoded = Array.isArray(value) && table
       ? value.map((item) => (typeof item === "string" && item in table ? table[item] : item))
       : table && typeof value === "string" && value in table
         ? table[value]
         : value;
+    // A key written "preferences.density" lands inside a nested object, for an endpoint that keeps
+    // a group of settings together.
+    const path = key.split(".");
+    let into = edited;
+    for (const step of path.slice(0, -1)) into = (into[step] ??= {}) as Record<string, unknown>;
+    into[path[path.length - 1]!] = encoded;
   }
 
   for (const [label, [key, entry]] of Object.entries(submit.nest ?? {})) {
@@ -337,7 +347,7 @@ export function buildBody(
   return {
     ...(submit.body ?? {}),
     ...edited,
-    ...(reason.trim() ? { [submit.reasonKey ?? "reason"]: reason.trim() } : {}),
+    ...(reason.trim() ? { ["reasonKey" in submit && submit.reasonKey ? submit.reasonKey : "reason"]: reason.trim() } : {}),
   };
 }
 
@@ -470,6 +480,19 @@ export function CommitDone({
  * requires an app-router context that server-rendered markup and unit tests do
  * not have.
  */
+/**
+ * What the first of the two buttons says.
+ *
+ * It used to say only "Review", which is true but does not tell a reader that this is the way to
+ * save: a tester filling in the school's identity looked for a Save button, found "Review", and
+ * reported that there was none. Naming what the review leads to — "Review and save", "Review and
+ * send" — keeps the step that exists for a reason and answers the question being asked.
+ */
+export function reviewStepLabel(commitLabel: string, isEdit: boolean): string {
+  const verb = commitLabel.trim().split(/\s+/)[0]?.toLowerCase() ?? "";
+  return /^[a-z]+$/.test(verb) && verb.length > 2 ? `Review and ${verb}` : isEdit ? "Review changes" : "Review";
+}
+
 function DrawerPanel({
   spec,
   onClose,
@@ -502,6 +525,7 @@ function DrawerPanel({
   const [stepIndex, setStepIndex] = useState(0);
   /** Stage 1 of a staged form: reading back exactly what will be written. */
   const [reviewing, setReviewing] = useState(false);
+  const [tried, setTried] = useState(false);
   const router = useRouter();
 
   /** Each field's value as the modal opened, so a change can name what it replaces. */
@@ -581,6 +605,19 @@ function DrawerPanel({
    * side instead of becoming a long scroll.
    */
   const panelMax = (step ? step.fields.length : (spec.fields?.length ?? 0)) > 3 ? 700 : 520;
+
+  /**
+   * Whether someone has tried to go on without answering everything.
+   *
+   * A disabled button is a dead end: it does not say which field is stopping it, and on a phone its
+   * tooltip is unreachable. The button stays live, and the first press that cannot go through names
+   * what is missing and marks those fields instead.
+   */
+  const blocked = unanswered.length > 0;
+  const stop = () => {
+    setTried(true);
+    setError(`Fill in ${unanswered.map((field) => field.label).join(", ")} before going on.`);
+  };
 
   // An edit always asks why: the reason is kept with both values, so the next
   // person to open the record can see what changed and what it was before.
@@ -835,7 +872,8 @@ function DrawerPanel({
         </header>
 
         <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-[23.5px] py-[21.5px] max-md:px-[16px] max-md:py-[16px]">
-          {phone && spec.sub && !committed ? <p className="mb-[12px] px-[2px] text-pretty text-[13.5px] leading-[1.5] md:hidden" style={{ color: MUTED }}>{spec.sub}</p> : null}
+          {/* The phone's copy rule: the sentence under a sheet's title keeps its lead, since the fields below it say the rest. */}
+          {phone && tightFor(true, "shsub", spec.sub) && !committed ? <p className="mb-[12px] px-[2px] text-pretty text-[13.5px] leading-[1.5] md:hidden" style={{ color: MUTED }}>{tightFor(true, "shsub", spec.sub)}</p> : null}
           <div className={`grid gap-[14px]${phone ? " max-md:rounded-[20px] max-md:bg-white max-md:p-[16px] max-md:shadow-[0_1px_2px_rgba(13,35,21,0.05),0_8px_22px_-16px_rgba(13,35,21,0.22)]" : ""}`}>
             {committed ? (
               <CommitDone spec={spec} result={result} doneTitle={doneTitle} doneBody={doneBody} doneLines={doneKind === "saved" && staged ? doneLines : undefined} />
@@ -943,6 +981,7 @@ function DrawerPanel({
                       value={values[field.label]}
                       values={values}
                       setValue={(next) => setValues((current) => withSeeds(allFields, current, field, next))}
+                      missing={tried && unanswered.includes(field)}
                     />
                   </div>
                 ))}
@@ -1045,31 +1084,25 @@ function DrawerPanel({
                   <button
                     type="button"
                     onClick={() => {
+                      if (blocked) { stop(); return; }
                       setError(null);
                       setReviewing(true);
                     }}
-                    disabled={unanswered.length > 0}
-                    title={
-                      unanswered.length
-                        ? `Answer ${unanswered.map((field) => field.label).join(", ")} first.`
-                        : undefined
-                    }
                     className="whitespace-nowrap rounded-[9px] px-[17px] py-[10px] text-[11.5px] font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
                     style={{ background: INK, boxShadow: "0 7px 16px -9px rgba(13,35,21,0.6)" }}
                   >
-                    {ui(isEdit ? "Review changes" : "Review")}
+                    {ui(reviewStepLabel(primaryLabel, isEdit))}
                   </button>
                 ) : null}
                 {!onLastStep && !(staged && reviewing) ? (
                   <button
                     type="button"
-                    onClick={() => setStepIndex((current) => current + 1)}
-                    disabled={unanswered.length > 0}
-                    title={
-                      unanswered.length
-                        ? `Answer ${unanswered.map((field) => field.label).join(", ")} first.`
-                        : undefined
-                    }
+                    onClick={() => {
+                      if (blocked) { stop(); return; }
+                      setError(null);
+                      setTried(false);
+                      setStepIndex((current) => current + 1);
+                    }}
                     className="whitespace-nowrap rounded-[9px] px-[17px] py-[10px] text-[11.5px] font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
                     style={{ background: INK, boxShadow: "0 7px 16px -9px rgba(13,35,21,0.6)" }}
                   >
@@ -1078,10 +1111,13 @@ function DrawerPanel({
                 ) : null}
                 <button
                   type="button"
-                  onClick={() => (staged ? setConfirm("save") : commit())}
+                  onClick={() => {
+                    if (blocked) { stop(); return; }
+                    if (reasonMissing) { setTried(true); setError("Say why before you send this."); return; }
+                    if (staged) setConfirm("save"); else void commit();
+                  }}
                   hidden={!onLastStep || (staged && !reviewing)}
-                  disabled={pending || reasonMissing || unanswered.length > 0}
-                  title={reasonMissing ? "Say why before you send this." : undefined}
+                  disabled={pending}
                   className="whitespace-nowrap rounded-[9px] px-[17px] py-[10px] text-[11.5px] font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
                   style={{
                     background: INK,

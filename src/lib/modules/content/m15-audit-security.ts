@@ -104,26 +104,22 @@ const auditLogTab: TabContent = {
           {
             label: "Entries",
             value: auditTotals.entries,
-            sub: `Across ${auditTotals.categories} categories · nothing editable`,
           },
           {
             label: "Vendor sessions",
             value: String(vendorSessions.length),
-            sub: "Future Realm · 3 read-only, 1 elevated",
             tone: "vendor",
           },
           {
             label: "Sensitive reads",
             value: String(auditTotals.sensitiveReads),
-            sub: "All by group holders, all logged",
             tone: "sensitive",
           },
           {
             label: "Exports",
             value: String(auditTotals.exports),
-            sub: "Last 30 days · all by permitted holders",
           },
-          { label: "Retention", value: auditTotals.retention, sub: "Legal obligation · immutable" },
+          { label: "Retention", value: auditTotals.retention, },
         ],
       },
     ]),
@@ -173,7 +169,6 @@ const auditLogTab: TabContent = {
             keywords: session.why,
           }),
         ),
-        foot: "Future Realm's access to this workspace is logged exactly as the school's is — and elevated access never proceeds without the school's recorded confirmation.",
       },
     ]),
     row("1fr", [
@@ -220,7 +215,6 @@ const auditLogTab: TabContent = {
             keywords: `${entry.role} ${entry.detail}`,
           }),
         ),
-        foot: "Nothing here can be edited. The log is immutable and kept for ten years, which is what makes it worth anything.",
       },
     ]),
   ],
@@ -299,13 +293,11 @@ const monitoringTab: TabContent = {
           {
             label: "Open integrity flags",
             value: String(openFlags),
-            sub: `Across ${integrityMonitors.length} monitors`,
             tone: "attention",
           },
           {
             label: "Users without two-factor",
             value: "6 of 31",
-            sub: "One can export the whole school",
             tone: "negative",
             link: "See users",
             href: "/staff-access/permissions",
@@ -313,7 +305,6 @@ const monitoringTab: TabContent = {
           {
             label: "Failed logins, 7 days",
             value: "14",
-            sub: "11 from one dormant account",
             tone: "attention",
             link: "See attempts",
             href: "/audit-security/audit-log",
@@ -321,7 +312,6 @@ const monitoringTab: TabContent = {
           {
             label: "Access recertification",
             value: "Due 30 Sep",
-            sub: "Last confirmed 12 June by Dr E.",
             tone: "attention",
             link: "Open review",
             href: "/staff-access/permissions",
@@ -361,7 +351,6 @@ const monitoringTab: TabContent = {
             keywords: monitor.found,
           }),
         ),
-        foot: "A monitor with nothing open still says what it looked for. A clean check is a result, not an absence.",
       },
     ]),
     row("1fr 1.15fr", [
@@ -534,13 +523,11 @@ const dataProtectionTab: TabContent = {
           {
             label: "Open subject requests",
             value: String(openRequests.length),
-            sub: "Five types · statutory 30 days",
             tone: "attention",
           },
           {
             label: "Closest deadline",
             value: "4 days",
-            sub: "DSR/26/0011 · access request",
             tone: "negative",
             link: "Respond",
             drawer: requestDrawer(subjectRequests[0]!),
@@ -548,7 +535,6 @@ const dataProtectionTab: TabContent = {
           {
             label: "Core consent held",
             value: `${consentHeld.toLocaleString("en-NG")} of ${registryStudents.length.toLocaleString("en-NG")}`,
-            sub: `${consentGap} students named in Parents & Guardians`,
             tone: "attention",
             link: `See the ${consentGap}`,
             href: "/parents-guardians/consent",
@@ -556,7 +542,6 @@ const dataProtectionTab: TabContent = {
           {
             label: "Incidents recorded",
             value: "0",
-            sub: "Breach register is empty",
             tone: "positive",
           },
         ],
@@ -600,7 +585,6 @@ const dataProtectionTab: TabContent = {
             keywords: `${request.type} ${request.about}`,
           }),
         ),
-        foot: "A request is answered within 30 days or the school is in breach. The clock is shown because it is the only figure that matters.",
       },
     ]),
     row("1.05fr 1fr", [

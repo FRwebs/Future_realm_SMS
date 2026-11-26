@@ -1,7 +1,7 @@
 import type { CalEvent, Message } from "@/lib/modules/live/student/shared";
 import {
   askDrawer, attTone, daysBetween, dDow, dFull, dLong, dShort, dueText, greeting, handInDrawer, loadAskable, loadAssignments, loadAttendance, loadCalendar, loadCards, loadMe, loadMessages,
-  loadSubjects, loadTimetable, MON3, monday, ord, num, pctText, workPill, addDays, dayOf, orNone
+  loadSubjects, loadTimetable, MON3, monday, num, pctText, workPill, addDays, dayOf, orNone
 } from "@/lib/modules/live/student/shared";
 import type { StudentContent } from "@/lib/modules/live/student/shared";
 import type { ListItem, PanelTone } from "@/lib/modules/panels";
@@ -93,10 +93,10 @@ export async function todayPage(): Promise<StudentContent> {
       row("1fr", [{
         type: "kpi", bare: true, per: 4,
         cards: [
-          { label: "Attendance this term", value: pctText(pct), sub: termRecords.length ? `${presentDays} of ${termRecords.length} school days` : "No school days yet", tone: attTone(pct), href: "/portals/student/attendance", icon: "calendar" },
-          { label: "Due by Friday", value: String(week.length), sub: late.length ? `${late.length} late · ${late[0]!.subject}` : nextTodo ? `Next: ${nextTodo.subject}` : "Nothing to hand in", tone: late.length ? "negative" : week.length ? "attention" : "positive", href: "/portals/student/assignments", icon: "check" },
-          { label: first ? `${first.name} average` : "First CA average", value: caAvg === null ? "Pending" : `${num(Math.round(caAvg * 10) / 10)} / ${first!.max}`, sub: caAvg === null ? "Not released yet" : `${released.length} ${released.length === 1 ? "subject" : "subjects"} released`, tone: "progress", href: "/portals/student/results", icon: "bars" },
-          { label: "Last report card", value: card ? num(card.average) : "—", sub: card ? `${card.position ? ord(card.position) : "—"} of ${card.size} · ${card.term}` : "None published yet", tone: card ? "positive" : "neutral", href: "/portals/student/results?tab=Progress+over+time", icon: "trophy" },
+          { label: "Attendance this term", value: pctText(pct), tone: attTone(pct), href: "/portals/student/attendance", icon: "calendar" },
+          { label: "Due by Friday", value: String(week.length), tone: late.length ? "negative" : week.length ? "attention" : "positive", href: "/portals/student/assignments", icon: "check" },
+          { label: first ? `${first.name} average` : "First CA average", value: caAvg === null ? "Pending" : `${num(Math.round(caAvg * 10) / 10)} / ${first!.max}`, tone: "progress", href: "/portals/student/results", icon: "bars" },
+          { label: "Last report card", value: card ? num(card.average) : "—", tone: card ? "positive" : "neutral", href: "/portals/student/results?tab=Progress+over+time", icon: "trophy" },
         ],
       }]),
       row("minmax(0,1.25fr) minmax(0,1fr)", [

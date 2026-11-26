@@ -76,24 +76,23 @@ export function logTab(l: Log, options: Options): TabContent {
         panels: [{
           type: "kpi", title: l.term.name, sub: `${l.schoolDays} school days on record${l.plannedDays ? `, of a planned ${l.plannedDays}` : ""}${l.since ? ` · counted from ${formatDay(new Date(`${l.since}T00:00:00Z`), { day: "numeric", month: "short" })}` : ""}.`, per: 5,
           cards: [
-            { label: "School attendance", value: pct(k.rate), sub: k.rate === null ? "No register yet" : `Target ${policy.target}% · ${k.rate >= policy.target ? "above" : "below"} it`, tone: rateTone(k.rate, policy) },
-            { label: "Best arm", value: pct(k.best?.term ?? null), sub: k.best ? k.best.name : "—", tone: "positive", link: k.best ? "Open the arm" : undefined, href: k.best ? trendHref(k.best.id) : undefined },
-            { label: "Weakest arm", value: pct(k.worst?.term ?? null), sub: k.worst ? `${k.worst.name}${k.worst.master ? ` · ${k.worst.master}` : ""}` : "—", tone: k.worst && k.worst.term !== null && k.worst.term < policy.target ? "negative" : "neutral", link: k.worst ? "Open the arm" : undefined, href: k.worst ? trendHref(k.worst.id) : undefined },
-            { label: "Chronic absence cases", value: String(k.chronic), sub: `Below ${policy.chronic}% · each one is a case, not a number`, tone: k.chronic ? "negative" : "positive" },
-            { label: "Corrections this term", value: String(k.corrections.all), sub: `${k.corrections.backdated} backdated, ${k.corrections.sameDay} same-day${k.corrections.awaiting ? ` · ${k.corrections.awaiting} waiting` : ""}`, tone: k.corrections.awaiting ? "attention" : "withheld" },
+            { label: "School attendance", value: pct(k.rate), tone: rateTone(k.rate, policy) },
+            { label: "Best arm", value: pct(k.best?.term ?? null), tone: "positive", link: k.best ? "Open the arm" : undefined, href: k.best ? trendHref(k.best.id) : undefined },
+            { label: "Weakest arm", value: pct(k.worst?.term ?? null), tone: k.worst && k.worst.term !== null && k.worst.term < policy.target ? "negative" : "neutral", link: k.worst ? "Open the arm" : undefined, href: k.worst ? trendHref(k.worst.id) : undefined },
+            { label: "Chronic absence cases", value: String(k.chronic), tone: k.chronic ? "negative" : "positive" },
+            { label: "Corrections this term", value: String(k.corrections.all), tone: k.corrections.awaiting ? "attention" : "withheld" },
           ],
         }],
       },
       {
         cols: "1fr",
         panels: [{
-          type: "table", title: "Trend by arm", sub: `Week by week, against the school target of ${policy.target}%.`,
+          type: "table", title: "Trend by arm", sub: "A week with no register is a dash — it is unknown, not 100%.",
           meta: `${l.trend.length} arms · last ${l.weeks.length} weeks`, search: "Find an arm or a form master",
           filters: [{ label: "Arm", value: "All", options: ["All", ...l.trend.map((arm) => arm.name)], column: 0 }, { label: "Direction", value: "All", options: ["All", "Falling", "Steady", "Rising"], column: 2 + l.weeks.length + 1 }],
           acts: [{ label: "Spool by arm", drawer: spoolDrawer(options, { label: "Attendance · Trend by arm" }) }],
           head: ["Arm", "Form master", ...l.weeks.map((week) => `Wk ${week}`), "Term", "Direction", ""],
           noun: "arm", nounPlural: "arms", per: 10, rows: trendRows,
-          foot: "Direction compares the last two weeks against the two before them. A week with no register on record is shown as a dash — it is unknown, not 100%.",
         }],
       },
       {
@@ -113,7 +112,6 @@ export function logTab(l: Log, options: Options): TabContent {
             { label: "Export selected", primary: true, export: true },
           ],
           empty: "Nobody is below the watch line this term.",
-          foot: "A chronic case opens by itself below the threshold, and cannot be closed without a recorded outcome.",
         }],
       },
       {
@@ -125,7 +123,6 @@ export function logTab(l: Log, options: Options): TabContent {
             head: ["Who", "Marked on", "For date", "Type", "What", ""], noun: "correction", nounPlural: "corrections", per: 6, noRowOpen: true, rows: correctionRows,
             empty: "No register has been corrected this term.",
             tag: awaiting.length ? `${awaiting.length} waiting` : undefined, tagTone: awaiting.length ? "attention" : undefined,
-            foot: "A same-day edit is free. Anything earlier routes for approval and keeps both values.",
           },
           {
             type: "facts", title: "What the rules are", tuck: "What the rules are", sub: "Who may change what, and what it costs in evidence.", per: 1,
@@ -160,11 +157,11 @@ export function trendPage(t: Trend, options: Options): TrendPage {
     panels: [{
       type: "kpi", title: "The term in numbers", sub: `${t.term.name} · ${t.weeks.length} weeks · ${t.schoolDays} school days on record`, per: 5,
       cards: [
-        { label: "Term attendance", value: pct(t.rate), sub: `School target is ${policy.target}%`, tone: rateTone(t.rate, policy) },
-        { label: "Best week", value: pct(t.best?.rate ?? null), sub: t.best ? `${t.best.label} · ${t.best.dates}` : "—", tone: "positive" },
-        { label: "Worst week", value: pct(t.worst?.rate ?? null), sub: t.worst ? `${t.worst.label} · ${t.worst.dates}` : "—", tone: t.worst && (t.worst.rate ?? 100) < policy.target ? "negative" : "neutral" },
-        { label: "Weeks below target", value: String(t.below), unit: `of ${t.weeks.length}`, sub: "Weeks under the school target", tone: t.below ? "attention" : "positive" },
-        { label: "Registers never marked", value: String(t.missed), sub: "These days are unknown, not present", tone: t.missed ? "negative" : "positive" },
+        { label: "Term attendance", value: pct(t.rate), tone: rateTone(t.rate, policy) },
+        { label: "Best week", value: pct(t.best?.rate ?? null), tone: "positive" },
+        { label: "Worst week", value: pct(t.worst?.rate ?? null), tone: t.worst && (t.worst.rate ?? 100) < policy.target ? "negative" : "neutral" },
+        { label: "Weeks below target", value: String(t.below), unit: `of ${t.weeks.length}`, tone: t.below ? "attention" : "positive" },
+        { label: "Registers never marked", value: String(t.missed), tone: t.missed ? "negative" : "positive" },
       ],
     }],
   });
@@ -173,10 +170,10 @@ export function trendPage(t: Trend, options: Options): TrendPage {
     panels: [{
       type: "kpi", title: "Who is behind the number", sub: "The same term, read by person rather than by week.", per: 4,
       cards: [
-        { label: "Roll", value: String(t.roll), sub: `Children in ${t.arm.name}` },
-        { label: `Below ${policy.chronic}%`, value: String(t.counts.chronic), sub: t.counts.chronic ? "A formal case is open or due" : "Nobody is chronic", tone: t.counts.chronic ? "negative" : "positive" },
-        { label: "Falling", value: String(t.counts.falling), sub: `Between ${policy.chronic}% and ${policy.watch}%`, tone: t.counts.falling ? "attention" : "positive" },
-        { label: "Above 95%", value: String(t.counts.strong), sub: "No concern", tone: "positive" },
+        { label: "Roll", value: String(t.roll), },
+        { label: `Below ${policy.chronic}%`, value: String(t.counts.chronic), tone: t.counts.chronic ? "negative" : "positive" },
+        { label: "Falling", value: String(t.counts.falling), tone: t.counts.falling ? "attention" : "positive" },
+        { label: "Above 95%", value: String(t.counts.strong), tone: "positive" },
       ],
     }],
   });
@@ -201,7 +198,6 @@ export function trendPage(t: Trend, options: Options): TrendPage {
         ],
       })),
       acts: [{ label: `Export the ${t.weeks.length} weeks`, primary: true, drawer: spoolDrawer(options, { for: "A class arm", arm: t.arm.name, label: t.arm.name }) }],
-      foot: "Open a week to see its days, and a day to see the register exactly as the form master marked it.",
     }],
   });
   rows.push({
@@ -228,7 +224,6 @@ export function trendPage(t: Trend, options: Options): TrendPage {
           { kind: "action" as const, label: student.flag === "Chronic" ? "Open case" : "Open", drawer: caseDrawer(student.id, student.name, student.flag) },
         ],
       })),
-      foot: "A chronic case opens automatically below the threshold, and cannot be closed without a recorded outcome.",
     }],
   });
   return {
@@ -260,11 +255,11 @@ export function weekPage(w: Week, options: Options): TrendPage {
     panels: [{
       type: "kpi", title: `${w.label}`, per: 5,
       cards: [
-        { label: "Week attendance", value: pct(w.week.rate), sub: `School target ${policy.target}%`, tone: rateTone(w.week.rate, policy) },
-        { label: "Days marked", value: String(w.taken), unit: `of ${w.sat}`, sub: w.taken === w.sat ? "Complete week" : "Gaps in the week", tone: w.taken === w.sat ? "positive" : "negative" },
-        { label: "Absences", value: String(w.week.absent), sub: "Across the week", tone: w.week.absent ? "attention" : "positive" },
-        { label: "Late arrivals", value: String(w.week.late), sub: `After the ${policy.bell} bell`, tone: w.week.late ? "attention" : "positive" },
-        { label: "Excused", value: String(w.week.excused), sub: "Excluded from averages", tone: "neutral" },
+        { label: "Week attendance", value: pct(w.week.rate), tone: rateTone(w.week.rate, policy) },
+        { label: "Days marked", value: String(w.taken), unit: `of ${w.sat}`, tone: w.taken === w.sat ? "positive" : "negative" },
+        { label: "Absences", value: String(w.week.absent), tone: w.week.absent ? "attention" : "positive" },
+        { label: "Late arrivals", value: String(w.week.late), tone: w.week.late ? "attention" : "positive" },
+        { label: "Excused", value: String(w.week.excused), tone: "neutral" },
       ],
     }],
   });
@@ -285,7 +280,6 @@ export function weekPage(w: Week, options: Options): TrendPage {
           day.missed ? { kind: "action" as const, label: "Mark it", href: markHref(w.arm.id, day.date) } : day.taken ? { kind: "action" as const, label: "Open the register", href: dayHref(w.arm.id, day.date) } : text(""),
         ],
       })),
-      foot: "A day with no register is shown as unknown. It is never counted as a full attendance.",
     }],
   });
   rows.push({

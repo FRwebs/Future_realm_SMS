@@ -18,7 +18,7 @@ const when = (field: FormField, w: FormField["when"]): FormField => ({ ...field,
 /* ───────────────────────── the registry ───────────────────────── */
 
 export function enrolDrawer(data: EnrolOptions): DrawerSpec {
-  const guardianOptions: PickerOption[] = data.guardians.map((guardian) => ({ value: guardian.id, label: guardian.name, sub: `${guardian.phone} · ${plural(guardian.children, "child", "children")}` }));
+  const guardianOptions: PickerOption[] = data.guardians.map((guardian) => ({ value: guardian.id, label: guardian.name, sub: `${guardian.phone} · ${plural(guardian.children, "child", "children")}`, }));
   return {
     mode: "form",
     kicker: "Registry",
@@ -264,7 +264,7 @@ export function documentDrawer(d: Pick<Dossier, "id" | "name">, type?: string): 
     mode: "form",
     kicker: d.name,
     title: type ? `Record · ${type}` : "Upload a document",
-    sub: "The document's details go on the record; the audit log carries your name.",
+    sub: "The audit log carries your name; the document's details go on the record.",
     commitLabel: "Record it",
     commitDone: "Document recorded",
     commitDoneBody: "It is on the student's record and in the audit log under your name.",
@@ -282,7 +282,7 @@ export function documentDrawer(d: Pick<Dossier, "id" | "name">, type?: string): 
 
 export function mapGuardianDrawer(d: Pick<Dossier, "id" | "name">, existing: boolean, guardians: Array<{ id: string; name: string; phone: string; children: number }>): DrawerSpec {
   const kid = d.name.split(" ")[0];
-  const options: PickerOption[] = guardians.map((guardian) => ({ value: guardian.id, label: guardian.name, sub: `${guardian.phone} · ${plural(guardian.children, "child", "children")}` }));
+  const options: PickerOption[] = guardians.map((guardian) => ({ value: guardian.id, label: guardian.name, }));
   return {
     mode: "form",
     kicker: "Student record · family",
@@ -433,7 +433,7 @@ export function scheduleDrawer(o: AdmissionOptions, applicants: Array<{ id: stri
     reviewNote: "An applicant must have been reviewed and have their application fee cleared before a seat can be held — the workflow will not skip that.",
     fields: [
       choice("Schedule for", ["One applicant", "Everyone without a date", "A selected group"], { span: 2, value: pre ? "One applicant" : "One applicant" }),
-      when(picker("Applicants", applicants.map((a) => ({ value: a.id, label: a.name, sub: `${a.ref} · ${a.forClass}` })), { checked: pre ? [pre] : [], placeholder: "Search by name or reference", noun: "applicant", nounPlural: "applicants" }), { field: "Schedule for", excludes: "Everyone without a date" }),
+      when(picker("Applicants", applicants.map((a) => ({ value: a.id, label: a.name, sub: `${a.ref} · ${a.forClass}`, })), { checked: pre ? [pre] : [], placeholder: "Search by name or reference", noun: "applicant", nounPlural: "applicants" }), { field: "Schedule for", excludes: "Everyone without a date" }),
       select("Session", [...labels, NEW], { required: true, span: 2 }),
       when(text("New session date", { type: "date" }), { field: "Session", equals: NEW }),
       when(text("Start time", { value: "09:00" }), { field: "Session", equals: NEW }),
@@ -627,7 +627,7 @@ export function supportPlanDrawer(d: Pick<Dossier, "id" | "name" | "support">): 
       area("Strategies — one per line", { span: 2, required: true, value: (plan?.strategies ?? []).map((entry) => `${entry.area}: ${entry.strategy}`).join("\n"), placeholder: "Seating: Front of the room, away from the window\nWritten work: Allow 25% additional time in class assessments\nInstructions: Give one at a time, and check back", hint: "Write each as “Area: what the teacher must do”. Say what to do, not what the child cannot." }),
       text("Last reviewed", { type: "date", required: true, value: plan?.reviewedOn.slice(0, 10) ?? today }),
       text("Next review", { type: "date", required: true, value: plan?.nextReviewOn.slice(0, 10) ?? inThreeMonths }),
-      area("Background — held by the plan’s writers only", { span: 2, optional: true, value: plan?.confidentialNote ?? "", hint: "The reasons, and any assessment or diagnosis. It is never sent to a teacher, and it is never printed." }),
+      area("Background — held by the plan’s writers only", { span: 2, optional: true, value: plan?.confidentialNote ?? "", hint: "Never sent to a teacher and never printed. The reasons, and any assessment or diagnosis." }),
     ],
     submit: { endpoint: `${SR}/students/${d.id}/support-plan`, method: "POST", map: { "Strategies — one per line": "strategies", "Last reviewed": "reviewedOn", "Next review": "nextReviewOn", "Background — held by the plan’s writers only": "confidentialNote" } },
   };

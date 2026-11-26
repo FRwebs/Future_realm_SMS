@@ -58,12 +58,12 @@ export async function integrationsTab(): Promise<TabContent> {
     rows: ([
       v.entitled ? null : row("1fr", [{ type: "note", tone: "attention", icon: WARN, title: "API access is not part of this school’s plan", body: `${v.why} Existing keys do not work, and new ones cannot be made. Moving to a plan that includes it — or an exception approved by Future Realm — turns it on.` }]),
       row("1fr", [{ type: "kpi", per: 3, cards: [
-        { label: "Live keys", value: String(live.length), sub: "Of ten a school may hold", tone: live.length ? "progress" : "neutral" },
-        { label: "Calls so far", value: String(v.keys.reduce((sum, key) => sum + key.calls, 0)), sub: "Across every key, ever" },
-        { label: "Plan", value: v.entitled ? "Included" : "Not included", sub: v.why, tone: v.entitled ? "positive" : "attention" },
+        { label: "Live keys", value: String(live.length), tone: live.length ? "progress" : "neutral" },
+        { label: "Calls so far", value: String(v.keys.reduce((sum, key) => sum + key.calls, 0)), },
+        { label: "Plan", value: v.entitled ? "Included" : "Not included", tone: v.entitled ? "positive" : "attention" },
       ] }]),
       row("1fr", [{ type: "table", title: "Your keys", sub: "A key is shown once, when it is made. Only its first characters are kept to tell it apart.", meta: `${v.keys.length}`, noun: "key", nounPlural: "keys", head: ["Key", "May read", "Made", "Last used", "Calls", "State", ""], rows, per: 10, noRowOpen: true, empty: "No key has been made." }]),
-      row("1fr", [{ type: "facts", title: "What a key opens", per: 1, facts: docs }]),
+      row("1fr", [{ type: "facts", title: "What a key opens", tuck: "What a key opens", tuckIcon: "M12 6.5C10.5 5 8 4.5 4 4.5v13c4 0 6.5.5 8 2 1.5-1.5 4-2 8-2v-13c-4 0-6.5.5-8 2zM12 6.5v13", tuckKicker: "How this works", per: 1, facts: docs }]),
     ].filter(Boolean) as PanelRow[]),
   };
 }

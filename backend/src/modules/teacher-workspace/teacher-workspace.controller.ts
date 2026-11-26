@@ -97,6 +97,12 @@ export class TeacherWorkspaceController {
     return ok(this.history.index(session));
   }
 
+  /** The department's period registers today, for the head who is answerable for them. Review only. */
+  @Get("register-compliance")
+  registerCompliance(@CurrentSession() session: SessionPayload) {
+    return ok(this.history.compliance(session));
+  }
+
   /** The history behind them: an arm's days for a form master, the periods taken for everyone else. */
   @Get("register-history")
   registerHistory(@CurrentSession() session: SessionPayload, @Query("class") classId?: string) {
@@ -605,6 +611,12 @@ export class TeacherWorkspaceController {
     response.setHeader("Content-Type", photo.type);
     response.setHeader("Cache-Control", "private, max-age=300");
     response.send(photo.bytes);
+  }
+
+  @Post("observations/group")
+  @UseGuards(CsrfGuard)
+  observationsGroup(@CurrentSession() session: SessionPayload, @Body() body: unknown) {
+    return ok(this.observations.saveGroup(session, body));
   }
 
   @Get("observations/:studentId")

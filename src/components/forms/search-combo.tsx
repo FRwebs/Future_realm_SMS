@@ -81,7 +81,7 @@ export function SearchCombo({ value, onChange, options, placeholder, emptyNote, 
           boxShadow: open ? "0 0 0 2.5px rgba(18,121,106,0.14)" : "none"
         }}
       >
-        <Search className="h-[13.5px] w-[13.5px] shrink-0 text-[#5E6D64]" />
+        <Search className="pointer-events-none h-[13.5px] w-[13.5px] shrink-0 text-[#5E6D64]" aria-hidden />
         <input
           ref={inputRef}
           value={open ? query : value}
@@ -120,7 +120,24 @@ export function SearchCombo({ value, onChange, options, placeholder, emptyNote, 
           placeholder={value || placeholder}
           className="min-w-0 flex-1 border-none bg-transparent text-[13.5px] text-[#0d2315] outline-hidden placeholder:text-[#5f6e65]"
         />
-        <ChevronDown className="h-[13px] w-[13px] shrink-0 text-[#5E6D64]" />
+        {/* The arrow is what a person reaches for to see the options. It was a bare icon, so the
+            click landed on nothing; it is the control it looks like. */}
+        <button
+          type="button"
+          aria-label={open ? "Hide the options" : "Show the options"}
+          aria-expanded={open}
+          aria-controls={listId}
+          onMouseDown={(event) => event.preventDefault()}
+          onClick={() => {
+            if (open) { setOpen(false); return; }
+            inputRef.current?.focus();
+            setOpen(true);
+            setQuery("");
+          }}
+          className="-mr-[3px] flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-[5px] text-[#5E6D64] hover:bg-[#f1f8f4]"
+        >
+          <ChevronDown className="h-[13px] w-[13px]" aria-hidden />
+        </button>
       </div>
       {open ? (
         <div id={listId} role="listbox" className="absolute left-0 right-0 top-[calc(100%+5px)] z-40 max-h-[234px] overflow-y-auto rounded-xl border-[1.5px] border-[#dee8e2] bg-white p-[5px] shadow-[0_18px_38px_-18px_rgba(13,35,21,0.4)]">

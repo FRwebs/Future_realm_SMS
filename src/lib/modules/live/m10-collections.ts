@@ -42,24 +42,22 @@ export function collectionsTab(data: Collections): TabContent {
   const ahead = totals.lastTermRate === null ? null : rate - Math.round(totals.lastTermRate);
 
   const cards: KpiCard[] = [
-    { label: "Expected", value: nairaShort(totals.expected), sub: data.term ? `Billed for ${data.term.name}` : "Everything billed" },
-    { label: "Collected", value: nairaShort(totals.collected), tone: "positive", sub: `${rate}% of expected` },
-    { label: "Outstanding", value: nairaShort(totals.outstanding), tone: totals.outstanding ? "attention" : "positive", sub: plural(totals.families, "family", "families") },
+    { label: "Expected", value: nairaShort(totals.expected), },
+    { label: "Collected", value: nairaShort(totals.collected), tone: "positive", },
+    { label: "Outstanding", value: nairaShort(totals.outstanding), tone: totals.outstanding ? "attention" : "positive", },
     {
       label: "Past 90 days",
       value: nairaShort(totals.over90),
       tone: totals.over90 ? "negative" : "positive",
-      sub: plural(totals.over90Families, "family", "families"),
       ...(totals.over90Families
         ? { link: "Open them", drawer: { mode: "view" as const, kicker: "Collections", title: `Past 90 days · ${plural(over90.length, "family", "families")}`, sub: "The oldest balances on the books.", facts: over90.slice(0, 10).map((family) => [family.name, naira(family.owing), `${family.days} days · ${family.stage}`] as PanelFact), readOnly: true, readOnlyNote: "Open a family from the debtor list to act on it." } }
         : {}),
     },
-    { label: "Discount exposure", value: nairaShort(totals.discount), sub: "Sibling, staff and scholarship, as billed", link: "See the rules", href: "/fee-management/structures" },
+    { label: "Discount exposure", value: nairaShort(totals.discount), link: "See the rules", href: "/fee-management/structures" },
     {
       label: "Last term at this point",
       value: totals.lastTermRate === null ? "No earlier term" : `${totals.lastTermRate}%`,
       tone: ahead === null ? "neutral" : ahead >= 0 ? "positive" : "attention",
-      sub: ahead === null ? "Nothing billed in the term before" : `${ahead >= 0 ? "Ahead" : "Behind"} by ${Math.abs(ahead)} points`,
     },
   ];
 
@@ -109,7 +107,7 @@ export function collectionsTab(data: Collections): TabContent {
     primary: { label: "Record a payment", drawer: record },
     launchers: [
       { label: "Send reminders", drawer: remind },
-      { label: "Export the debtor list", href: "/fee-management/collections/export" },
+      { label: "Export the debtor list", href: "/fee-management/collections/export", download: true },
       { label: "Open the history", href: "/fee-management/history" },
     ],
     rows: [
@@ -140,7 +138,6 @@ export function collectionsTab(data: Collections): TabContent {
             per: 8,
             emptyTitle: "No payment has been recorded",
             emptyBody: "Record the first one and its receipt appears here.",
-            foot: "A part payment leaves a balance on the child’s account, and the family stays on the debtor list until it clears.",
           },
         ],
       },
@@ -156,7 +153,7 @@ export function collectionsTab(data: Collections): TabContent {
                   body: "Past 90 days your policy asks for a meeting rather than another reminder — a third SMS to a family that has ignored two is not a collection strategy. Nothing here withholds a report card; that is a separate decision this school has not taken.",
                   acts: [
                     { label: `Request meetings with all ${over90.length}`, drawer: { ...meetingDrawer({ selection: true }), submit: { ...meetingDrawer({ selection: true }).submit!, body: { families: over90.map((family) => family.id) } } } },
-                    { label: "Export for the proprietor", href: "/fee-management/collections/export" },
+                    { label: "Export for the proprietor", href: "/fee-management/collections/export", download: true },
                   ],
                 },
               ],
@@ -183,7 +180,7 @@ export function collectionsTab(data: Collections): TabContent {
               { label: "Escalation", value: "All", options: ["All", "Not started", "First reminder", "Second reminder", "Meeting requested", "On a payment plan"], match: Object.fromEntries(["Not started", "First reminder", "Second reminder", "Meeting requested", "On a payment plan"].map((name) => [name, token("stage", name)])) },
               { label: "Portal", value: "All", options: ["All", "Active", "Not activated"], match: { Active: token("portal", "Active"), "Not activated": token("portal", "Not activated") } },
             ],
-            acts: [{ label: "Export for the meeting", href: "/fee-management/collections/export" }, { label: "Record a payment", drawer: record }, { label: "Send reminders", primary: true, drawer: remind }],
+            acts: [{ label: "Export for the meeting", href: "/fee-management/collections/export", download: true }, { label: "Record a payment", drawer: record }, { label: "Send reminders", primary: true, drawer: remind }],
             selectable: true,
             bulkActs: [
               { label: "Send a reminder", drawer: remindersDrawer({ count: 0, amount: 0, selection: true }), selection: { key: "families", noun: "family" } },
@@ -195,7 +192,6 @@ export function collectionsTab(data: Collections): TabContent {
             per: 12,
             emptyTitle: "Nobody owes anything",
             emptyBody: "Every family is settled — the debtor list is empty.",
-            foot: "Escalation runs first reminder → second → meeting requested, read from what was actually sent. A family with three children here is one row and one conversation, never three.",
           },
         ],
       },
@@ -250,12 +246,12 @@ export function familyPage(detail: FamilyDetail, data: Collections): FeePage {
   const record = recordPaymentDrawer({ ...data, payers: data.payers.filter((payer) => payer.guardian === family.id || payer.family === family.name) }, { studentId: first?.id });
   const settled = owing <= 0;
   const cards: KpiCard[] = [
-    { label: "Outstanding", value: naira(owing), tone: settled ? "positive" : family.days > 90 ? "negative" : "attention", sub: settled ? "Settled in full" : `${family.bucket} · ${family.days} days` },
-    { label: "Billed", value: naira(family.billed), sub: plural(children.length, "child", "children") },
-    { label: "Received", value: naira(family.paid), tone: "positive", sub: plural(detail.receipts.length, "receipt") },
-    { label: "Settled", value: `${family.billed ? Math.round((family.paid / family.billed) * 100) : 0}%`, tone: family.paid / Math.max(1, family.billed) > 0.7 ? "positive" : "attention", sub: "Of the bill on record" },
-    { label: "Escalation", value: family.stage, tone: STAGE_TONE[family.stage], sub: detail.contacts[0] ? `Last: ${dayLabel(detail.contacts[0].at)}` : "Nothing sent yet" },
-    { label: "Plan", value: detail.plans.some((plan) => plan.status !== "PAID" && plan.status !== "CANCELLED") ? "In place" : "None", tone: detail.plans.length ? "positive" : "neutral", sub: detail.plans[0] ? `${detail.plans[0].number}` : "No instalment plan" },
+    { label: "Outstanding", value: naira(owing), tone: settled ? "positive" : family.days > 90 ? "negative" : "attention", },
+    { label: "Billed", value: naira(family.billed), },
+    { label: "Received", value: naira(family.paid), tone: "positive", },
+    { label: "Settled", value: `${family.billed ? Math.round((family.paid / family.billed) * 100) : 0}%`, tone: family.paid / Math.max(1, family.billed) > 0.7 ? "positive" : "attention", },
+    { label: "Escalation", value: family.stage, tone: STAGE_TONE[family.stage], },
+    { label: "Plan", value: detail.plans.some((plan) => plan.status !== "PAID" && plan.status !== "CANCELLED") ? "In place" : "None", tone: detail.plans.length ? "positive" : "neutral", },
   ];
 
   const lines: TableRow[] = children.map((child) => ({
@@ -338,7 +334,6 @@ export function familyPage(detail: FamilyDetail, data: Collections): FeePage {
             head: ["Child", "Arm", "Fee structure", "Billed", "Paid", "Outstanding", "State", ""],
             rows: lines,
             summaryRows: [totalsRow],
-            foot: "One balance, one conversation — a family with three children here is never chased three times. A boarder carries their class structure plus the boarding supplement.",
           },
         ],
       },

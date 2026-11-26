@@ -165,7 +165,6 @@ function familyResults(data: Results): ParentContent {
           };
         }),
         empty: "No child on your account has a report card yet.",
-        foot: data.showCards ? "Report cards are shown exactly as the school published them." : "Your school has not made report cards visible to parents.",
       }]),
       row("minmax(0,1fr) minmax(0,1fr)", [
         { type: "list", title: "Released this term", sub: "Only scores the school has approved and released.", items: released, empty: "No child is linked to your account yet." },
@@ -285,10 +284,10 @@ function childResults(kid: Kid, data: Results, school: string, query: Record<str
     row("1fr", [{
       type: "kpi", bare: true, per: 4,
       cards: [
-        { label: "Average", value: num(card.average), sub: `${latest.term} ${latest.session}`, tone: "progress" as PanelTone, icon: "listCheck" },
-        { label: "Position", value: place(card.position, card.outOf), sub: card.position ? `In ${card.arm}` : "The school does not rank this class", tone: "neutral" as PanelTone, icon: "person" },
-        { label: "Strongest", value: best?.name ?? "—", sub: best ? `${best.total}${best.grade ? ` · ${best.grade}` : ""}` : "", tone: "positive" as PanelTone, icon: "trendUp" },
-        { label: "Attendance that term", value: card.attendance.days ? `${card.attendance.present} of ${card.attendance.days}` : card.attendance.pct !== null ? `${num(card.attendance.pct)}%` : "—", sub: card.attendance.days && card.attendance.pct !== null ? `${num(card.attendance.pct)}% of school days present` : "of school days present", tone: "neutral" as PanelTone, icon: "calendar", href: `/portals/parent/attendance?child=${kid.id}` },
+        { label: "Average", value: num(card.average), tone: "progress" as PanelTone, icon: "listCheck" },
+        { label: "Position", value: place(card.position, card.outOf), tone: "neutral" as PanelTone, icon: "person" },
+        { label: "Strongest", value: best?.name ?? "—", tone: "positive" as PanelTone, icon: "trendUp" },
+        { label: "Attendance that term", value: card.attendance.days ? `${card.attendance.present} of ${card.attendance.days}` : card.attendance.pct !== null ? `${num(card.attendance.pct)}%` : "—", tone: "neutral" as PanelTone, icon: "calendar", href: `/portals/parent/attendance?child=${kid.id}` },
       ],
     }]),
     row("1fr", [{
@@ -305,7 +304,6 @@ function childResults(kid: Kid, data: Results, school: string, query: Record<str
           ...(card.subjects.some((entry) => entry.pos) ? [text(subject.pos ? ord(subject.pos) : "—")] : []),
         ],
       })),
-      foot: card.frameworkNote || undefined,
     }]),
     row("minmax(0,1.2fr) minmax(0,1fr)", [
       {

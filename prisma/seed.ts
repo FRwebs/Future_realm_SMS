@@ -3449,8 +3449,40 @@ async function main() {
     ).values(),
   );
   await prisma.timetableEntry.createMany({
-    data: uniqueTimetableRows,
+    data: uniqueTimetableRows.map((row) => ({ ...row, isPublished: true })),
     skipDuplicates: true,
+  });
+  /*
+   * The demo school is a running school: it has marked registers, score sheets and report cards
+   * behind it, so its timetable is one that was published, not one still being drafted. Left
+   * unpublished — which is what an entry defaults to — every teacher, parent and child reads
+   * "the school has not published its timetable yet" and the whole portal looks empty, however
+   * many periods are on file.
+   */
+  const timetablePublisher = await prisma.user.findFirst({
+    where: { schoolId: school.id, role: "PRINCIPAL" },
+    select: { id: true },
+  });
+  const timetableGrid: Record<string, Record<string, { subjectId: string; teacherId: string | null; venue: string }>> = {};
+  for (const row of uniqueTimetableRows) {
+    const arm = (timetableGrid[row.classId] ??= {});
+    arm[`${row.dayOfWeek}|${row.periodNumber}`] = { subjectId: row.subjectId, teacherId: row.teacherId ?? null, venue: row.venue };
+  }
+  await prisma.timetableVersion.create({
+    data: {
+      schoolId: school.id,
+      termId: secondTerm.id,
+      name: `${secondTerm.name} timetable`,
+      state: "RUNNING",
+      periodsPerDay: timetablePeriods.length,
+      periodMinutes: 40,
+      firstStarts: timetablePeriods[0]!.startsAt,
+      breakAfter: 3,
+      grid: timetableGrid,
+      builtById: timetablePublisher?.id ?? null,
+      publishedAt: new Date(),
+      publishedById: timetablePublisher?.id ?? null,
+    },
   });
   const gradingScheme = await prisma.gradingScheme.create({
     data: {

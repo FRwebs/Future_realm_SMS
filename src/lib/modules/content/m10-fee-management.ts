@@ -209,36 +209,31 @@ export const feeManagementContent: ModuleContent = {
           type: "kpi",
           per: 6,
           cards: [
-            { label: "Expected", value: nairaShort(fees.billed), sub: "Published 6 January" },
+            { label: "Expected", value: nairaShort(fees.billed), },
             {
               label: "Collected",
               value: nairaShort(fees.collected),
-              sub: `${fees.rate}% of expected`,
               tone: "positive",
             },
             {
               label: "Outstanding",
               value: nairaShort(fees.owing),
-              sub: `${debtors.length} families on the list`,
               tone: "attention",
             },
             {
               label: "Past 90 days",
               value: naira(over90.reduce((total, debtor) => total + debtor.amount, 0)),
-              sub: `${over90.length} families`,
               tone: "negative",
             },
             {
               label: "Discount exposure",
               value: naira(2180000),
-              sub: "Sibling, staff and scholarship",
               link: "See the rules",
               href: "/fee-management/structures",
             },
             {
               label: "Last term at this point",
               value: "71.8%",
-              sub: `Ahead by ${(fees.rate - 71.8).toFixed(1)} points`,
               tone: "positive",
             },
           ],
@@ -338,7 +333,6 @@ export const feeManagementContent: ModuleContent = {
           ],
           head: ["Family", "Arm", "Outstanding", "Ageing", "Bucket", "Escalation", "Reachable", ""],
           rows: debtorRows,
-          foot: "A fee balance never withholds a report card — that is your policy, and it is changeable in the fee structure.",
         },
       ]),
     ],
@@ -377,22 +371,19 @@ export const feeManagementContent: ModuleContent = {
           type: "kpi",
           per: 4,
           cards: [
-            { label: "Classes billed", value: String(structures.length), sub: "Every class has a structure" },
+            { label: "Classes billed", value: String(structures.length), },
             {
               label: "Billed this term",
               value: nairaShort(fees.billed),
-              sub: `${structures.reduce((n, s) => n + s.students, 0).toLocaleString()} students`,
             },
             {
               label: "Lowest",
               value: naira(Math.min(...structures.map((s) => s.termly))),
-              sub: "Nursery",
               tone: "neutral",
             },
             {
               label: "Highest",
               value: naira(Math.max(...structures.map((s) => s.termly))),
-              sub: "SSS 3 · examination year",
               tone: "neutral",
             },
           ],
@@ -410,7 +401,6 @@ export const feeManagementContent: ModuleContent = {
           nounPlural: "classes",
           head: ["Class", "Termly fee", "Arms", "Students", "Billed this term", "State", ""],
           rows: structureRows,
-          foot: "Changing a published structure regenerates every invoice in that class, and is routed for approval before any family sees it.",
         },
       ]),
       row("1fr 1fr", [
@@ -453,7 +443,6 @@ export const feeManagementContent: ModuleContent = {
               ],
             },
           ],
-          foot: "A standing rule needs no human at all, and every firing is logged. Anything with discretion in it is routed.",
         },
         {
           type: "facts",
@@ -493,7 +482,6 @@ export const feeManagementContent: ModuleContent = {
             {
               label: "Waiting on a decision",
               value: "9",
-              sub: "Waivers, discounts and reversals",
               tone: "attention",
               link: "Open the queue",
               href: "/approvals-workflow/queue",
@@ -501,19 +489,16 @@ export const feeManagementContent: ModuleContent = {
             {
               label: "Oldest",
               value: "19 days",
-              sub: "A hardship waiver",
               tone: "negative",
             },
             {
               label: "Value under review",
               value: naira(894000),
-              sub: "If every one were approved",
               tone: "withheld",
             },
             {
               label: "Approved this term",
               value: "34",
-              sub: `${naira(2180000)} in total`,
               tone: "positive",
             },
           ],
@@ -576,7 +561,6 @@ export const feeManagementContent: ModuleContent = {
               ],
             },
           ],
-          foot: "A reversal is money leaving a ledger, so it is decided one payment at a time and can never be bulk-approved.",
         },
       ]),
     ],
@@ -646,7 +630,6 @@ export const feeManagementContent: ModuleContent = {
               ],
             },
           ],
-          foot: "A term is never closed with money still moving — the write-off column is what the school formally gave up on.",
         },
       ]),
       row("1.15fr 1fr", [

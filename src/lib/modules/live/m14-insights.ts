@@ -12,24 +12,22 @@ export const loadInsights = () => apiGet(`${AR}/insights`, observe<Insights>(loc
 const DOWNLOAD = "M12 3.5v11M7.5 10l4.5 4.5 4.5-4.5M4.5 19.5h15";
 const CHART = "M3.5 20.5h17M7 20.5v-6M11.6 20.5V8.5M16.2 20.5v-9M20.5 20.5V5.5";
 const naira = (value: number) => (value >= 1_000_000 ? `₦${(value / 1_000_000).toFixed(2).replace(/\.?0+$/, "")}m` : `₦${Math.round(value).toLocaleString("en-NG")}`);
-const move = (value: number | null, unit = "") => (value === null ? null : `${value > 0 ? "Up" : value < 0 ? "Down" : "Level"} ${Math.abs(value)}${unit}`);
 const gradeTone = (index: number, total: number): PanelTone => (index <= 1 ? "positive" : index === total - 1 ? "negative" : index >= total - 2 ? "attention" : "progress");
 const rateTone = (rate: number | null): PanelTone => (rate === null ? "neutral" : rate >= 94 ? "positive" : rate >= 90 ? "attention" : "negative");
 
 export function insightsTab(d: Insights): TabContent {
   const k = d.kpis;
-  const prev = d.term?.previous ? ` from ${d.term.previous}` : "";
   const rows: PanelRow[] = [];
   rows.push({
     cols: "1fr",
     panels: [{
       type: "kpi", per: 5,
       cards: [
-        { label: "School average", value: k.average === null ? "—" : String(k.average), sub: k.average === null ? "No result has been computed yet" : `${k.averageMove === null ? "No earlier term to compare" : `${move(k.averageMove)}${prev}`} · using this school's own bands`, tone: k.averageMove === null ? "neutral" : k.averageMove >= 0 ? "positive" : "attention" },
-        { label: "Attendance", value: k.attendance === null ? "—" : `${k.attendance}%`, sub: k.attendance === null ? "No register has been marked this term" : k.attendanceMove === null ? "No earlier term to compare" : `${move(k.attendanceMove)}${prev}`, tone: k.attendance === null ? "neutral" : k.attendanceMove !== null && k.attendanceMove < 0 ? "attention" : "positive" },
-        { label: "Collection rate", value: k.collection === null ? "—" : `${k.collection}%`, sub: k.collection === null ? "Nothing has been billed" : `${naira(k.billed)} billed${k.collectionMove === null ? "" : ` · ${move(k.collectionMove, " points")}`}`, tone: k.collection === null ? "neutral" : k.collection >= 75 ? "positive" : "attention" },
-        { label: "Portal activation", value: `${k.portal.activated} of ${k.portal.guardians}`, sub: `${k.portal.pct ?? 0}% of families · ${k.portal.never} never activated`, tone: (k.portal.pct ?? 0) >= 80 ? "positive" : "attention" },
-        { label: "Net enrolment growth", value: `${k.growth.net > 0 ? "+" : ""}${k.growth.net}`, sub: `${k.growth.admitted} admitted · ${k.growth.left} withdrawn this term`, tone: k.growth.net >= 0 ? "positive" : "attention" },
+        { label: "School average", value: k.average === null ? "—" : String(k.average), unit: k.average === null ? "no result computed yet" : "on this school’s own bands", tone: k.averageMove === null ? "neutral" : k.averageMove >= 0 ? "positive" : "attention" },
+        { label: "Attendance", value: k.attendance === null ? "—" : `${k.attendance}%`, tone: k.attendance === null ? "neutral" : k.attendanceMove !== null && k.attendanceMove < 0 ? "attention" : "positive" },
+        { label: "Collection rate", value: k.collection === null ? "—" : `${k.collection}%`, tone: k.collection === null ? "neutral" : k.collection >= 75 ? "positive" : "attention" },
+        { label: "Portal activation", value: `${k.portal.activated} of ${k.portal.guardians}`, tone: (k.portal.pct ?? 0) >= 80 ? "positive" : "attention" },
+        { label: "Net enrolment growth", value: `${k.growth.net > 0 ? "+" : ""}${k.growth.net}`, tone: k.growth.net >= 0 ? "positive" : "attention" },
       ],
     }],
   });
@@ -68,7 +66,7 @@ export function insightsTab(d: Insights): TabContent {
     panels: [
       {
         type: "bars", title: "Attendance & enrolment", sub: "By weekday — the pattern a school can actually act on.",
-        rows: d.weekdays.map((day) => ({ label: day.label, value: day.rate ?? 0, display: day.rate === null ? "—" : `${day.rate}%`, tone: rateTone(day.rate), sub: day.rate !== null && day.rate === Math.min(...d.weekdays.map((entry) => entry.rate ?? 101)) ? "The weakest day this term" : undefined })),
+        rows: d.weekdays.map((day) => ({ label: day.label, sub: day.rate !== null && day.rate === Math.min(...d.weekdays.map((entry) => entry.rate ?? 101)) ? "The weakest day this term" : undefined, value: day.rate ?? 0, display: day.rate === null ? "—" : `${day.rate}%`, tone: rateTone(day.rate), })),
       },
       {
         type: "list", title: "Financial", sub: "Ageing, exposure and what is still to come in.",

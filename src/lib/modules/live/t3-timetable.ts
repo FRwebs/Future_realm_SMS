@@ -93,10 +93,10 @@ function timetableTab(v: TimetableView, me: TeacherWorkspaceView, schoolName: st
           ...row("1fr", [{
             type: "kpi", bare: true,
             cards: [
-              { label: "Classes", value: String(classes.length), sub: classes.map((entry) => entry.arm).join(" · ") },
-              { label: "Next", value: nextOne ? nextOne.from : "—", sub: nextOne ? `${nextOne.arm} · ${nextOne.room}` : v.published ? "Nothing else today" : "Not published yet", tone: nextOne ? "progress" : "neutral" },
-              { label: early ? "Sessions today" : "Periods today", value: String(v.periods.length), sub: v.published ? dayWords(v.date).split(" ")[0] : "Not published yet" },
-              { label: "Periods this week", value: String(v.published ? v.weekCount : v.teachingPerWeek), sub: v.published ? "Across every class" : "On your assignments", tone: "positive" },
+              { label: "Classes", value: String(classes.length), },
+              { label: "Next", value: nextOne ? nextOne.from : "—", tone: nextOne ? "progress" : "neutral" },
+              { label: early ? "Sessions today" : "Periods today", value: String(v.periods.length), },
+              { label: "Periods this week", value: String(v.published ? v.weekCount : v.teachingPerWeek), tone: "positive" },
             ],
           }]),
           show: "phone" as const,
@@ -172,12 +172,12 @@ function timetableTab(v: TimetableView, me: TeacherWorkspaceView, schoolName: st
       row("1fr", [{
         type: "kpi", sub: `${dayWords(v.date)} · your own timetable, never the school’s.`, per: 4,
         cards: [
-          { label: early ? "Sessions today" : "Periods today", value: String(teaching.length), sub: v.schoolDay ? (teaching.length ? "All teaching" : "Nothing timetabled for you") : "Today is not a school day" },
-          { label: "Next", value: next ? next.from : "—", sub: next ? `${next.subject} · ${next.room}` : "Nothing else today", tone: next ? "progress" : "neutral" },
-          { label: "This week", value: String(v.weekCount), unit: early ? "sessions" : "periods", sub: v.teachingPerWeek ? `${v.teachingPerWeek} a week on your assignments` : "Set by the school office", tone: "positive" },
+          { label: early ? "Sessions today" : "Periods today", value: String(teaching.length), },
+          { label: "Next", value: next ? next.from : "—", tone: next ? "progress" : "neutral" },
+          { label: "This week", value: String(v.weekCount), unit: early ? "sessions" : "periods", tone: "positive" },
           me.formArms.length
-            ? { label: "Form class", value: me.formArms[0].name, sub: `${me.formArms[0].roll} children${me.formArms.length > 1 ? ` · and ${me.formArms.length - 1} more` : ""}`, tone: "neutral" }
-            : { label: "Department", value: me.department?.name ?? "None", sub: me.reportsTo ? `${me.reportsTo.name} · ${me.reportsTo.title}` : "", tone: "neutral" },
+            ? { label: "Form class", value: me.formArms[0].name, tone: "neutral" }
+            : { label: "Department", value: me.department?.name ?? "None", tone: "neutral" },
         ],
       }]),
       row("1fr", [{
@@ -185,13 +185,11 @@ function timetableTab(v: TimetableView, me: TeacherWorkspaceView, schoolName: st
         sub: "Who you have, and what you teach them, in order.", meta: dayWords(v.date), noun: "period", nounPlural: "periods",
         head: ["Time", "Arm", "What to teach", "Where", "Note", ""], rows: todayRows, noRowOpen: true,
         empty: v.schoolDay ? "No period is timetabled for you today." : "Today is not a school day in this term.",
-        foot: "A cover period is marked, and disappears from this page the day the cover ends.",
       }]),
       row("1fr", [{
         type: "table", title: "Your week", sub: "The same five days a wall chart would show.", meta: `${v.weekCount} ${early ? "sessions" : "periods"}`, noun: "period", nounPlural: "periods",
         head: ["#", "Time", ...v.days], rows: weekRows, per: 8, noRowOpen: true,
         empty: "Nothing is timetabled for you this week.",
-        foot: "A blank is free — not a period nobody told you about.",
       }]),
     ]),
     ],
@@ -247,9 +245,13 @@ function askDrawer(kind: "missing" | "wrong" | "cover" | "drop", v: TeachingView
 function teachingTab(v: TeachingView, questions: Question[], me: TeacherWorkspaceView): TabContent {
   const own = v.assignments;
   const waiting = questions.filter((entry) => entry.state === "Sent").length;
+  // Someone holding cover has a fourth thing to ask for, and only they do: the drawer existed all
+  // along, but nothing on the page ever offered it.
+  const holdsCover = own.some((entry) => entry.basis === "Cover") || me.persona === "cover";
   const kinds: Array<{ kind: "missing" | "wrong" | "cover" | "drop"; label: string; sub: string; icon: string; tone?: PanelTone }> = [
     { kind: "missing", label: "A class or subject is missing", sub: "You teach it, but there is no sheet, register or note for it here.", icon: PLUS, tone: "attention" },
     { kind: "wrong", label: "Something listed is wrong", sub: "The wrong arm, the wrong periods, or cover when it is yours.", icon: WARN, tone: "progress" },
+    ...(holdsCover ? [{ kind: "cover" as const, label: "My cover needs to change", sub: "Extend it, end it early, or add score entry.", icon: CLOCK, tone: "submitted" as PanelTone }] : []),
     { kind: "drop", label: "I should no longer hold this", sub: "Hand an assignment back before it is reassigned.", icon: BACK },
   ];
 
@@ -278,7 +280,7 @@ function teachingTab(v: TeachingView, questions: Question[], me: TeacherWorkspac
   }));
 
   const kpis = [
-    { label: "Subject-arms", value: String(own.length), sub: `${own.filter((entry) => !entry.assistant).length} yours · ${own.filter((entry) => entry.assistant).length} assisting` },
+    { label: "Subject-arms", value: String(own.length), sub: `${own.filter((entry) => entry.basis !== "Cover" && !entry.assistant).length} substantive · ${own.filter((entry) => entry.basis === "Cover").length} cover` },
     v.formArms.length
       ? { label: me.persona === "early-years" ? "Class" : "Form class", value: v.formArms[0].name, sub: `${v.formArms[0].roll} children${v.formArms.length > 1 ? ` · and ${v.formArms.length - 1} more` : ""}` }
       : { label: "Form class", value: "None", sub: "You mark period registers only" },
@@ -298,17 +300,16 @@ function teachingTab(v: TeachingView, questions: Question[], me: TeacherWorkspac
           entry.assistant ? cell("") : { kind: "action", label: "Open the sheet", href: `/score-entry-results/enter/${entry.classId}/${entry.subjectId}` },
         ] as TableCellKind[],
       })),
-      noRowOpen: true, empty: "Nothing is assigned to you yet. If you teach something, ask the office to add it below.", foot: "No assignment, no sheet.", per: 10,
+      noRowOpen: true, empty: "Nothing is assigned to you yet. If you teach something, ask the office to add it below.", per: 10,
     }]),
     questions.length
       ? row("1fr", [{
           type: "table", title: "Questions you have asked", tag: `${waiting} waiting`, tagTone: "submitted",
           sub: "The office replies here. When they change an assignment, your sheets, registers and notes follow on their own.", meta: `${questions.length} question${questions.length === 1 ? "" : "s"}`, noun: "question", nounPlural: "questions",
-          head: ["Question", "About", "Sent", "State", ""], rows: askRows, noRowOpen: true, foot: "A question changes nothing by itself.",
-        }])
+          head: ["Question", "About", "Sent", "State", ""], rows: askRows, noRowOpen: true,         }])
       : null,
     row("1fr", [{
-      type: "tiles", title: "Something here not right?", sub: "Your assignments are set by the school office. Ask them to fix it at the source — the sheet, register and access change together.", per: 3,
+      type: "tiles", title: "Something here not right?", sub: "Your assignments are set by the school office. Ask them to fix it at the source — the sheet, register and access change together.", per: kinds.length,
       tiles: kinds.map((entry) => ({ label: entry.label, sub: entry.sub, icon: entry.icon, tone: entry.tone, drawer: askDrawer(entry.kind, v, me) })),
     }]),
     row("1fr", [{ type: "facts", title: "Your responsibilities", per: 2, facts: me.hats.map((hat) => [`${hat.role} · ${hat.scope}`, hat.detail, ""] as [string, string, string]) }]),

@@ -13,7 +13,6 @@ import { formatDay } from "@/lib/date-format";
  */
 
 export const STAGES: Stage[] = ["Enquiry", "Applied", "Assessed", "Offered", "Accepted", "Enrolled"];
-const STAGE_SUB = ["Not yet applied", "Form and fee in", "Screening scored", "Letter issued", "Deposit received", "On the registry"];
 const STAGE_TONE: Record<string, PanelTone> = { Enquiry: "neutral", Applied: "progress", Assessed: "progress", Offered: "submitted", Accepted: "positive", Enrolled: "positive", Declined: "negative", Waitlisted: "attention" };
 
 export const loadBoard = () => apiGet(`${SR}/admissions`, observe<AdmissionsBoard>(localContracts["src/lib/modules/live/m8-admissions.ts#b6c1bdb6"]));
@@ -28,14 +27,6 @@ const born = (iso: string) => formatDay(new Date(iso), { day: "numeric", month: 
 const when = (iso: string) => formatDay(new Date(iso), { weekday: "short", day: "numeric", month: "short" });
 const clock = (iso: string) => new Date(iso).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
 
-const NEXT_WORD: Record<string, string> = {
-  Enquiry: "Send the application form",
-  Applied: "Book a screening seat",
-  Assessed: "Decide on the offer",
-  Offered: "Chase acceptance and deposit",
-  Accepted: "Convert to a student record",
-  Enrolled: "Nothing — already on the registry",
-};
 
 /** Where an applicant stands with the entrance assessment, as the Screening filter reads it. */
 function screenState(row: ApplicantRow): string {
@@ -74,10 +65,9 @@ export function admissionsTab(data: AdmissionsBoard, o: AdmissionOptions): TabCo
   const schedule = { label: "Schedule screening", drawer: scheduleDrawer(o, applicants) };
   const levels = Array.from(new Set(data.rows.map((row) => row.forClass))).sort();
 
-  const cards: KpiCard[] = STAGES.map((stage, index) => ({
+  const cards: KpiCard[] = STAGES.map((stage) => ({
     label: stage,
     value: String(counts.get(stage) ?? 0),
-    sub: STAGE_SUB[index],
     tone: STAGE_TONE[stage],
     link: "Open the list",
     href: pipelineHref(stage),
@@ -124,7 +114,7 @@ export function admissionsTab(data: AdmissionsBoard, o: AdmissionOptions): TabCo
             tag: `${data.rows.length} live`,
             tagTone: "neutral",
             sub: "Open an applicant for their progress, their family and their screening.",
-            meta: `Conversion ${data.conversion}% enquiry to enrolled · ${waitingDate.length} awaiting a screening date`,
+            meta: `Conversion ${data.conversion}% · ${waitingDate.length} awaiting screening`,
             search: "Find by name, reference or guardian",
             filters: [
               { label: "State", value: "All", options: ["All", ...STAGES, "Declined", "Waitlisted"], column: 6 },
@@ -145,14 +135,13 @@ export function admissionsTab(data: AdmissionsBoard, o: AdmissionOptions): TabCo
               { label: "Export selected", primary: true, export: true },
             ],
             rows: data.rows.map(applicantRow),
-            foot: "An applicant with no screening date cannot be assessed, offered or enrolled — that is the queue to clear first.",
           },
         ],
       },
       {
         cols: "1.15fr 1fr",
         panels: [
-          { type: "table", title: "Screening and entrance assessment diary", sub: "Sessions this school has scheduled, and how full each one is.", meta: `${plural(data.sessions.length, "session")} · ${plural(waitingDate.length, "applicant")} still to be placed in one`, acts: [{ label: "Schedule a session", primary: true, drawer: addSessionDrawer(o) }], head: ["Date", "Time", "For", "Seats", "Booked", "Invigilator", ""], noun: "session", nounPlural: "sessions", noRowOpen: true, rows: diary, emptyTitle: "No session is scheduled", emptyBody: "Schedule one, then book applicants into it.", foot: "Booking a seat sends the family the date, the time, what to bring and how to get here." },
+          { type: "table", title: "Screening and entrance assessment diary", sub: "Sessions this school has scheduled, and how full each one is.", meta: `${plural(data.sessions.length, "session")} · ${plural(waitingDate.length, "applicant")} still to be placed in one`, acts: [{ label: "Schedule a session", primary: true, drawer: addSessionDrawer(o) }], head: ["Date", "Time", "For", "Seats", "Booked", "Invigilator", ""], noun: "session", nounPlural: "sessions", noRowOpen: true, rows: diary, emptyTitle: "No session is scheduled", emptyBody: "Schedule one, then book applicants into it.", },
           { type: "list", tuck: "See who is holding this up", tuckIcon: "M12 8.2v4.6M12 16h.02M12 3.6 21 19.4H3z", title: "What is holding this cycle up", sub: "Each one names who it is waiting on.", items: holding },
         ],
       },
@@ -181,9 +170,9 @@ export function pipelinePage(state: string, data: { rows: ApplicantRow[]; cycles
         crumb,
         title: "Admission history",
         desc: "Every cycle the school has run, and every applicant in each one.",
-        primary: { label: "Export the history", icon: "M12 3.5v11M7.5 10l4.5 4.5 4.5-4.5M4.5 19.5h15", href: "/student-records/admissions/export" },
+        primary: { label: "Export the history", icon: "M12 3.5v11M7.5 10l4.5 4.5 4.5-4.5M4.5 19.5h15", href: "/student-records/admissions/export", download: true },
         rows: [
-          { cols: "1fr", panels: [{ type: "kpi", title: `${plural(data.cycles.length, "cycle")} on record`, per: 5, cards: [{ label: "Applications, all time", value: String(total), sub: data.cycles.length ? `Since ${data.cycles[data.cycles.length - 1].name}` : "None yet", tone: "neutral" }, { label: "Enrolled, all time", value: String(enrolled), sub: total ? `${Math.round((enrolled / total) * 100)}% conversion` : "—", tone: "positive" }, { label: "Best cycle", value: best?.name ?? "—", sub: best ? `${best.rate}% · ${best.enrolled} enrolled` : "", tone: "positive" }, { label: "Declined", value: String(rows.filter((row) => row.stage === "Declined").length), sub: "Each with a recorded reason", tone: "neutral" }, { label: "Waitlisted", value: String(rows.filter((row) => row.stage === "Waitlisted").length), sub: "Contacted if a place opens", tone: "attention" }] }] },
+          { cols: "1fr", panels: [{ type: "kpi", title: `${plural(data.cycles.length, "cycle")} on record`, per: 5, cards: [{ label: "Applications, all time", value: String(total), tone: "neutral" }, { label: "Enrolled, all time", value: String(enrolled), tone: "positive" }, { label: "Best cycle", value: best?.name ?? "—", tone: "positive" }, { label: "Declined", value: String(rows.filter((row) => row.stage === "Declined").length), tone: "neutral" }, { label: "Waitlisted", value: String(rows.filter((row) => row.stage === "Waitlisted").length), tone: "attention" }] }] },
           { cols: "1fr", panels: [{ type: "table", title: "Applicants across every cycle", sub: "The full historic list, searchable by name, reference or cycle.", meta: `${plural(rows.length, "application")} · ${enrolled} enrolled`, search: "Find by name, reference or guardian", filters: [{ label: "Cycle", value: "All", options: ["All", ...data.cycles.map((cycle) => cycle.name)] }, { label: "State", value: "All", options: ["All", ...STAGES, "Declined", "Waitlisted"], column: 7 }, { label: "Applying for", value: "All", options: ["All", ...Array.from(new Set(rows.map((row) => row.forClass))).sort()], column: 3 }], acts: [{ label: "Export to Excel", primary: true, export: true }], head: ["Applicant", "Reference", "Cycle", "For", "Guardian", "Score", "Outcome", ""], noun: "application", nounPlural: "applicants", per: 10, rows: rows.map((row) => ({ id: row.id, href: applicantHref(row.id), keywords: `${row.name} ${row.ref} ${row.guardian} ${row.cycle}`, cells: [nameCell(row.name, `${row.gender} · born ${born(row.dob)}`), text(row.ref, { mono: true }), text(row.cycle), text(row.forClass), nameCell(row.guardian, row.phone, { avatar: false }), row.score === null ? text("—") : text(String(row.score), { mono: true }), pill(row.stage, STAGE_TONE[row.stage] ?? "neutral"), { kind: "action" as const, label: "Open", href: applicantHref(row.id) }] })) }] },
           { cols: "1fr", panels: [{ type: "line", title: "Enrolment by cycle", sub: "How many applications became students.", points: data.cycles.map((cycle) => ({ label: cycle.name, v: cycle.rate, tip: `${cycle.name} · ${cycle.enrolled} of ${cycle.enquiries}${cycle.open ? " so far" : ""}`, tone: (cycle.open ? "progress" : "positive") as PanelTone, on: cycle.open })) }] },
         ],
@@ -209,7 +198,7 @@ export function pipelinePage(state: string, data: { rows: ApplicantRow[]; cycles
       desc: DESC[state] ?? "Applicants in this state.",
       primary: { label: "Add application", icon: "M12 5.5v13M5.5 12h13", drawer: addApplicationDrawer(o) },
       rows: [
-        { cols: "1fr", panels: [{ type: "kpi", title: `${state} · this cycle`, per: 4, cards: [{ label: "In this state", value: String(rows.length), sub: data.cycle, tone: "neutral" }, { label: "Oldest", value: rows.length ? plural(Math.max(...rows.map((row) => row.days)), "day") : "—", sub: "In this state without moving", tone: "attention" }, { label: "No screening date", value: String(needing.length), sub: "Blocks assessment", tone: needing.length ? "negative" : "positive" }, { label: "No phone number", value: String(rows.filter((row) => !row.phone?.trim()).length), sub: "Unreachable", tone: rows.some((row) => !row.phone?.trim()) ? "negative" : "positive" }] }] },
+        { cols: "1fr", panels: [{ type: "kpi", title: `${state} · this cycle`, per: 4, cards: [{ label: "In this state", value: String(rows.length), tone: "neutral" }, { label: "Oldest", value: rows.length ? plural(Math.max(...rows.map((row) => row.days)), "day") : "—", tone: "attention" }, { label: "No screening date", value: String(needing.length), tone: needing.length ? "negative" : "positive" }, { label: "No phone number", value: String(rows.filter((row) => !row.phone?.trim()).length), tone: rows.some((row) => !row.phone?.trim()) ? "negative" : "positive" }] }] },
         { cols: "1fr", panels: [{ type: "table", title: `Applicants · ${state}`, sub: "Open one for their progress, family and documents.", meta: `${rows.length} in this state · ${needing.length} still need a screening date`, search: "Find by name, reference or guardian", filters: [{ label: "Applying for", value: "All", options: ["All", ...Array.from(new Set(rows.map((row) => row.forClass))).sort()], column: 2 }], acts: [{ label: "Message these guardians", href: "/communication-center/compose" }, { label: "Schedule screening", primary: true, drawer: scheduleDrawer(o, applicants) }], head: HEAD, noun: "application", nounPlural: "applicants", per: 10, rows: rows.map(applicantRow), emptyTitle: "Nobody is in this state", emptyBody: `Every applicant has moved past ${state}.` }] },
       ],
     },
@@ -229,11 +218,11 @@ export function applicantPage(a: Applicant, o: AdmissionOptions, arms: Array<{ n
         ? { label: a.next?.label ?? "Move it on", icon: "M5 12h13M13 6.5 18.5 12 13 17.5", drawer: advance }
         : undefined;
   const cards: KpiCard[] = [
-    { label: "State", value: a.stage, sub: `For ${plural(a.days, "day")}`, tone: STAGE_TONE[a.stage] ?? "neutral" },
-    { label: "Applying for", value: a.forClass, sub: /Nursery|Primary/.test(a.forClass) ? "Interview only" : "Entrance assessment" },
-    { label: "Screening", value: a.screening ? when(a.screening.at) : "Not booked", sub: a.screening ? (a.screening.completed ? "Sat and scored" : "Seat confirmed") : "Blocks everything after it", tone: a.screening ? "positive" : needsDate ? "negative" : "neutral" },
-    { label: "Assessment score", value: a.screening?.score === null || !a.screening ? "—" : String(Math.round((a.screening.score / (a.screening.max || 100)) * 100)), sub: !a.screening || a.screening.score === null ? "Not sat yet" : (a.screening.score / (a.screening.max || 100)) * 100 >= 50 ? "Above the threshold" : "Below the 50 threshold", tone: !a.screening || a.screening.score === null ? "neutral" : (a.screening.score / (a.screening.max || 100)) * 100 >= 50 ? "positive" : "negative" },
-    { label: "Next step", value: closed ? "Closed" : a.student ? "Done" : "Open", sub: closed ? "This application is closed" : a.next?.label ?? NEXT_WORD[a.stage], tone: closed ? "negative" : "attention" },
+    { label: "State", value: a.stage, tone: STAGE_TONE[a.stage] ?? "neutral" },
+    { label: "Applying for", value: a.forClass, },
+    { label: "Screening", value: a.screening ? when(a.screening.at) : "Not booked", tone: a.screening ? "positive" : needsDate ? "negative" : "neutral" },
+    { label: "Assessment score", value: a.screening?.score === null || !a.screening ? "—" : String(Math.round((a.screening.score / (a.screening.max || 100)) * 100)), tone: !a.screening || a.screening.score === null ? "neutral" : (a.screening.score / (a.screening.max || 100)) * 100 >= 50 ? "positive" : "negative" },
+    { label: "Next step", value: closed ? "Closed" : a.student ? "Done" : "Open", tone: closed ? "negative" : "attention" },
   ];
   const steps: StepItem[] = STAGES.map((stage, index) => ({ label: stage, state: closed ? (index <= Math.max(0, a.stageIndex) ? "done" : "todo") : index < a.stageIndex ? "done" : index === a.stageIndex ? "current" : "todo" }));
   const progress: TableRow[] = a.stages.map((stage) => ({ cells: [text(stage.name, { strong: stage.done }), text(stage.done && stage.when ? dayLabel(stage.when) : "—"), text(stage.done ? stage.by ?? "—" : "—"), text(stage.done ? stage.note ?? "Reached" : "Not reached"), text("")] }));
@@ -264,7 +253,7 @@ export function applicantPage(a: Applicant, o: AdmissionOptions, arms: Array<{ n
         {
           cols: "1.1fr 1fr",
           panels: [
-            { type: "table", title: "Progress, step by step", sub: "Every stage, when it happened, and who did it.", meta: `Opened ${dayLong(a.opened)} · ${plural(a.days, "day")} in the current state`, head: ["Stage", "When", "By", "What happened", ""], noun: "stage", nounPlural: "stages", noRowOpen: true, rows: progress, foot: "A stage cannot be skipped. Moving an applicant backwards is recorded with a reason." },
+            { type: "table", title: "Progress, step by step", sub: "Every stage, when it happened, and who did it.", meta: `Opened ${dayLong(a.opened)} · ${plural(a.days, "day")} in the current state`, head: ["Stage", "When", "By", "What happened", ""], noun: "stage", nounPlural: "stages", noRowOpen: true, rows: progress, },
             { type: "table", title: "Documents", sub: "What the family has uploaded, and what is still owed.", meta: `${a.documents.filter((doc) => doc.received).length} of ${a.documents.length} received`, acts: [{ label: "Request the missing ones", primary: true, drawer: requestDocumentsDrawer(a) }], head: ["Document", "Source", "Received", ""], noun: "document", nounPlural: "documents", noRowOpen: true, rows: docs },
           ],
         },

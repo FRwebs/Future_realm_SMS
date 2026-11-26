@@ -3,16 +3,17 @@
 import Link from "next/link";
 import type { Route } from "next";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { Clock, MessageCircle } from "lucide-react";
 
 import { ModuleDrawer } from "@/components/modules/lazy-drawer";
 import { PanelRowsWithDrawer } from "@/components/modules/panel-renderer";
 import { useHasPhoneBar, usePhoneKind } from "@/components/layout/phone-shell";
+import { deskTrim, tightFor } from "@/lib/ui/tight-copy";
 import { useUiText } from "@/hooks/use-ui-text";
-import type { DrawerSpec, PanelAction, PanelRow } from "@/lib/modules/panels";
-import { tightCopy } from "@/lib/ui/phone-copy";
+import type { DrawerSpec, PanelAction, PanelRow, PanelTone } from "@/lib/modules/panels";
+import { toneOf } from "@/lib/modules/tones";
 import { cn } from "@/lib/utils/cn";
 
 /** The mockup's default glyph for a header's primary action: a plus. */
@@ -47,7 +48,9 @@ function MobileFab({ act, openDrawer }: { act: PanelAction; openDrawer: (spec: D
     </>
   );
   const button = act.href ? (
-    <Link href={act.href as Route} className={className} style={style}>{body}</Link>
+    act.download
+      ? <a href={act.href} download className={className} style={style}>{body}</a>
+      : <Link href={act.href as Route} className={className} style={style}>{body}</Link>
   ) : act.drawer ? (
     <button type="button" onClick={() => openDrawer(act.drawer!)} className={className} style={style}>{body}</button>
   ) : null;
@@ -98,6 +101,14 @@ function HeaderAction({
   );
 
   if (act.href) {
+    // A route that answers with a file is a plain link; the client router cannot open one.
+    if (act.download) {
+      return (
+        <a href={act.href} download className={className}>
+          {body}
+        </a>
+      );
+    }
     return (
       <Link href={act.href as Route} className={className}>
         {body}
@@ -137,6 +148,15 @@ function HeaderAction({
  * floating. Overview already carries the same action in its first panel. These
  * keep their action in the header, where it covers nothing.
  */
+/**
+ * The pages whose phone bar already says what a page head would.
+ *
+ * A teacher's Today and a student's Today both open on a greeting in the bar;
+ * repeating it underneath is the same sentence twice, which is how the mockups
+ * avoid it too.
+ */
+const PHONE_NO_HEAD = ["/command-center/today", "/portals/student", "/portals/student/today"];
+
 const PHONE_NO_FAB = [
   // The teacher's Today already carries its first job as the deck's own button; a second one floating over it would say it twice.
   "/command-center/today",
@@ -148,6 +168,18 @@ const PHONE_NO_FAB = [
   "/portals/parent/consents",
   "/portals/parent/prefs",
   "/portals/parent/sync",
+  // The student mockup floats one only where there is something to do: handing work in,
+  // asking a teacher, reporting a wrong detail, changing a password. Today, the subjects,
+  // the timetable, the marks, the register, the calendar and the settings are read.
+  "/portals/student",
+  "/portals/student/today",
+  "/portals/student/subjects",
+  "/portals/student/timetable",
+  "/portals/student/results",
+  "/portals/student/attendance",
+  "/portals/student/calendar",
+  "/portals/student/notifications",
+  "/portals/student/sync",
 ];
 
 /**
@@ -157,24 +189,28 @@ const PHONE_NO_FAB = [
  */
 function PhoneHead({ eyebrow, title, description }: { eyebrow: string; title: string; description: string }) {
   const ui = useUiText();
-  const tight = description ? tightCopy("bsub", description) : "";
+  // The phone's copy rule: a description that only restates the title above it is dropped rather than wrapped onto three lines.
+  const desc = tightFor(true, "head", description);
   return (
     <div className="px-[4px] pt-[6px] md:hidden">
       {eyebrow ? <p className="mb-[6px] text-[11px] font-extrabold uppercase tracking-[0.08em] text-[#12796A]">{ui(eyebrow)}</p> : null}
-      <h1 className="text-pretty text-[20px] font-extrabold leading-[1.15] tracking-[-0.02em] text-[#0D2315]">{ui(title)}</h1>
-      {tight ? <p className="mt-[6px] text-pretty text-[13px] leading-[1.5] text-[#5F6E65]">{tight}</p> : null}
+      <h1 className="text-pretty text-[23px] font-extrabold leading-[1.15] tracking-[-0.02em] text-[#0D2315]">{ui(title)}</h1>
+      {desc ? <p className="mt-[6px] text-pretty text-[13.5px] leading-[1.5] text-[#5F6E65]">{desc}</p> : null}
     </div>
   );
 }
 
 /**
  * The ink header at the top of every tab: the module as its eyebrow, the tab
- * as its title, and at most three decisions — the primary and two shortcuts.
- * Anything further down the authored list lives on the page itself.
+ * as its title, and at most two decisions — the one thing the page is for, and
+ * the one place it most often leads. Anything further down the authored list
+ * lives on the page itself, beside the rows it acts on.
  */
 function ModuleHead({
   eyebrow,
   title,
+  tag,
+  tagTone,
   description,
   primary,
   launchers,
@@ -183,6 +219,9 @@ function ModuleHead({
 }: {
   eyebrow: string;
   title: string;
+  /** Where this one record stands, said beside its name as the mockup says it. */
+  tag?: string;
+  tagTone?: PanelTone;
   description: string;
   primary?: PanelAction;
   launchers?: PanelAction[];
@@ -190,7 +229,10 @@ function ModuleHead({
   /** When the primary floats on a phone, the header does not also carry it. */
   floatPrimary?: boolean;
 }) {
-  const shortcuts = (launchers ?? []).slice(0, 2);
+  // Two decisions on the head card, never three. Where a page offers a primary, it keeps one
+  // shortcut beside it; a page with no primary keeps two. Everything further down the authored list
+  // lives on the page itself, next to the rows it acts on.
+  const shortcuts = (launchers ?? []).slice(0, primary ? 1 : 2);
   const hasPhoneBar = useHasPhoneBar();
   const kind = usePhoneKind();
   const ui = useUiText();
@@ -232,21 +274,31 @@ function ModuleHead({
               {ui(eyebrow)}
             </span>
           </div>
-          <h1
-            className={cn(
-              "text-pretty font-(family-name:--font-heading) text-[19px] font-extrabold leading-[1.15] tracking-[-0.024em] text-white",
-              hasPhoneBar && "max-md:text-[18px] max-md:tracking-[-0.015em]",
-            )}
-          >
-            {ui(title)}
-          </h1>
+          <div className="flex flex-wrap items-center gap-x-[9px] gap-y-[5px]">
+            <h1
+              className={cn(
+                "text-pretty font-(family-name:--font-heading) text-[19px] font-extrabold leading-[1.15] tracking-[-0.024em] text-white",
+                hasPhoneBar && "max-md:text-[20px] max-md:tracking-[-0.015em]",
+              )}
+            >
+              {ui(title)}
+            </h1>
+            {/* The state, on the dark head: the tone carries in the dot, the word stays white, so a
+                pale chip is never dropped onto a near-black card. */}
+            {tag ? (
+              <span className="inline-flex flex-none items-center gap-[5px] rounded-full border border-white/18 bg-white/10 px-[9px] py-[3px] text-[10px] font-bold uppercase tracking-[0.07em] text-white/82">
+                <span aria-hidden className="h-[5px] w-[5px] flex-none rounded-full" style={{ background: toneOf(tagTone).fg }} />
+                {ui(tag)}
+              </span>
+            ) : null}
+          </div>
           <p
             className={cn(
               "mt-1 max-w-[560px] text-pretty text-[11px] leading-[1.45] text-white/60",
               hasPhoneBar && "max-md:mt-[6px] max-md:text-[13px] max-md:leading-[1.5] max-md:text-white/76",
             )}
           >
-            {description}
+            {deskTrim("head", description)}
           </p>
         </div>
         {primary || shortcuts.length ? (
@@ -298,6 +350,19 @@ function PhoneAsks({ launchers, openDrawer }: { launchers: PanelAction[]; openDr
 }
 
 /**
+ * What the head cannot hold, plus what it holds but a phone never draws.
+ *
+ * The head keeps one shortcut beside a primary and two without one. Everything after that goes to
+ * the panels. The ones the head does show are repeated for the phone alone, so every launcher a tab
+ * offers is reachable at both widths without either showing it twice.
+ */
+export function spilled(launchers: PanelAction[] | undefined, primary?: PanelAction): PanelAction[] {
+  const all = launchers ?? [];
+  const onHead = all.slice(0, primary ? 1 : 2);
+  return [...onHead.map((act) => ({ ...act, primary: false, phoneOnly: true })), ...all.slice(onHead.length)];
+}
+
+/**
  * One tab of a module: its header, its panels, and the drawer they share.
  *
  * The drawer lives here rather than inside the panels so that the header's
@@ -307,6 +372,8 @@ function PhoneAsks({ launchers, openDrawer }: { launchers: PanelAction[]; openDr
 export function ModuleWorkspace({
   eyebrow,
   title,
+  tag,
+  tagTone,
   description,
   primary,
   launchers,
@@ -328,6 +395,9 @@ export function ModuleWorkspace({
   /** The green line over the title on a teacher's phone, when it says more than the module's name. */
   phoneEyebrow?: string;
   title: string;
+  /** Where this one record stands, beside its name. */
+  tag?: string;
+  tagTone?: PanelTone;
   description: string;
   primary?: PanelAction;
   launchers?: PanelAction[];
@@ -358,17 +428,47 @@ export function ModuleWorkspace({
     return () => window.removeEventListener("fr:bar-main", run);
   }, [mainAction, router]);
 
+  /**
+   * What this page can do, offered in the phone's More sheet as well as its own header.
+   *
+   * The sheet is a sibling of the page, not a child, so it cannot reach a launcher's drawer
+   * directly: the page publishes the labels and runs whichever one comes back by index. The
+   * action itself stays here, where it was declared.
+   */
+  const shortcuts = useMemo(() => launchers ?? [], [launchers]);
+  useEffect(() => {
+    const announce = () => window.dispatchEvent(new CustomEvent("fr:page-acts", { detail: shortcuts.map((act) => act.label) }));
+    const run = (event: Event) => {
+      const act = shortcuts[(event as CustomEvent<number>).detail];
+      if (!act) return;
+      if (act.drawer) setDrawer(act.drawer);
+      else if (act.href) router.push(act.href as Route);
+    };
+    announce();
+    window.addEventListener("fr:page-acts-ask", announce);
+    window.addEventListener("fr:page-act", run);
+    return () => {
+      window.removeEventListener("fr:page-acts-ask", announce);
+      window.removeEventListener("fr:page-act", run);
+      window.dispatchEvent(new CustomEvent("fr:page-acts", { detail: [] }));
+    };
+    // The labels are what the sheet shows; a change of page replaces them.
+  }, [shortcuts, router]);
+
   return (
     <div className={cn("grid min-w-0 gap-[14px]", hasPhoneBar && floats && (phonePrimary ?? primary) && "max-md:flex max-md:min-h-full max-md:flex-col")}>
       <ModuleDrawer spec={drawer} onClose={() => setDrawer(null)} />
 
+      {/* The way back, as the mockup draws it: a pill above the page head, not a line of link text.
+          It is the one control on a record page that is pressed without reading, so it is given
+          the shape of a button and a target a thumb can hit. */}
       {back ? (
         <Link
           href={back.href as Route}
-          className="inline-flex w-fit items-center gap-[6px] text-[11.5px] font-semibold text-[#12796A] hover:underline"
+          className="inline-flex w-fit items-center gap-[7px] rounded-full border border-[#DEE8E2] bg-white py-[7px] pl-[11px] pr-[13px] text-[11.5px] font-semibold text-[#2A3B31] transition-colors hover:border-[#C6DCD0] hover:bg-[#EAF3EE] max-md:min-h-[40px]"
         >
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-            <path d="M19 12H6M11 6.5 5.5 12l5.5 5.5" />
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M15 5l-7 7 7 7" />
           </svg>
           {back.label}
         </Link>
@@ -389,6 +489,8 @@ export function ModuleWorkspace({
         <ModuleHead
           eyebrow={eyebrow}
           title={title}
+          tag={tag}
+          tagTone={tagTone}
           description={description}
           primary={primary}
           launchers={launchers}
@@ -400,12 +502,14 @@ export function ModuleWorkspace({
       {children}
 
       {/* The teacher's phone puts the segments first and the screen's name under them, as its mockup does. */}
-      {/* The student's bar already says hello and gives the date on its home page, so the page does not say it again. */}
-      {kind !== null && pathname.replace(/\/$/, "") !== "/command-center/today" && !(kind === "student" && pathname.replace(/\/$/, "") === "/portals/student") ? <PhoneHead eyebrow={phoneEyebrow ?? eyebrow} title={phoneTitle ?? title} description={phoneDesc ?? description} /> : null}
+      {kind !== null && !PHONE_NO_HEAD.includes(pathname.replace(/\/$/, "")) ? <PhoneHead eyebrow={phoneEyebrow ?? eyebrow} title={phoneTitle ?? title} description={phoneDesc ?? description} /> : null}
 
       {body}
 
-      <PanelRowsWithDrawer rows={rows} openDrawer={setDrawer} />
+      {/* Two decisions on the head card, never three; the rest land on the first panel's strip. On a
+          phone the head card is not drawn at all, so the two it holds are repeated there and hidden
+          again at a laptop's width — otherwise a page reached only from the head has no way in. */}
+      <PanelRowsWithDrawer rows={rows} openDrawer={setDrawer} spill={spilled(launchers, primary)} />
 
       {kind === "student" && launchers?.some((act) => act.drawer) ? <PhoneAsks launchers={launchers.filter((act) => act.drawer)} openDrawer={setDrawer} /> : null}
 

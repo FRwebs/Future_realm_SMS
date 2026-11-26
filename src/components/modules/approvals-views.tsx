@@ -22,8 +22,8 @@ async function gate() {
 
 type Content = Parameters<typeof ModuleWorkspace>[0];
 
-function Workspace({ content, children }: { content: { title?: string; desc?: string; primary?: Content["primary"]; launchers?: Content["launchers"]; rows: Content["rows"]; crumb: { label: string; href: string } }; children?: React.ReactNode }) {
-  return <ModuleWorkspace eyebrow="Approvals & Workflow" title={content.title ?? "Approvals & Workflow"} description={content.desc ?? ""} primary={content.primary} launchers={content.launchers} rows={content.rows} back={content.crumb}>{children}</ModuleWorkspace>;
+function Workspace({ content, children }: { content: { title?: string; desc?: string; tag?: string; tagTone?: Content["tagTone"]; primary?: Content["primary"]; launchers?: Content["launchers"]; rows: Content["rows"]; crumb: { label: string; href: string } }; children?: React.ReactNode }) {
+  return <ModuleWorkspace eyebrow="Approvals & Workflow" title={content.title ?? "Approvals & Workflow"} description={content.desc ?? ""} tag={content.tag} tagTone={content.tagTone} primary={content.primary} launchers={content.launchers} rows={content.rows} back={content.crumb}>{children}</ModuleWorkspace>;
 }
 
 export async function ItemView({ keyValue, section }: { keyValue: string; section?: string }) {

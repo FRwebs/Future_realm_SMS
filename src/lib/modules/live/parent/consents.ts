@@ -97,7 +97,6 @@ function formItem(form: SchoolForm, today: string, withChildren: boolean): ListI
 const NO_FORMS_EMPTY = "No form is waiting. When the school sends a trip, leave or agreement form, it appears here.";
 
 function familyConsents(types: Consent[], me: ParentMe, forms: SchoolForm[], today: string): ParentContent {
-  const missing = types.filter((type) => type.state === "Not recorded").length;
   return {
     eyebrow: "Whole family", title: "Forms and consents",
     desc: "Forms waiting for you, then every consent at a glance.",
@@ -110,7 +109,6 @@ function familyConsents(types: Consent[], me: ParentMe, forms: SchoolForm[], tod
           keywords: type.name, href: me.children[0] ? `/portals/parent/consents?child=${me.children[0].id}` : undefined,
           cells: [nameCell(type.name, type.covers, { avatar: false }), pill(type.state, TONE[type.state]), text(type.on ? `${dLong(type.on)}${type.how ? ` · ${type.how}` : ""}` : "Never recorded")],
         })),
-        foot: `${me.school} holds these under the data protection law of its country.${missing ? ` ${missing} ${missing === 1 ? "is" : "are"} still waiting for a yes or no.` : ""}`,
       }]),
     ],
   };
@@ -138,7 +136,6 @@ function childConsents(first: string, arm: string, types: Consent[], me: ParentM
           ...actions(type, me.school),
         ],
       })),
-      foot: `Safety notices reach you on every channel, whatever you choose here. A required consent is what lets ${me.school} hold ${first}’s record, so it ends only if ${first} leaves the school.`,
       empty: "The school has not asked for any consent.",
     }])],
   };

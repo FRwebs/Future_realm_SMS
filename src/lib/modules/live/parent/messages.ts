@@ -9,8 +9,12 @@ type Inbox = { school: string; you: string; unread: number; items: Array<Omit<In
 
 const TABS = ["All", "Unread", "Academic", "Financial", "Events", "Safety"];
 
+/** Every message a school has sent this family. The inbox reads it in full; the home screen reads the newest few. */
+export const loadInbox = (child: string) =>
+  apiGet(`${PW}/messages?child=${encodeURIComponent(child)}`, observe<Inbox>(localContracts["src/lib/modules/live/parent/messages.ts#bf70de73"]));
+
 export async function messagesPage(child: string, query: Record<string, string | undefined>): Promise<ParentContent> {
-  const data = await apiGet(`${PW}/messages?child=${encodeURIComponent(child)}`, observe<Inbox>(localContracts["src/lib/modules/live/parent/messages.ts#bf70de73"]));
+  const data = await loadInbox(child);
   const tab = TABS.includes(query.tab ?? "") ? query.tab! : TABS[0]!;
   const shown = data.items.filter((item) => (tab === "All" ? true : tab === "Unread" ? !item.read : item.category === tab));
   const one = child === "all" ? null : data.items.flatMap((item) => item.children).find((entry) => entry.id === child) ?? null;

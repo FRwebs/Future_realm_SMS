@@ -53,6 +53,7 @@ export const PAY_TONE: Record<string, PanelTone> = {
 };
 
 const REGISTER_HREF = "/staff-access/payroll/export";
+const BANDS_HREF = "/staff-access/payroll/bands";
 
 /** One payslip, every line in the order it is calculated. */
 export function payslipDrawer(row: PayRow, month: string): DrawerSpec {
@@ -99,29 +100,13 @@ export function payrollTab(data: PayrollOverview): TabContent {
   const needing = rows.filter((row) => row.state === "Held" || row.state === "Awaiting approval");
 
   const cards: KpiCard[] = [
-    { label: "Monthly payroll cost", value: nairaShort(totals.cost), sub: "Gross, allowances and employer pension, before deductions" },
-    { label: "On the payroll", value: String(totals.people), unit: `of ${totals.of}`, tone: totals.unmapped ? "attention" : "positive", sub: totals.unmapped ? `${totals.unmapped} not mapped to a band` : "Everybody mapped" },
-    { label: `${month.monthName} run`, value: runLabel, tone: runTone, sub: `Pay date ${setup.payDate} · cut-off ${setup.cutoff.toLowerCase()}`, link: "Open the run", href: "/staff-access/payroll/run" },
-    { label: "Statutory deductions", value: nairaShort(totals.deductions), sub: setup.profile.split("·")[1]?.trim() ?? "From the payroll setup" },
-    { label: "Payments needing a decision", value: String(needing.length), tone: needing.length ? "attention" : "positive", sub: needing.length ? "Held or waiting on approval" : "Nothing waiting", ...(needing.length ? { link: "See them", href: "/staff-access/payroll/run" } : {}) },
+    { label: "Monthly payroll cost", value: nairaShort(totals.cost), },
+    { label: "On the payroll", value: String(totals.people), unit: totals.unmapped ? `of ${totals.of} · ${totals.unmapped} not mapped to a band` : `of ${totals.of}`, tone: totals.unmapped ? "attention" : "positive", link: "See the bands", href: BANDS_HREF },
+    { label: `${month.monthName} run`, value: runLabel, tone: runTone, link: "Open the run", href: "/staff-access/payroll/run" },
+    { label: "Statutory deductions", value: nairaShort(totals.deductions), },
+    { label: "Payments needing a decision", value: String(needing.length), tone: needing.length ? "attention" : "positive", ...(needing.length ? { link: "See them", href: "/staff-access/payroll/run" } : {}) },
   ];
 
-  const bandRows: TableRow[] = bands.map((band) => ({
-    id: band.id,
-    cells: [
-      text(`${band.code} · ${band.name}`, { strong: true }),
-      text(band.covers),
-      text(String(band.steps)),
-      text(`${naira(band.low)} – ${naira(band.high)}`, { mono: true }),
-      text(String(band.staff)),
-      text(band.allowances.length ? band.allowances.join(", ") : "None"),
-      text(band.nextReview ? dayLong(band.nextReview) : "No review date", { tone: band.nextReview ? undefined : "attention" }),
-      { kind: "action", label: "Open", href: `/staff-access/payroll/bands/${band.id}` },
-    ],
-    href: `/staff-access/payroll/bands/${band.id}`,
-    keywords: `group:${band.coversGroup}|${band.isOpen ? "open" : "closed"}`,
-  }));
-  const groups = Array.from(new Set(bands.map((band) => band.coversGroup)));
   const bandLabels = bands.map((band) => `${band.code} · ${band.name}`);
 
   const payRows: TableRow[] = rows.map((row) => {
@@ -149,11 +134,13 @@ export function payrollTab(data: PayrollOverview): TabContent {
     title: "Payroll",
     desc: "One pay structure, and every person mapped into it.",
     primary: { label: `Open the ${month.monthName} run`, icon: "M5 12h13M13 6.5l5.5 5.5L13 17.5", href: "/staff-access/payroll/run" },
+    // The structure is reference — set once, read when somebody is mapped. It is a page of its
+    // own, so the run and the people on it open first.
     launchers: [
-      { label: "Create a band", drawer: bandDrawer() },
+      { label: "Pay bands", href: BANDS_HREF },
       { label: "Map staff to a band", drawer: map },
       { label: "Record an off-cycle payment", drawer: offCycle },
-      { label: "Export the payroll register", href: REGISTER_HREF },
+      { label: "Export the payroll register", href: REGISTER_HREF, download: true },
     ],
     rows: [
       { cols: "1fr", panels: [{ type: "kpi", title: "This month’s payroll", sub: hidden ? "Amounts are held to the people the payroll setup names" : "Computed from bands and steps — never typed", per: 5, cards }] },
@@ -181,29 +168,6 @@ export function payrollTab(data: PayrollOverview): TabContent {
         panels: [
           {
             type: "table",
-            title: "Bands",
-            tag: plural(bands.length, "band"),
-            sub: "Open a band to set its steps, its allowances and who sits on each.",
-            meta: `Currency and statutory rules follow the payroll setup · ${setup.currency}`,
-            noun: "band",
-            nounPlural: "bands",
-            search: "Find a band",
-            filters: [{ label: "Covers", value: "All", options: ["All", ...groups], match: Object.fromEntries(groups.map((group) => [group, `group:${group}|`])) }],
-            acts: [{ label: "Create a band", primary: true, drawer: bandDrawer() }],
-            head: ["Band", "Who it covers", "Steps", "Monthly range", "Staff", "Allowances", "Next review", ""],
-            rows: bandRows,
-            emptyTitle: "No pay band exists yet",
-            emptyBody: "Create the first band: who it covers, what each rung pays and what it adds. Nobody can be paid until they are on one.",
-            empty: "No band matches.",
-            foot: "A step is a position on a ladder, not a negotiation. Moving somebody up a step is one decision, recorded once, and it reaches their pay on the next run.",
-          },
-        ],
-      },
-      {
-        cols: "1fr",
-        panels: [
-          {
-            type: "table",
             title: "Staff on the payroll",
             tag: `${totals.people} of ${totals.of}`,
             tagTone: totals.unmapped ? "attention" : "positive",
@@ -217,10 +181,9 @@ export function payrollTab(data: PayrollOverview): TabContent {
               { label: "Payment", value: "All", options: ["All", "Paid", "Awaiting approval", "Approved", "Held", "Draft", "Not mapped"], match: Object.fromEntries(["Paid", "Awaiting approval", "Approved", "Held", "Draft", "Not mapped"].map((label) => [label, `pay:${label}|`])) },
               { label: "Method", value: "All", options: ["All", "Bank transfer", "Cash · collected at the bursary", "Mobile money"], match: Object.fromEntries(["Bank transfer", "Cash · collected at the bursary", "Mobile money"].map((label) => [label, `method:${label}|`])) },
             ],
-            acts: [
-              { label: "Export the register", href: REGISTER_HREF },
-              { label: `Open the run`, primary: true, href: "/staff-access/payroll/run" },
-            ],
+            // The head and the sequence below already offer the run, and the register is on the
+            // strip the head spills onto — this panel repeats neither.
+            acts: [],
             selectable: true,
             bulkActs: [
               { label: "Mark these paid", drawer: bulkStatusDrawer("Paid", "Mark these paid"), selection: { key: "staff", noun: "payment" } },
@@ -233,7 +196,6 @@ export function payrollTab(data: PayrollOverview): TabContent {
             rows: payRows,
             per: 10,
             empty: "Nobody matches this filter.",
-            foot: "Deductions are never entered by hand. They come from the statutory rates in the payroll setup, so the same structure is right wherever the school is.",
           },
         ],
       },
@@ -260,7 +222,7 @@ export function payrollTab(data: PayrollOverview): TabContent {
         panels: [
           {
             type: "facts",
-            title: "How this school pays",
+            title: "How this school pays", tuck: "How this school pays", tuckIcon: "M12 6.5C10.5 5 8 4.5 4 4.5v13c4 0 6.5.5 8 2 1.5-1.5 4-2 8-2v-13c-4 0-6.5.5-8 2zM12 6.5v13", tuckKicker: "How this works",
             sub: "Set once, and every run follows it.",
             per: 2,
             acts: [{ label: "Edit the payroll setup", primary: true, drawer: payrollSetupDrawer(setup) }],
@@ -327,11 +289,11 @@ export function bandPage(detail: BandDetail) {
   const cardTone = (ok: boolean): PanelTone => (ok ? "positive" : "attention");
   const model = modelIncreaseDrawer(detail, monthly);
   const cards: KpiCard[] = [
-    { label: "Cost of this band", value: nairaShort(mask ? null : monthly), sub: `A month · ${plural(people.length, "person", "people")}, everything in` },
-    { label: "A year", value: nairaShort(mask ? null : monthly * 12), sub: "At today’s headcount and today’s rungs" },
-    { label: "Range", value: naira(steps[0]?.gross), unit: `→ ${naira(steps[steps.length - 1]?.gross)}`, sub: `${steps.length} rungs · monthly gross` },
-    { label: "Allowances", value: nairaShort(mask ? null : allowTotal), tone: "progress", sub: `A month across the band · ${band.allowances.filter((item) => !/not pay/.test(item.treat)).length} in pay` },
-    { label: "Next review", value: band.nextReview ? dayLabel(band.nextReview) : "None set", tone: cardTone(Boolean(band.nextReview)), sub: "Set on the band structure", link: "Edit the band", drawer: bandDrawer(band) },
+    { label: "Cost of this band", value: nairaShort(mask ? null : monthly), },
+    { label: "A year", value: nairaShort(mask ? null : monthly * 12), },
+    { label: "Range", value: naira(steps[0]?.gross), unit: `→ ${naira(steps[steps.length - 1]?.gross)}`, },
+    { label: "Allowances", value: nairaShort(mask ? null : allowTotal), tone: "progress", },
+    { label: "Next review", value: band.nextReview ? dayLabel(band.nextReview) : "None set", tone: cardTone(Boolean(band.nextReview)), link: "Edit the band", drawer: bandDrawer(band) },
   ];
 
   const ladderRows = steps.map((step, index) => {
@@ -468,7 +430,7 @@ export function bandPage(detail: BandDetail) {
               cells: [{ value: "", placeholder: "Allowance name" }, { value: "Everyone on the band", static: true }, { value: "Flat monthly", static: true }, { value: "", num: true, placeholder: "Rate" }, { value: "", static: true }, { value: String(people.length), static: true, num: true }, { value: "", static: true }, { value: "Taxable", static: true }] as GridCell[],
               add: { endpoint: `${API}/payroll/bands/${band.id}/allowances`, method: "POST" as const, keys: ["name", "_w", "_b", "rate"] },
             },
-            foot: "A flat rate is naira a month; a percentage is measured against the rung the person is on. Open the band structure to change who draws it, on what basis, and how it is taxed.",
+            foot: "A flat rate is naira a month; a percentage is measured against the rung the person is on.",
           },
         ],
       },
@@ -488,7 +450,6 @@ export function bandPage(detail: BandDetail) {
             emptyTitle: "Nobody is on this band",
             emptyBody: "Map staff to it and they are paid the rung they are on.",
             acts: [{ label: "Map staff to this band", drawer: mapStaffDrawer([], [{ id: band.id, code: band.code, name: band.name, covers: band.covers, coversGroup: band.coversGroup, steps: steps.length, low: null, high: null, staff: people.length, allowances: [], nextReview: band.nextReview, isOpen: band.isOpen }], { band: `${band.code} · ${band.name}`, title: `Map staff to ${band.code}` }) }],
-            foot: "Nobody on this band is paid a figure anybody typed for them personally — they are paid the rung they are on.",
           },
           {
             type: "facts" as const,
@@ -537,17 +498,17 @@ export function runPage(data: PayrollOverview) {
   }));
   const bandCodes = Array.from(new Set(mapped.map((row) => row.band).filter((code): code is string => Boolean(code))));
   const primary = approved
-    ? { label: "Open the payroll register", href: REGISTER_HREF }
+    ? { label: "Open the payroll register", href: REGISTER_HREF, download: true }
     : stage === "approval"
       ? { label: "Approve the run", drawer: approveRunDrawer({ people: totals.people, net, month: month.monthName, preparedBy: run?.preparedBy ?? null, variations: data.variations.length }) }
       : { label: "Send for approval", icon: "M5 12h13M13 6.5l5.5 5.5L13 17.5", drawer: sendRunDrawer({ people: totals.people, net, month: month.monthName, variations: data.variations.length }) };
 
   const cards: KpiCard[] = [
-    { label: "Net to pay", value: nairaShort(totals.net), sub: `What leaves the account on the ${data.setup.payDate}` },
-    { label: "Gross", value: nairaShort(totals.gross), sub: "From bands and steps only" },
-    { label: "Allowances", value: nairaShort(totals.allowances), sub: "Attached to bands, not to people" },
-    { label: "Statutory", value: nairaShort(totals.deductions), tone: "progress", sub: "PAYE, pension and NHF" },
-    { label: "Variations", value: String(data.variations.length), tone: data.variations.length ? "attention" : "neutral", sub: data.variations.length ? "Each one named below" : "Nothing changed since the last run" },
+    { label: "Net to pay", value: nairaShort(totals.net), },
+    { label: "Gross", value: nairaShort(totals.gross), },
+    { label: "Allowances", value: nairaShort(totals.allowances), },
+    { label: "Statutory", value: nairaShort(totals.deductions), tone: "progress", },
+    { label: "Variations", value: String(data.variations.length), tone: data.variations.length ? "attention" : "neutral", },
   ];
   return {
     title: `${month.label} run`,
@@ -556,7 +517,7 @@ export function runPage(data: PayrollOverview) {
     primary,
     launchers: [
       { label: "Hold a payment", drawer: holdDrawer(rows) },
-      { label: "Export the run", href: REGISTER_HREF },
+      { label: "Export the run", href: REGISTER_HREF, download: true },
       { label: "Print the payslips", href: "/print/payslips" },
     ],
     tag: label,
@@ -612,7 +573,6 @@ export function runPage(data: PayrollOverview) {
             rows: payTable,
             per: 10,
             empty: "Nobody is on this run yet — map staff to a band.",
-            foot: "A held payment is visible, counted and waiting — never quietly dropped from the total.",
           },
         ],
       },
@@ -648,11 +608,11 @@ export function paymentsSection(person: PayPerson, record: StaffRecord, head: Om
   const mask = person.mask;
   const map = mapStaffDrawer(overview.rows, overview.bands, { people: [row] });
   const cards: KpiCard[] = [
-    { label: "Band and step", value: mapped ? `${row.band} · ${row.step}` : "Not mapped", tone: mapped ? "neutral" : "attention", sub: mapped ? `${row.bandName}${row.stepName ? ` · ${row.stepName}` : ""}` : "Cannot be paid yet", ...(mapped ? {} : { link: "Map them", drawer: map }) },
-    { label: "Gross", value: mask ? "Held back" : naira(row.gross), sub: "From the step, not typed" },
-    { label: "Allowances", value: mask ? "Held back" : naira(row.allowances), sub: "From the band" },
-    { label: "Net this month", value: mask ? "Held back" : naira(row.net), tone: "progress", sub: `${row.state} · ${row.method}` },
-    { label: "Payments on record", value: String(person.payments.length), sub: person.offCycle.length ? `${person.offCycle.length} off-cycle` : "None off-cycle" },
+    { label: "Band and step", value: mapped ? `${row.band} · ${row.step}` : "Not mapped", tone: mapped ? "neutral" : "attention", ...(mapped ? {} : { link: "Map them", drawer: map }) },
+    { label: "Gross", value: mask ? "Held back" : naira(row.gross), },
+    { label: "Allowances", value: mask ? "Held back" : naira(row.allowances), },
+    { label: "Net this month", value: mask ? "Held back" : naira(row.net), tone: "progress", },
+    { label: "Payments on record", value: String(person.payments.length), },
   ];
   const payRows: TableRow[] = person.payments.map((item) => ({
     id: item.id,
@@ -703,7 +663,7 @@ export function paymentsSection(person: PayPerson, record: StaffRecord, head: Om
         panels: [
           {
             type: "facts",
-            title: "How they are paid",
+            title: "How they are paid", tuck: "How they are paid", tuckIcon: "M12 6.5C10.5 5 8 4.5 4 4.5v13c4 0 6.5.5 8 2 1.5-1.5 4-2 8-2v-13c-4 0-6.5.5-8 2zM12 6.5v13", tuckKicker: "How this works",
             per: 1,
             facts: [
               ["Method", row.method, "Set when they were mapped"],
@@ -719,6 +679,62 @@ export function paymentsSection(person: PayPerson, record: StaffRecord, head: Om
             sub: "Outside the monthly run, each with its reason.",
             items: person.offCycle.map((item) => ({ label: item.kind, sub: `${mask ? "Held back" : naira(item.amount)} · ${dayLabel(item.payOn)} · ${item.reason}`, pill: item.status === "AWAITING_APPROVAL" ? "Awaiting approval" : item.status, tone: "progress" as PanelTone })),
             foot: person.offCycle.length ? undefined : "None recorded.",
+          },
+        ],
+      },
+    ],
+  };
+}
+
+/* ─────────────────── the pay structure — a page of its own ───────────────────
+ *
+ * A band is set once and read when somebody is mapped onto it. Full width below the run it was a
+ * second long table between the month and the people being paid in it.
+ */
+
+export function bandsPage(data: PayrollOverview): TabContent {
+  const { bands, rows, setup } = data;
+  const groups = Array.from(new Set(bands.map((band) => band.coversGroup)));
+  const bandRows: TableRow[] = bands.map((band) => ({
+    id: band.id,
+    cells: [
+      text(`${band.code} · ${band.name}`, { strong: true }),
+      text(band.covers),
+      text(String(band.steps)),
+      text(`${naira(band.low)} – ${naira(band.high)}`, { mono: true }),
+      text(String(band.staff)),
+      text(band.allowances.length ? band.allowances.join(", ") : "None"),
+      text(band.nextReview ? dayLong(band.nextReview) : "No review date", { tone: band.nextReview ? undefined : "attention" }),
+      { kind: "action", label: "Open", href: `/staff-access/payroll/bands/${band.id}` },
+    ],
+    href: `/staff-access/payroll/bands/${band.id}`,
+    keywords: `group:${band.coversGroup}|${band.isOpen ? "open" : "closed"}`,
+  }));
+
+  return {
+    title: "Pay bands",
+    desc: "What the school pays, rung by rung, and who sits on each.",
+    primary: { label: "Create a band", drawer: bandDrawer() },
+    launchers: [{ label: "Map staff to a band", drawer: mapStaffDrawer(rows, bands) }],
+    rows: [
+      {
+        cols: "1fr",
+        panels: [
+          {
+            type: "table",
+            title: "Bands",
+            tag: plural(bands.length, "band"),
+            sub: "Open a band to set its steps, its allowances and who sits on each.",
+            meta: `Currency and statutory rules follow the payroll setup · ${setup.currency}`,
+            noun: "band",
+            nounPlural: "bands",
+            search: "Find a band",
+            filters: [{ label: "Covers", value: "All", options: ["All", ...groups], match: Object.fromEntries(groups.map((group) => [group, `group:${group}|`])) }],
+            head: ["Band", "Who it covers", "Steps", "Monthly range", "Staff", "Allowances", "Next review", ""],
+            rows: bandRows,
+            emptyTitle: "No pay band exists yet",
+            emptyBody: "Create the first band: who it covers, what each rung pays and what it adds. Nobody can be paid until they are on one.",
+            empty: "No band matches.",
           },
         ],
       },

@@ -2,7 +2,8 @@
 
 import type { Route } from "next";
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { ChevronDown, Filter, Search, Trash2, X } from "lucide-react";
 
 export type FilterOption = {
@@ -53,9 +54,30 @@ export function FilterToolbar({
 }: FilterToolbarProps) {
   const formRef = useRef<HTMLFormElement>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const router = useRouter();
+  const [filtering, startFiltering] = useTransition();
 
+  /**
+   * Narrowing a list is not leaving the page.
+   *
+   * The form still carries an `action`, so it works with no JavaScript at all, but a plain GET
+   * submit is a document navigation: the browser throws the page away and builds it again, which
+   * loses the caret in the search box, the scroll position and anything open above the table. Here
+   * the query is read off the form and handed to the router instead, which re-renders the server
+   * component in place. `replace` keeps a filter out of the history — Back should leave the list,
+   * not step through every chip that was pressed — and the page number is deliberately not carried
+   * over, because page 7 of the old filter is not page 7 of the new one.
+   */
   function submitNow() {
-    formRef.current?.requestSubmit();
+    const form = formRef.current;
+    if (!form) return;
+    const entered = new URLSearchParams();
+    for (const [name, value] of new FormData(form).entries()) {
+      const text = typeof value === "string" ? value.trim() : "";
+      if (text) entered.set(name, text);
+    }
+    const query = entered.toString();
+    startFiltering(() => router.replace((query ? `${action}?${query}` : action) as Route, { scroll: false }));
   }
 
   function submitDebounced() {
@@ -63,11 +85,18 @@ export function FilterToolbar({
     debounceRef.current = setTimeout(submitNow, 450);
   }
 
+  // A pending filter has no browser spinner to speak for it now that the page is not being
+  // rebuilt, so the bar says so itself.
+  function onSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    submitNow();
+  }
+
   const searchControl = controls.find((control) => control.type === "search");
   const otherControls = controls.filter((control) => control !== searchControl);
 
   return (
-    <form ref={formRef} action={action} className="flex flex-wrap items-center gap-[7px] border-b border-[#EDF3EF] bg-[#FCFDFC] px-[18px] py-[12.5px]">
+    <form ref={formRef} action={action} onSubmit={onSubmit} aria-busy={filtering} className="flex flex-wrap items-center gap-[7px] border-b border-[#EDF3EF] bg-[#FCFDFC] px-[18px] py-[12.5px]">
       {Object.entries(hidden ?? {}).map(([name, value]) => <input key={name} type="hidden" name={name} value={value} />)}
       {searchControl ? (
         <div className="flex w-full items-center gap-2 rounded-[10px] border border-[#DEE8E2] bg-white px-[11px] py-2 sm:w-auto sm:min-w-[236px]">
@@ -118,8 +147,8 @@ export function FilterToolbar({
       <div className="ml-auto flex flex-wrap items-center gap-2">
         <SavedViews action={action} />
         {typeof resultCount === "number" ? (
-          <span className="text-[10.5px] text-[#5f6e65]">
-            {resultCount.toLocaleString()} shown
+          <span aria-live="polite" className="text-[10.5px] text-[#5f6e65]">
+            {filtering ? "Filtering…" : `${resultCount.toLocaleString()} shown`}
           </span>
         ) : null}
         <Link

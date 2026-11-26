@@ -74,9 +74,9 @@ export function familyFormsTab(data: FormsOverview): TabContent {
   const open = data.forms.filter((form) => form.status === "OPEN");
   const waiting = open.reduce((sum, form) => sum + Math.max(0, form.families - form.yesCount - form.noCount), 0);
   const cards: KpiCard[] = [
-    { label: "Open forms", value: String(open.length), sub: open.length ? "Families are being asked" : "Nothing is out", tone: open.length ? "progress" : "neutral" },
-    { label: "Answers waiting", value: String(waiting), sub: waiting ? "Families who have not replied" : "Everyone has replied", tone: waiting ? "attention" : "positive" },
-    { label: "Sent in all", value: String(data.forms.length), sub: `${data.forms.length - open.length} closed`, tone: "neutral" },
+    { label: "Open forms", value: String(open.length), tone: open.length ? "progress" : "neutral" },
+    { label: "Answers waiting", value: String(waiting), tone: waiting ? "attention" : "positive" },
+    { label: "Sent in all", value: String(data.forms.length), tone: "neutral" },
   ];
   const rows: TableRow[] = data.forms.map((form) => {
     const answered = form.yesCount + form.noCount;

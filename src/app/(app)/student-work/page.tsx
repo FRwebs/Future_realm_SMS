@@ -66,9 +66,9 @@ export default async function StudentWorkPage() {
       primary={data.options.length ? { label: "Set homework", drawer: setDrawer } : undefined}
       rows={[
         row("1fr", [{ type: "kpi", per: 3, cards: [
-          { label: "To mark", value: String(data.waiting.length), sub: data.waiting.length ? "Oldest first" : "Nothing waiting", tone: data.waiting.length ? "attention" : "positive", icon: "inbox" },
-          { label: "Homework set", value: String(data.set.length), sub: "Newest due date first", icon: "doc" },
-          { label: "Handed in", value: String(data.set.reduce((sum, item) => sum + item.handed, 0)), sub: `${data.set.reduce((sum, item) => sum + item.marked, 0)} marked`, icon: "check" },
+          { label: "To mark", value: String(data.waiting.length), tone: data.waiting.length ? "attention" : "positive", icon: "inbox" },
+          { label: "Homework set", value: String(data.set.length), icon: "doc" },
+          { label: "Handed in", value: String(data.set.reduce((sum, item) => sum + item.handed, 0)), icon: "check" },
         ] }]),
         row("1fr", [{ type: "table", title: "Waiting to be marked", sub: "Oldest first.", noun: "piece of work", nounPlural: "pieces of work", head: ["Student", "Homework", "Subject", "Handed in", "", ""], rows: waiting, per: 12, dense: true, empty: "Nothing is waiting to be marked." }]),
         row("1fr", [{ type: "table", title: "Homework you have set", sub: "How many have handed in, and how many you have marked.", noun: "homework", nounPlural: "homework", head: ["Homework", "Due", "Out of", "Handed in", "Marked"], rows: set, per: 12, dense: true, noRowOpen: true, empty: data.options.length ? "You have not set any yet." : "You are not named on an arm and subject yet, so there is nobody to set homework for." }]),

@@ -59,11 +59,11 @@ export function reviewTab(o: ReviewOverview): TabContent {
     panels: [{
       type: "kpi", title: `${o.term.name} ${o.term.session}`, sub: o.windows.length ? `Entry ${o.closedDays !== null ? `closed ${plural(o.closedDays, "day")} ago` : `closes ${when(o.closes)}`}. ${k.expected} subject-arm sheets are expected.` : `${k.expected} subject-arm sheets are expected. No entry window is set, so none is overdue by the calendar.`, per: 5,
       cards: [
-        { label: "Sheets in", value: String(k.in), unit: `of ${k.expected}`, sub: `${k.outstanding} outstanding`, tone: k.outstanding ? "attention" : "positive" },
-        { label: "Approved", value: String(k.approved), sub: "Cleared for report cards", tone: "positive" },
-        { label: "Ready to approve", value: String(k.ready), sub: "Submitted, no open flags", tone: "submitted", link: k.ready ? "Approve them" : undefined, drawer: k.ready ? ready : undefined },
-        { label: "Returned to a teacher", value: String(k.returned), sub: k.returned ? `Oldest sitting ${plural(k.oldestReturned, "day")}` : "Nothing is waiting on a teacher", tone: k.returned ? "negative" : "positive", link: k.returned ? `Notify all ${k.returned}` : undefined, drawer: k.returned ? notifyReturned : undefined },
-        { label: "Impossible to enter", value: String(k.impossible), sub: k.impossible ? `${k.impossibleNames.join(", ")}${k.impossible > 3 ? "…" : ""} have no teacher` : "Every subject has a teacher", tone: k.impossible ? "negative" : "positive", link: k.impossible ? "Assign" : undefined, href: k.impossible ? "/class-timetable/teaching" : undefined },
+        { label: "Sheets in", value: String(k.in), unit: `of ${k.expected}`, tone: k.outstanding ? "attention" : "positive" },
+        { label: "Approved", value: String(k.approved), tone: "positive" },
+        { label: "Ready to approve", value: String(k.ready), tone: "submitted", link: k.ready ? "Approve them" : undefined, drawer: k.ready ? ready : undefined },
+        { label: "Returned to a teacher", value: String(k.returned), tone: k.returned ? "negative" : "positive", link: k.returned ? `Notify all ${k.returned}` : undefined, drawer: k.returned ? notifyReturned : undefined },
+        { label: "Impossible to enter", value: String(k.impossible), tone: k.impossible ? "negative" : "positive", link: k.impossible ? "Assign" : undefined, href: k.impossible ? "/class-timetable/teaching" : undefined },
       ],
     }],
   });
@@ -78,8 +78,7 @@ export function reviewTab(o: ReviewOverview): TabContent {
         { label: "Approve everything ready", drawer: approveArmsDrawer(), selection: { key: "arms", noun: "arm" } },
         { label: "Export selected", primary: true, export: true },
       ],
-      rows: armRows, empty: "No arm has sheets yet.", foot: "Blocked means a sheet cannot exist yet — nobody teaches that subject in that arm.",
-    }],
+      rows: armRows, empty: "No arm has sheets yet.",     }],
   });
   if (k.returned) {
     rows.push({ cols: "1fr", panels: [{ type: "note", tone: "attention", icon: WARN, title: `${plural(k.returned, "sheet")} ${k.returned === 1 ? "is" : "are"} returned and waiting on a teacher`, body: "A returned sheet is doubly blocking: the teacher often has not noticed, and a whole class's report cards are waiting on it.", acts: [{ label: `Notify all ${k.returned}`, drawer: notifyReturned }] }] });
@@ -95,7 +94,6 @@ export function reviewTab(o: ReviewOverview): TabContent {
         type: "table", title: "Verification", meta: `${o.verification.reduce((total, row) => total + row.count, 0)} findings across sheets awaiting a decision`,
         head: ["Check", "What was found", "Count"], noun: "check", nounPlural: "checks", noRowOpen: true,
         rows: o.verification.map((row) => ({ cells: [nameCell(row.title, row.what, { avatar: false }), text(row.count ? row.found : "Nothing found", { tone: row.count ? undefined : "positive" }), text(String(row.count), { mono: true, strong: row.count > 0 })] })),
-        foot: "Anomalies, copied rows and columns of zeros need an outcome recorded on the sheet before it can be approved.",
       },
       o.mine.length
         ? { type: "note", tone: "withheld", icon: LOCK, title: `You entered ${o.mine[0].name}${o.mine.length > 1 ? ` and ${o.mine.length - 1} more` : ""}, so you cannot approve ${o.mine.length > 1 ? "them" : "it"}`, body: "Segregation of duties is enforced at the moment of approval, not flagged afterwards. Someone else with the right to approve must decide it." }
@@ -110,7 +108,6 @@ export function reviewTab(o: ReviewOverview): TabContent {
 export function armReviewPage(a: ArmReview): { content: TabContent & Crumb } {
   const k = a.kpis;
   const readyDrawer = approveReadyDrawer(a.ready.map((sheet) => ({ classId: a.arm.id, subjectId: sheet.subjectId, name: `${sheet.name} · ${a.arm.name}`, roll: sheet.roll })), `in ${a.arm.name}`, [a.arm.id]);
-  const stateCount = (state: string) => a.subjects.filter((subject) => subject.state === state).length;
   return {
     content: {
       crumb: { label: "Back to all arms", href: "/score-entry-results/review" },
@@ -124,11 +121,11 @@ export function armReviewPage(a: ArmReview): { content: TabContent & Crumb } {
           panels: [{
             type: "kpi", title: "Where this arm stands", sub: `${a.term.name} ${a.term.session}`, per: 5,
             cards: [
-              { label: "Sheets approved", value: String(k.approved), unit: `of ${k.sheets}`, sub: "Cleared for report cards", tone: k.approved === k.sheets ? "positive" : "attention" },
-              { label: "Awaiting your decision", value: String(k.awaiting), sub: "Submitted", tone: k.awaiting ? "submitted" : "neutral" },
-              { label: "Returned to a teacher", value: String(k.returned), sub: k.returned ? "Waiting on the teacher" : "Nothing returned", tone: k.returned ? "negative" : "positive" },
-              { label: "Open flags", value: String(k.flags), sub: "Each needs an outcome recorded", tone: k.flags ? "attention" : "positive" },
-              { label: "Cards blocked", value: String(k.blocked), sub: "Until every sheet is approved", tone: k.blocked ? "negative" : "positive", link: k.blocked ? "See the blockers" : undefined, href: k.blocked ? "/report-cards/completion" : undefined },
+              { label: "Sheets approved", value: String(k.approved), unit: `of ${k.sheets}`, tone: k.approved === k.sheets ? "positive" : "attention" },
+              { label: "Awaiting your decision", value: String(k.awaiting), tone: k.awaiting ? "submitted" : "neutral" },
+              { label: "Returned to a teacher", value: String(k.returned), tone: k.returned ? "negative" : "positive" },
+              { label: "Open flags", value: String(k.flags), tone: k.flags ? "attention" : "positive" },
+              { label: "Cards blocked", value: String(k.blocked), tone: k.blocked ? "negative" : "positive", link: k.blocked ? "See the blockers" : undefined, href: k.blocked ? "/report-cards/completion" : undefined },
             ],
           }],
         },
@@ -142,7 +139,6 @@ export function armReviewPage(a: ArmReview): { content: TabContent & Crumb } {
               keywords: `${subject.name} ${subject.teacher ?? ""} flag:${subject.flags ? "Flagged" : "Clean"}`,
               cells: [text(subject.name, { strong: true }), subject.teacher ? nameCell(subject.teacher, subject.mine ? "You entered it" : "Subject teacher") : text("Unassigned", { tone: "negative", strong: true }), text(subject.entered, { mono: true }), pill(subject.state, stateTone(subject.state)), text(num(subject.mean), { mono: true }), subject.flags ? text(String(subject.flags), { tone: "negative", strong: true }) : text("—"), { kind: "action" as const, label: subject.state === "Submitted" ? "Review the sheet" : "Open the sheet", href: sheetHref(a.arm.id, subject.subjectId) }],
             })),
-            foot: `${stateCount("Approved")} approved · ${stateCount("Submitted")} submitted · ${stateCount("Returned")} returned. Opening a sheet shows every child with every component, and the decision you can make about it.`,
           }],
         },
         {
@@ -155,7 +151,6 @@ export function armReviewPage(a: ArmReview): { content: TabContent & Crumb } {
               keywords: `${student.name} ${student.adm} result:${student.ready ? "Ready" : "Blocked"}`,
               cells: [nameCell(student.name, student.absences ? `${plural(student.absences, "absence")} · excluded, never zero` : a.arm.name), text(student.adm, { mono: true }), text(`${student.scored} of ${student.expected}`, { mono: true }), text(num(student.average), { mono: true, strong: true }), text(student.pos === null ? "—" : String(student.pos), { mono: true }), student.grade ? pill(student.grade, gradeTone(student.grade)) : text("—"), student.ready ? text("Every sheet in · card can generate", { tone: "positive" }) : text(student.blockedBy.length ? `Blocked — ${student.blockedBy[0]}` : "Blocked", { tone: "attention" }), { kind: "action" as const, label: "Open", href: reviewStudentHref(a.arm.id, student.id) }],
             })),
-            foot: "An average is computed over the subjects a child actually sat. An absence is excluded, never scored zero.",
           }],
         },
       ],
@@ -191,12 +186,12 @@ export function sheetPage(s: SheetPage, school: string): { content: TabContent &
     panels: [{
       type: "kpi", title: "This sheet", per: 6,
       cards: [
-        { label: "Entered", value: `${st.scored} of ${st.roll}`, sub: st.scored === st.roll ? "Complete" : "A fraction, never a percentage", tone: st.scored === st.roll ? "positive" : "attention" },
-        { label: "Subject average", value: num(st.mean), unit: `/ ${maxTotal}`, sub: st.armMean === null ? "" : `Arm average ${st.armMean}`, tone: st.mean !== null && st.armMean !== null && st.mean >= st.armMean ? "positive" : "attention" },
-        { label: "Highest", value: st.high ? String(st.high.total) : "—", sub: st.high?.name ?? "", tone: "positive" },
-        { label: "Lowest", value: st.low ? String(st.low.total) : "—", sub: st.low?.name ?? "", tone: st.low && st.low.total < s.subject.passMark ? "negative" : "attention" },
-        { label: "At credit or above", value: String(st.passed), unit: `of ${st.scored}`, sub: "50 and above", tone: "positive" },
-        { label: "Below the pass mark", value: String(st.failed), sub: `Under ${s.subject.passMark}`, tone: st.failed ? "negative" : "positive" },
+        { label: "Entered", value: `${st.scored} of ${st.roll}`, tone: st.scored === st.roll ? "positive" : "attention" },
+        { label: "Subject average", value: num(st.mean), unit: `/ ${maxTotal}`, tone: st.mean !== null && st.armMean !== null && st.mean >= st.armMean ? "positive" : "attention" },
+        { label: "Highest", value: st.high ? String(st.high.total) : "—", tone: "positive" },
+        { label: "Lowest", value: st.low ? String(st.low.total) : "—", tone: st.low && st.low.total < s.subject.passMark ? "negative" : "attention" },
+        { label: "At credit or above", value: String(st.passed), unit: `of ${st.scored}`, tone: "positive" },
+        { label: "Below the pass mark", value: String(st.failed), tone: st.failed ? "negative" : "positive" },
       ],
     }],
   });
@@ -221,7 +216,6 @@ export function sheetPage(s: SheetPage, school: string): { content: TabContent &
           text(num(row.total), { mono: true, strong: true }), row.grade ? pill(row.grade, gradeTone(row.grade)) : text("—"), text(row.rating, { tone: row.total === null ? "negative" : row.total >= 65 ? "positive" : row.total >= s.subject.passMark ? "attention" : "negative" }), text(row.standing), { kind: "action" as const, label: "Open", href: reviewStudentHref(s.arm.id, row.id) },
         ],
       })),
-      foot: "Position is within this subject, in this arm. A dash is a component nobody has entered — it is never a zero.",
     }],
   });
   if (s.flags.length) {

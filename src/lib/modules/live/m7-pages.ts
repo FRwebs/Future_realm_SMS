@@ -200,10 +200,10 @@ export async function staffRecordPage(id: string, section: RecordSection): Promi
     const duties = record.assignments.filter((item) => item.source === "duty").length;
     const over = record.periods > record.ceiling;
     const cards: KpiCard[] = [
-      { label: "Periods a week", value: String(record.periods), unit: `of ${record.ceiling}`, tone: over ? "negative" : "positive", sub: over ? `${record.periods - record.ceiling} over the school ceiling` : "Within the school ceiling" },
-      { label: "Subject-arms", value: String(subjects), sub: subjects ? record.subjects.slice(0, 3).join(", ") : "Teaches nothing" },
-      { label: "Form class", value: String(forms), sub: forms ? record.arms.slice(0, 2).join(", ") : "Not a form master" },
-      { label: "Duties and functions", value: String(duties), sub: duties ? "Held beyond the classroom" : "None recorded" },
+      { label: "Periods a week", value: String(record.periods), unit: `of ${record.ceiling}`, tone: over ? "negative" : "positive", },
+      { label: "Subject-arms", value: String(subjects), },
+      { label: "Form class", value: String(forms), },
+      { label: "Duties and functions", value: String(duties), },
     ];
     const rows: TableRow[] = record.assignments.map((item) => {
       const drawer = assignmentDrawer(record, { subjects: [], arms: [] }, item);
@@ -262,7 +262,6 @@ export async function staffRecordPage(id: string, section: RecordSection): Promi
                 empty: "Nothing is assigned yet.",
                 emptyTitle: "Nothing assigned",
                 emptyBody: `${first} holds no subject, form class or duty yet. Assign one and it routes to them from today.`,
-                foot: "Open one to read it, or to remove it.",
               },
               {
                 type: "facts",
@@ -297,12 +296,12 @@ export async function staffRecordPage(id: string, section: RecordSection): Promi
   const absent = access.modules.filter((module) => module.level === 0);
   const tabsOn = open.reduce((sum, module) => sum + module.tabs.filter((tab) => tab.a.View).length, 0);
   const cards: KpiCard[] = [
-    { label: "Modules", value: String(open.length), unit: "of 16", sub: absent.length ? `${absent.length} absent from their navigation` : "Everything is open" },
-    { label: "Tabs", value: String(tabsOn), sub: "They can open" },
-    { label: "Data scope", value: access.scope, sub: access.scopeEnds ? `Ends ${dayLong(access.scopeEnds)}` : "Until changed" },
-    { label: "Fee amounts", value: access.fees, sub: "What they can see of what families owe" },
-    { label: "Can approve", value: access.approve === "Nothing" ? "Nothing" : "Yes", sub: access.approve === "Nothing" ? "Cannot decide anything" : access.approve },
-    { label: "Sensitive groups", value: String(access.sensitive.length), tone: access.sensitive.length ? "sensitive" : "neutral", sub: access.sensitive.length ? access.sensitive.join(", ") : "None held" },
+    { label: "Modules", value: String(open.length), unit: "of 16", },
+    { label: "Tabs", value: String(tabsOn), },
+    { label: "Data scope", value: access.scope, },
+    { label: "Fee amounts", value: access.fees, },
+    { label: "Can approve", value: access.approve === "Nothing" ? "Nothing" : "Yes", },
+    { label: "Sensitive groups", value: String(access.sensitive.length), tone: access.sensitive.length ? "sensitive" : "neutral", },
   ];
   const cannot: ListItem[] = absent.slice(0, 8).map((module) => ({ label: module.name, sub: "Absent from their navigation — not greyed out", pill: "Cannot open", tone: "neutral" as PanelTone }));
   const signIn: PanelFact[] = [
@@ -422,12 +421,12 @@ export async function personPage(userId: string): Promise<PersonPage | null> {
   const tabsOn = open.reduce((sum, module) => sum + module.tabs.filter((tab) => tab.a.View).length, 0);
   const mapDrawer = permMapDrawer({ kind: "person", person });
   const cards: KpiCard[] = [
-    { label: "Modules", value: String(open.length), unit: "of 16", sub: `${16 - open.length} absent from their navigation` },
-    { label: "Tabs", value: String(tabsOn), sub: "They can open" },
-    { label: "Data scope", value: person.scope, sub: person.scopeEnds ? `Ends ${dayLong(person.scopeEnds)}` : "Until changed", link: "Change", drawer: scopeDrawer(person) },
-    { label: "Fee amounts", value: person.fees, sub: "What they can see of what families owe" },
-    { label: "Can approve", value: person.approve === "Nothing" ? "Nothing" : "Yes", sub: person.approve === "Nothing" ? "Cannot decide anything" : person.approve },
-    { label: "Sensitive groups", value: String(person.sensitive.length), tone: person.sensitive.length ? "sensitive" : "neutral", sub: person.sensitive.length ? person.sensitive.join(", ") : "None held" },
+    { label: "Modules", value: String(open.length), unit: "of 16", },
+    { label: "Tabs", value: String(tabsOn), },
+    { label: "Data scope", value: person.scope, link: "Change", drawer: scopeDrawer(person) },
+    { label: "Fee amounts", value: person.fees, },
+    { label: "Can approve", value: person.approve === "Nothing" ? "Nothing" : "Yes", },
+    { label: "Sensitive groups", value: String(person.sensitive.length), tone: person.sensitive.length ? "sensitive" : "neutral", },
   ];
   const notices = [
     ...(person.account !== "Active"
@@ -536,11 +535,11 @@ export async function modulePage(userId: string, slug: string): Promise<{ conten
   const tabsOn = module.tabs.filter((tab) => tab.a.View);
   const granted = module.tabs.reduce((sum, tab) => sum + tab.on, 0);
   const cards: KpiCard[] = [
-    { label: "Reach", value: module.levelLabel || (module.level ? "Open" : "Absent"), sub: module.level ? "In their navigation" : "Absent from their navigation" },
+    { label: "Reach", value: module.levelLabel || (module.level ? "Open" : "Absent"), },
     { label: "Tabs they can open", value: String(tabsOn.length), unit: `of ${module.tabs.length}` },
-    { label: "Actions granted", value: String(granted), unit: `of ${module.tabs.length * ACTIONS.length}`, tone: module.baseTicks !== undefined && granted > module.baseTicks ? "attention" : undefined, sub: module.baseTicks !== undefined ? `${module.baseTicks} from the template` : undefined },
-    { label: "Can approve", value: module.any.Approve ? "Yes" : "No", sub: module.any.Approve ? "In at least one tab" : "Nothing here is routed to them" },
-    { label: "Can export", value: module.any.Export ? "Yes" : "No", sub: module.any.Export ? "Every export is logged" : "Nothing leaves this module" },
+    { label: "Actions granted", value: String(granted), unit: `of ${module.tabs.length * ACTIONS.length}`, tone: module.baseTicks !== undefined && granted > module.baseTicks ? "attention" : undefined, },
+    { label: "Can approve", value: module.any.Approve ? "Yes" : "No", },
+    { label: "Can export", value: module.any.Export ? "Yes" : "No", },
   ];
   const tabRows: TableRow[] = module.tabs.map((tab: TabGrant) => ({
     id: tab.slug,
@@ -582,7 +581,6 @@ export async function modulePage(userId: string, slug: string): Promise<{ conten
               nounPlural: "tabs",
               head: ["Tab", ...ACTIONS, "In plain words"],
               rows: tabRows,
-              foot: "Approval never applies to a person’s own submission, whatever is ticked.",
             },
           ],
         },
@@ -626,11 +624,11 @@ export async function rolePage(name: string): Promise<{ content: PageContent; gr
   const open = grid.modules.filter((module) => module.level > 0);
   const tabsOn = open.reduce((sum, module) => sum + module.tabs.filter((tab) => tab.a.View).length, 0);
   const cards: KpiCard[] = [
-    { label: "People on it", value: String(grid.people.length), sub: grid.custom ? "Mapped to this role" : "Hold this template" },
+    { label: "People on it", value: String(grid.people.length), },
     { label: "Modules", value: String(open.length), unit: "of 16" },
     { label: "Tabs", value: String(tabsOn) },
     { label: "Data scope", value: grid.scope },
-    { label: "Can approve", value: grid.approve === "Nothing" ? "Nothing" : "Yes", sub: grid.approve },
+    { label: "Can approve", value: grid.approve === "Nothing" ? "Nothing" : "Yes", },
   ];
   const rows: TableRow[] = grid.modules.map((module) => ({
     id: module.slug,
@@ -753,11 +751,11 @@ export async function offboardingPage(id: string): Promise<{ content: PageConten
   const drawer = offboardDrawer(plan);
   const holding = plan.formClasses.length + plan.subjects.length;
   const cards: KpiCard[] = [
-    { label: "Form classes", value: String(plan.formClasses.length), tone: plan.formClasses.length ? "attention" : "positive", sub: plan.formClasses.map((arm) => arm.name).join(", ") || "None" },
-    { label: "Subject-arms", value: String(plan.subjects.length), tone: plan.subjects.length ? "attention" : "positive", sub: plan.subjects.length ? "Each needs a teacher" : "None" },
+    { label: "Form classes", value: String(plan.formClasses.length), tone: plan.formClasses.length ? "attention" : "positive", },
+    { label: "Subject-arms", value: String(plan.subjects.length), tone: plan.subjects.length ? "attention" : "positive", },
     { label: "Score sheets unfinished", value: String(plan.unsubmittedSheets), tone: plan.unsubmittedSheets ? "negative" : "positive" },
     { label: "Approvals waiting", value: String(plan.routedApprovals), tone: plan.routedApprovals ? "attention" : "positive" },
-    { label: "Delegations", value: String(plan.delegations), sub: plan.delegations ? "End on exit" : "None" },
+    { label: "Delegations", value: String(plan.delegations), },
   ];
   return {
     plan,

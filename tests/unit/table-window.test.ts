@@ -32,7 +32,8 @@ describe("a long table is sent one page at a time", () => {
     const panel = windowRows(table(200), target({ t0_1_p: "3", t0_1_f0: "JSS 1" }))[0]!.panels[1]!;
     if (panel.type !== "table") throw new Error("table expected");
     expect(panel.window).toMatchObject({ page: 3, matched: 100, filters: { Class: "JSS 1", Portal: "All" } });
-    expect(panel.rows[0]!.id).toBe("s101");
+    // page 3 of the JSS 1 half: every other row is JSS 1, so the nth of them is row 2n
+    expect(panel.rows[0]!.id).toBe(`s${2 * (2 * WINDOW_SIZE) + 1}`);
     expect(panel.rows.every((row) => row.cells[1]!.kind === "text" && (row.cells[1] as { text: string }).text === "JSS 1")).toBe(true);
   });
 
@@ -60,8 +61,9 @@ describe("a long table is sent one page at a time", () => {
   it("holds the page within the pages there are, and asks for page one when the address is nonsense", () => {
     const panel = windowRows(table(200), target({ t0_1_p: "99" }))[0]!.panels[1]!;
     if (panel.type !== "table" || !panel.window) throw new Error("window expected");
-    expect(panel.window.page).toBe(8);
-    expect(panel.rows).toHaveLength(200 - 7 * WINDOW_SIZE);
+    const lastPage = Math.ceil(200 / WINDOW_SIZE);
+    expect(panel.window.page).toBe(lastPage);
+    expect(panel.rows).toHaveLength(200 - (lastPage - 1) * WINDOW_SIZE);
     expect(askedOf("t0_1", [], { t0_1_p: "-4" }).page).toBe(1);
     expect(askedOf("t0_1", [], { t0_1_p: "abc" }).page).toBe(1);
   });

@@ -1,7 +1,8 @@
 import type { StudentContent } from "@/lib/modules/live/student/shared";
 import { assignmentsPage, resultsPage, subjectsPage, timetablePage } from "@/lib/modules/live/student/learning";
-import { accountPage, notificationsPage, profilePage, syncPage } from "@/lib/modules/live/student/me";
+import { accountPage, notificationsPage, profilePage } from "@/lib/modules/live/student/me";
 import { attendancePage, calendarPage, messagesPage } from "@/lib/modules/live/student/school";
+import { syncPage } from "@/lib/modules/live/student/sync";
 import { todayPage } from "@/lib/modules/live/student/today";
 
 type Builder = (query: Record<string, string | undefined>) => Promise<StudentContent>;

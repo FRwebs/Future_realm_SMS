@@ -34,7 +34,7 @@ async function forWhoever(content: Page, back: { label: string; href: string }):
 }
 
 function Workspace({ content }: { content: Page }) {
-  return <ModuleWorkspace eyebrow="Attendance" title={content.title ?? "Attendance"} description={content.desc ?? ""} primary={content.primary} launchers={content.launchers} rows={content.rows} back={content.crumb} />;
+  return <ModuleWorkspace eyebrow="Attendance" title={content.title ?? "Attendance"} description={content.desc ?? ""} tag={content.tag} tagTone={content.tagTone} primary={content.primary} launchers={content.launchers} rows={content.rows} back={content.crumb} />;
 }
 
 export async function DayView({ classId, date }: { classId: string; date?: string }) {

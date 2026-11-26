@@ -1,9 +1,9 @@
 import { apiGet, observe } from "@/lib/api/server";
 import { localContracts } from "@/lib/api/local-contracts.zod";
 import type { TeacherWorkspaceView } from "@/lib/api/teacher-workspace";
-import { cardDrawer, completionHref, formMasterDrawer, remarkHref } from "@/lib/modules/live/m6-forms";
+import { cardDrawer, completionHref, formMasterForm, remarkHref } from "@/lib/modules/live/m6-forms";
 import type { ArchiveOverview, CardState, CompletionArmPage, CompletionOverview, RemarkPage, RemarksOverview } from "@/lib/modules/live/m6-types";
-import type { DrawerSpec, Panel, PanelFact, PanelRow, PanelTone, TabContent, TableCellKind, TableRow } from "@/lib/modules/panels";
+import type { DrawerSpec, ListItem, Panel, PanelFact, PanelRow, PanelTone, TabContent, TableCellKind, TableRow } from "@/lib/modules/panels";
 import { pill, row, text } from "@/lib/modules/panels";
 import { formatDay } from "@/lib/date-format";
 
@@ -71,7 +71,7 @@ function remarksTab(o: RemarksOverview, me: TeacherWorkspaceView, to: string | n
   }));
   const submit: DrawerSpec = {
     mode: "commit", kicker: "Report cards", title: `Submit the ${own.name} remarks`,
-    sub: "They go to the Principal together. After submission you cannot edit them without a correction request.",
+    sub: "After submission a change needs a correction request. They go to the Principal together.",
     facts: [["Class", own.name, `${n} children`], ["Submitted already", `${done} of ${n}`, ""], ["Drafts ready to submit", String(drafts), drafts ? "Each at least a sentence" : "Nothing to submit yet"], ["A blank remark", "Is published as one", "A card with no remark goes out with an empty box"], ["Goes to", to ?? "The Principal", o.publishDate ? `Publication is ${shortDate(o.publishDate.iso)}` : "No publication date is set"], ["Needs a connection", "Yes", "Drafts can be written offline; submission cannot"]],
     commitLabel: `Submit ${drafts} remark${drafts === 1 ? "" : "s"}`, commitDone: "Remarks submitted", commitDoneBody: `${to ?? "The Principal"} has them. You will be told if any come back.`,
     submit: { endpoint: `${API}/remarks/submit`, method: "POST", body: { classId: own.id } },
@@ -81,10 +81,10 @@ function remarksTab(o: RemarksOverview, me: TeacherWorkspaceView, to: string | n
     row("1fr", [{
       type: "kpi", sub: `${publish ? `Cards are published ${shortDate(publish.iso)}` : "No publication date is set"}.`, per: 4,
       cards: [
-        { label: "Remarks submitted", value: String(written), unit: `of ${n}`, sub: `${n - written} outstanding`, tone: written === n ? "positive" : "attention" },
-        { label: "Drafts waiting", value: String(drafts), sub: drafts ? "Written, not yet submitted" : "No draft waiting", tone: drafts ? "progress" : "neutral" },
-        { label: "Reviewed by the Principal", value: String(students.filter((student) => student.reviewed).length), unit: `of ${n}`, sub: "Written at publication", tone: "neutral" },
-        { label: "Days to publication", value: publish ? String(Math.max(0, publish.days)) : "—", sub: publish ? `Cards go out ${shortDate(publish.iso)}` : "Set by the school", tone: publish && publish.days < 7 ? "attention" : "positive" },
+        { label: "Remarks submitted", value: String(written), unit: `of ${n}`, tone: written === n ? "positive" : "attention" },
+        { label: "Drafts waiting", value: String(drafts), tone: drafts ? "progress" : "neutral" },
+        { label: "Reviewed by the Principal", value: String(students.filter((student) => student.reviewed).length), unit: `of ${n}`, tone: "neutral" },
+        { label: "Days to publication", value: publish ? String(Math.max(0, publish.days)) : "—", tone: publish && publish.days < 7 ? "attention" : "positive" },
       ],
     }]),
     // The phone shows where the remarks are as three stages, the way the teacher mobile mockup does, between the figures and the children.
@@ -102,7 +102,6 @@ function remarksTab(o: RemarksOverview, me: TeacherWorkspaceView, to: string | n
     row("1fr", [{
       type: "table", title: `${own.name} · every child`, tag: `${written} of ${n} written`, tagTone: written === n ? "positive" : "attention", sub: "Open a child to write. The record you need is on the same page.", meta: `${n} children · your class`, noun: "remark", nounPlural: "children",
       search: "Find a child by name or admission number", head: ["Student", "Admission no", "Attend", "Remark", ""], rows: tableRows, per: 10, noRowOpen: true, empty: "Nobody is on this class’s roll.",
-      foot: "A draft is saved as you go. Submitting sends the class to the Principal together.",
     }]),
     me.formArms.length > 1 ? row("1fr", [{ type: "note", tone: "neutral", icon: EYE, title: `You hold ${me.formArms.length} classes`, body: `${me.formArms.map((arm) => arm.name).join(" and ")} are both yours. This page shows ${own.name}; the others follow from their own class page.` }]) : null,
   ];
@@ -135,8 +134,8 @@ function completionTab(o: CompletionOverview, me: TeacherWorkspaceView): TabCont
   // The phone: two figures, then the classes to choose from, as the teacher mobile mockup draws it.
   const phone: PanelRow[] = [
     phoneOnly({ type: "kpi", bare: true, cards: [
-      { label: "Cards ready", value: String(ready), unit: `of ${total("roll")}`, sub: `Across ${arms.length} ${arms.length === 1 ? "class" : "classes"}`, tone: ready === total("roll") ? "positive" : "attention" },
-      { label: "Publication", value: publish ? shortDate(publish.iso).replace(/ (\w{3})\w*$/, " $1") : "—", sub: publish ? "The Principal publishes" : "No date is set" },
+      { label: "Cards ready", value: String(ready), unit: `of ${total("roll")}`, tone: ready === total("roll") ? "positive" : "attention" },
+      { label: "Publication", value: publish ? shortDate(publish.iso).replace(/ (\w{3})\w*$/, " $1") : "—", },
     ] }),
     phoneOnly({
       type: "list", title: "Choose a class", tag: `${arms.length} ${arms.length === 1 ? "class" : "classes"}`, tagTone: "neutral", sub: "Completion is answered per class: one form master, one broadsheet, one printing run.",
@@ -151,17 +150,16 @@ function completionTab(o: CompletionOverview, me: TeacherWorkspaceView): TabCont
     row("1fr", [{
       type: "kpi", title: `${o.term.name} ${o.term.session}`, per: 5,
       cards: [
-        { label: arms.length === 1 ? "Your arm" : "Your arms", value: String(arms.length), sub: arms.map((arm) => arm.name).join(" · ") },
-        { label: "Ready", value: String(total("ready") + total("published")), unit: `of ${total("roll")}`, sub: "Scores, remark and review all in", tone: total("ready") + total("published") === total("roll") ? "positive" : "attention" },
-        { label: "Your remarks owed", value: String(mineOwed), sub: mineOwed ? "Write them from Remarks" : "Every remark is written", tone: mineOwed ? "attention" : "positive", link: mineOwed ? "Write them" : undefined, href: mineOwed ? "/report-cards/remarks" : undefined },
-        { label: "Blocked on scores", value: String(total("blocked")), sub: total("blocked") ? "A subject sheet is not approved yet" : "Every sheet is in", tone: total("blocked") ? "negative" : "positive" },
-        { label: "Published", value: String(total("published")), sub: publish ? `The Principal publishes ${shortDate(publish.iso)}` : "Nothing has reached a family", tone: "neutral" },
+        { label: arms.length === 1 ? "Your arm" : "Your arms", value: String(arms.length), },
+        { label: "Ready", value: String(total("ready") + total("published")), unit: `of ${total("roll")}`, tone: total("ready") + total("published") === total("roll") ? "positive" : "attention" },
+        { label: "Your remarks owed", value: String(mineOwed), tone: mineOwed ? "attention" : "positive", link: mineOwed ? "Write them" : undefined, href: mineOwed ? "/report-cards/remarks" : undefined },
+        { label: "Blocked on scores", value: String(total("blocked")), tone: total("blocked") ? "negative" : "positive" },
+        { label: "Published", value: String(total("published")), tone: "neutral" },
       ],
     }]),
     row("1fr", [{
       type: "table", title: arms.length === 1 ? "Your arm" : "Your arms", tag: `${arms.length} arm${arms.length === 1 ? "" : "s"}`, tagTone: "neutral", sub: "Open an arm to see where every child stands, then read any card.", meta: `${total("roll")} cards · ${total("ready")} ready`, noun: "arm", nounPlural: "arms",
-      head: ["Arm", "Your role", "Form master", "Roll", "Ready", "Remarks owed", "Blocked", "State", ""], rows, noRowOpen: true, foot: "View only. Publishing, printing and sending report cards stay with the Principal.",
-    }]),
+      head: ["Arm", "Your role", "Form master", "Roll", "Ready", "Remarks owed", "Blocked", "State", ""], rows, noRowOpen: true,     }]),
     row("1fr", [{
       type: "facts", title: "What you can do here", per: 2,
       facts: [
@@ -186,20 +184,36 @@ function archiveTab(o: ArchiveOverview, me: TeacherWorkspaceView, armId?: string
   if (!arms.length) return noArm("Archive", "Published report cards for the arms you answer for.", "Published cards appear here for the arms you are form master of.");
   const revised = o.rows.filter((entry) => entry.state === "Revised").length;
   const latest = o.rows.map((entry) => entry.published).filter((value): value is string => Boolean(value)).sort().pop() ?? null;
+  // The average and the grade are the ones the card was published with, read back from its own
+  // snapshot — what the family was told, not what the marks would say if they were added up today.
+  const gradeTone = (grade: string | null | undefined): PanelTone =>
+    !grade ? "neutral" : /^[AB]/.test(grade) ? "positive" : /^C/.test(grade) ? "submitted" : "attention";
   const rows: TableRow[] = o.rows.map((entry) => ({
-    keywords: `${entry.name} ${entry.adm} ${entry.term} ${entry.state}`,
+    id: `${entry.studentId}|${entry.termId}`,
+    keywords: `${entry.name} ${entry.adm} ${entry.arm} ${entry.term} ${entry.state} ${entry.grade ?? ""}`,
     cells: [
-      { kind: "name", name: entry.name, sub: entry.arm }, text(entry.adm, { mono: true }), text(entry.arm), text(entry.term), text(entry.published ? shortDate(entry.published) : "—"), pill(entry.state, entry.state === "Revised" ? "attention" : "positive"),
+      { kind: "name", name: entry.name, sub: entry.arm }, text(entry.adm, { mono: true }), text(entry.arm), text(entry.term),
+      text(typeof entry.avg === "number" ? entry.avg.toFixed(1) : "—", { mono: true }),
+      entry.grade ? pill(entry.grade, gradeTone(entry.grade)) : text("—"),
+      text(entry.published ? shortDate(entry.published) : "—"), pill(entry.state, entry.state === "Revised" ? "attention" : "positive"),
       { kind: "action", label: "Open", drawer: cardDrawer(entry.studentId, entry.termId, entry.name) },
     ] as TableCellKind[],
   }));
+  const grades = [...new Set(o.rows.map((entry) => entry.grade).filter((grade): grade is string => Boolean(grade)))].sort();
+  /* Printing is the Principal's, so what a form master takes from here is a copy for their own
+     file. The drawer says so rather than letting the button imply otherwise. */
+  const printSelected: DrawerSpec = {
+    mode: "output", title: "Print the selected report cards", kicker: "Archive",
+    sub: "One page each, exactly as published. An archived copy is not a replacement for the family’s own.",
+    facts: [["Marked", "Archived copy", "Not the family’s original"], ["Publishing", "The Principal’s", "Nothing here reaches a family"]],
+  };
   const terms = (id: string) => new Set(o.rows.filter((entry) => entry.classId === id).map((entry) => entry.termId)).size;
   const picked = arms.find((arm) => arm.id === armId) ?? (arms.length === 1 ? arms[0] : undefined);
   const phone: PanelRow[] = picked
     ? [
         phoneOnly({ type: "kpi", bare: true, cards: [
-          { label: "Cards on file", value: String(o.rows.filter((entry) => entry.classId === picked.id).length), sub: `${picked.name} · ${terms(picked.id)} term${terms(picked.id) === 1 ? "" : "s"}` },
-          { label: "Latest publication", value: latest ? shortDate(latest).replace(/ (\w{3})\w*$/, " $1") : "—", sub: latest ? "The most recent card on file" : "Nothing published yet" },
+          { label: "Cards on file", value: String(o.rows.filter((entry) => entry.classId === picked.id).length), },
+          { label: "Latest publication", value: latest ? shortDate(latest).replace(/ (\w{3})\w*$/, " $1") : "—", },
         ] }),
         phoneOnly({
           type: "list", title: `${picked.name} · published cards`, tag: `${o.rows.filter((entry) => entry.classId === picked.id).length}`, tagTone: "neutral", sub: "Open a card to read it as the family did.",
@@ -213,8 +227,8 @@ function archiveTab(o: ArchiveOverview, me: TeacherWorkspaceView, armId?: string
       ]
     : [
         phoneOnly({ type: "kpi", bare: true, cards: [
-          { label: "Cards on file", value: String(o.rows.length), sub: `${arms.length} ${arms.length === 1 ? "class" : "classes"} · ${o.terms.length} term${o.terms.length === 1 ? "" : "s"}` },
-          { label: "Latest publication", value: latest ? shortDate(latest).replace(/ (\w{3})\w*$/, " $1") : "—", sub: latest ? "The most recent card on file" : "Nothing published yet" },
+          { label: "Cards on file", value: String(o.rows.length), },
+          { label: "Latest publication", value: latest ? shortDate(latest).replace(/ (\w{3})\w*$/, " $1") : "—", },
         ] }),
         phoneOnly({
           type: "list", title: "Choose a class", tag: `${arms.length} classes`, tagTone: "neutral", sub: "Published cards, class by class.",
@@ -230,17 +244,24 @@ function archiveTab(o: ArchiveOverview, me: TeacherWorkspaceView, armId?: string
       row("1fr", [{
         type: "kpi", title: "Your archive", per: 4,
         cards: [
-          { label: "Cards on file", value: String(o.rows.length), sub: `${arms.length} arm${arms.length === 1 ? "" : "s"} · ${o.terms.length} term${o.terms.length === 1 ? "" : "s"} on the school’s record` },
-          { label: "Arms", value: arms.map((arm) => arm.name).join(", "), sub: me.formArms.map(() => (me.persona === "early-years" ? "Class teacher" : "Form master")).join(" · ") || "Assistant" },
-          { label: "Revised after publication", value: String(revised), sub: revised ? "The family was told, and the card says so" : "None", tone: revised ? "attention" : "positive" },
-          { label: "Latest publication", value: latest ? shortDate(latest) : "—", sub: latest ? "The most recent card on file" : "Nothing published yet" },
+          { label: "Cards on file", value: String(o.rows.length), },
+          { label: "Arms", value: arms.map((arm) => arm.name).join(", "), },
+          { label: "Revised after publication", value: String(revised), tone: revised ? "attention" : "positive" },
+          { label: "Latest publication", value: latest ? shortDate(latest) : "—", },
         ],
       }]),
       row("1fr", [{
         type: "table", title: "Published report cards", tag: `${o.rows.length} card${o.rows.length === 1 ? "" : "s"}`, tagTone: "neutral", sub: "Open a card to read it as the family did.", meta: `${o.rows.length} card${o.rows.length === 1 ? "" : "s"}`, noun: "card", nounPlural: "cards",
-        search: "Find a child by name or admission number", filters: [{ label: "State", value: "All", options: ["All", "Published", "Revised"] }],
-        head: ["Student", "Admission no", "Arm", "Term", "Published", "State", ""], rows, per: 10, noRowOpen: true, empty: "No card has been published for your arms yet.", foot: "Read only. Retrievals are logged.",
-      }]),
+        search: "Find a child by name or admission number",
+        filters: [
+          ...(arms.length > 1 ? [{ label: "Arm", value: "All", options: ["All", ...arms.map((arm) => arm.name)], column: 2 }] : []),
+          ...(o.terms.length > 1 ? [{ label: "Term", value: "All", options: ["All", ...[...new Set(o.rows.map((entry) => entry.term))]], column: 3 }] : []),
+          ...(grades.length ? [{ label: "Grade", value: "All", options: ["All", ...grades], column: 5 }] : []),
+          { label: "State", value: "All", options: ["All", "Published", "Revised"] },
+        ],
+        selectable: true,
+        bulkActs: [{ label: "Print the selected", primary: true, drawer: printSelected }],
+        head: ["Student", "Admission no", "Arm", "Term", "Avg", "Grade", "Published", "State", ""], rows, noRowOpen: true, empty: "No card has been published for your arms yet.",       }]),
   ];
   return {
     title: "Archive", desc: `Every card published for ${arms.map((arm) => arm.name).join(" and ")}, exactly as the family received it.`,
@@ -252,7 +273,6 @@ function archiveTab(o: ArchiveOverview, me: TeacherWorkspaceView, armId?: string
 /** One child's remark, written by their form master: the record behind it, the sentence, and what was said before. */
 export function teacherRemarkPage(p: RemarkPage): TabContent & { crumb: { label: string; href: string } } {
   const s = p.summary;
-  const write = formMasterDrawer(p);
   const unlocked = !p.published && p.canWriteFormMaster;
   const peers = p.peers.map((peer) => ({ label: peer.name.split(" ").slice(0, 2).map((part, index) => (index === 0 ? part : `${part[0]}.`)).join(" "), href: remarkHref(p.arm.id, peer.id), state: peer.id === p.student.id ? ("now" as const) : ("plain" as const) }));
   const rows: PanelRow[] = [
@@ -260,17 +280,25 @@ export function teacherRemarkPage(p: RemarkPage): TabContent & { crumb: { label:
     row("1fr", [{
       type: "kpi", title: "What you are writing about", sub: "Every figure here comes from the record, not from memory.", per: 4,
       cards: [
-        { label: "Term average", value: s.average === null ? "—" : String(s.average), unit: s.average === null ? undefined : "/ 100", sub: s.armAverage === null ? "" : `Class average ${s.armAverage}`, tone: s.average !== null && s.armAverage !== null && s.average >= s.armAverage ? "positive" : "attention" },
-        { label: "Position", value: s.pos === null ? "—" : String(s.pos), unit: `of ${s.outOf}`, sub: "On the approved results" },
-        { label: "Attendance", value: p.attendance.pct === null ? "—" : `${p.attendance.pct}%`, sub: `${p.attendance.days} days marked this term`, tone: p.attendance.pct !== null && p.attendance.pct < 85 ? "attention" : "positive" },
-        { label: "Subject sheets in", value: String(s.subjects - (s.blocked ? s.blockedBy.length : 0)), unit: `of ${s.subjects}`, sub: s.blocked ? "Some are still being approved" : "Every sheet is approved", tone: s.blocked ? "attention" : "positive" },
+        { label: "Term average", value: s.average === null ? "—" : String(s.average), unit: s.average === null ? undefined : "/ 100", tone: s.average !== null && s.armAverage !== null && s.average >= s.armAverage ? "positive" : "attention" },
+        { label: "Position", value: s.pos === null ? "—" : String(s.pos), unit: `of ${s.outOf}`, },
+        { label: "Attendance", value: p.attendance.pct === null ? "—" : `${p.attendance.pct}%`, tone: p.attendance.pct !== null && p.attendance.pct < 85 ? "attention" : "positive" },
+        { label: "Subject sheets in", value: String(s.subjects - (s.blocked ? s.blockedBy.length : 0)), unit: `of ${s.subjects}`, tone: s.blocked ? "attention" : "positive" },
       ],
     }]),
     row("1.25fr 1fr", [
-      {
-        type: "quotes", title: "Your remark", sub: unlocked ? "One paragraph, in your own words. It is the sentence a family reads most carefully." : p.published ? "The card is published — a change reaches the family as a correction." : "Only the form master of this class writes it.",
-        quotes: [{ label: "Form master's remark", text: p.teacher.text, by: p.teacher.by ?? "You", role: p.teacher.role, when: p.teacher.when, pill: p.teacher.state, tone: remarkTone(p.teacher.state), emptyText: `You have not written ${p.student.first}'s remark yet.`, ...(unlocked ? { act: p.teacher.text ? "Edit the remark" : "Write the remark", trigger: { drawer: write } } : {}) }],
-      },
+      /*
+       * Written on the page while it can be written; read as it stands once it cannot.
+       *
+       * A published card is a thing a family already has, so it is shown rather than offered for
+       * typing — a correction goes through the Principal, not through this box.
+       */
+      unlocked
+        ? formMasterForm(p)
+        : {
+            type: "quotes", title: "Your remark", sub: p.published ? "The card is published — a change reaches the family as a correction." : "Only the form master of this class writes it.",
+            quotes: [{ label: "Form master's remark", text: p.teacher.text, by: p.teacher.by ?? "You", role: p.teacher.role, when: p.teacher.when, pill: p.teacher.state, tone: remarkTone(p.teacher.state), emptyText: `You have not written ${p.student.first}'s remark yet.` }],
+          },
       {
         type: "facts", title: "What has already been written", sub: "The subject results that will print beneath yours.", per: 1,
         facts: [
@@ -285,9 +313,11 @@ export function teacherRemarkPage(p: RemarkPage): TabContent & { crumb: { label:
   ];
   return {
     crumb: { label: "Back to the remark list", href: "/report-cards/remarks" },
-    title: p.student.name, desc: `${p.arm.name} · ${p.student.adm} · your remark prints above the Principal’s.`,
-    primary: unlocked ? { label: p.teacher.text ? "Edit the remark" : "Write the remark", icon: PEN, drawer: write } : undefined,
-    launchers: [{ label: "Preview the card", drawer: cardDrawer(p.student.id, p.term.id, p.student.name) }, ...(p.next ? [{ label: "Open the next child", href: remarkHref(p.arm.id, p.next.id) }] : [])],
+    title: p.student.name,
+    tag: p.teacher.state === "Submitted" ? "Written" : p.teacher.state, tagTone: p.teacher.state === "Submitted" ? "positive" : p.teacher.state === "Draft" ? "progress" : "attention",
+    desc: `${p.arm.name} · ${p.student.adm} · your remark prints above the Principal’s.`,
+    primary: p.next ? { label: "Open the next child", icon: ARROW, href: remarkHref(p.arm.id, p.next.id) } : undefined,
+    launchers: [{ label: "Preview the card", drawer: cardDrawer(p.student.id, p.term.id, p.student.name) }],
     rows,
   };
 }
@@ -299,7 +329,9 @@ export function teacherArmPage(a: CompletionArmPage, me: TeacherWorkspaceView): 
   const sum = a.sum;
   const first = children.find((child) => child.state === "Remark owed") ?? null;
   const rows: TableRow[] = children.map((child, index) => ({
-    keywords: `${child.name} ${child.adm}`,
+    // "Written" is inside "Not written", so the remark filter looks for a token the row carries
+    // rather than for the word on screen.
+    keywords: `${child.name} ${child.adm} rmk-${child.remark === "Submitted" ? "written" : child.remark === "Draft" ? "draft" : "unwritten"}`,
     cells: [
       { kind: "name", name: child.name, sub: `Roll ${String(index + 1).padStart(2, "0")}` }, text(child.adm, { mono: true }), child.average === null ? text("—") : text(String(child.average), { mono: true }), text(child.pos === null ? "—" : String(child.pos)),
       child.grade ? pill(child.grade, gradeTone(child.grade)) : text("—"), pill(child.scores ? "Approved" : "Blocked", child.scores ? "positive" : "negative"), pill(child.remark === "Submitted" ? "Written" : child.remark, remarkTone(child.remark)),
@@ -308,26 +340,71 @@ export function teacherArmPage(a: CompletionArmPage, me: TeacherWorkspaceView): 
     ] as TableCellKind[],
   }));
   const publish = a.publishDate;
+  const ready = sum.ready + sum.published;
+  const master = a.master?.name ?? "the form master";
+  const readFirst = children[0] ? { label: "Read the first card", icon: EYE, drawer: cardDrawer(children[0].id, a.term.id, children[0].name) } : undefined;
+  const writeRemarks = own && sum.owed ? { label: `Write the ${sum.owed} remarks you owe`, icon: PEN, href: "/report-cards/remarks" as const } : undefined;
+  /*
+   * What is holding this arm, each item naming the children it holds.
+   *
+   * The mockup puts this beside "who writes what" rather than leaving a reader to work it out from
+   * five figures: a blocked sheet, a remark not written and a result not yet checked are three
+   * different waits with three different owners.
+   */
+  const holding: ListItem[] = [
+    ...(sum.blocked ? [{ label: `${sum.blocked} ${sum.blocked === 1 ? "card is" : "cards are"} waiting on a score sheet`, sub: "A subject sheet is not approved yet, so the card cannot be computed. Nobody is given a zero.", pill: "Blocked", tone: "negative" as const }] : []),
+    ...(sum.owed ? [{ label: `${sum.owed} form master ${sum.owed === 1 ? "remark" : "remarks"} still to write`, sub: own ? "Yours." : `By ${master}.`, pill: "Remarks owed", tone: "attention" as const, ...(own ? { viewLabel: "Write them", href: "/report-cards/remarks" as const } : {}) }] : []),
+    ...(sum.inReview ? [{ label: `${sum.inReview} waiting on review`, sub: "The result is checked before the card can go out.", pill: "Awaiting review", tone: "submitted" as const }] : []),
+    ...(sum.withheld ? [{ label: `${sum.withheld} withheld`, sub: a.policy.withholdForDebt ? "An unpaid fee holds the card, by the school’s own rule." : "Held by a school administrator.", pill: "Withheld", tone: "withheld" as const }] : []),
+    ...(!sum.blocked && !sum.owed && !sum.inReview && !sum.withheld ? [{ label: "Nothing is holding this arm", sub: "Every card is ready for the Principal to publish.", pill: "Ready", tone: "positive" as const }] : []),
+  ];
   return {
     crumb: { label: "Back to Completion", href: "/report-cards/completion" },
-    title: `${a.arm.name} · report cards`, desc: `Where each of the ${children.length} children stands. ${own ? "You write the form master’s remark; " : `${a.master?.name ?? "The form master"} writes the remarks; `}the Principal publishes${publish ? ` on ${shortDate(publish.iso)}` : ""}.`,
-    primary: own && sum.owed ? { label: `Write the ${sum.owed} remarks you owe`, icon: PEN, href: "/report-cards/remarks" } : children[0] ? { label: "Read the first card", icon: EYE, drawer: cardDrawer(children[0].id, a.term.id, children[0].name) } : undefined,
+    title: `${a.arm.name} · report cards`,
+    tag: ready === children.length ? "All ready" : `${ready} of ${children.length} ready`,
+    tagTone: ready === children.length ? "positive" : sum.blocked ? "negative" : "attention",
+    desc: `Where each of the ${children.length} children stands. ${own ? "You write the form master’s remark; " : `${a.master?.name ?? "The form master"} writes the remarks; `}the Principal publishes${publish ? ` on ${shortDate(publish.iso)}` : ""}.`,
+    primary: writeRemarks ?? readFirst,
+    launchers: writeRemarks && readFirst ? [readFirst] : [],
     rows: [
       row("1fr", [{
         type: "kpi", title: `${a.arm.name} · ${a.term.name} ${a.term.session}`, per: 5,
         cards: [
-          { label: "Ready", value: String(sum.ready + sum.published), unit: `of ${children.length}`, sub: "Scores, remark and review all in", tone: sum.ready + sum.published === children.length ? "positive" : "attention" },
-          { label: "Blocked on scores", value: String(sum.blocked), sub: sum.blocked ? "A subject sheet is not approved" : "Every sheet is in", tone: sum.blocked ? "negative" : "positive" },
-          { label: own ? "Your remarks owed" : "Remarks owed", value: String(sum.owed), sub: sum.owed ? (own ? "Write them from Remarks" : `By ${a.master?.name ?? "the form master"}`) : "All written", tone: sum.owed ? "attention" : "positive", link: own && sum.owed && first ? "Write them" : undefined, href: own && sum.owed ? "/report-cards/remarks" : undefined },
-          { label: "Awaiting review", value: String(sum.inReview), sub: "Checked before publication", tone: sum.inReview ? "submitted" : "positive" },
-          { label: "Published", value: String(sum.published), sub: sum.published ? "With families" : "Nothing has reached a family", tone: "neutral" },
+          { label: "Ready", value: String(sum.ready + sum.published), unit: `of ${children.length}`, tone: sum.ready + sum.published === children.length ? "positive" : "attention" },
+          { label: "Blocked on scores", value: String(sum.blocked), tone: sum.blocked ? "negative" : "positive" },
+          { label: own ? "Your remarks owed" : "Remarks owed", value: String(sum.owed), tone: sum.owed ? "attention" : "positive", link: own && sum.owed && first ? "Write them" : undefined, href: own && sum.owed ? "/report-cards/remarks" : undefined },
+          { label: "Awaiting review", value: String(sum.inReview), tone: sum.inReview ? "submitted" : "positive" },
+          { label: "Published", value: String(sum.published), tone: "neutral" },
         ],
       }]),
       row("1fr", [{
         type: "table", title: `Every child in ${a.arm.name}`, tag: `${sum.ready + sum.published} ready`, tagTone: sum.ready + sum.published === children.length ? "positive" : "attention", sub: "Open a child to read their card exactly as the family will see it.",
-        meta: `${children.length} children · ${a.subjects.of} subjects`, search: "Find a child by name or admission number", noun: "card", nounPlural: "children",
-        head: ["Student", "Admission no", "Avg", "Pos", "Grade", "Scores", "Remark", "Review", "State", ""], rows, per: 10, noRowOpen: true, foot: "View only. A card is published by the Principal, never from this page.",
-      }]),
+        meta: `${children.length} children · ${a.subjects.of} subjects · ${ready} ready · ${sum.blocked} blocked · ${sum.owed} remarks owed`, search: "Find a child by name or admission number", noun: "card", nounPlural: "children",
+        filters: [
+          { label: "State", value: "All", options: ["All", "Ready", "Blocked", "Remark owed", "Awaiting review", "Published", "Withheld"], column: 8 },
+          { label: "Scores", value: "All", options: ["All", "Approved", "Blocked"], column: 5 },
+          { label: "Remark", value: "All", options: ["All", "Written", "Draft", "Not written"], match: { Written: "rmk-written", Draft: "rmk-draft", "Not written": "rmk-unwritten" } },
+        ],
+        /*
+         * The mockup's bulk action reads the first card ticked. A trigger here is data rather than
+         * a callback, so it cannot name a row chosen after the page was drawn — the ticked rows
+         * come down as a list instead, which is what a teacher chasing an arm actually wants.
+         */
+        selectable: true, bulkActs: [{ label: "Export the selected", export: true }],
+        head: ["Student", "Admission no", "Avg", "Pos", "Grade", "Scores", "Remark", "Review", "State", ""], rows, per: 12, noRowOpen: true,       }]),
+      row("1.1fr 1fr", [
+        {
+          type: "facts", title: "Who writes what on these cards", per: 1,
+          facts: [
+            ["Form master’s remark", own ? "You" : (a.master?.name ?? "Not assigned"), own ? `${a.remarksWritten} of ${children.length} written` : "You read it; you do not write it"],
+            ["Subject comments", `${a.subjects.of} ${a.subjects.of === 1 ? "subject" : "subjects"}`, "Each teacher writes the line beside their own subject"],
+            ["Principal’s remark", a.principalWritten ? `${a.principalWritten} of ${children.length} written` : "Written at publication", "By the Principal, never from this page"],
+            ["Publication", publish ? shortDate(publish.iso) : "Not set yet", "By the Principal — in-app to the student and guardian portals"],
+            ["Card design", a.school, "The same card the school prints"],
+          ] as PanelFact[],
+        },
+        { type: "list", title: "What is holding this arm", sub: "Each item names the children it holds.", items: holding },
+      ]),
       row("1fr", [{ type: "note", tone: "withheld", icon: SHIELD, title: "Publishing, printing and sending stay with the Principal", body: "You read a card exactly as the family will, and you write the form master’s remark. Nothing reaches a family from this page." }]),
     ],
   };

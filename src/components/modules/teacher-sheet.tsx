@@ -178,7 +178,7 @@ export function TeacherSheet(props: TeacherSheetProps) {
     setCells((existing) => ({ ...existing, [studentId]: { ...existing[studentId], [key]: clean(raw) } }));
   }
 
-  const k = (label: string, value: string, sub: string, tone?: PanelTone, unit?: string): KpiCard => ({ label, value, unit, sub, tone });
+  const k = (label: string, value: string, sub: string, tone?: PanelTone, unit?: string): KpiCard => ({ label, value, unit, tone });
   const blankOnly = read.filter((entry) => entry.bad).length;
   const cards: KpiCard[] = [
     k("Entered", String(stats.complete), stats.complete === stats.roll ? "Every child has a mark" : blankOnly && !stats.blankRows ? `${blankOnly} need correcting` : `${stats.roll - stats.complete} still to enter`, stats.complete === stats.roll ? "positive" : "attention", `of ${stats.roll}`),
@@ -340,11 +340,14 @@ export function TeacherSheet(props: TeacherSheetProps) {
             { label: "State", value: "All", options: states, match: Object.fromEntries(states.slice(1).map((state) => [state, `state:${state}`])) },
             { label: "Grade", value: "All", options: gradeOptions, match: Object.fromEntries(bands.map((band) => [band.label, `grade:${band.label}|`])) },
           ],
-          acts: [...(props.importHref && !locked ? [{ label: "Import from Excel", href: props.importHref }] : []), ...(locked ? [] : [previewAct])],
-          footActs: locked ? [] : [...(props.remove ? [{ label: "Delete the entry", drawer: props.remove }] : []), saveDraft, { ...previewAct, label: "Preview, then submit for approval" }],
+          // Nothing is drawn under a table any more, so what the sheet is finished with sits on its
+          // own strip: delete, save the draft, then preview and submit.
+          acts: [
+            ...(props.importHref && !locked ? [{ label: "Import from Excel", href: props.importHref }] : []),
+            ...(locked ? [] : [...(props.remove ? [{ label: "Delete the entry", drawer: props.remove }] : []), saveDraft, previewAct]),
+          ],
           head: ["Student", ...cols.map((column) => `${column.short} /${column.max}`), `Total /${maxTotal}`, "Grade", "State"],
           rows: tableRows, noun: "student", nounPlural: "students", noRowOpen: true, per: 40,
-          foot: "A = absent, excluded from the average. Blank is not zero.",
         }}
       />
       </div>

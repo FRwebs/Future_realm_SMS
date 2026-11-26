@@ -5,12 +5,11 @@ import {
   recertifyDrawer,
   sensitiveGroupDrawer,
 } from "@/lib/modules/live/m7-forms";
-import type { AccessOverview, AccountState, GroupRow, Person, TemplateRow } from "@/lib/modules/live/m7-types";
+import type { AccessOverview, AccountState, GroupRow, Person } from "@/lib/modules/live/m7-types";
 import {
   name as nameCell,
   pill,
   text,
-  type DrawerSpec,
   type KpiCard,
   type ListItem,
   type PanelTone,
@@ -45,31 +44,14 @@ export function againstTemplate(person: Pick<Person, "above" | "below">): "Above
   return "At template";
 }
 
-function templatesDrawer(templates: TemplateRow[]): DrawerSpec {
-  return {
-    mode: "view",
-    kicker: "Permissions · role templates",
-    title: "Role templates",
-    sub: "What a new account starts from. Open one to see and change every module and tab it grants.",
-    facts: templates.map((template) => [
-      template.name + (template.custom ? " · custom" : ""),
-      `${plural(template.people, "person", "people")} · ${template.reach} of 16 modules`,
-      `${template.scope} · ${template.approve === "Nothing" ? "approves nothing" : `approves ${template.approve.toLowerCase()}`}`,
-    ]),
-    readOnlyNote: "Open a template from the table below this tab’s people to edit it.",
-    readOnly: true,
-  };
-}
-
 export function permissionsTab(overview: AccessOverview): TabContent {
-  const { people, templates, groups, delegations } = overview;
+  const { people, groups, delegations } = overview;
   const never = people.filter((person) => person.account === "Never activated");
   const dormant = people.filter((person) => person.account === "Dormant");
   const above = people.filter((person) => person.above > 0);
   const holders = new Set(groups.flatMap((group) => group.holderIds));
   const recertify = recertifyDrawer(overview);
   const due = overview.recertification.dueOn;
-  const last = overview.recertification.last;
   const asLink = (rows: Person[]) =>
     inviteDrawer(
       rows.map((person) => ({ userId: person.userId, name: person.name, role: person.role, accountDays: person.accountDays })),
@@ -77,27 +59,24 @@ export function permissionsTab(overview: AccessOverview): TabContent {
     );
 
   const cards: KpiCard[] = [
-    { label: "People with access", value: String(people.length), sub: "Everyone who can sign in" },
+    { label: "People with access", value: String(people.length), },
     {
       label: "Above their role template",
       value: String(above.length),
       tone: above.length ? "attention" : "positive",
-      sub: above.length ? "Holding more than their role gives" : "Everyone is at or below their template",
       ...(above.length ? { link: "Review them", drawer: recertify } : {}),
     },
     {
       label: "Never activated",
       value: String(never.length),
       tone: never.length ? "negative" : "positive",
-      sub: never.length ? "Holding access they have never used" : "Everyone has signed in",
       ...(never.length ? { link: "Resend invitations", drawer: asLink(never) } : {}),
     },
-    { label: "Sensitive group holders", value: String(holders.size), sub: `Across ${plural(groups.length, "group")}` },
+    { label: "Sensitive group holders", value: String(holders.size), },
     {
       label: "Recertification",
       value: due ? dayLong(due) : "Not scheduled",
       tone: due && new Date(due).getTime() < Date.now() ? "attention" : "neutral",
-      sub: last ? `Last confirmed by ${last.by}` : "Not yet done",
     },
   ];
 
@@ -129,31 +108,6 @@ export function permissionsTab(overview: AccessOverview): TabContent {
       keywords: `${tok("role", person.role)}${tok("scope", person.scope)}${tok("vs", againstTemplate(person))}${tok("acct", person.account)}${tok("sens", person.sensitive.length ? "Holds a group" : "Holds none")}${person.sensitive.map((group) => tok("sens", group)).join("")}`,
     };
   });
-
-  const templateRows: TableRow[] = templates.map((template) => ({
-    id: template.name,
-    cells: [
-      { kind: "name", name: template.name, sub: template.custom ? "Custom role" : "Built in", avatar: false },
-      text(String(template.people)),
-      text(`${template.reach} of 16`),
-      text(template.scope),
-      text(template.approve === "Nothing" ? "—" : template.approve),
-      { kind: "action", label: "Open", href: roleHref(template.name) },
-    ],
-    href: roleHref(template.name),
-    keywords: `${tok("tscope", template.scope)}${tok("tapprove", template.approve)}`,
-  }));
-  const templateScopes = Array.from(new Set(templates.map((template) => template.scope)));
-  const templateApproves = Array.from(new Set(templates.map((template) => template.approve)));
-
-  const groupItems: ListItem[] = groups.map((group) => ({
-    label: group.name,
-    sub: `${group.holders.length ? group.holders.join(", ") : "Nobody holds it yet"} · ${plural(group.covers.length, "record type")}`,
-    pill: plural(group.holders.length, "holder"),
-    tone: group.holders.length > 4 ? "attention" : "sensitive",
-    viewLabel: "Manage",
-    drawer: sensitiveGroupDrawer(overview, group),
-  }));
 
   // What needs a decision this term, with the reason in plain words.
   type Decision = { person: Person; why: string; detail: string; tone: PanelTone; act: TableCellKind };
@@ -199,8 +153,11 @@ export function permissionsTab(overview: AccessOverview): TabContent {
     title: "Permissions",
     desc: "Who can reach what, how far their data reaches, and what they may approve.",
     primary: { label: "Review everyone’s access", drawer: recertify },
+    // The tab is the map of people. The templates behind them and the groups beside them are
+    // pages of their own now; the head offers the first and the map's own strip the second.
     launchers: [
-      { label: "Open the role templates", drawer: templatesDrawer(templates) },
+      { label: "Role templates", href: "/staff-access/permissions/templates" },
+      { label: "Sensitive groups", href: "/staff-access/permissions/groups" },
       { label: "Create a custom role", drawer: customRoleDrawer(overview) },
     ],
     rows: [
@@ -235,40 +192,6 @@ export function permissionsTab(overview: AccessOverview): TabContent {
             rows: personRows,
             per: 10,
             empty: "Nobody matches this filter.",
-            foot: "Open a person’s map to see all sixteen modules and every tab inside them, and to change any tick.",
-          },
-        ],
-      },
-      {
-        cols: "1.4fr 1fr",
-        panels: [
-          {
-            type: "table",
-            title: "Role templates",
-            sub: "What a new account starts from — and what everyone on it holds.",
-            tag: String(templates.length),
-            meta: `${plural(templates.length, "template")}`,
-            noun: "template",
-            nounPlural: "templates",
-            search: "Find a template",
-            filters: [
-              { label: "Scope", value: "All scopes", options: ["All scopes", ...templateScopes], match: matchFor("tscope", templateScopes) },
-              { label: "Can approve", value: "Any", options: ["Any", ...templateApproves], match: matchFor("tapprove", templateApproves) },
-            ],
-            acts: [{ label: "Create a custom role", drawer: customRoleDrawer(overview) }],
-            head: ["Template", "People", "Modules", "Data scope", "Can approve", ""],
-            rows: templateRows,
-            per: 8,
-            empty: "No template matches.",
-          },
-          {
-            type: "list",
-            title: "Sensitive groups",
-            sub: "Records closed to everyone except a named few. Every reveal is logged.",
-            tag: String(groups.length),
-            acts: [{ label: "Create a sensitive group", drawer: sensitiveGroupDrawer(overview) }],
-            items: groupItems,
-            foot: groupItems.length ? "A group with many holders has stopped being a sensitive group." : "No sensitive group exists yet.",
           },
         ],
       },
@@ -297,3 +220,80 @@ export function permissionsTab(overview: AccessOverview): TabContent {
 }
 
 export type { GroupRow };
+
+
+/* ─────────────────── what used to sit on the tab, now pages of their own ───────────────────
+ *
+ * Permissions is a map of people. The role templates behind them and the sensitive groups beside
+ * them are reference: looked at when something is being set up, not worked from every day. Leaving
+ * them on the tab meant the map — the thing the page is for — opened below the fold.
+ */
+
+/** Every role template, and what each one grants. */
+export function templatesPage(overview: AccessOverview): TabContent {
+  const { templates } = overview;
+  const scopes = Array.from(new Set(templates.map((template) => template.scope)));
+  const approves = Array.from(new Set(templates.map((template) => template.approve)));
+  const rows: TableRow[] = templates.map((template) => ({
+    id: template.name,
+    cells: [
+      { kind: "name", name: template.name, sub: template.custom ? "Custom role" : "Built in", avatar: false },
+      text(String(template.people)),
+      text(`${template.reach} of 16`),
+      text(template.scope),
+      text(template.approve === "Nothing" ? "—" : template.approve),
+      { kind: "action", label: "Open", href: roleHref(template.name) },
+    ],
+    href: roleHref(template.name),
+    keywords: `tscope:${template.scope}|tapprove:${template.approve}|`,
+  }));
+  return {
+    title: "Role templates",
+    desc: "What a new account starts from — and what everyone on it holds.",
+    primary: { label: "Create a custom role", drawer: customRoleDrawer(overview) },
+    rows: [
+      {
+        cols: "1fr",
+        panels: [{
+          type: "table", title: "Templates in use", sub: "Open one to see and change every module and tab it grants.",
+          meta: plural(templates.length, "template"), noun: "template", nounPlural: "templates", search: "Find a template",
+          filters: [
+            { label: "Scope", value: "All scopes", options: ["All scopes", ...scopes], match: Object.fromEntries(scopes.map((value) => [value, `tscope:${value}|`])) },
+            { label: "Can approve", value: "Any", options: ["Any", ...approves], match: Object.fromEntries(approves.map((value) => [value, `tapprove:${value}|`])) },
+          ],
+          head: ["Template", "People", "Modules", "Data scope", "Can approve", ""], rows, per: 12,
+          empty: "No template matches.",
+        }],
+      },
+    ],
+  };
+}
+
+/** The records closed to everyone but a named few. */
+export function groupsPage(overview: AccessOverview): TabContent {
+  const { groups } = overview;
+  const items: ListItem[] = groups.map((group) => ({
+    label: group.name,
+    sub: `${group.holders.length ? group.holders.join(", ") : "Nobody holds it yet"} · ${plural(group.covers.length, "record type")}`,
+    pill: plural(group.holders.length, "holder"),
+    tone: group.holders.length > 4 ? "attention" : "sensitive",
+    viewLabel: "Manage",
+    drawer: sensitiveGroupDrawer(overview, group),
+  }));
+  return {
+    title: "Sensitive groups",
+    desc: "Records closed to everyone except a named few. Every reveal is logged.",
+    primary: { label: "Create a sensitive group", drawer: sensitiveGroupDrawer(overview) },
+    rows: [
+      {
+        cols: "1fr",
+        panels: [{
+          type: "list", title: "Groups in force", sub: "A group is granted to a person by name, never inherited from a role.",
+          tag: String(groups.length), items,
+          empty: "No sensitive group exists yet.",
+          foot: items.length ? "A group with many holders has stopped being a sensitive group." : "Nothing is closed off yet.",
+        }],
+      },
+    ],
+  };
+}

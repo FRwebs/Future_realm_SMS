@@ -39,12 +39,12 @@ export function resultsTab(r: ResultsOverview, corrections: Correction[], option
     panels: [{
       type: "kpi", title: "The school this term", sub: `${r.term.name} ${r.term.session} · recomputed as each sheet is approved.`, per: 6,
       cards: [
-        { label: "Students computed", value: String(k.computed), unit: `of ${k.total}`, sub: blocked ? `${blocked} blocked on a missing or unapproved score` : "Every student computed", tone: blocked ? "attention" : "positive" },
-        { label: "School average", value: num(k.average), sub: `Across ${plural(r.arms.length, "arm")}` },
-        { label: "Pass rate", value: k.pass === null ? "—" : `${k.pass}%`, sub: `Pass mark ${r.passMark}`, tone: "positive" },
-        { label: "Credit rate", value: k.credit === null ? "—" : `${k.credit}%`, sub: "Credit threshold 50" },
-        { label: "Best arm", value: num(k.best?.average), sub: k.best ? `${k.best.name}${k.best.master ? ` · ${k.best.master}` : ""}` : "—", tone: "positive" },
-        { label: "Weakest arm", value: num(k.weakest?.average), sub: k.weakest ? `${k.weakest.name}${k.weakest.master ? ` · ${k.weakest.master}` : ""}` : "—", tone: "attention" },
+        { label: "Students computed", value: String(k.computed), unit: `of ${k.total}`, tone: blocked ? "attention" : "positive" },
+        { label: "School average", value: num(k.average), },
+        { label: "Pass rate", value: k.pass === null ? "—" : `${k.pass}%`, tone: "positive" },
+        { label: "Credit rate", value: k.credit === null ? "—" : `${k.credit}%`, },
+        { label: "Best arm", value: num(k.best?.average), tone: "positive" },
+        { label: "Weakest arm", value: num(k.weakest?.average), tone: "attention" },
       ],
     }],
   });
@@ -67,10 +67,9 @@ export function resultsTab(r: ResultsOverview, corrections: Correction[], option
       type: "table", title: "Every arm", tag: plural(r.arms.length, "arm"), tagTone: "neutral", sub: "How each arm performed. Open one for its broadsheet, then any child for their full result.",
       meta: `${k.total} students · ${k.incomplete} arms incomplete · school average ${num(k.average)}`, search: "Find an arm, a class or a form master",
       filters: [{ label: "Arm", value: "All", options: ["All", ...r.arms.map((arm) => arm.name)], column: 0 }, { label: "State", value: "All", options: ["All", "Complete", "Incomplete"], match: { Complete: "state:Complete", Incomplete: "state:Incomplete" } }],
-      acts: [{ label: "Export the school broadsheet", primary: true, href: "/score-entry-results/results/export" }],
+      acts: [{ label: "Export the school broadsheet", primary: true, href: "/score-entry-results/results/export", download: true }],
       head: ["Arm", "Form master", "Roll", "Computed", "Average", "Pass", "Top", "State", ""], noun: "arm", nounPlural: "arms", per: 10, selectable: true,
       bulkActs: [{ label: "Export selected", primary: true, export: true }], rows: armRows,
-      foot: "Computed counts the students whose every subject is in and approved. An arm is Incomplete while any sheet is outstanding — its average is still true for the students who are complete.",
     }],
   });
   rows.push({
@@ -79,8 +78,7 @@ export function resultsTab(r: ResultsOverview, corrections: Correction[], option
       {
         type: "table", title: "By subject, across the school", sub: "Where the school is strong, and where it is not.", meta: `${r.subjects.length} subjects · approved sheets only`, head: ["Subject", "Average", "Pass", "Credit", "Highest", "Weakest arm"], noun: "subject", nounPlural: "subjects", per: 10, noRowOpen: true,
         rows: r.subjects.map((subject) => ({ cells: [text(subject.name, { strong: true }), text(String(subject.average), { strong: subject.average >= 70, tone: subject.average >= 70 ? "positive" : subject.average < 55 ? "attention" : undefined }), text(`${subject.pass}%`), text(`${subject.credit}%`), text(String(subject.high), { mono: true }), text(subject.weakest)] })),
-        empty: "No sheet has been approved yet.", foot: "A subject below 65 across the school is usually a teaching question, not a cohort question.",
-      },
+        empty: "No sheet has been approved yet.",       },
       {
         type: "list", title: "Corrections on approved scores", sub: "A score that has reached a family can only change through here.", meta: openCount ? `${openCount} in flight · ${corrections.filter((entry) => entry.status === "APPROVED").length} approved` : `${corrections.length} on record`,
         acts: [{ label: "Request a correction", primary: true, drawer: request }], items: correctionItems(corrections),
@@ -88,7 +86,7 @@ export function resultsTab(r: ResultsOverview, corrections: Correction[], option
       },
     ],
   });
-  return { title: "Results", desc: "The whole school, then any arm, then any child.", primary: { label: "Export the school broadsheet", icon: DOWNLOAD, href: "/score-entry-results/results/export" }, launchers: [{ label: "Request a correction", drawer: request }, { label: "Open the review queue", href: "/score-entry-results/review" }], rows };
+  return { title: "Results", desc: "The whole school, then any arm, then any child.", primary: { label: "Export the school broadsheet", icon: DOWNLOAD, href: "/score-entry-results/results/export", download: true }, launchers: [{ label: "Request a correction", drawer: request }, { label: "Open the review queue", href: "/score-entry-results/review" }], rows };
 }
 
 /* ───────────────────────── one arm ───────────────────────── */
@@ -110,11 +108,11 @@ export function armResultPage(a: ArmBroadsheet, corrections: Correction[], optio
           panels: [{
             type: "kpi", title: "This arm", sub: `${a.arm.master ?? "No form master"} · ${a.term.name} ${a.term.session} · ${a.scheme}`, per: 5,
             cards: [
-              { label: "Students computed", value: String(s.computed), unit: `of ${s.roll}`, sub: s.blocked ? `${s.blocked} blocked on a missing or unapproved score` : "Every student computed", tone: s.blocked ? "attention" : "positive" },
-              { label: "Arm average", value: num(s.average), sub: `Across ${plural(subjects.length, "subject")}` },
-              { label: "Pass rate", value: s.pass === null ? "—" : `${s.pass}%`, sub: `Pass mark ${a.passMark}`, tone: "positive" },
-              { label: "Credit rate", value: s.credit === null ? "—" : `${s.credit}%`, sub: "Credit threshold 50" },
-              { label: "Top grade", value: s.top?.grade ?? "—", sub: s.top?.name ?? "", tone: "positive" },
+              { label: "Students computed", value: String(s.computed), unit: `of ${s.roll}`, tone: s.blocked ? "attention" : "positive" },
+              { label: "Arm average", value: num(s.average), },
+              { label: "Pass rate", value: s.pass === null ? "—" : `${s.pass}%`, tone: "positive" },
+              { label: "Credit rate", value: s.credit === null ? "—" : `${s.credit}%`, },
+              { label: "Top grade", value: s.top?.grade ?? "—", tone: "positive" },
             ],
           }],
         },
@@ -122,7 +120,7 @@ export function armResultPage(a: ArmBroadsheet, corrections: Correction[], optio
           cols: "1fr",
           panels: [{
             type: "table", title: `Broadsheet · ${a.arm.name}`, tag: s.incomplete ? "Not every sheet is approved" : "Every sheet approved", tagTone: s.incomplete ? "attention" : "positive",
-            sub: "Children against subjects. Open a child to see every component behind their average.", meta: `${s.roll} children · ${subjects.length} subjects · arm average ${num(s.average)}`, search: "Find a child by name or admission number",
+            sub: "A blocked subject is excluded until it arrives — never a zero.", meta: `${s.roll} children · ${subjects.length} subjects · arm average ${num(s.average)}`, search: "Find a child by name or admission number",
             filters: [{ label: "Result", value: "All", options: ["All", "Computed", "Blocked"], match: { Computed: "result:Computed", Blocked: "result:Blocked" } }],
             acts: [{ label: "Export to Excel", primary: true, export: true }],
             head: ["Child", ...subjects.map((subject) => subject.code), "Total", "Average", "Pos", ""], noun: "child", nounPlural: "children", per: 15, noRowOpen: true,
@@ -136,7 +134,6 @@ export function armResultPage(a: ArmBroadsheet, corrections: Correction[], optio
               [text("Subject average", { strong: true }), ...subjects.map((subject) => text(num(subject.mean), { mono: true })), text(""), text(num(s.average), { mono: true, strong: true }), text(""), text("")],
               [text("Pass rate", { strong: true }), ...passRates.map((value) => text(value, { mono: true })), text(""), text(s.pass === null ? "—" : `${s.pass}%`, { mono: true, strong: true }), text(""), text("")],
             ],
-            foot: "A blocked row is a child with a score still missing or unapproved — they are excluded from positions until it arrives, never given a zero.",
           }],
         },
         {
@@ -162,12 +159,12 @@ export function studentResultPage(p: StudentPage, from: "review" | "results", op
     panels: [{
       type: "kpi", title: "This term", sub: `${p.term.name} ${p.term.session} · ${p.scheme}`, per: 6,
       cards: [
-        { label: "Average", value: sm.average === null ? "—" : `${sm.average}%`, sub: `Across ${sm.scored} of ${sm.expected} subjects`, tone: sm.average !== null && sm.average < p.passMark ? "negative" : sm.average !== null && sm.average >= 70 ? "positive" : "neutral" },
-        { label: "Position in arm", value: sm.pos === null ? "—" : String(sm.pos), unit: `of ${sm.outOf}`, sub: p.arm.name },
-        { label: "Overall grade", value: sm.grade ?? "—", sub: p.scheme },
-        { label: "Position in class", value: sm.levelPos === null ? "—" : String(sm.levelPos), unit: sm.levelPos === null ? undefined : `of ${sm.levelOutOf}`, sub: sm.levelPos === null ? "Once every sheet is approved" : sm.level },
-        { label: "Subjects passed", value: String(sm.passed), unit: `of ${sm.expected}`, sub: `Pass mark ${p.passMark}`, tone: sm.passed === sm.expected && sm.expected ? "positive" : "attention" },
-        { label: "Credits", value: String(sm.credits), unit: `of ${sm.expected}`, sub: "Credit threshold 50", tone: sm.credits >= Math.ceil(sm.expected * 0.6) ? "positive" : "attention" },
+        { label: "Average", value: sm.average === null ? "—" : `${sm.average}%`, tone: sm.average !== null && sm.average < p.passMark ? "negative" : sm.average !== null && sm.average >= 70 ? "positive" : "neutral" },
+        { label: "Position in arm", value: sm.pos === null ? "—" : String(sm.pos), unit: `of ${sm.outOf}`, },
+        { label: "Overall grade", value: sm.grade ?? "—", },
+        { label: "Position in class", value: sm.levelPos === null ? "—" : String(sm.levelPos), unit: sm.levelPos === null ? undefined : `of ${sm.levelOutOf}`, },
+        { label: "Subjects passed", value: String(sm.passed), unit: `of ${sm.expected}`, tone: sm.passed === sm.expected && sm.expected ? "positive" : "attention" },
+        { label: "Credits", value: String(sm.credits), unit: `of ${sm.expected}`, tone: sm.credits >= Math.ceil(sm.expected * 0.6) ? "positive" : "attention" },
       ],
     }],
   });
@@ -190,7 +187,6 @@ export function studentResultPage(p: StudentPage, from: "review" | "results", op
           { kind: "action" as const, label: "Trace", drawer: { mode: "view", kicker: "Score trace", title: `${subject.name} · ${p.student.name}`, readOnly: true, load: `/score-entry-results/drawers/subject/${p.arm.id}/${p.student.id}/${subject.subjectId}` } },
         ],
       })),
-      foot: "A blank is not a zero and an absence is not a zero — both are excluded from the average, and the report card says which.",
     }],
   });
   rows.push({

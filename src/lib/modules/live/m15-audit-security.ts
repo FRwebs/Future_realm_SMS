@@ -79,12 +79,6 @@ function whenLabel(iso: string | null): string {
   });
 }
 
-function dayCount(from: string | null, to: string | null): number | null {
-  if (!from || !to) return null;
-  const days = Math.round((new Date(to).getTime() - new Date(from).getTime()) / 86_400_000);
-  return Math.max(days, 1);
-}
-
 function entryFacts(entry: AuditEntry): PanelFact[] {
   const meta =
     entry.metadata && typeof entry.metadata === "object"
@@ -107,7 +101,6 @@ function entryFacts(entry: AuditEntry): PanelFact[] {
 }
 
 function auditTab(feed: AuditFeed): TabContent {
-  const span = dayCount(feed.firstAt, feed.lastAt);
   const sensitive = feed.byAction.filter((row) => SENSITIVE.has(row.action.toUpperCase()));
   const sensitiveCount = sensitive.reduce((sum, row) => sum + row.count, 0);
   const noIp = feed.entries.filter((entry) => !entry.ipAddress).length;
@@ -129,27 +122,21 @@ function auditTab(feed: AuditFeed): TabContent {
               {
                 label: "Entries",
                 value: feed.total.toLocaleString(),
-                sub: span ? `Across ${span} day${span === 1 ? "" : "s"}` : "No entries yet",
               },
               {
                 label: "Sensitive actions",
                 value: String(sensitiveCount),
-                sub: sensitiveCount
-                  ? sensitive.map((row) => readable(row.action)).join(" · ")
-                  : "No password or settings changes",
                 tone: sensitiveCount ? "attention" : "positive",
               },
               {
                 label: "Acting people",
                 value: String(feed.byActor.length),
-                sub: feed.byActor.length ? `Busiest: ${feed.byActor[0]?.actor}` : "Nobody named",
               },
               {
                 label: "Oldest entry",
                 value: feed.firstAt
                   ? formatDay(new Date(feed.firstAt), { day: "numeric", month: "short" }, "en-NG")
                   : "—",
-                sub: "Nothing before this can be answered for",
               },
             ],
           },
@@ -278,7 +265,6 @@ type LoginAttempt = {
 function monitoringTab(attempts: LoginAttempt[]): TabContent {
   const failed = attempts.filter((row) => !row.success);
   const succeeded = attempts.filter((row) => row.success);
-  const accounts = new Set(attempts.map((row) => row.email).filter(Boolean));
   const origins = new Set(attempts.map((row) => row.ipAddress).filter(Boolean));
   const noOrigin = attempts.filter((row) => !row.ipAddress).length;
   const noDevice = attempts.filter((row) => !row.device).length;
@@ -307,25 +293,20 @@ function monitoringTab(attempts: LoginAttempt[]): TabContent {
             title: "Sign-in attempts on record",
             per: 4,
             cards: [
-              { label: "Attempts", value: String(attempts.length), sub: `${accounts.size} account${accounts.size === 1 ? "" : "s"}` },
+              { label: "Attempts", value: String(attempts.length), },
               {
                 label: "Failed",
                 value: String(failed.length),
-                sub: failed.length ? "Wrong password or locked out" : "Nothing has been refused",
                 tone: failed.length ? "attention" : "positive",
               },
               {
                 label: "Distinct origins",
                 value: String(origins.size),
-                sub: origins.size ? "Addresses seen" : "No address recorded at all",
                 tone: origins.size ? undefined : "negative",
               },
               {
                 label: "Succeeded",
                 value: String(succeeded.length),
-                sub: attempts.length
-                  ? `${Math.round((succeeded.length / attempts.length) * 100)}% of attempts`
-                  : "—",
               },
             ],
           },
@@ -383,7 +364,7 @@ function monitoringTab(attempts: LoginAttempt[]): TabContent {
           {
             type: "note",
             tone: "neutral",
-            title: "What this page cannot tell you",
+            title: "What this page cannot tell you", tuck: "What this page cannot tell you", tuckIcon: "M12 6.5C10.5 5 8 4.5 4 4.5v13c4 0 6.5.5 8 2 1.5-1.5 4-2 8-2v-13c-4 0-6.5.5-8 2zM12 6.5v13", tuckKicker: "How this works",
             body: "Uptime, request failures and rate-limit hits are not collected anywhere on this stack, so nothing on this tab speaks to availability. It covers sign-ins only, which is the one signal that is actually recorded.",
           },
         ],
@@ -449,7 +430,6 @@ type DataProtection = {
  * what a regulator asks for and a policy document cannot answer.
  */
 function dataProtectionTab(data: DataProtection): TabContent {
-  const special = data.holdings.filter((row) => row.special && row.count > 0);
   const childRecords = data.holdings.find((row) => row.category === "Children on the roll")?.count ?? 0;
 
   return {
@@ -468,20 +448,15 @@ function dataProtectionTab(data: DataProtection): TabContent {
               {
                 label: "Children's records",
                 value: childRecords.toLocaleString(),
-                sub: "Each with a name and a date of birth",
               },
               {
                 label: "Special-category records",
                 value: data.specialCategoryRecords.toLocaleString(),
-                sub: special.length
-                  ? special.map((row) => row.category.toLowerCase()).join(" · ")
-                  : "None held",
                 tone: data.specialCategoryRecords ? "attention" : "positive",
               },
               {
                 label: "Guardians never asked",
                 value: String(data.guardiansWithoutConsent),
-                sub: `of ${data.guardians} on file`,
                 tone: data.guardiansWithoutConsent ? "negative" : "positive",
               },
               {
@@ -493,9 +468,6 @@ function dataProtectionTab(data: DataProtection): TabContent {
                       year: "numeric",
                     }, "en-NG")
                   : "—",
-                sub: data.audit.spanDays
-                  ? `${data.audit.spanDays} days · ${data.audit.entries.toLocaleString()} entries`
-                  : "No trail",
                 tone: data.audit.entries ? undefined : "negative",
               },
             ],
@@ -692,13 +664,11 @@ function integrityRows(payload: IntegrityPayload): PanelRow[] {
       label: "Open integrity flags",
       value: String(stats.open),
       tone: stats.open ? "attention" : "positive",
-      sub: `Across ${stats.monitors} monitors`,
     },
     {
       label: "Users without two-factor",
       value: `${stats.noMfa} of ${stats.activeUsers}`,
       tone: stats.noMfa ? "negative" : "positive",
-      sub: stats.noMfa ? "A password alone opens the school" : "Every account is protected",
       link: "See users",
       href: "/staff-access/permissions",
     },
@@ -706,12 +676,10 @@ function integrityRows(payload: IntegrityPayload): PanelRow[] {
       label: "Dormant accounts",
       value: String(stats.dormant),
       tone: stats.dormant ? "attention" : "positive",
-      sub: "No sign-in for 90 days, or never",
     },
     {
       label: "Exports, 30 days",
       value: String(stats.exports30),
-      sub: `${stats.permChanges} permission changes in the same window`,
     },
   ];
 
@@ -800,19 +768,16 @@ function dsrRows(payload: DsrPayload): PanelRow[] {
       label: "Open subject requests",
       value: String(stats.open),
       tone: stats.open ? "attention" : "positive",
-      sub: "Five types · statutory 30 days",
     },
     {
       label: "Closest deadline",
       value: stats.closestDays === null ? "—" : `${stats.closestDays} days`,
       tone: stats.closestDays !== null && stats.closestDays <= 7 ? "negative" : "neutral",
-      sub: stats.closestDays === null ? "Nothing outstanding" : "Statutory clock, from the day it arrived",
     },
     {
       label: "Core consent held",
       value: `${stats.consentHeld} of ${stats.consentTotal}`,
       tone: stats.consentHeld < stats.consentTotal ? "attention" : "positive",
-      sub: stats.consentHeld < stats.consentTotal ? `${stats.consentTotal - stats.consentHeld} guardians have given none` : "Everybody has been asked",
       link: "See consent",
       href: "/parents-guardians/guardians",
     },
@@ -820,7 +785,6 @@ function dsrRows(payload: DsrPayload): PanelRow[] {
       label: "Incidents recorded",
       value: String(stats.incidents),
       tone: stats.incidents ? "negative" : "positive",
-      sub: stats.incidents ? "Breach register has entries" : "Breach register is empty",
     },
   ];
 

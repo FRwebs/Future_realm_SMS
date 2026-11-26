@@ -36,10 +36,10 @@ export function archiveTab(a: ArchiveOverview): TabContent {
     panels: [{
       type: "kpi", title: "The archive", sub: a.filters.term || a.filters.arm ? "Narrowed by the strips below" : "Every term the school has issued", per: 4,
       cards: [
-        { label: "Cards issued", value: String(k.issued), sub: k.issued ? "Each one opens as the family had it" : "Nothing has been issued yet", tone: k.issued ? "positive" : "neutral" },
-        { label: "Sessions on record", value: String(k.sessions), sub: "Retrievable by child, arm and term", tone: "neutral" },
-        { label: "Revisions", value: String(k.revisions), sub: k.revisions ? "A correction is stored beside the original" : "No card has been corrected", tone: k.revisions ? "attention" : "positive" },
-        { label: "Not delivered", value: String(k.undelivered), sub: k.undelivered ? "Nobody on the record can open it" : "Every family can open theirs", tone: k.undelivered ? "negative" : "positive" },
+        { label: "Cards issued", value: String(k.issued), tone: k.issued ? "positive" : "neutral" },
+        { label: "Sessions on record", value: String(k.sessions), tone: "neutral" },
+        { label: "Revisions", value: String(k.revisions), tone: k.revisions ? "attention" : "positive" },
+        { label: "Not delivered", value: String(k.undelivered), tone: k.undelivered ? "negative" : "positive" },
       ],
     }],
   });
@@ -70,7 +70,6 @@ export function archiveTab(a: ArchiveOverview): TabContent {
         { label: "Export selected", primary: true, export: true },
       ],
       rows: tableRows, empty: "No card has been issued for this view.",
-      foot: "A card a family holds is revised, never replaced. The earlier version stays on the record.",
     }],
   });
   const revisionItems = a.revisions.slice(0, 8).map((entry) => ({ label: `${entry.name} · ${entry.term}`, sub: `${entry.reason} · ${day(entry.at)}${entry.notified ? " · family told" : ""}`, pill: `${KIND[entry.kind] ?? entry.kind} · r${entry.revision}`, tone: (entry.kind === "CORRECTION" ? "attention" : "neutral") as PanelTone, viewLabel: "Open", drawer: cardDrawer(entry.studentId, entry.termId, entry.name) }));

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import type { Route } from "next";
 import { useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { Field, fieldVisible, initialValue } from "@/components/modules/field";
 import { buildBody, CommitDone, ConfirmSheet, describe, withSeeds, type CommitResult } from "@/components/modules/module-drawer";
@@ -33,6 +33,21 @@ export function CreateWizard({ spec }: { spec: DrawerSpec }) {
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState<CommitResult | null | false>(false);
+
+  /*
+   * A step begins where it begins, not where the last one ended.
+   *
+   * Nothing moved the page when the step changed, so somebody who filled a tall step and pressed on
+   * landed partway down the next one: the Access step's heading and its first fields were above the
+   * window and had to be scrolled back up to. The step's own top is brought into view instead —
+   * never on the first paint, so opening the page does not jump.
+   */
+  const head = useRef<HTMLElement | null>(null);
+  const landed = useRef(false);
+  useEffect(() => {
+    if (!landed.current) { landed.current = true; return; }
+    head.current?.scrollIntoView({ block: "start", behavior: "smooth" });
+  }, [index]);
 
   const last = index === steps.length - 1;
   const step = steps[index];
@@ -167,7 +182,7 @@ export function CreateWizard({ spec }: { spec: DrawerSpec }) {
           ))
         : null}
 
-      <section className={CARD} style={BORDER}>
+      <section ref={head} className={CARD} style={{ ...BORDER, scrollMarginTop: 18 }}>
         <header className="px-[18px] pt-[15px]">
           <div className="flex flex-wrap items-baseline justify-between gap-2">
             <h2 className="text-[13px] font-semibold" style={{ color: INK }}>{reviewing ? "Check this, then create the record" : step.title}</h2>

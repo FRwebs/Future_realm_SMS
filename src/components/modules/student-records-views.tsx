@@ -32,7 +32,7 @@ async function allowed() {
 
 function Shell({ content, children }: { content: AdmissionPage["content"]; children?: React.ReactNode }) {
   return (
-    <ModuleWorkspace eyebrow={EYEBROW} title={content.title ?? "Student Records"} description={content.desc ?? ""} primary={content.primary} launchers={content.launchers} rows={content.rows} back={content.crumb}>
+    <ModuleWorkspace eyebrow={EYEBROW} title={content.title ?? "Student Records"} description={content.desc ?? ""} tag={content.tag} tagTone={content.tagTone} primary={content.primary} launchers={content.launchers} rows={content.rows} back={content.crumb}>
       {children}
     </ModuleWorkspace>
   );

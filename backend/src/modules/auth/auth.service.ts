@@ -44,6 +44,16 @@ const maskEmail = (email: string) => {
 /** Without a mail server the code cannot reach anyone, so requiring it would lock every leader out. AUTH_EMAIL_MFA=on forces it regardless. */
 const emailMfaWorks = () => process.env.AUTH_EMAIL_MFA === "on" || (process.env.AUTH_EMAIL_MFA !== "off" && Boolean(process.env.SMTP_HOST));
 
+/**
+ * The back office asks for a code at every sign-in and says there is no way past it, so an account
+ * that runs the platform never takes the line above as permission to skip one. A school leader
+ * still does: an unconfigured mail server must not shut a school out of its own workspace, but it
+ * is exactly the reason to shut the platform's own staff out of everyone else's data. Where no
+ * server is configured the mailer writes the code to its log rather than sending it, so a local
+ * sign-in still has somewhere to read it.
+ */
+export const mfaIsSkippable = (role: string) => !emailMfaWorks() && !isPlatformRole(role);
+
 const PASSWORD_RESET_TTL_MINUTES = 30;
 
 function hashResetToken(token: string) {
@@ -169,7 +179,7 @@ export class AuthService {
       }
       mfaChannel = "app";
     } else if (EMAIL_MFA_ROLES.has(String(user.role))) {
-      if (!emailMfaWorks()) {
+      if (mfaIsSkippable(String(user.role))) {
         mfaChannel = "skipped";
       } else if (!mfaCode) {
         await this.sendSignInCode(user.id, user.email);
