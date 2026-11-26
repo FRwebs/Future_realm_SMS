@@ -35,7 +35,7 @@ export async function syncPage(): Promise<StudentContent> {
 
   // The mockup's own list, answered honestly: what this portal can and cannot do without a connection.
   const works: PanelFact[] = [
-    ["Reading a page you already opened", "Works offline", "Your phone shows the copy it last loaded"],
+    ["Reading a page you already opened", "Needs a connection", "Every page is read from the school when it opens; this phone does not keep a copy"],
     ["Today, your timetable and your marks", "Needs a connection", "Each page is read from the school as it opens"],
     ["Handing in work", "Needs a connection", "It is not kept to send later — try again when you are back online"],
     ["Asking a teacher", "Needs a connection", "The same: nothing is queued on this phone"],

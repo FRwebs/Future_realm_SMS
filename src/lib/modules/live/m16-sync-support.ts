@@ -30,17 +30,17 @@ const mark = (ok: boolean): TableCellKind => ({ kind: "mark", ok });
 
 /** What the product is built to do with no connection, and what always needs one. */
 const OFFLINE: Array<[string, string]> = [
-  ["Mark attendance", "Publish report cards"],
-  ["Enter and edit scores", "Send any message"],
-  ["Write remark drafts", "Approve anything"],
-  ["Record a payment · provisional receipt", "Generate report cards"],
-  ["Read any student record", "Migration and bulk import"],
-  ["Read any guardian record", "Full-school export"],
-  ["View computed results · marked provisional", "Add or invite a staff member"],
-  ["Read cached help articles", "Change permissions"],
-  ["View your timetable and class lists", "Publish a timetable or fee structure"],
-  ["Draft a support ticket", "Resolve a sync conflict"],
-  ["See sync state and pending queue", "Platform status check"],
+  ["Mark a register on a phone that has opened it", "Publish report cards"],
+  ["Enter and save scores on a sheet that phone has opened", "Send any message"],
+  ["Write an early-years observation", "Approve anything"],
+  ["", "Read a student or guardian record"],
+  ["", "Record a payment"],
+  ["", "Generate report cards"],
+  ["", "Open a page that was not opened on this phone first"],
+  ["", "Resolve a sync conflict"],
+  ["", "Add or invite a staff member"],
+  ["", "Change permissions"],
+  ["", "Publish a timetable or fee structure"],
 ];
 
 export function syncTab(o: SyncOverview): TabContent {
@@ -84,9 +84,9 @@ export function syncTab(o: SyncOverview): TabContent {
     cols: "1fr",
     panels: [{
       type: "table", title: "What works offline", tag: "The honest list", tagTone: "neutral", tuck: "What works offline",
-      sub: "Eleven things the product is built to do with no connection, and eleven that always need one.",
+      sub: "Three things the product does with no connection, and what always needs one. A register or a score sheet opens on a phone that has opened it online before; what is written is kept on the phone and sent when the connection returns.",
       head: ["Works offline", "", "Requires a connection", ""], noun: "capability", nounPlural: "capabilities", noRowOpen: true, per: 11,
-      rows: OFFLINE.map(([works, needs]) => ({ cells: [text(works), mark(true), text(needs), mark(false)] })),
+      rows: OFFLINE.map(([works, needs]) => ({ cells: [text(works), works ? mark(true) : text(""), text(needs), mark(false)] })),
     }],
   });
   return { title: "Sync", desc: "Is everything saved, what is waiting, and what does this device hold?", primary: { label: "Sync now", icon: REFRESH, href: "/sync-support/sync" }, launchers: [{ label: "Help & support", href: "/sync-support/help-support" }, { label: "Raise a sync ticket", drawer: raiseTicketDrawer({ category: "SYNC_OFFLINE_ISSUE", subject: "My work is not syncing" }) }], rows };

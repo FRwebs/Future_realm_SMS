@@ -66,6 +66,7 @@ import { apiJson, getUrl } from "@/lib/api/client";
 import { membershipsContract, myProfileContract, notificationsContract } from "@/lib/api/contracts";
 import { PhoneNotificationSheet } from "@/components/layout/phone-teacher-notifications";
 import { roleLabels } from "@/lib/auth/roles";
+import { readOutbox } from "@/lib/offline/outbox";
 import type {
   SessionUser,
   StudentPortalNotificationView,
@@ -674,28 +675,38 @@ function canBroadcast(session: SessionUser) {
 }
 
 /**
- * Whether the work on this device is saved. The mockup keeps it in the top bar
- * on every screen; it follows the browser's own connectivity, so it flips to
- * "Offline · saved on device" the moment the connection drops.
+ * Whether the work on this device is saved. The mockup keeps it in the top bar on every screen. It follows the browser's own
+ * connectivity, and it counts what this device is actually holding to send: "All work saved" is only said when nothing is waiting, and
+ * "kept on this device" only when something really is.
  */
 function SyncPill() {
   const t = useTranslations("shell");
   const [online, setOnline] = useState(true);
+  const [waiting, setWaiting] = useState(0);
 
   useEffect(() => {
-    const update = () => setOnline(navigator.onLine);
+    const update = () => { setOnline(navigator.onLine); setWaiting(readOutbox().length); };
     update();
     window.addEventListener("online", update);
     window.addEventListener("offline", update);
+    // Another tab sending the queue, or this one holding something new, changes what is waiting.
+    window.addEventListener("storage", update);
+    window.addEventListener("fr:outbox-flush", update);
+    const tick = window.setInterval(update, 10_000);
     return () => {
       window.removeEventListener("online", update);
       window.removeEventListener("offline", update);
+      window.removeEventListener("storage", update);
+      window.removeEventListener("fr:outbox-flush", update);
+      window.clearInterval(tick);
     };
   }, []);
 
-  const tone = online
-    ? { bg: "#EAF6F0", fg: "#17714F", dot: "#22A06B", bd: "#CFE4DB" }
-    : { bg: "#F4F6F5", fg: "#5A6862", dot: "#5E6D64", bd: "#E2E8E5" };
+  const tone = waiting
+    ? { bg: "#FBF3E4", fg: "#8A5A0B", dot: "#D08A12", bd: "#F1DFB8" }
+    : online
+      ? { bg: "#EAF6F0", fg: "#17714F", dot: "#22A06B", bd: "#CFE4DB" }
+      : { bg: "#F4F6F5", fg: "#5A6862", dot: "#5E6D64", bd: "#E2E8E5" };
 
   return (
     <Link
@@ -708,7 +719,7 @@ function SyncPill() {
         className="h-[6px] w-[6px] flex-none rounded-full"
         style={{ background: tone.dot }}
       />
-      <span>{online ? t("allWorkSaved") : t("offlineSaved")}</span>
+      <span>{waiting ? (online ? t("waitingToSend", { count: waiting }) : t("offlineKept", { count: waiting })) : online ? t("allWorkSaved") : t("offlineClear")}</span>
     </Link>
   );
 }

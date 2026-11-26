@@ -28,7 +28,7 @@ export async function syncPage(): Promise<ParentContent> {
   // The mockup's own list, answered honestly: this portal reads each page from the school as it
   // opens and queues nothing, so the line for every send is that it needs a connection.
   const works: PanelFact[] = [
-    ["Reading a page you already opened", "Works offline", "Your phone shows the copy it last loaded"],
+    ["Reading a page you already opened", "Needs a connection", "Every page is read from the school when it opens; this phone does not keep a copy"],
     ["Attendance, results and what is owed", "Needs a connection", "Each page is read from the school as it opens"],
     ["Explaining an absence, or any request", "Needs a connection", "It is not kept to send later — try again when you are back online"],
     ["Paying fees, or reporting a payment", "Needs a connection", "The same: nothing is queued on this phone"],

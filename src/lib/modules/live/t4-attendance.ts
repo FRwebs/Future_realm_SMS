@@ -174,7 +174,7 @@ function markTab(v: RegistersView, me: TeacherWorkspaceView, held: Set<string>):
         { label: "Registers to mark", value: String(open.length), unit: `of ${live.length}`, tone: open.length && v.schoolDay ? "negative" : "positive" },
         { label: "Children unaccounted for", value: String(waiting), tone: waiting ? "attention" : "positive" },
         { label: "Your median time", value: median ? `${median}s` : "—", unit: median ? "per register" : undefined, tone: median ? "positive" : "neutral" },
-        { label: "Works offline", value: "Yes", tone: "positive" },
+        { label: "Works offline", value: "Yes", unit: "once opened here", tone: "positive" },
       ],
     }]),
     { ...row("1fr", [{

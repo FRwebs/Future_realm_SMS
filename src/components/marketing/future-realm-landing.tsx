@@ -222,7 +222,7 @@ const parentPoints = [
 ] as const;
 
 const commitments = [
-  { title: "It works offline", desc: "Attendance and results never stop when the network does." },
+  { title: "It works offline", desc: "Attendance and scores keep working when the network drops, and are sent when it returns." },
   { title: "Results you can defend", desc: "Every score change is approved and permanently recorded." },
   { title: "Your data is yours", desc: "Full export any time, without asking permission." },
   { title: "Every action is logged", desc: "A permanent audit trail no one can alter — not even us." },
