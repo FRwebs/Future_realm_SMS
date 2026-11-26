@@ -1,3 +1,4 @@
+import { admissionPrefixFor } from "@/lib/domain/admission-number";
 import { clearSampleDrawer, loadSample, type SampleStatus } from "@/lib/modules/live/m1-trial";
 import { apiGet, observe } from "@/lib/api/server";
 import { localContracts } from "@/lib/api/local-contracts.zod";
@@ -64,6 +65,8 @@ type SchoolRecord = {
   primaryColor: string | null;
   secondaryColor: string | null;
   shortName: string | null;
+  /** The letters admission numbers start with; empty means the letters the school's name gives. */
+  admissionPrefix: string | null;
   motto: string | null;
   vision: string | null;
   schoolType: string | null;
@@ -358,6 +361,14 @@ function identityDrawer(school: SchoolRecord) {
         required: true,
         hint: "Used in SMS, where every character is paid for",
       },
+      {
+        label: "Admission number prefix",
+        kind: "text" as const,
+        value: school.admissionPrefix ?? "",
+        optional: true,
+        placeholder: admissionPrefixFor({ shortName: school.shortName, name: school.name }),
+        hint: `Admission numbers read ${admissionPrefixFor(school)}/${String(new Date().getFullYear()).slice(-2)}/0001: prefix, year, running number. Two to six letters or digits. Leave it empty to use the letters your school name gives. Only children admitted from now on are numbered with it; nobody's existing number changes.`,
+      },
       { label: "Motto", kind: "text" as const, value: school.motto ?? "" },
       {
         label: "Vision statement",
@@ -414,6 +425,7 @@ function identityDrawer(school: SchoolRecord) {
       map: {
         "School name": "name",
         "Short name": "shortName",
+        "Admission number prefix": "admissionPrefix",
         Motto: "motto",
         "Vision statement": "vision",
         "School type": "schoolType",
@@ -716,6 +728,11 @@ function profileTab(school: SchoolRecord, branding: BrandingVersion[], sample: S
             facts: [
               ["School name", school.name, "As printed on report cards"],
               ["Short name", school.shortName ?? "Not set", "Used in SMS, where characters cost money"],
+              [
+                "Admission numbers",
+                `${admissionPrefixFor(school)}/${String(new Date().getFullYear()).slice(-2)}/0001`,
+                school.admissionPrefix ? "Your own prefix" : "From your school name · change it in Edit identity",
+              ],
               ["Motto", school.motto ?? "Not recorded"],
               ["Vision", school.vision ?? "Not recorded"],
               [

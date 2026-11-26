@@ -1,3 +1,4 @@
+import { nextAdmissionNumber } from "../student-records/records.shared";
 import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
 import { ApplicationStatus, Prisma } from "@prisma/client";
 import { addDays, differenceInCalendarDays } from "date-fns";
@@ -1038,7 +1039,7 @@ export class AdmissionsService {
         data: {
           schoolId,
           campusId: dbApplication.campusId,
-          admissionNumber: parsed.admissionNumber || `ADM/${Date.now().toString().slice(-6)}`,
+          admissionNumber: parsed.admissionNumber || (await nextAdmissionNumber(schoolId)),
           firstName: dbApplication.firstName,
           lastName: dbApplication.lastName,
           middleName: dbApplication.middleName,

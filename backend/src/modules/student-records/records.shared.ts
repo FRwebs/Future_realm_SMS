@@ -1,3 +1,4 @@
+import { admissionPrefixFor, formatAdmission } from "../../../../src/lib/domain/admission-number";
 import { prisma } from "../../../../src/lib/db/prisma";
 import { DAY_MS, armName, currentTerm, daysSince, fullName, num } from "../fee-management/fees.shared";
 import { formatDay } from "../../common/date-format";
@@ -109,23 +110,25 @@ export function dayText(date: Date | null | undefined): string {
   return formatDay(date, { day: "numeric", month: "long", year: "numeric" });
 }
 
-/** The next admission number in the school's own pattern, never one that is already taken. */
+/**
+ * The next admission number in the school's own pattern, never one that is already taken: its prefix (its own choice, or the one
+ * its name gives), the year, and the next running number for that prefix and year.
+ */
 export async function nextAdmissionNumber(schoolId: string): Promise<string> {
-  const year = String(new Date().getFullYear()).slice(-2);
-  const existing = await prisma.student.findMany({ where: { schoolId, admissionNumber: { startsWith: "GFC/" } }, select: { admissionNumber: true } });
+  const school = await prisma.school.findUnique({ where: { id: schoolId }, select: { admissionPrefix: true, shortName: true, name: true } });
+  const prefix = admissionPrefixFor(school ?? {});
+  const year = new Date().getFullYear();
+  const head = `${prefix}/${String(year).slice(-2)}/`;
+  const existing = await prisma.student.findMany({ where: { schoolId, admissionNumber: { startsWith: head } }, select: { admissionNumber: true } });
   const taken = new Set(existing.map((row) => row.admissionNumber));
-  let prefix = `${year}`;
-  const sample = existing.map((row) => row.admissionNumber).find((value) => /^[A-Z]+\/\d{2}\/\d+$/.test(value));
-  const head = sample ? sample.split("/")[0] : "GFC";
-  prefix = `${head}/${year}`;
   let highest = 0;
   for (const value of taken) {
-    const match = value.match(new RegExp(`^${head}/${year}/(\\d+)$`));
+    const match = value.slice(head.length).match(/^(\d+)$/);
     if (match) highest = Math.max(highest, Number(match[1]));
   }
   let next = highest + 1;
-  while (taken.has(`${prefix}/${String(next).padStart(4, "0")}`)) next += 1;
-  return `${prefix}/${String(next).padStart(4, "0")}`;
+  while (taken.has(formatAdmission(prefix, year, next))) next += 1;
+  return formatAdmission(prefix, year, next);
 }
 
 export const ok = async <T>(dataPromise: Promise<T>, message?: string) => ({ ok: true, success: true, ...(message ? { message } : {}), data: await dataPromise });

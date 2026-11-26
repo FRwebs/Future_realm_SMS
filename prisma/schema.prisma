@@ -625,6 +625,8 @@ model School {
   isPlatform                    Boolean                        @default(false)
   /// What the school calls itself in short — used in SMS, where characters cost money.
   shortName                     String?
+  /// The letters this school's admission numbers start with (LA/26/0001). Empty means the letters its own name gives.
+  admissionPrefix               String?
   motto                         String?
   vision                        String?
   /// Co-educational, boys only or girls only — how the school describes its intake.

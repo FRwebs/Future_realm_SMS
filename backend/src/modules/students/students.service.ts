@@ -1,3 +1,4 @@
+import { nextAdmissionNumber } from "../student-records/records.shared";
 import { Injectable } from "@nestjs/common";
 import { Prisma } from "@prisma/client";
 import { z } from "zod";
@@ -394,7 +395,7 @@ export class StudentsService {
     const student = await prisma.student.create({
       data: {
         schoolId,
-        admissionNumber: `ADM/${Date.now().toString().slice(-6)}`,
+        admissionNumber: await nextAdmissionNumber(schoolId),
         firstName: parsed.firstName,
         lastName: parsed.lastName,
         middleName: parsed.middleName || null,
