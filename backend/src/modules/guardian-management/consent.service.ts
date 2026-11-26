@@ -5,7 +5,7 @@ import { z } from "zod";
 import type { SessionPayload } from "../../../../src/lib/auth/session-core";
 import { prisma } from "../../../../src/lib/db/prisma";
 import { ConfigStore } from "../staff-access/staff-access.shared";
-import { CONSENT_DEFAULTS, loadConsentTypes, type ConsentType } from "../student-records/consent.shared";
+import { CONSENT_DEFAULTS, FAMILY_LEVEL, answerKey, loadConsentTypes, type ConsentType } from "../student-records/consent.shared";
 import { FamiliesService } from "./families.service";
 import { notifyGuardian } from "./guardians.shared";
 
@@ -80,7 +80,8 @@ export class ConsentService {
     const noCore = rows.filter((family) => !given(family, "core"));
     const withdrawals = await prisma.familyConsent.findMany({ where: { schoolId, status: "WITHDRAWN" }, include: { guardian: { select: { firstName: true, lastName: true } } }, orderBy: { recordedAt: "desc" }, take: 40 });
     const byType = new Map<string, number>();
-    for (const row of withdrawals) byType.set(row.typeCode, (byType.get(row.typeCode) ?? 0) + 1);
+    // A family that withdrew a consent for two children is one withdrawal, not two.
+    for (const row of withdrawals.filter((entry, at, all) => all.findIndex((other) => other.guardianId === entry.guardianId && other.typeCode === entry.typeCode) === at)) byType.set(row.typeCode, (byType.get(row.typeCode) ?? 0) + 1);
     return {
       types: coverage,
       rows,
@@ -123,19 +124,24 @@ export class ConsentService {
     if (!guardian) throw new NotFoundException("That family does not exist.");
     const types = await loadConsentTypes(schoolId);
     const when = input.date ? new Date(input.date) : new Date();
+    // The school records for the whole family in one sitting, but each child keeps an answer of their own.
+    const kids = (await prisma.studentGuardian.findMany({ where: { guardianId }, select: { studentId: true, student: { select: { status: true } } } })).filter((link) => link.student.status !== "WITHDRAWN").map((link) => link.studentId);
     let changed = 0;
     for (const type of types) {
       const answer = input.answers[type.name] ?? input.answers[type.code];
       if (!answer) continue;
       const status = answer.startsWith("Given") ? "GIVEN" : answer === "Withdrawn" ? "WITHDRAWN" : "NOT_GIVEN";
-      const existing = await prisma.familyConsent.findUnique({ where: { guardianId_typeCode: { guardianId, typeCode: type.code } } });
-      if ((existing?.status ?? "NOT_GIVEN") === status && (status !== "GIVEN" || existing?.means === (MEANS[answer] ?? "IN_PERSON"))) continue;
-      await prisma.familyConsent.upsert({
-        where: { guardianId_typeCode: { guardianId, typeCode: type.code } },
-        update: { status, means: status === "GIVEN" ? MEANS[answer] ?? "IN_PERSON" : existing?.means ?? null, recordedById: session.userId, recordedAt: when, note: input.note || null },
-        create: { schoolId, guardianId, typeCode: type.code, status, means: status === "GIVEN" ? MEANS[answer] ?? "IN_PERSON" : null, recordedById: session.userId, recordedAt: when, note: input.note || null }
-      });
-      changed += 1;
+      const means = MEANS[answer] ?? "IN_PERSON";
+      for (const studentId of type.scope === "family" || !kids.length ? [FAMILY_LEVEL] : kids) {
+        const existing = await prisma.familyConsent.findUnique({ where: answerKey(guardianId, type.code, studentId) });
+        if ((existing?.status ?? "NOT_GIVEN") === status && (status !== "GIVEN" || existing?.means === means)) continue;
+        await prisma.familyConsent.upsert({
+          where: answerKey(guardianId, type.code, studentId),
+          update: { status, means: status === "GIVEN" ? means : existing?.means ?? null, recordedById: session.userId, recordedAt: when, note: input.note || null, noticeVersion: type.version },
+          create: { schoolId, guardianId, typeCode: type.code, studentId, status, means: status === "GIVEN" ? means : null, recordedById: session.userId, recordedAt: when, note: input.note || null, noticeVersion: type.version }
+        });
+        changed += 1;
+      }
     }
     if (input.tell && changed) await notifyGuardian(schoolId, guardianId, "Your consent record was updated", "The school updated what it holds on your consent. Open the app to review it.", ["In-app", "SMS"]);
     await this.audit(session, AuditAction.UPDATE, guardianId, { summary: `Consent recorded · ${changed} changes`, note: input.note });

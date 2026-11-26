@@ -6,7 +6,7 @@ import { z } from "zod";
 import type { SessionPayload } from "../../../../src/lib/auth/session-core";
 import { prisma } from "../../../../src/lib/db/prisma";
 import { PAYMENT_MODE } from "../fee-management/fees.shared";
-import { loadConsentTypes } from "../student-records/consent.shared";
+import { FAMILY_LEVEL, familyAnswer, loadConsentTypes } from "../student-records/consent.shared";
 import { armName, currentTerm, daysSince, feeStateOf, gradeBands, gradeOf, initials, num, relevantInvoice, stateOf } from "../student-records/records.shared";
 import { RELATIONS, VISIBILITY, deliveryOf, fullName, guardianPortal, normalPhone, notifyGuardian, validMobile } from "./guardians.shared";
 import { formatDay } from "../../common/date-format";
@@ -108,7 +108,7 @@ export class FamiliesService {
       }),
       loadConsentTypes(schoolId),
       prisma.invoice.findMany({ where: { schoolId, status: { not: "VOID" } }, select: { studentId: true, balance: true, termId: true } }),
-      prisma.familyConsent.findMany({ where: { schoolId }, select: { guardianId: true, typeCode: true, status: true, means: true } })
+      prisma.familyConsent.findMany({ where: { schoolId }, select: { guardianId: true, typeCode: true, status: true, means: true, studentId: true } })
     ]);
     const owing = new Map<string, number>();
     for (const invoice of invoices.filter((entry) => relevantInvoice(entry, term?.id))) owing.set(invoice.studentId, (owing.get(invoice.studentId) ?? 0) + num(invoice.balance));
@@ -121,7 +121,13 @@ export class FamiliesService {
       .map<FamilyRow>((guardian) => {
         const own = byGuardian.get(guardian.id) ?? [];
         const status: Record<string, string> = {};
-        for (const type of types) status[type.code] = own.find((row) => row.typeCode === type.code)?.status ?? "NOT_GIVEN";
+        const present = guardian.students.filter((link) => link.student.status !== "WITHDRAWN");
+        // A consent asked per child reads as given for the family only when every child has it; the family page shows each child's own.
+        for (const type of types) {
+          status[type.code] = type.scope === "family"
+            ? own.find((row) => row.typeCode === type.code && row.studentId === FAMILY_LEVEL)?.status ?? "NOT_GIVEN"
+            : familyAnswer(own.filter((row) => row.typeCode === type.code && present.some((link) => link.studentId === row.studentId)), present.length);
+        }
         const given = (code: string) => status[code] === "GIVEN";
         const coverage = required.every((type) => given(type.code)) && required.length ? "Complete" : types.some((type) => given(type.code)) ? "Gaps" : "None";
         const kids = guardian.students.filter((link) => link.student.status !== "WITHDRAWN");
@@ -321,8 +327,15 @@ export class FamiliesService {
       attendance: rated.length ? Math.round(rated.reduce((sum, child) => sum + (child.att ?? 0), 0) / rated.length) : null,
       consent: row?.consent ?? "None",
       consents: types.map((type) => {
-        const record = consents.find((entry) => entry.typeCode === type.code);
-        return { code: type.code, name: type.name, required: type.required, blocks: type.blocks, status: record?.status ?? "NOT_GIVEN", means: record?.means ?? null, on: record?.recordedAt.toISOString() ?? null };
+        const present = guardian.students.filter((link) => link.student.status !== "WITHDRAWN");
+        const mine = consents.filter((entry) => entry.typeCode === type.code && (type.scope === "family" ? entry.studentId === FAMILY_LEVEL : present.some((link) => link.studentId === entry.studentId)));
+        const status = type.scope === "family" ? mine[0]?.status ?? "NOT_GIVEN" : familyAnswer(mine, present.length);
+        const record = mine.find((entry) => entry.status === status) ?? mine[0];
+        return {
+          code: type.code, name: type.name, required: type.required, blocks: type.blocks, status, means: record?.means ?? null, on: record?.recordedAt.toISOString() ?? null,
+          /** For a consent asked per child: what each child's answer is, so a family whose children differ is shown as such. */
+          perChild: type.scope === "family" ? [] : present.map((link) => ({ id: link.studentId, first: link.student.firstName, status: mine.find((entry) => entry.studentId === link.studentId)?.status ?? "NOT_GIVEN" }))
+        };
       }),
       collectors: guardian.collectors.map((entry) => ({ id: entry.id, name: entry.name, relation: entry.relation, phone: entry.phone, photo: Boolean(entry.photoFile) })),
       sent,
@@ -356,7 +369,9 @@ export class FamiliesService {
       for (const label of input.consent) {
         const type = types.find((entry) => label.startsWith(entry.name));
         if (!type) continue;
-        await tx.familyConsent.create({ data: { schoolId, guardianId: guardian.id, typeCode: type.code, status: "GIVEN", means: "IN_PERSON", recordedById: session.userId } });
+        for (const studentId of type.scope === "family" || !students.length ? [FAMILY_LEVEL] : students.map((student) => student.id)) {
+          await tx.familyConsent.create({ data: { schoolId, guardianId: guardian.id, typeCode: type.code, studentId, status: "GIVEN", means: "IN_PERSON", recordedById: session.userId, noticeVersion: type.version } });
+        }
       }
       if (input.invite) await tx.guardianContact.create({ data: { schoolId, guardianId: guardian.id, kind: "INVITE", channel: "SMS and email", summary: "Portal invitation sent", createdById: session.userId } });
       return guardian;
@@ -446,10 +461,10 @@ export class FamiliesService {
     const result = await prisma.$transaction(async (tx) => {
       for (const link of moved) await tx.studentGuardian.update({ where: { studentId_guardianId: { studentId: link.studentId, guardianId: away.id } }, data: { guardianId: keep.id } });
       await tx.studentGuardian.deleteMany({ where: { guardianId: away.id } });
-      const have = new Set((await tx.familyConsent.findMany({ where: { guardianId: keep.id }, select: { typeCode: true } })).map((row) => row.typeCode));
+      const have = new Set((await tx.familyConsent.findMany({ where: { guardianId: keep.id }, select: { typeCode: true, studentId: true } })).map((row) => `${row.typeCode}:${row.studentId}`));
       const theirs = await tx.familyConsent.findMany({ where: { guardianId: away.id } });
       for (const row of theirs) {
-        if (have.has(row.typeCode)) await tx.familyConsent.delete({ where: { id: row.id } });
+        if (have.has(`${row.typeCode}:${row.studentId}`)) await tx.familyConsent.delete({ where: { id: row.id } });
         else await tx.familyConsent.update({ where: { id: row.id }, data: { guardianId: keep.id } });
       }
       await tx.guardianSubmission.updateMany({ where: { guardianId: away.id }, data: { guardianId: keep.id } });

@@ -100,8 +100,8 @@ export class ParentWorkspaceController {
 
   /** Every consent the school holds from this family. */
   @Get("consents")
-  async consents(@CurrentSession() session: SessionPayload) {
-    return { ok: true, data: await this.workspace.consents(session) };
+  async consents(@CurrentSession() session: SessionPayload, @Query("child") child?: string) {
+    return { ok: true, data: await this.workspace.consents(session, child?.trim() || "all") };
   }
 
   /** Give, decline or withdraw one consent. */

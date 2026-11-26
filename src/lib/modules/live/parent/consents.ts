@@ -7,7 +7,11 @@ import type { ParentContent, ParentMe } from "@/lib/modules/live/parent/shared";
 
 type Consent = {
   code: string; name: string; covers: string; blocks: string; required: boolean; who: string;
-  state: "Given" | "Withdrawn" | "Declined" | "Not recorded"; on: string | null; how: string | null;
+  /** "child": answered for one child at a time. "family": the guardian's own, held once. */
+  scope: "child" | "family";
+  state: "Given" | "Withdrawn" | "Declined" | "Not recorded" | "Differs by child"; on: string | null; how: string | null;
+  /** Whole-family view only: what each child's own answer is. */
+  children: Array<{ id: string; first: string; state: string }>;
 };
 
 type SchoolForm = {
@@ -18,36 +22,36 @@ type SchoolForm = {
 type Forms = { today: string; forms: SchoolForm[] };
 
 const TABS = ["Forms to sign", "Consents"];
-const TONE: Record<Consent["state"], PanelTone> = { Given: "positive", Withdrawn: "neutral", Declined: "neutral", "Not recorded": "attention" };
+const TONE: Record<Consent["state"], PanelTone> = { Given: "positive", Withdrawn: "neutral", Declined: "neutral", "Not recorded": "attention", "Differs by child": "attention" };
 
 /** Giving, declining or withdrawing — each says plainly what the school may do, and is recorded at once. */
-function decide(consent: Consent, status: "GIVEN" | "WITHDRAWN" | "NOT_GIVEN", school: string): DrawerSpec {
+function decide(consent: Consent, status: "GIVEN" | "WITHDRAWN" | "NOT_GIVEN", school: string, child: { id: string; first: string }): DrawerSpec {
   const verb = status === "GIVEN" ? "Give" : status === "NOT_GIVEN" ? "Decline" : "Withdraw";
   return {
     mode: "commit", tone: status === "GIVEN" ? "progress" : "attention", kicker: "Forms and consents",
-    title: `${verb} consent for ${consent.name.toLowerCase()}?`,
-    sub: status === "GIVEN"
+    title: consent.scope === "child" ? `${verb} consent for ${consent.name.toLowerCase()}, for ${child.first} only?` : `${verb} consent for ${consent.name.toLowerCase()}?`,
+    sub: (status === "GIVEN"
       ? `${school} may use this: ${consent.covers.charAt(0).toLowerCase()}${consent.covers.slice(1)}.`
-      : `${consent.blocks || "The school will stop"}. You can change your mind at any time.`,
-    commitLabel: verb, commitNote: "Recorded at once, with your name and the time.",
+      : `${consent.blocks || "The school will stop"}. You can change your mind at any time.`) + (consent.scope === "child" ? ` This does not change what you have said for your other children.` : ""),
+    commitLabel: verb, commitNote: "Recorded at once, with your name, the time and the wording you answered.",
     commitDone: status === "GIVEN" ? "Consent given" : status === "NOT_GIVEN" ? "Consent declined" : "Consent withdrawn",
     commitDoneBody: "It is on the school’s consent register now.",
-    submit: { endpoint: `${PW}/consents`, method: "POST", body: { code: consent.code, status } },
+    submit: { endpoint: `${PW}/consents`, method: "POST", body: { code: consent.code, status, ...(consent.scope === "child" ? { student: child.id } : {}) } },
   };
 }
 
-function actions(consent: Consent, school: string): TableCellKind[] {
+function actions(consent: Consent, school: string, child: { id: string; first: string }): TableCellKind[] {
   if (consent.required && consent.state === "Given") return [{ kind: "text", text: "" }, { kind: "action", label: "Talk to the school", href: "/portals/parent/requests" }];
-  if (consent.required) return [{ kind: "action", label: "Talk to the school", href: "/portals/parent/requests" }, { kind: "action", label: "Give", drawer: decide(consent, "GIVEN", school) }];
-  if (consent.state === "Given") return [{ kind: "text", text: "" }, { kind: "action", label: "Withdraw", drawer: decide(consent, "WITHDRAWN", school) }];
-  if (consent.state === "Not recorded") return [{ kind: "action", label: "Decline", drawer: decide(consent, "NOT_GIVEN", school) }, { kind: "action", label: "Give", drawer: decide(consent, "GIVEN", school) }];
-  return [{ kind: "text", text: "" }, { kind: "action", label: "Give", drawer: decide(consent, "GIVEN", school) }];
+  if (consent.required) return [{ kind: "action", label: "Talk to the school", href: "/portals/parent/requests" }, { kind: "action", label: "Give", drawer: decide(consent, "GIVEN", school, child) }];
+  if (consent.state === "Given") return [{ kind: "text", text: "" }, { kind: "action", label: "Withdraw", drawer: decide(consent, "WITHDRAWN", school, child) }];
+  if (consent.state === "Not recorded") return [{ kind: "action", label: "Decline", drawer: decide(consent, "NOT_GIVEN", school, child) }, { kind: "action", label: "Give", drawer: decide(consent, "GIVEN", school, child) }];
+  return [{ kind: "text", text: "" }, { kind: "action", label: "Give", drawer: decide(consent, "GIVEN", school, child) }];
 }
 
 export async function consentsPage(child: string, query: Record<string, string | undefined>): Promise<ParentContent> {
   const [me, data, sent] = await Promise.all([
     loadMe(),
-    apiGet(`${PW}/consents`, observe<{ types: Consent[] }>(localContracts["src/lib/modules/live/parent/consents.ts#d42e60d4"])),
+    apiGet(`${PW}/consents?child=${encodeURIComponent(child)}`, observe<{ types: Consent[] }>(localContracts["src/lib/modules/live/parent/consents.ts#d42e60d4"])),
     apiGet(`${PW}/forms`, observe<Forms>(localContracts["src/lib/modules/live/parent/consents.ts#f0a4c8e1"])),
   ]);
   const one = child === "all" ? null : me.children.find((entry) => entry.id === child) ?? null;
@@ -55,7 +59,7 @@ export async function consentsPage(child: string, query: Record<string, string |
   const waiting = forms.filter((form) => form.open && !form.answer).length;
   // A parent with a form waiting lands on it; otherwise on the consents.
   const tab = TABS.includes(query.tab ?? "") ? query.tab! : waiting ? TABS[0]! : TABS[1]!;
-  return one ? childConsents(one.first, one.arm, data.types, me, tab, forms, sent.today, waiting) : familyConsents(data.types, me, forms, sent.today);
+  return one ? childConsents(one, data.types, me, tab, forms, sent.today, waiting) : familyConsents(data.types, me, forms, sent.today);
 }
 
 /** What a family sees of a form, and the one decision it asks for. The school's own words for yes and no are the buttons. */
@@ -103,18 +107,19 @@ function familyConsents(types: Consent[], me: ParentMe, forms: SchoolForm[], tod
     rows: [
       row("1fr", [{ type: "list", title: "Forms waiting for you", sub: `Across ${me.children.length === 1 ? "your child" : `all ${me.children.length} children`}.`, items: forms.filter((form) => form.open && !form.answer).map((form) => formItem(form, today, true)), empty: NO_FORMS_EMPTY }]),
       row("1fr", [{
-        type: "table", title: "Consents at a glance", sub: "Recorded for your whole family at the school. Open a child to change one.",
+        type: "table", title: "Consents at a glance", sub: "Each child has their own answer. Open a child to change one.",
         noun: "consent", nounPlural: "consents", dense: true, head: ["Purpose", "Status", "Recorded"],
         rows: types.map((type): TableRow => ({
           keywords: type.name, href: me.children[0] ? `/portals/parent/consents?child=${me.children[0].id}` : undefined,
-          cells: [nameCell(type.name, type.covers, { avatar: false }), pill(type.state, TONE[type.state]), text(type.on ? `${dLong(type.on)}${type.how ? ` · ${type.how}` : ""}` : "Never recorded")],
+          cells: [nameCell(type.name, type.covers, { avatar: false }), pill(type.state, TONE[type.state]), text(type.state === "Differs by child" ? type.children.map((kid) => `${kid.first}: ${kid.state.toLowerCase()}`).join(" · ") : type.on ? `${dLong(type.on)}${type.how ? ` · ${type.how}` : ""}` : "Never recorded")],
         })),
       }]),
     ],
   };
 }
 
-function childConsents(first: string, arm: string, types: Consent[], me: ParentMe, tab: string, forms: SchoolForm[], today: string, waiting: number): ParentContent {
+function childConsents(child: ParentMe["children"][number], types: Consent[], me: ParentMe, tab: string, forms: SchoolForm[], today: string, waiting: number): ParentContent {
+  const { first, arm } = child;
   const head = {
     eyebrow: `${first} · ${arm}`, title: "Forms and consents",
     tabs: [{ label: TABS[0]!, count: waiting || undefined }, { label: TABS[1]! }], tab,
@@ -126,14 +131,14 @@ function childConsents(first: string, arm: string, types: Consent[], me: ParentM
   return {
     ...head,
     rows: [row("1fr", [{
-      type: "table", title: "What you have agreed to", sub: "Each line records who gave it, when, and how. A consent is held for your whole family, so it reads the same under each child.",
+      type: "table", title: "What you have agreed to", sub: `Each line records who gave it, when, how and under which wording. What you say here is for ${first} alone; your notification channels are yours, so they read the same under every child.`,
       noun: "consent", nounPlural: "consents", dense: true, noRowOpen: true, head: ["Purpose", "Status", "Recorded", "", ""],
       rows: types.map((type): TableRow => ({
         keywords: type.name,
         cells: [
           nameCell(type.name, type.covers, { avatar: false }), pill(type.state, TONE[type.state]),
           { kind: "text", text: type.on ? `${dLong(type.on)}${type.how ? ` · ${type.how}` : ""}` : "Never recorded" },
-          ...actions(type, me.school),
+          ...actions(type, me.school, child),
         ],
       })),
       empty: "The school has not asked for any consent.",

@@ -9,7 +9,7 @@ import { categoryOfMessage } from "../../../../src/lib/messaging/family-choices"
 import { QUIET_HOURS, preferencesSchema, type Preferences } from "../../../../src/lib/preferences";
 import { ANSWERS, FORMS, answerCode, reaches, type Answer, type FormData } from "../guardian-management/forms.shared";
 import { ConfigStore } from "../staff-access/staff-access.shared";
-import { loadConsentTypes } from "../student-records/consent.shared";
+import { FAMILY_LEVEL, answerKey, loadConsentTypes } from "../student-records/consent.shared";
 import { openSubmission, submissionTypes } from "../guardian-management/submission-intake";
 import { deviceName, hide, icsFor } from "../student-portal/student-workspace.service";
 import { randomBytes } from "node:crypto";
@@ -245,7 +245,7 @@ export class ParentWorkspaceService {
       }),
       prisma.familyConsent.findMany({
         where: { guardianId: { in: guardianIds } },
-        select: { schoolId: true, typeCode: true, status: true },
+        select: { schoolId: true, typeCode: true, status: true, studentId: true },
       }),
       prisma.parentMeeting.findMany({
         where: { guardianId: { in: guardianIds }, deletedAt: null, status: { in: ["SCHEDULED", "INVITED"] }, scheduledAt: { gte: new Date() } },
@@ -294,18 +294,23 @@ export class ParentWorkspaceService {
     // Consents are a school's own list, asked of a school's own guardian record: a family at two
     // schools owes each of them an answer, and is told which school is asking.
     const askedBy = [...new Set(mine.map((student) => student.schoolId))];
-    const recorded = new Set(consents.map((row) => `${row.schoolId}:${row.typeCode}`));
+    // A consent is answered for each child, except the guardian's own notification channels, so what is missing is named child by child.
+    const recorded = new Set(consents.map((row) => `${row.schoolId}:${row.typeCode}:${row.studentId}`));
     for (const schoolId of askedBy) {
+      const asking = many ? `${siteAt(schoolId)?.shortName?.trim() || siteAt(schoolId)?.name || "The school"} needs` : "The school needs";
+      const there = mine.filter((student) => student.schoolId === schoolId);
       for (const consent of await loadConsentTypes(schoolId)) {
-        if (recorded.has(`${schoolId}:${consent.code}`)) continue;
-        const asking = many ? `${siteAt(schoolId)?.shortName?.trim() || siteAt(schoolId)?.name || "The school"} needs` : "The school needs";
-        items.push({
-          kind: "consent", childId: null, child: "",
-          label: `${consent.name} has never been recorded`,
-          sub: `${asking} a yes or no. ${consent.blocks ? `Without one: ${consent.blocks.charAt(0).toLowerCase()}${consent.blocks.slice(1)}.` : ""}`.trim(),
-          pill: "Not recorded", tone: "attention",
-          action: "Decide", href: "/portals/parent/consents", due: "9999-12-31",
-        });
+        const subjects = consent.scope === "family" ? [null] : there;
+        for (const kid of subjects) {
+          if (recorded.has(`${schoolId}:${consent.code}:${kid?.id ?? FAMILY_LEVEL}`)) continue;
+          items.push({
+            kind: "consent", childId: kid?.id ?? null, child: kid?.firstName ?? "",
+            label: `${consent.name} has never been recorded${kid && there.length > 1 ? ` for ${kid.firstName}` : ""}`,
+            sub: `${asking} a yes or no. ${consent.blocks ? `Without one: ${consent.blocks.charAt(0).toLowerCase()}${consent.blocks.slice(1)}.` : ""}`.trim(),
+            pill: "Not recorded", tone: "attention",
+            action: "Decide", href: kid ? `/portals/parent/consents?child=${kid.id}` : "/portals/parent/consents", due: "9999-12-31",
+          });
+        }
       }
     }
 
@@ -1006,13 +1011,16 @@ export class ParentWorkspaceService {
   /**
    * Every consent the school holds from this family, and what each one has been recorded as.
    *
-   * A consent is recorded against the family, never the child — one guardian answers once, however many children they
-   * have at the school — and each line says who recorded it and how. A school's own list of consent types is what is
-   * shown; one marked required is the basis on which the school holds the record at all, so a parent cannot switch it
-   * off here and is pointed to a conversation with the school instead.
+   * A consent is recorded for one child, so a brother or sister is never answered for; only the guardian's own notification
+   * channels are held once for the family. `child` is a child's id (that child's answers, and the family's channels), or "all",
+   * which shows each consent as one line and says where the children differ. Each line says who recorded it, when, how, and
+   * under which wording. A school's own list of consent types is what is shown; one marked required is the basis on which
+   * the school holds the record at all, so a parent cannot switch it off here and is pointed to a conversation with the school.
    */
-  async consents(session: SessionPayload) {
-    const { rows: guardians, guardianIds, siteAt, many } = await this.context(session);
+  async consents(session: SessionPayload, scope = "all") {
+    const { rows: guardians, guardianIds, siteAt, many, children } = await this.context(session);
+    const one = scope === "all" ? null : children.find((student) => student.id === scope) ?? null;
+    if (scope !== "all" && !one) throw new ForbiddenException("That child is not linked to your account.");
     // Each school asks for its own consents and keeps its own record of them, so a family at two schools answers both lists.
     const [lists, rows] = await Promise.all([
       Promise.all(guardians.map(async (row) => ({ schoolId: row.schoolId, guardianId: row.id, types: await loadConsentTypes(row.schoolId) }))),
@@ -1021,49 +1029,79 @@ export class ParentWorkspaceService {
     const types = lists.flatMap((list) => list.types.map((type) => ({ ...type, schoolId: list.schoolId, guardianId: list.guardianId })));
     const recorders = rows.map((row) => row.recordedById).filter((id): id is string => Boolean(id));
     const people = recorders.length ? new Map((await prisma.user.findMany({ where: { id: { in: recorders } }, select: { id: true, firstName: true, lastName: true } })).map((user) => [user.id, `${user.firstName} ${user.lastName}`])) : new Map<string, string>();
+    const stateOf = (row: (typeof rows)[number] | null) => (!row ? "Not recorded" : row.status === "GIVEN" ? "Given" : row.status === "WITHDRAWN" ? "Withdrawn" : "Declined");
+    const howOf = (row: (typeof rows)[number] | null) => {
+      if (!row) return null;
+      const means = row.means === "PORTAL" ? "in the portal" : row.means === "PAPER" ? "on paper" : row.means === "IN_PERSON" ? "in person" : "";
+      return [row.status === "GIVEN" && means ? `Given ${means}` : "", row.recordedById ? `recorded by ${row.recordedById === session.userId ? "you" : people.get(row.recordedById) ?? "the school"}` : "", row.noticeVersion && row.noticeVersion !== "standard" ? `wording of ${new Date(`${row.noticeVersion}T12:00:00Z`).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" })}` : ""].filter(Boolean).join(" · ");
+    };
     return {
-      types: types.map((type) => {
-        const row = rows.find((item) => item.typeCode === type.code && item.guardianId === type.guardianId) ?? null;
-        const means = row?.means === "PORTAL" ? "in the portal" : row?.means === "PAPER" ? "on paper" : row?.means === "IN_PERSON" ? "in person" : "";
-        return {
-          code: type.code, name: type.name, covers: type.covers, blocks: type.blocks, required: type.required, who: type.who,
-          /** Which school asks for it: a family at one school never sees this, a family at two always does. */
-          schoolId: type.schoolId,
-          school: many ? siteAt(type.schoolId)?.shortName?.trim() || siteAt(type.schoolId)?.name || "" : "",
-          state: !row ? "Not recorded" : row.status === "GIVEN" ? "Given" : row.status === "WITHDRAWN" ? "Withdrawn" : "Declined",
-          on: row ? isoDay(row.recordedAt) : null,
-          how: row ? [row.status === "GIVEN" && means ? `Given ${means}` : "", row.recordedById ? `recorded by ${row.recordedById === session.userId ? "you" : people.get(row.recordedById) ?? "the school"}` : ""].filter(Boolean).join(" · ") : null,
-        };
+      types: types.flatMap((type) => {
+        const kids = children.filter((kid) => kid.schoolId === type.schoolId);
+        // The page for one child shows the school that child is at, and nothing from a school they are not at.
+        if (one && type.schoolId !== one.schoolId) return [];
+        const answerFor = (studentId: string) => rows.find((item) => item.typeCode === type.code && item.guardianId === type.guardianId && item.studentId === studentId) ?? null;
+        const school = many ? siteAt(type.schoolId)?.shortName?.trim() || siteAt(type.schoolId)?.name || "" : "";
+        const shared = { code: type.code, name: type.name, covers: type.covers, blocks: type.blocks, required: type.required, who: type.who, scope: type.scope, schoolId: type.schoolId, school };
+        if (type.scope === "family") {
+          const row = answerFor(FAMILY_LEVEL);
+          return [{ ...shared, state: stateOf(row), on: row ? isoDay(row.recordedAt) : null, how: howOf(row), children: [] as Array<{ id: string; first: string; state: string }> }];
+        }
+        if (one) {
+          const row = answerFor(one.id);
+          return [{ ...shared, state: stateOf(row), on: row ? isoDay(row.recordedAt) : null, how: howOf(row), children: [] as Array<{ id: string; first: string; state: string }> }];
+        }
+        // Whole family: one line, honest about children who differ.
+        const each = kids.map((kid) => ({ kid, row: answerFor(kid.id) }));
+        const states = new Set(each.map((entry) => stateOf(entry.row)));
+        const same = states.size <= 1;
+        const first = each[0]?.row ?? null;
+        return [{
+          ...shared,
+          state: same ? stateOf(first) : "Differs by child",
+          on: same && first ? isoDay(first.recordedAt) : null,
+          how: same ? howOf(first) : null,
+          children: each.map((entry) => ({ id: entry.kid.id, first: entry.kid.firstName, state: stateOf(entry.row) })),
+        }];
       }),
     };
   }
 
-  /** The family gives, declines or withdraws one consent. It is recorded at once, and the change is kept in the school's audit log. */
+  /**
+   * The family gives, declines or withdraws one consent for one child. It is recorded at once, against that child alone, and
+   * the change is kept in the school's audit log. Only the guardian's own notification channels are answered without a child.
+   */
   async setConsent(session: SessionPayload, body: unknown) {
-    const input = z.object({ code: z.string().min(1), status: z.enum(["GIVEN", "WITHDRAWN", "NOT_GIVEN"]), school: z.string().optional() }).parse(body);
-    const { rows: guardians } = await this.context(session);
-    // The answer belongs to the school that asked. A family at one school need not say which.
-    const asked = input.school ? guardians.filter((row) => row.schoolId === input.school) : guardians;
+    const input = z.object({ code: z.string().min(1), status: z.enum(["GIVEN", "WITHDRAWN", "NOT_GIVEN"]), school: z.string().optional(), student: z.string().optional() }).parse(body);
+    const { rows: guardians, children, at } = await this.context(session);
+    const kid = input.student ? children.find((student) => student.id === input.student) ?? null : null;
+    if (input.student && !kid) throw new ForbiddenException("That child is not linked to your account.");
+    // The answer belongs to the school that asked — for a child, the school the child is at. A family at one school need not say which.
+    const asked = kid ? guardians.filter((row) => row.schoolId === kid.schoolId) : input.school ? guardians.filter((row) => row.schoolId === input.school) : guardians;
     const lists = await Promise.all(asked.map(async (row) => ({ row, types: await loadConsentTypes(row.schoolId) })));
     const found = lists.map((list) => ({ row: list.row, type: list.types.find((item) => item.code === input.code) })).find((entry) => entry.type);
     const type = found?.type;
-    const guardian = found?.row;
-    if (!type || !guardian) throw new NotFoundException("The school does not ask for that consent.");
+    if (!type || !found?.row) throw new NotFoundException("The school does not ask for that consent.");
+    if (type.scope === "child" && !kid) throw new BadRequestException(`${type.name} is answered for one child at a time. Open the child it is for and answer there.`);
+    // The guardian record that answers is the one this school holds for the family, and for a child that is the one linked to the child.
+    const guardian = kid ? guardians.find((row) => row.id === at(kid.id).guardianId) ?? found.row : found.row;
+    const studentId = type.scope === "child" && kid ? kid.id : FAMILY_LEVEL;
     if (type.required && input.status !== "GIVEN") {
-      throw new BadRequestException(`${type.name} is what lets the school hold your child’s record, so it cannot be switched off here. Ask to speak to the school if you want to change it.`);
+      throw new BadRequestException(`${type.name} is what lets the school hold ${kid ? `${kid.firstName}’s` : "your child’s"} record, so it cannot be switched off here. Ask to speak to the school if you want to change it.`);
     }
-    const existing = await prisma.familyConsent.findUnique({ where: { guardianId_typeCode: { guardianId: guardian.id, typeCode: type.code } } });
+    const existing = await prisma.familyConsent.findUnique({ where: answerKey(guardian.id, type.code, studentId) });
     if (existing?.status === input.status) return { code: type.code, state: input.status, changed: false };
     const stamp = new Date();
     await prisma.familyConsent.upsert({
-      where: { guardianId_typeCode: { guardianId: guardian.id, typeCode: type.code } },
-      update: { status: input.status, means: input.status === "GIVEN" ? "PORTAL" : existing?.means ?? null, recordedById: session.userId, recordedAt: stamp, note: null },
-      create: { schoolId: guardian.schoolId, guardianId: guardian.id, typeCode: type.code, status: input.status, means: input.status === "GIVEN" ? "PORTAL" : null, recordedById: session.userId, recordedAt: stamp },
+      where: answerKey(guardian.id, type.code, studentId),
+      update: { status: input.status, means: input.status === "GIVEN" ? "PORTAL" : existing?.means ?? null, recordedById: session.userId, recordedAt: stamp, note: null, noticeVersion: type.version },
+      create: { schoolId: guardian.schoolId, guardianId: guardian.id, typeCode: type.code, studentId, status: input.status, means: input.status === "GIVEN" ? "PORTAL" : null, recordedById: session.userId, recordedAt: stamp, noticeVersion: type.version },
     });
     await prisma.auditLog.create({
       data: {
-        schoolId: guardian.schoolId, actorId: session.userId, action: "UPDATE", entityType: "Consent", entityId: guardian.id,
-        metadata: { summary: `Consent ${input.status === "GIVEN" ? "given" : input.status === "WITHDRAWN" ? "withdrawn" : "declined"} by the family · ${type.name}`, by: "portal" } as Prisma.InputJsonValue,
+        schoolId: guardian.schoolId, actorId: session.userId, action: "UPDATE", entityType: "Consent", entityId: studentId || guardian.id,
+        oldValue: { status: existing?.status ?? "NOT_GIVEN" } as Prisma.InputJsonValue, newValue: { status: input.status } as Prisma.InputJsonValue,
+        metadata: { summary: `Consent ${input.status === "GIVEN" ? "given" : input.status === "WITHDRAWN" ? "withdrawn" : "declined"} by the family${studentId && kid ? ` for ${kid.firstName} ${kid.lastName}` : ""} · ${type.name}`, by: "portal", notice: type.version } as Prisma.InputJsonValue,
       },
     });
     return { code: type.code, state: input.status, changed: true };

@@ -222,7 +222,8 @@ export class AccountService {
       }
       case "Consents": {
         const rows = await prisma.familyConsent.findMany({ where: { schoolId }, include: { guardian: { select: { firstName: true, lastName: true, phone: true } } } });
-        return { head: ["Guardian", "Phone", "Consent", "Status", "Means", "Recorded"], rows: rows.map((r) => [`${r.guardian.firstName} ${r.guardian.lastName}`, r.guardian.phone, r.typeCode, r.status, r.means, iso(r.recordedAt)]) };
+        const kids = new Map((await prisma.student.findMany({ where: { id: { in: [...new Set(rows.map((r) => r.studentId).filter(Boolean))] } }, select: { id: true, firstName: true, lastName: true, admissionNumber: true } })).map((k) => [k.id, `${k.firstName} ${k.lastName} (${k.admissionNumber})`]));
+        return { head: ["Guardian", "Phone", "Child", "Consent", "Status", "Means", "Wording", "Recorded"], rows: rows.map((r) => [`${r.guardian.firstName} ${r.guardian.lastName}`, r.guardian.phone, r.studentId ? kids.get(r.studentId) ?? r.studentId : "The guardian", r.typeCode, r.status, r.means, r.noticeVersion, iso(r.recordedAt)]) };
       }
       default: {
         const rows = await prisma.auditLog.findMany({ where: { schoolId }, orderBy: { createdAt: "asc" } });

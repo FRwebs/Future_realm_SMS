@@ -302,7 +302,8 @@ export class RecordService {
     const consentTypes = await loadConsentTypes(schoolId);
     const guardianIds = student.guardians.map((link) => link.guardianId);
     const primaryLink = student.guardians.find((link) => link.isPrimary) ?? student.guardians[0];
-    const consentOf = (guardianId: string, code: string) => consents.find((row) => row.guardianId === guardianId && row.typeCode === code);
+    // The child's own answer; only a guardian's notification channels are held for the guardian rather than the child.
+    const consentOf = (guardianId: string, code: string, scope: "child" | "family") => consents.find((row) => row.guardianId === guardianId && row.typeCode === code && row.studentId === (scope === "family" ? "" : id));
     const sent = [
       ...guardianContacts
         // A call is about one child: it is on that child's record, and not on a sibling's.
@@ -414,7 +415,7 @@ export class RecordService {
         })),
         primaryId: primaryLink?.guardianId ?? null,
         consent: consentTypes.map((type) => {
-          const record = primaryLink ? consentOf(primaryLink.guardianId, type.code) : undefined;
+          const record = primaryLink ? consentOf(primaryLink.guardianId, type.code, type.scope) : undefined;
           return { code: type.code, name: type.name, required: type.required, status: record?.status ?? "NOT_GIVEN", means: record?.means ?? null, on: isoDate(record?.recordedAt) };
         }),
         collectors: [

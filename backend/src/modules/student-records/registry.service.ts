@@ -2,6 +2,7 @@ import { BadRequestException, Injectable } from "@nestjs/common";
 import { refuseTeaching } from "../../common/teaching-scope";
 import { AuditAction, Prisma } from "@prisma/client";
 import { z } from "zod";
+import { FAMILY_LEVEL, answerKey, loadConsentTypes } from "./consent.shared";
 
 import type { SessionPayload } from "../../../../src/lib/auth/session-core";
 import { prisma } from "../../../../src/lib/db/prisma";
@@ -255,11 +256,19 @@ export class RegistryService {
       });
       const code = (label: string) =>
         label.startsWith("Core record") ? "core" : label.startsWith("Health") ? "health" : label.startsWith("Photography") ? "photo" : label.startsWith("Result publication") ? "third-party" : label.startsWith("Notification") ? "channels" : label.toLowerCase().replace(/[^a-z]+/g, "-");
+      // What a guardian signs at enrolment is signed for this child. A sibling already at the school keeps the answer, and the
+      // date, it already had; the guardian's own notification channels are asked once and never rewritten by a later child.
+      const types = await loadConsentTypes(schoolId);
       for (const label of input.consent) {
+        const typeCode = code(label);
+        const type = types.find((entry) => entry.code === typeCode);
+        const studentId = type?.scope === "family" ? FAMILY_LEVEL : student.id;
+        const key = answerKey(guardianId as string, typeCode, studentId);
+        if (studentId === FAMILY_LEVEL && (await tx.familyConsent.findUnique({ where: key }))?.status === "GIVEN") continue;
         await tx.familyConsent.upsert({
-          where: { guardianId_typeCode: { guardianId: guardianId as string, typeCode: code(label) } },
-          update: { status: "GIVEN", means: "IN_PERSON", recordedById: session.userId, recordedAt: new Date() },
-          create: { schoolId, guardianId: guardianId as string, typeCode: code(label), status: "GIVEN", means: "IN_PERSON", recordedById: session.userId }
+          where: key,
+          update: { status: "GIVEN", means: "IN_PERSON", recordedById: session.userId, recordedAt: new Date(), noticeVersion: type?.version ?? "standard" },
+          create: { schoolId, guardianId: guardianId as string, typeCode, studentId, status: "GIVEN", means: "IN_PERSON", recordedById: session.userId, noticeVersion: type?.version ?? "standard" }
         });
       }
       return student;

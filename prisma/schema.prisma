@@ -5841,11 +5841,17 @@ model FamilyConsent {
   note         String?
   recordedById String?
   recordedAt   DateTime @default(now())
+  /// The child this answer is about; "" for a consent that belongs to the guardian (notification channels). Never null, so the
+  /// one-answer-per-guardian-per-child-per-type rule is a plain unique key.
+  studentId     String   @default("")
+  /// The wording the guardian answered: the date the school last edited that consent type, or "standard" for the built-in one.
+  noticeVersion String?
   school       School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
   guardian     Guardian @relation(fields: [guardianId], references: [id], onDelete: Cascade)
 
-  @@unique([guardianId, typeCode])
+  @@unique([guardianId, typeCode, studentId])
   @@index([schoolId, typeCode, status])
+  @@index([studentId])
 }
 
 /// Everything the school has sent a family that is not a fee conversation: invitations, consent requests, merges.

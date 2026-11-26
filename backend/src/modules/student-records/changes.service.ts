@@ -92,14 +92,15 @@ export class ChangesService {
     const people = await this.names([...pending.map((row) => row.requestedById), ...decided.map((row) => row.decidedById), ...decided.map((row) => row.requestedById)]);
     const who = (id: string | null) => (id ? people.get(id) ?? { name: "A member of staff", role: "Staff" } : { name: "—", role: "" });
 
-    const coreByGuardian = new Set(
-      (await prisma.familyConsent.findMany({ where: { schoolId, typeCode: "core", status: "GIVEN" }, select: { guardianId: true } })).map((row) => row.guardianId)
+    // Core consent is given for each child, so a child is covered only by a row that is about that child.
+    const coreForStudent = new Set(
+      (await prisma.familyConsent.findMany({ where: { schoolId, typeCode: "core", status: "GIVEN", studentId: { not: "" } }, select: { studentId: true } })).map((row) => row.studentId)
     );
     const completeness = {
       photo: students.filter((student) => !student.photoUrl && !student.documents.some((document) => document.label === "Photograph")),
       guardian: students.filter((student) => !student.guardians.length || student.guardians.every((link) => !link.guardian.phone)),
       arm: students.filter((student) => !student.currentClassId),
-      consent: students.filter((student) => student.guardians.length && !student.guardians.some((link) => coreByGuardian.has(link.guardianId)))
+      consent: students.filter((student) => student.guardians.length && !coreForStudent.has(student.id))
     };
     const brief = (rows: typeof students) => rows.slice(0, 12).map((student) => ({ id: student.id, label: `${fullName(student)} · ${student.admissionNumber}`, sub: student.currentClass ? armName(student.currentClass) : "No arm" }));
 

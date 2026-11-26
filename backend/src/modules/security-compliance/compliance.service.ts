@@ -142,7 +142,7 @@ export class ComplianceService implements OnModuleInit, OnModuleDestroy {
       prisma.dpaVersion.findMany({ orderBy: { effectiveFrom: "desc" } }),
       prisma.school.findMany({ where: { deletedAt: null, status: { not: "DELETED" } }, select: { id: true, name: true, dpaStatus: true, dpaVersion: true, dpaAcceptedAt: true } }),
       prisma.guardian.groupBy({ by: ["schoolId"], _count: { _all: true } }),
-      prisma.familyConsent.groupBy({ by: ["schoolId"], where: { typeCode: "core", status: "GIVEN" }, _count: { _all: true } }),
+      prisma.familyConsent.groupBy({ by: ["schoolId", "guardianId"], where: { typeCode: "core", status: "GIVEN" } }),
       prisma.dataPrivacyRequest.groupBy({ by: ["status"], where: { type: "GRIEVANCE" }, _count: { _all: true } }),
       prisma.securityIncident.findMany({ select: { severity: true, status: true, detectedAt: true, regulatorNotifiedAt: true } }),
       prisma.retentionRule.findMany({ orderBy: { dataClass: "asc" } }),
@@ -184,7 +184,9 @@ export class ComplianceService implements OnModuleInit, OnModuleDestroy {
 
     // Consent: families with the core record-processing consent given, per school.
     const guardiansBySchool = new Map(guardianCounts.map((row) => [row.schoolId, row._count._all]));
-    const coreBySchool = new Map(coreCounts.map((row) => [row.schoolId, row._count._all]));
+    // One count per guardian who has given core consent for at least one child, however many children that is.
+    const coreBySchool = new Map<string, number>();
+    for (const row of coreCounts) coreBySchool.set(row.schoolId, (coreBySchool.get(row.schoolId) ?? 0) + 1);
     const consent = schools
       .filter((school) => (guardiansBySchool.get(school.id) ?? 0) > 0)
       .map((school) => {
