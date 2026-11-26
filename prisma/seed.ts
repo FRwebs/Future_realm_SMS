@@ -655,6 +655,31 @@ async function provisionStudentPortalAccounts({
   }
 }
 
+/**
+ * A student under 18 signs in only once a guardian has agreed to the account, so the demo students carry that consent —
+ * recorded in person, as a school would — and the sample accounts can be used straight after a seed.
+ */
+async function recordStudentAccountConsents() {
+  const links = await prisma.studentGuardian.findMany({
+    where: { student: { userId: { not: null } } },
+    select: { studentId: true, guardianId: true, guardian: { select: { schoolId: true } } },
+  });
+  if (!links.length) return;
+  await prisma.familyConsent.createMany({
+    data: links.map((link) => ({
+      schoolId: link.guardian.schoolId,
+      guardianId: link.guardianId,
+      studentId: link.studentId,
+      typeCode: "student-account",
+      status: "GIVEN",
+      means: "IN_PERSON",
+      noticeVersion: "standard",
+    })),
+    skipDuplicates: true,
+  });
+  console.log(`[seed] Student account consent recorded for ${links.length} student–guardian links.`);
+}
+
 async function resetStudentPortalPasswords({
   schoolId,
   passwordHash,
@@ -6316,6 +6341,7 @@ async function main() {
   ]);
 
   await seedOperationalExtras(school.id);
+  await recordStudentAccountConsents();
 
   console.log("\n================ SEED COMPLETE ================");
   console.log(

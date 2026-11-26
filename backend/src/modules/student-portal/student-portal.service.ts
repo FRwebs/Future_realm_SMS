@@ -1,3 +1,4 @@
+import { STUDENT_ACCOUNT_REFUSAL, studentAccountAllowed } from "../../common/student-account";
 import { ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
 
 import type { SessionPayload } from "../../../../src/lib/auth/session-core";
@@ -111,6 +112,7 @@ export class StudentPortalService {
     if (!student) {
       throw new NotFoundException("No enrolled student profile is linked to this account.");
     }
+    if (!(await studentAccountAllowed(student))) throw new ForbiddenException(STUDENT_ACCOUNT_REFUSAL);
 
     return student;
   }

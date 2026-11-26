@@ -14,18 +14,29 @@ export type ConsentType = {
   version: string;
 };
 
+/**
+ * A student under 18 signs in only once a guardian has agreed to it. It is built in — every school's list has it, whatever the
+ * school has defined for itself — because the rule is the law's, not the school's.
+ */
+const STUDENT_ACCOUNT: ConsentType = {
+  code: "student-account", name: "Student account", short: "Account", who: "Every guardian of a student under 18", required: true,
+  covers: "Your child having their own sign-in to the student portal", blocks: "Your child cannot sign in to the student portal",
+  scope: "child", basis: false, version: "standard"
+};
+
 export const CONSENT_DEFAULTS: ConsentType[] = [
   { code: "core", name: "Core record processing", short: "Core", who: "Every guardian", required: true, covers: "Holding and processing the child's record", blocks: "Nothing can be published to this family", scope: "child", basis: true, version: "standard" },
   { code: "health", name: "Health and welfare", short: "Health", who: "Every guardian", required: true, covers: "Medical, dietary and sick-bay records", blocks: "No health note can be held", scope: "child", basis: false, version: "standard" },
   { code: "photo", name: "Photography and image use", short: "Photo", who: "Every guardian", required: false, covers: "Photographs, video and the website", blocks: "Excluded from every publication", scope: "child", basis: false, version: "standard" },
   { code: "third-party", name: "Result publication to third parties", short: "3rd party", who: "Exam candidates", required: false, covers: "WAEC, NECO, IGCSE and equivalents", blocks: "Entries cannot be forwarded", scope: "child", basis: false, version: "standard" },
+  STUDENT_ACCOUNT,
   { code: "channels", name: "Notification channels", short: "Channels", who: "Every guardian", required: true, covers: "SMS, email and WhatsApp", blocks: "Only emergency broadcasts reach them", scope: "family", basis: false, version: "standard" }
 ];
 
 export async function loadConsentTypes(schoolId: string): Promise<ConsentType[]> {
   const rows = await prisma.configurationItem.findMany({ where: { schoolId, resource: "consent-types", deletedAt: null }, orderBy: [{ displayOrder: "asc" }, { createdAt: "asc" }] });
   if (!rows.length) return CONSENT_DEFAULTS;
-  return rows.map((row) => {
+  const own: ConsentType[] = rows.map((row) => {
     const data = (row.data ?? {}) as Record<string, unknown>;
     return {
       code: row.code ?? row.id,
@@ -42,6 +53,7 @@ export async function loadConsentTypes(schoolId: string): Promise<ConsentType[]>
       version: row.updatedAt.toISOString().slice(0, 10)
     };
   });
+  return own.some((type) => type.code === STUDENT_ACCOUNT.code) ? own : [...own, STUDENT_ACCOUNT];
 }
 
 /** The child a consent answer is about, or "" for one that belongs to the guardian. */

@@ -1,3 +1,4 @@
+import { STUDENT_ACCOUNT_REFUSAL, studentAccountAllowed } from "../../common/student-account";
 import { createHash, randomBytes } from "crypto";
 
 import { BadRequestException, Injectable } from "@nestjs/common";
@@ -138,6 +139,15 @@ export class AuthService {
     if (!isPlatformRole(user.role) && (user.school.deletedAt || user.school.status === "SUSPENDED" || user.school.status === "DELETED")) {
       await recordAttempt(false, "SCHOOL_SUSPENDED");
       throw new Error("Your school account has been suspended. Please contact support.");
+    }
+
+    // A student under 18 signs in only once a guardian has agreed to the account.
+    if (String(user.role) === "STUDENT") {
+      const student = await prisma.student.findFirst({ where: { userId: user.id }, select: { id: true, dateOfBirth: true } });
+      if (student && !(await studentAccountAllowed(student))) {
+        await recordAttempt(false, "CONSENT_PENDING");
+        throw new Error(STUDENT_ACCOUNT_REFUSAL);
+      }
     }
 
     if (isPlatformRole(user.role)) {

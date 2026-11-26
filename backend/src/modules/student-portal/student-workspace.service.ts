@@ -1,3 +1,4 @@
+import { STUDENT_ACCOUNT_REFUSAL, studentAccountAllowed } from "../../common/student-account";
 import { collectorsFor } from "../../common/collectors";
 import { randomBytes } from "node:crypto";
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
@@ -114,6 +115,8 @@ export class StudentWorkspaceService {
       include: { user: true, currentClass: { include: { classLevel: true } }, guardians: { include: { guardian: true } } }
     });
     if (!student) throw new NotFoundException("No enrolled student profile is linked to this account.");
+    // A session that was open when a guardian withdrew the consent stops working at once.
+    if (!(await studentAccountAllowed(student))) throw new ForbiddenException(STUDENT_ACCOUNT_REFUSAL);
     const [term, school] = await Promise.all([
       prisma.term.findFirst({ where: { schoolId: session.schoolId, isCurrent: true }, include: { academicSession: true } }),
       prisma.school.findUnique({ where: { id: session.schoolId }, select: { name: true } })
