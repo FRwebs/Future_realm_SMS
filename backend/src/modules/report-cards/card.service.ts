@@ -174,7 +174,8 @@ export class CardService {
     if (!data) {
       const arm = await loadArm(schoolId, term, classId);
       if (!arm) throw new NotFoundException("That arm is not in this school.");
-      data = await this.build(schoolId, term, arm, studentId, published);
+      // A card not yet published is still built from approved sheets only: a preview must not print a figure the school has not approved.
+      data = await this.build(schoolId, term, arm, studentId, true);
       live = true;
     }
     const peers = await prisma.student.findMany({ where: { schoolId, currentClassId: classId, status: "ACTIVE" }, select: { id: true, firstName: true, lastName: true }, orderBy: [{ lastName: "asc" }, { firstName: "asc" }], take: 40 });

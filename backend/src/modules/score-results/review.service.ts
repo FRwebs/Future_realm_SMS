@@ -7,7 +7,7 @@ import type { SessionPayload } from "../../../../src/lib/auth/session-core";
 import { prisma } from "../../../../src/lib/db/prisma";
 import { Access, currentTerm, iso, notifyStaff } from "../attendance-management/attendance.shared";
 import { daysSince } from "../student-records/records.shared";
-import { type ArmData, type SubjectView, loadAll, loadArm, loadStaffNames, studentResults } from "./arm";
+import { type SubjectView, armAverage, loadAll, loadArm, loadStaffNames, studentResults } from "./arm";
 import { FLAG_OUTCOMES, type FlagOutcome } from "./scores.shared";
 import { reopenResultSheets, syncResultSheets } from "./sync";
 
@@ -161,7 +161,7 @@ export class ReviewService {
         return { id: result.id, name: result.name, adm: result.adm, scored: result.scored, expected: result.expected, average: result.average, pos: result.pos, grade: result.grade, ready: result.ready, blockedBy: result.blockedBy.slice(0, 3), absences: statusRow.reduce((total, row) => total + (row?.absent ?? 0), 0) };
       }),
       ready: readySheets.map((subject) => ({ subjectId: subject.subjectId, name: subject.name, roll: subject.roll })),
-      armMean: results.length ? Math.round((results.filter((result) => result.average !== null).reduce((total, result) => total + (result.average as number), 0) / Math.max(1, results.filter((result) => result.average !== null).length)) * 10) / 10 : null,
+      armMean: armAverage(arm),
       excluded: subjects.filter((subject) => subject.state === "Submitted" && (subject.openFlags || this.enteredBy(session, subject))).map((subject) => `${subject.name} · ${subject.openFlags ? `${subject.openFlags} open flags` : "you entered it"}`)
     };
   }
@@ -188,7 +188,7 @@ export class ReviewService {
       term, arm: { id: arm.room.id, name: arm.room.name }, subject: { id: subject.subjectId, name: subject.name, category: subject.category, passMark: subject.passMark },
       state: subject.state, columns: subject.columns, pinned: subject.pinned, frameworkAt: sheet ? iso(sheet.frameworkAt) : null,
       teacher: subject.teacher ? { id: subject.teacherId, name: subject.teacher, phone: teacher?.phone ?? null, role: teacher?.role ?? "Teacher", staffNo: teacher?.staffProfile?.employeeNo ?? null, dept: teacher?.staffProfile?.department?.name ?? null } : null,
-      rows: subject.rows, stats: { scored: subject.scored, roll: subject.roll, mean: subject.mean, high: subject.high, low: subject.low, passed: subject.passed, failed: subject.failed, armMean: results0(arm) }, distribution,
+      rows: subject.rows, stats: { scored: subject.scored, roll: subject.roll, mean: subject.mean, high: subject.high, low: subject.low, passed: subject.passed, failed: subject.failed, armMean: armAverage(arm) }, distribution,
       flags: subject.flags.map((flag) => ({ ...flag, outcome: subject.outcomes[flag.key] ?? null })), outcomes: FLAG_OUTCOMES, openFlags: subject.openFlags,
       decision: { submittedAt: sheet?.submittedAt?.toISOString() ?? null, submittedBy: sheet?.submittedById ? people.get(sheet.submittedById) ?? null : null, decidedAt: decidedAt?.toISOString() ?? null, decidedBy: sheet?.decidedById ? people.get(sheet.decidedById) ?? null : null, note: sheet?.decisionNote ?? null, returnedAt: sheet?.returnedAt?.toISOString() ?? null },
       enteredBy: (sheet?.enteredByIds ?? []).map((id) => people.get(id)).filter(Boolean), corrections: { all: corrections.length, open: corrections.filter((entry) => entry.status === "AWAITING" || entry.status === "IN_REVIEW").length },
@@ -309,10 +309,5 @@ export class ReviewService {
     await this.audit(session, AuditAction.UPDATE, subject.sheet.id, { summary: `Verification outcome recorded · ${subject.name} · ${arm.room.name}`, outcome: input.outcome });
     return { recorded: true };
   }
-}
-
-function results0(arm: ArmData) {
-  const totals = arm.subjects.flatMap((subject) => subject.rows.map((row) => row.total)).filter((value): value is number => typeof value === "number");
-  return totals.length ? Math.round((totals.reduce((a, b) => a + b, 0) / totals.length) * 10) / 10 : null;
 }
 

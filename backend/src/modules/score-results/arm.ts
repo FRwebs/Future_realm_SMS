@@ -207,7 +207,14 @@ export type StudentResult = {
   total: number;
 };
 
-export function studentResults(arm: ArmData, approvedOnly = false): StudentResult[] {
+/**
+ * Each child's average, position and grade across the arm — the one place these are worked out.
+ *
+ * Only approved sheets count, by default: an average, a position or a grade is something a family and a report card may be shown, and a
+ * sheet nobody has approved (or that has a single mark on it) must not move any of them. `approvedOnly = false` reads everything
+ * entered and exists only for a screen that says plainly it is showing work in progress.
+ */
+export function studentResults(arm: ArmData, approvedOnly = true): StudentResult[] {
   const counted = arm.subjects.filter((subject) => subject.counts);
   const expected = counted.length;
   const out: StudentResult[] = arm.students.map((student) => {
@@ -226,6 +233,13 @@ export function studentResults(arm: ArmData, approvedOnly = false): StudentResul
   const ranks = rank(out.filter((entry) => entry.average !== null).map((entry) => ({ id: entry.id, value: entry.average as number })));
   for (const entry of out) entry.pos = ranks.get(entry.id) ?? null;
   return out;
+}
+
+/** The arm's average: the mean of its children's approved averages. Every screen that shows an arm average reads this one. */
+export function armAverage(arm: ArmData): number | null {
+  const averages = studentResults(arm).filter((result) => result.average !== null).map((result) => result.average as number);
+  const value = mean(averages);
+  return value === null ? null : round1(value);
 }
 
 /** Every arm that has children and subjects, read together so the school-wide pages cost one pass. */

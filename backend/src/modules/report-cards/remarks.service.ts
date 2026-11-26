@@ -105,7 +105,7 @@ export class RemarksService {
     if (!arm) throw new NotFoundException("That arm is not in this school.");
     const learner = arm.students.find((entry) => entry.id === studentId);
     if (!learner) throw new NotFoundException("That child is not on this arm's roll.");
-    const results = studentResults(arm, false);
+    const results = studentResults(arm);
     const mine = results.find((entry) => entry.id === studentId);
     const cards = await childCards(schoolId, term.id, arm);
     const me = cards.find((entry) => entry.id === studentId);
@@ -199,7 +199,7 @@ export class RemarksService {
     for (const classId of input.arms) {
       const arm = await loadArm(schoolId, term, classId);
       if (!arm) continue;
-      const results = studentResults(arm, false);
+      const results = studentResults(arm);
       const cards = await childCards(schoolId, term.id, arm);
       for (const result of results) {
         if (bandOf(result.average) !== input.band) continue;

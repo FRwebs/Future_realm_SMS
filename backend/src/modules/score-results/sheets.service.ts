@@ -6,7 +6,7 @@ import { z } from "zod";
 import type { SessionPayload } from "../../../../src/lib/auth/session-core";
 import { prisma } from "../../../../src/lib/db/prisma";
 import { Access, TEACHING_ROLES, currentTerm, iso, notifyStaff } from "../attendance-management/attendance.shared";
-import { type ArmData, type SubjectView, loadAll, loadArm } from "./arm";
+import { type ArmData, type SubjectView, armAverage, loadAll, loadArm } from "./arm";
 import { readSpreadsheet, writeXlsx, type Cell } from "../../common/xlsx";
 import { ABSENT, type CellValue, type Column, ensureColumns, fullName, liveFramework } from "./scores.shared";
 
@@ -109,17 +109,12 @@ export class SheetsService {
       subject: { id: subject.subjectId, name: subject.name, code: subject.code, category: subject.category, teacher: subject.teacher, teacherId: subject.teacherId, passMark: subject.passMark },
       state: subject.state, columns: subject.columns, pinned: subject.pinned, frameworkAt: framework ? iso(framework) : null,
       rows: subject.rows.map((row) => ({ id: row.id, name: row.name, adm: row.adm, cells: row.cells, others: others.get(row.id) ?? null, total: row.total, grade: row.grade, pos: row.pos, rating: row.rating, standing: row.standing, blank: row.blank, absent: row.absent, complete: row.complete })),
-      stats: { scored: subject.scored, roll: subject.roll, mean: subject.mean, high: subject.high, low: subject.low, passed: subject.passed, failed: subject.failed, armMean: this.armMean(arm), blanks: subject.rows.filter((row) => !row.complete).length, absences: subject.rows.reduce((total, row) => total + row.absent, 0) },
+      stats: { scored: subject.scored, roll: subject.roll, mean: subject.mean, high: subject.high, low: subject.low, passed: subject.passed, failed: subject.failed, armMean: armAverage(arm), blanks: subject.rows.filter((row) => !row.complete).length, absences: subject.rows.reduce((total, row) => total + row.absent, 0) },
       bands: arm.bands.map((band) => ({ label: band.label, min: band.min, max: band.max, remark: band.remark })), passMark: subject.passMark,
       blocked, editable: !blocked, mine: subject.teacherId === session.userId, enteredBy: names.map((user) => fullName(user)),
       submittedAt: subject.sheet?.submittedAt?.toISOString() ?? null, returned: subject.state === "Returned" ? { note: subject.sheet?.decisionNote ?? "", at: subject.sheet?.returnedAt?.toISOString() ?? null, by: returnedBy ? fullName(returnedBy) : null, byRole: returnedBy ? String(returnedBy.role).replace(/_/g, " ").toLowerCase().replace(/^./, (c) => c.toUpperCase()) : null } : null,
       windows, flags: subject.flags
     };
-  }
-
-  private armMean(arm: ArmData): number | null {
-    const totals = arm.subjects.flatMap((subject) => subject.rows.map((row) => row.total)).filter((value): value is number => typeof value === "number");
-    return totals.length ? Math.round((totals.reduce((a, b) => a + b, 0) / totals.length) * 10) / 10 : null;
   }
 
   /** The entry windows the school set for these components, if it set any. A component with none is open. */
