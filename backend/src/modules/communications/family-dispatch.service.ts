@@ -152,6 +152,21 @@ export class FamilyDispatchService {
     return { reach: planned.reach, credits: planned.credits, already: false };
   }
 
+  /** What a send to staff would reach and cost, worked out exactly as `dispatchStaff` will, without writing anything. */
+  async planStaff(schoolId: string, channel: Channel, body: string) {
+    const bad = unknownFields(body);
+    if (bad.length) throw new BadRequestException(`${bad.map((name) => `{${name}}`).join(", ")} ${bad.length === 1 ? "is not a merge field" : "are not merge fields"} — use {Guardian}, {Child} or {Class}.`);
+    const people = await prisma.staffProfile.findMany({ where: { schoolId }, take: 500, include: { user: { select: { firstName: true, lastName: true, phone: true, email: true, accountStatus: true } } } });
+    const rows = people.map((person) => {
+      const active = person.user.accountStatus === "ACTIVE";
+      const reach = active ? reachOf(channel, { phone: person.user.phone, email: person.user.email, canSms: true, canEmail: true }) : ({ ok: false } as const);
+      const text = mergeBody(body, { Guardian: fullName(person.user), Child: "", Class: "" });
+      return { reachable: reach.ok, segments: channel === "SMS" && reach.ok ? smsSegments(text) : 0 };
+    });
+    const reached = rows.filter((row) => row.reachable);
+    return { reach: reached.length, credits: reached.reduce((sum, row) => sum + row.segments, 0), left: rows.length - reached.length };
+  }
+
   /**
    * The same for staff: they are reached through their account, so an account that is not active is left out rather than failed, and the
    * credits and carrier queue work exactly as they do for a family. Safe to call after a send to families (an "everyone" send), in which case

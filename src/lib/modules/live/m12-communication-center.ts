@@ -309,7 +309,7 @@ function composeTab(audiences: Audience[], to: string): TabContent {
           {
             type: "form",
             title: "Message",
-            tag: "SMS · 1 credit each",
+            tag: "Cost shown before it sends",
             sub: "Merge fields resolve against a real record before you can send.",
             meta: `Sent as ${chosen.key} · ${chosen.reach} will receive`,
             per: 1,
@@ -350,14 +350,18 @@ function composeTab(audiences: Audience[], to: string): TabContent {
             submit: {
               endpoint: `${BASE}/campaigns?to=${encodeURIComponent(chosen.key)}`,
               method: "POST",
-              map: { "Name this send": "name", Message: "body" },
-              done: `Queued for ${chosen.reach} recipients.`,
+              // The channel the person picked is the channel that is used — it travels with the send, never assumed to be SMS.
+              map: { "Name this send": "name", Channel: "channel", Message: "body" },
+              encode: { Channel: { "In-app · free": "IN_APP", "SMS · ₦3.80 each": "SMS", Email: "EMAIL", "Rich messaging": "WHATSAPP" } },
+              // The first press asks what it would reach and cost; only the second sends.
+              preview: { endpoint: `${BASE}/campaigns/preview?to=${encodeURIComponent(chosen.key)}`, confirmLabel: "Send it" },
+              done: "Sent. It is in Sent, with what reached each family.",
               clearOnSuccess: ["Name this send", "Message"],
             },
             formNote: "The cost is shown and approved before anything sends — without exception.",
             actions: [
               { label: "Preview on a phone" },
-              { label: `See the cost and send · ${naira(chosen.naira)}`, primary: true },
+              { label: "See the cost and send", primary: true },
             ],
           },
         ],

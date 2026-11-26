@@ -612,6 +612,12 @@ export type FormSubmit = {
    */
   encode?: Record<string, Record<string, string>>;
   nest?: Record<string, [key: string, entry: string]>;
+  /**
+   * A send that costs something does not go on the first press. Where this is set, the primary button first asks this endpoint (with
+   * the same body the save would carry) what would happen, shows the answer — facts, and whether it can go — and only a second press
+   * saves. The endpoint answers `{ facts: [label, value, hint][], canSend, note }` and changes nothing.
+   */
+  preview?: { endpoint: string; confirmLabel?: string };
   /** What to say once it has saved. */
   done: string;
   /** Clear these fields after a successful save, e.g. password boxes. */

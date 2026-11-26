@@ -11,6 +11,7 @@ import { z } from "zod";
 
 import type { SessionPayload } from "../../../../src/lib/auth/session-core";
 import { prisma } from "../../../../src/lib/db/prisma";
+import type { Channel } from "../../../../src/lib/messaging/merge";
 import { FamilyDispatchService } from "./family-dispatch.service";
 
 /**
@@ -23,6 +24,8 @@ import { FamilyDispatchService } from "./family-dispatch.service";
 
 /** What one SMS costs a school, in naira. Credits are one per recipient. */
 const SMS_NAIRA = 3.8;
+/** What one WhatsApp message costs a school, in naira. */
+const WHATSAPP_NAIRA = 2.1;
 
 /** What the registry writes into a required phone column when none is known. */
 const UNREACHABLE_PHONE = "\u2014";
@@ -438,6 +441,79 @@ export class CommunicationCenterService {
       credits,
       threshold: Number.isFinite(threshold) ? threshold : null,
       needsApproval,
+    };
+  }
+
+  /**
+   * What a send would do, worked out exactly as `compose` will do it and written nowhere: who it reaches, who is left out and why, the
+   * credits it takes, what that costs in naira, and the wallet before and after. The page shows this before anything is sent or charged.
+   */
+  async preview(session: SessionPayload, payload: unknown, to?: string) {
+    const parsed = composeSchema.parse(payload);
+    const audienceKey = parsed.audience ?? to ?? "Guardians";
+    const snapshots = await this.audience(session, audienceKey);
+    const snapshot = snapshots.find((item) => item.key === audienceKey);
+    if (!snapshot) throw new BadRequestException("That audience is not one this school can send to.");
+    if (audienceKey === "One person" || audienceKey === "Selected people") {
+      throw new BadRequestException("Pick the families this goes to first — a message to named people is sent from a guardian's row or a form master's Compose, where the people are chosen.");
+    }
+    if (parsed.channel === NotificationChannel.PUSH) throw new BadRequestException("A send goes by SMS, email, WhatsApp or in-app.");
+    const channel = parsed.channel as Channel;
+    const toStaff = audienceKey === "Staff";
+    const everyone = audienceKey === "Everyone";
+    if (toStaff && parsed.channel === NotificationChannel.WHATSAPP) throw new BadRequestException("Staff are not written to on WhatsApp. Choose SMS, email or in-app.");
+
+    let reach = 0;
+    let credits = 0;
+    let left = 0;
+    if (!toStaff) {
+      const plan = this.dispatcher.plan(channel, parsed.body, await this.dispatcher.families(session.schoolId), parsed.name);
+      reach += plan.reach;
+      credits += plan.credits;
+      left += plan.rows.length - plan.reach;
+    }
+    if (toStaff || everyone) {
+      const staff = await this.dispatcher.planStaff(session.schoolId, channel, parsed.body);
+      reach += staff.reach;
+      credits += staff.credits;
+      left += staff.left;
+    }
+    if (reach === 0) throw new BadRequestException("Nobody in that audience can be reached on this channel, so there is nothing to send. Fix the contact details first, or choose another channel.");
+
+    const whatsapp = parsed.channel === NotificationChannel.WHATSAPP;
+    const wallet = await prisma.notificationWallet.findUnique({ where: { schoolId: session.schoolId } });
+    const balance = (whatsapp ? wallet?.whatsappBalance : wallet?.smsBalance) ?? 0;
+    const pricePer = parsed.channel === NotificationChannel.SMS ? SMS_NAIRA : whatsapp ? WHATSAPP_NAIRA : 0;
+    const naira = Math.round(credits * pricePer * 100) / 100;
+    const threshold = await this.threshold(session.schoolId);
+    const needsApproval = reach > threshold;
+    const enough = credits === 0 || balance >= credits;
+    const channelName: Record<string, string> = { IN_APP: "In-app (free)", SMS: "SMS", EMAIL: "Email", WHATSAPP: "WhatsApp", PUSH: "Push" };
+    const money = (value: number) => `₦${value.toLocaleString("en-NG", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    const unit = whatsapp ? "WhatsApp credits" : "SMS credits";
+
+    const facts: Array<[string, string, string]> = [
+      ["Channel", channelName[parsed.channel] ?? parsed.channel, parsed.channel === NotificationChannel.IN_APP ? "Free — it reaches the portal and the app" : ""],
+      ["Reaches", `${reach} ${reach === 1 ? "person" : "people"}`, left ? `${left} left out — no contact on this channel, or they have chosen not to receive it` : "Everyone in the audience"],
+      ["Credits", credits ? String(credits) : "None", credits ? `One per ${whatsapp ? "message" : "SMS segment"}` : "This channel uses no credits"],
+      ["Cost", credits ? money(naira) : "₦0.00", credits ? `At ${money(pricePer)} a credit` : "Nothing is charged"],
+      ...(credits ? ([["Balance now", `${balance} ${unit}`, ""], ["Balance after", `${enough ? balance - credits : balance} ${unit}`, enough ? "" : "Not enough — see below"]] as Array<[string, string, string]>) : []),
+    ];
+    return {
+      facts,
+      canSend: enough,
+      channel: parsed.channel,
+      reach,
+      credits,
+      naira,
+      balanceBefore: balance,
+      balanceAfter: enough ? balance - credits : balance,
+      needsApproval,
+      note: !enough
+        ? `This needs ${credits} ${unit} and the school has ${balance}. Send it in-app, or ask the office to top up.`
+        : needsApproval
+          ? `Above ${Number.isFinite(threshold) ? threshold : "the school's"} recipients, so this waits for a decision first. Nothing is sent or charged until it is approved.`
+          : "Nothing has been sent or charged yet.",
     };
   }
 

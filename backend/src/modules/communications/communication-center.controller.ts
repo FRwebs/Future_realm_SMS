@@ -46,6 +46,18 @@ export class CommunicationCenterController {
     return this.service.ok(this.service.campaigns(session));
   }
 
+  /** What a send would reach, cost and leave the wallet at — worked out, never sent. */
+  @Post("campaigns/preview")
+  @UseGuards(SessionGuard, CsrfGuard, RolesGuard)
+  @Roles(...readRoles)
+  preview(
+    @CurrentSession() session: SessionPayload,
+    @Body() body: unknown,
+    @Query("to") to?: string,
+  ) {
+    return this.service.ok(this.service.preview(session, body, to));
+  }
+
   @Post("campaigns")
   @UseGuards(SessionGuard, CsrfGuard, RolesGuard)
   @Roles(...readRoles)

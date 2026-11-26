@@ -2566,12 +2566,40 @@ function FormPanel({
   // Which required boxes are still empty, and whether anyone has tried to save over them yet. The
   // button is never dead: the press that cannot go through says what is stopping it.
   const [tried, setTried] = useState(false);
+  /** What a costly send would do, asked for and shown before anything is sent; null until the person has asked. */
+  const [confirm, setConfirm] = useState<{ facts: Array<[string, string, string]>; canSend: boolean; note: string } | null>(null);
   const unanswered = panel.fields.filter((field) => {
     if (!field.required) return false;
     const value = values[field.label];
     if (Array.isArray(value)) return value.length === 0;
     return value === undefined || value === null || String(value).trim() === "";
   });
+
+  /** Ask what the send would do — nothing is sent, nothing is charged — and show it. */
+  async function review() {
+    if (!submit?.preview) return;
+    if (unanswered.length) {
+      setTried(true);
+      setState({ kind: "failed", message: `Fill in ${unanswered.map((field) => field.label).join(", ")} before sending.` });
+      return;
+    }
+    setTried(false);
+    setState({ kind: "saving" });
+    try {
+      const response = await fetch(submit.preview.endpoint, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json", "x-csrf-token": readCookie("fr_csrf") ?? "" },
+        body: JSON.stringify(buildBody(submit, panel.fields, values, "")),
+      });
+      const result = (await response.json().catch(() => ({}))) as { ok?: boolean; error?: string; message?: string; data?: { facts?: Array<[string, string, string]>; canSend?: boolean; note?: string } };
+      if (!response.ok || result.ok === false || !result.data?.facts) throw new Error(readableError(result.error ?? result.message));
+      setConfirm({ facts: result.data.facts, canSend: result.data.canSend !== false, note: result.data.note ?? "" });
+      setState({ kind: "idle" });
+    } catch (error) {
+      setState({ kind: "failed", message: error instanceof Error ? error.message : "That could not be checked." });
+    }
+  }
 
   async function save() {
     if (!submit) return;
@@ -2612,6 +2640,7 @@ function FormPanel({
           ...Object.fromEntries(submit.clearOnSuccess!.map((label) => [label, ""])),
         }));
       }
+      setConfirm(null);
       setState({ kind: "saved", message: submit.done });
       if (submit.refreshAfter) {
         try {
@@ -2666,11 +2695,28 @@ function FormPanel({
             setValue={(next) => {
               setValues((current) => ({ ...current, [field.label]: next }));
               setState({ kind: "idle" });
+              // What was shown was worked out for the old words; a change means asking again.
+              setConfirm(null);
             }}
             missing={tried && unanswered.includes(field)}
           />
         ))}
       </div>
+      {confirm ? (
+        <div className="mt-[14px] rounded-[12px] border px-[14px] py-[12px]" style={{ background: "#F7FAF8", borderColor: CARD_BORDER }} role="region" aria-label="Check before sending">
+          <p className="mb-[8px] text-[12px] font-bold" style={{ color: INK }}>Check before it goes</p>
+          <dl className="grid gap-x-4 gap-y-[8px]" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(190px, 1fr))" }}>
+            {confirm.facts.map(([label, value, hint]) => (
+              <div key={label} className="min-w-0">
+                <dt className="text-[9.5px] font-bold uppercase tracking-[0.07em]" style={{ color: MUTED }}>{label}</dt>
+                <dd className="text-[13px] font-bold" style={{ color: INK }}>{value}</dd>
+                {hint ? <dd className="text-[10.5px] leading-[1.4]" style={{ color: MUTED }}>{hint}</dd> : null}
+              </div>
+            ))}
+          </dl>
+          {confirm.note ? <p className="mt-[10px] text-[11px] font-semibold" style={{ color: confirm.canSend ? "#435048" : "#B23B3B" }}>{confirm.note}</p> : null}
+        </div>
+      ) : null}
       {note || panel.actions?.length ? (
         <div className="mt-[14px] flex flex-wrap items-center justify-between gap-3 border-t border-(--color-border-default) pt-[13px]">
           <p
@@ -2696,15 +2742,26 @@ function FormPanel({
                 // The primary action of a wired form saves it, rather than
                 // opening a drawer that describes a save that never happens.
                 if (act.primary && submit) {
+                  // A costly send asks first, then sends on the second press; the first press changes nothing.
+                  if (submit.preview && confirm) {
+                    return (
+                      <span key={act.label} className="flex flex-wrap gap-2">
+                        <button type="button" onClick={() => setConfirm(null)} disabled={state.kind === "saving"} className="inline-flex items-center rounded-[9px] border bg-white px-[14px] py-[8px] text-[11.5px] font-semibold text-[#435048]" style={{ borderColor: CARD_BORDER }}>Change something</button>
+                        <button type="button" onClick={save} disabled={state.kind === "saving" || !confirm.canSend} className={className}>
+                          {state.kind === "saving" ? "Sending…" : (submit.preview.confirmLabel ?? "Send it")}
+                        </button>
+                      </span>
+                    );
+                  }
                   return (
                     <button
                       key={act.label}
                       type="button"
-                      onClick={save}
+                      onClick={submit.preview ? review : save}
                       disabled={state.kind === "saving"}
                       className={className}
                     >
-                      {state.kind === "saving" ? "Saving…" : act.label}
+                      {state.kind === "saving" ? (submit.preview ? "Checking…" : "Saving…") : act.label}
                     </button>
                   );
                 }
