@@ -229,6 +229,8 @@ type SectionComponent = {
   maxScore: number;
   isActive: boolean;
   order: number;
+  /** The term whose own set this is; empty when it is the school-wide one. */
+  termId?: string | null;
 };
 
 const CONFIG = "/api/v1/configuration";
@@ -1953,6 +1955,39 @@ function componentDrawer(component: SectionComponent | null, sections: string[],
   };
 }
 
+/**
+ * Change a section's weights together. A split is a whole: 40 for continuous assessment and 60 for the exam cannot be reached by
+ * moving one number, because every save must total 100 — so every weight (and maximum) of the section is here, and one save writes them.
+ */
+function componentSetDrawer(sectionKey: string, list: SectionComponent[]) {
+  const total = list.reduce((sum, item) => sum + item.weight, 0);
+  const weightLabel = (item: SectionComponent) => `${item.name} · weight`;
+  const maxLabel = (item: SectionComponent) => `${item.name} · maximum`;
+  return {
+    mode: "edit" as const,
+    kicker: `Assessment components · ${sectionLabel(sectionKey)}`,
+    title: "Edit the whole set",
+    sub: `Today these total ${round1(total)}. Change as many as you like — what you save must total 100.`,
+    commitLabel: "Save the set",
+    commitNote: "The set is checked as a whole, once. If it does not total 100 nothing is saved, and the message says what it came to.",
+    commitDone: "Assessment set saved",
+    commitDoneBody: "Score Entry & Results will use these weights for the term.",
+    fields: list.flatMap((item): FormField[] => [
+      { kind: "text", label: weightLabel(item), unit: "% of the term", required: true, value: round1(item.weight) },
+      { kind: "text", label: maxLabel(item), unit: "marks", required: true, value: round1(item.maxScore) },
+    ]),
+    submit: {
+      endpoint: "/api/v1/academics/section-assessment-components/weights",
+      method: "POST" as const,
+      body: { section: sectionKey, termId: list[0]?.termId ?? null },
+      nest: Object.fromEntries([
+        ...list.map((item) => [weightLabel(item), ["weights", item.code ?? item.id]] as [string, [string, string]]),
+        ...list.map((item) => [maxLabel(item), ["maxScores", item.code ?? item.id]] as [string, [string, string]]),
+      ]),
+    },
+  };
+}
+
 /** Add or change one grading band. */
 function bandDrawer(scheme: GradingScheme | undefined, band: GradingBand | null, bandCount: number) {
   return {
@@ -2804,7 +2839,10 @@ export function curriculumDetailContent(
                   meta: `${list.length} components · weights total ${round1(total)}`,
                   head: ["Component", "Max", "Weight", "Aggregation", "Edit"],
                   nounPlural: "components",
-                  acts: [{ label: "Add a component", drawer: componentDrawer(null, subjectSectionOptions, total, sectionLabel(name)) }],
+                  acts: [
+                    { label: "Edit the whole set", drawer: componentSetDrawer(name, list) },
+                    { label: "Add a component", drawer: componentDrawer(null, subjectSectionOptions, total, sectionLabel(name)) },
+                  ],
                   rows: list.map((component) => ({
                     cells: [
                       nameCell(component.name, componentLabel(component.type).toLowerCase() === component.name.toLowerCase() ? undefined : componentLabel(component.type)),

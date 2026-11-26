@@ -201,6 +201,13 @@ export class AcademicsController {
     return { ok: true, data: await this.academicsService.replaceSectionAssessmentComponents(session, body) };
   }
 
+  @Post("section-assessment-components/weights")
+  @UseGuards(SessionGuard, CsrfGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "SCHOOL_OWNER", "PROPRIETOR", "ADMINISTRATOR", "PRINCIPAL", "HEAD_TEACHER", "VICE_PRINCIPAL_ACADEMICS", "ADMIN_OFFICER", "EXAM_OFFICER", "EXAMINATION_OFFICER")
+  async adjustSectionWeights(@CurrentSession() session: SessionPayload, @Body() body: Record<string, unknown>) {
+    return { ok: true, data: await this.academicsService.adjustSectionWeights(session, body) };
+  }
+
   @Post("section-assessment-components")
   @UseGuards(SessionGuard, CsrfGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "SCHOOL_OWNER", "PROPRIETOR", "ADMINISTRATOR", "PRINCIPAL", "HEAD_TEACHER", "VICE_PRINCIPAL_ACADEMICS", "ADMIN_OFFICER", "EXAM_OFFICER", "EXAMINATION_OFFICER")

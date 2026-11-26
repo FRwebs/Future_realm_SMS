@@ -123,9 +123,21 @@ const sectionAssessmentComponentSchema = z.object({
   isActive: z.coerce.boolean().default(true)
 });
 
+/**
+ * Several weights (and maximums) changed together, by component code. Components the request does not name keep what they have.
+ * `termId: null` is the school-wide set, which is what most schools keep; a term's own set is named by its term.
+ */
+const sectionWeightsSchema = z.object({
+  section: schoolSectionSchema,
+  termId: z.string().nullable().optional(),
+  weights: z.record(z.string(), z.coerce.number().min(0).max(100)),
+  maxScores: z.record(z.string(), z.coerce.number().min(1).max(100)).optional()
+});
+
 const sectionAssessmentComponentSetSchema = z.object({
   section: schoolSectionSchema,
-  termId: z.string().optional(),
+  // A term's own set is named by its term; null is the school-wide set; left out, it is the current term's.
+  termId: z.string().nullable().optional(),
   academicSessionId: z.string().optional(),
   components: z
     .array(
@@ -1773,8 +1785,8 @@ export class AcademicsService {
   async replaceSectionAssessmentComponents(session: SessionPayload, payload: unknown) {
     assertAssessmentManager(session);
     const parsed = sectionAssessmentComponentSetSchema.parse(payload);
-    const term = parsed.termId ? null : await this.currentTerm(session.schoolId);
-    const termId = parsed.termId ?? term?.id;
+    const term = parsed.termId === undefined ? await this.currentTerm(session.schoolId) : null;
+    const termId = parsed.termId === undefined ? term?.id : parsed.termId;
 
     const codes = parsed.components.map((component) => component.code.toUpperCase());
     if (new Set(codes).size !== codes.length) {
@@ -1864,6 +1876,38 @@ export class AcademicsService {
     }
 
     return { section: parsed.section, termId, components: written };
+  }
+
+  /**
+   * Change the weights of a section's components together, and save them once.
+   *
+   * One weight can never be moved on its own — the set must still total 100 — so a school's own split (40 CA / 60 exam, or 15 on an
+   * assignment and 5 on a test) is only ever reachable by changing several at the same time. The set that results is judged as a
+   * whole, by the same rules as any other replacement of it: it must total 100, and once marks exist it is locked.
+   */
+  async adjustSectionWeights(session: SessionPayload, payload: unknown) {
+    assertAssessmentManager(session);
+    const parsed = sectionWeightsSchema.parse(payload);
+    const termId = parsed.termId === undefined ? (await this.currentTerm(session.schoolId))?.id : parsed.termId;
+    const rows = await prisma.sectionAssessmentComponent.findMany({
+      where: { schoolId: session.schoolId, section: parsed.section, isActive: true, termId },
+      orderBy: { order: "asc" }
+    });
+    if (!rows.length) throw new NotFoundException("That section has no assessment components to change.");
+    const unknown = [...Object.keys(parsed.weights), ...Object.keys(parsed.maxScores ?? {})].filter((code) => !rows.some((row) => row.code === code));
+    if (unknown.length) throw new BadRequestException(`${unknown.join(", ")} is not a component of this section.`);
+    return this.replaceSectionAssessmentComponents(session, {
+      section: parsed.section,
+      termId,
+      components: rows.map((row) => ({
+        name: row.name,
+        code: row.code,
+        type: row.type,
+        weight: parsed.weights[row.code] ?? row.weight,
+        maxScore: parsed.maxScores?.[row.code] ?? row.maxScore,
+        order: row.order
+      }))
+    });
   }
 
   /**
