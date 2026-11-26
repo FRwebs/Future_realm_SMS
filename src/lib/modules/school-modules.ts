@@ -756,12 +756,24 @@ export function allSchoolPermissionKeys(): string[] {
 }
 
 /**
+ * Staff the mockup lists as job titles without a template — librarian, security, store and maintenance officers and the like.
+ *
+ * Every one of the templates grants at least view on Command Center and on Sync & Support, so that pair is the floor for any
+ * signed-in member of staff. Anything beyond it is granted deliberately, per person, in Staff & Access.
+ */
+export const untemplatedStaffLevels: Partial<Record<string, SchoolAccessLevel>> = {
+  m1: 1,
+  m16: 1,
+};
+
+/**
  * The access level a role template holds in a module.
- * An unlisted module means full access, which is how Proprietor is expressed.
+ * Within a template, an unlisted module means full access, which is how Proprietor is expressed. A role that has no template at
+ * all starts from the floor above and nothing more: a name this table does not know is never read as "everything".
  */
 export function schoolModuleLevel(roleTemplate: string, moduleCode: string): SchoolAccessLevel {
   const template = schoolRoleModuleLevels[roleTemplate];
-  if (!template) return 3;
+  if (!template) return untemplatedStaffLevels[moduleCode] ?? 0;
   return template[moduleCode] ?? 3;
 }
 

@@ -125,3 +125,23 @@ describe("school admin module spec", () => {
     expect(schoolTemplateReach("ICT Officer")).toBeLessThan(schoolTemplateReach("Registrar"));
   });
 });
+
+describe("a role with no template of its own", () => {
+  const UNTEMPLATED = ["Librarian", "Receptionist", "Security Officer", "Maintenance Officer", "Transport Coordinator", "Store Officer", "A role nobody has heard of"];
+
+  it("starts from view on Command Center and Sync & Support, and nothing else", () => {
+    for (const name of UNTEMPLATED) {
+      const keys = schoolPermissionKeysForRoleTemplate(name);
+      expect(keys.length).toBeGreaterThan(0);
+      expect(keys.every((key) => key.endsWith(".view"))).toBe(true);
+      expect(new Set(keys.map((key) => key.split(".")[0]))).toEqual(new Set(["command-center", "sync-support"]));
+      expect(schoolTemplateReach(name)).toBe(2);
+    }
+  });
+
+  it("never reads an unknown name as full access, while a real template still can", () => {
+    expect(schoolModuleLevel("Librarian", "m7")).toBe(0);
+    expect(schoolModuleLevel("Librarian", "m11")).toBe(0);
+    expect(schoolPermissionKeysForRoleTemplate("Proprietor").length).toBeGreaterThan(schoolPermissionKeysForRoleTemplate("Librarian").length * 20);
+  });
+});

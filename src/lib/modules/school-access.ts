@@ -5,6 +5,7 @@ import {
   schoolModules,
   schoolPermissionKey,
   schoolRoleModuleLevels,
+  untemplatedStaffLevels,
   templateTabActions,
   templateTabSlugs,
   type SchoolAccessLevel,
@@ -60,19 +61,6 @@ const roleTemplateByRole: Partial<Record<Role, string>> = {
   GUIDANCE_COUNSELLOR: "Counsellor",
   ICT_CBT_ADMIN: "ICT Officer",
   IT_ADMINISTRATOR: "ICT Officer",
-};
-
-/**
- * Staff the mockup lists as job titles without templating — librarian, security,
- * store and maintenance officers and the like.
- *
- * Every one of the eleven templates grants at least view on Command Center and on
- * Sync & Support, so that pair is the floor for any signed-in member of staff.
- * Anything beyond it is granted deliberately, per person, in Staff & Access.
- */
-const untemplatedStaffLevels: Partial<Record<string, SchoolAccessLevel>> = {
-  m1: 1,
-  m16: 1,
 };
 
 /** Roles that are not school staff at all and never see this shell. */
