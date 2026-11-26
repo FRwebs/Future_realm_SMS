@@ -16,6 +16,7 @@ import { randomBytes } from "node:crypto";
 import { plansFeatures } from "../plans-features/plans-features.service";
 import { loadGuardianPolicy, type GuardianVisible } from "./guardian-policy";
 import { readCard } from "../report-cards/published-card";
+import { isScoreReleased, schoolsShowingScoresEarly } from "../../common/score-release";
 import { linkSchool, schoolOffers } from "./school-links";
 import { clockIn, todayIn } from "./school-time";
 
@@ -1168,6 +1169,8 @@ export class ParentWorkspaceService {
       : [];
     const now = Date.now();
     const whose = (schoolId: string) => (many ? siteAt(schoolId)?.shortName?.trim() || siteAt(schoolId)?.name || "" : "");
+    // A mark is shown only once the school has released it — never merely because a sheet was approved.
+    const early = await schoolsShowingScoresEarly(theirSchools);
 
     return {
       showCards,
@@ -1185,12 +1188,15 @@ export class ParentWorkspaceService {
         const theirs = windows.filter((window) => window.schoolId === student.schoolId);
         const releaseOf = new Map(theirs.filter((window) => /^every class$/i.test(window.appliesTo) || window.appliesTo.toLowerCase().includes(arm.toLowerCase())).map((window) => [window.componentId, window.releaseAt]));
         const mineEntries = entries.filter((entry) => entry.studentId === student.id && released.has(entry.subjectId));
+        const cardOut = cards.some((card) => card.studentId === student.id && card.termId === termAt(student.schoolId)?.id);
         const subjects = new Map<string, { name: string; parts: Array<{ code: string; name: string; max: number; score: number | null; on: string | null }> }>();
         for (const entry of mineEntries) {
           const component = components.find((item) => item.id === entry.assessmentComponentId && item.schoolId === student.schoolId);
           if (!component) continue;
           const at = releaseOf.get(component.id) ?? null;
-          const open = !at || at.getTime() <= now;
+          const open = isScoreReleased({ releaseAt: at, early: early.has(student.schoolId), cardPublished: cardOut, now });
+          // Nothing is scheduled and nothing is released: it is not for a family to see, not even that it exists.
+          if (!open && !at) continue;
           const slot = subjects.get(entry.subjectId) ?? { name: entry.subject.name, parts: [] };
           slot.parts.push({ code: component.code, name: component.name, max: entry.maxScore, score: open ? entry.score : null, on: at ? isoDay(at) : null });
           subjects.set(entry.subjectId, slot);
@@ -1216,7 +1222,8 @@ export class ParentWorkspaceService {
                 : null,
             };
           }),
-          released: [...subjects.values()].sort((a, b) => a.name.localeCompare(b.name)),
+          // A subject counts as released only once one of its marks is — a date still ahead is shown under "ahead", not as a result.
+          released: [...subjects.values()].filter((subject) => subject.parts.some((part) => part.score !== null)).sort((a, b) => a.name.localeCompare(b.name)),
         };
       }),
     };

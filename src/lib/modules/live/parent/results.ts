@@ -62,7 +62,7 @@ function releasedDrawer(kid: Kid, term: string): DrawerSpec {
     sub: "Only scores the school has approved and released.",
     facts: kid.released.map((subject): PanelFact => [
       subject.name,
-      subject.parts.map((part) => `${part.code} ${part.score === null ? "—" : `${part.score} / ${part.max}`}`).join("  ·  "),
+      subject.parts.map((part) => `${part.name} ${part.score === null ? "—" : `${part.score} / ${part.max}`}`).join("  ·  "),
       subject.parts.filter((part) => part.score === null && part.on).map((part) => `${part.name} released ${dShort(part.on!)}`).join(" · "),
     ]),
   };

@@ -10,6 +10,7 @@ import { isForStudents } from "./student-notify";
 import { hiddenPages, loadStudentPolicy, type StudentVisible } from "./student-policy";
 import { resolveGradeLabel } from "../../../../src/lib/domain/grading";
 import { formatNigeriaClassName } from "../../../../src/lib/school-options";
+import { isScoreReleased, schoolsShowingScoresEarly } from "../../common/score-release";
 
 /**
  * The student's own workspace: what they are taught, set, marked on and told, read from the school's records as the student is entitled to
@@ -263,7 +264,11 @@ export class StudentWorkspaceService {
     const windows = term ? await prisma.assessmentWindow.findMany({ where: { schoolId: session.schoolId, termId: term.id }, select: { componentId: true, releaseAt: true, appliesTo: true } }) : [];
     const armLabel = armName(student.currentClass?.name, student.currentClass?.arm).toLowerCase();
     const releaseOf = new Map(windows.filter((window) => /^every class$/i.test(window.appliesTo) || window.appliesTo.toLowerCase().includes(armLabel)).map((window) => [window.componentId, window.releaseAt.getTime()]));
-    const opened = (componentId: string) => (releaseOf.get(componentId) ?? 0) <= Date.now();
+    // An approved sheet is the school's own review, not a release: a mark shows once its date has come, the term's report card is
+    // published, or the school has chosen to show approved marks early — the same rule a parent is held to.
+    const early = (await schoolsShowingScoresEarly([session.schoolId])).has(session.schoolId);
+    const cardOut = term ? (await prisma.reportCard.count({ where: { schoolId: session.schoolId, studentId: student.id, termId: term.id, status: { in: ["PUBLISHED", "LOCKED"] }, publishedAt: { not: null } } })) > 0 : false;
+    const opened = (componentId: string) => isScoreReleased({ releaseAt: releaseOf.get(componentId), early, cardPublished: cardOut, now: Date.now() });
 
     /* this week's topic, from the subject's scheme of work */
     const week = term ? Math.max(1, Math.floor((dayOf(isoDay(new Date())).getTime() - dayOf(isoDay(term.startDate)).getTime()) / (7 * DAY)) + 1) : 0;
@@ -282,7 +287,7 @@ export class StudentWorkspaceService {
           periods: own.length || row.subject.periodsPerWeek || 0, labs: own.filter((slot) => /lab/i.test(slot.venue ?? "")).length,
           topic: topicOf.get(row.subjectId) ?? null, open: open.length, nextDue: next[0] ? isoDay(next[0].dueAt) : null, late: open.filter((a) => a.dueAt.getTime() < now).length,
           released: released.has(row.subjectId),
-          parts: components.map((component) => ({ code: component.code, name: component.name, max: component.maxScore, score: released.has(row.subjectId) && opened(component.id) ? scoreOf.get(`${row.subjectId}|${component.id}`) ?? null : null, releaseOn: opened(component.id) ? null : isoDay(new Date(releaseOf.get(component.id)!)) }))
+          parts: components.map((component) => ({ code: component.code, name: component.name, max: component.maxScore, score: released.has(row.subjectId) && opened(component.id) ? scoreOf.get(`${row.subjectId}|${component.id}`) ?? null : null, releaseOn: opened(component.id) || !releaseOf.has(component.id) ? null : isoDay(new Date(releaseOf.get(component.id)!)) }))
         };
       })
     };

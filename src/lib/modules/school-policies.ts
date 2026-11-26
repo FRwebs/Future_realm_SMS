@@ -260,6 +260,15 @@ export const POLICY_DEFINITIONS: PolicyDefinition[] = [
     defaults: { channel: "SMS", opens: "07:00", closes: "19:00" },
   },
   {
+    code: "early_assessment_scores",
+    area: "students",
+    label: "Scores before the school releases them",
+    sub: "When families and students first see a mark",
+    changes: "Held, a mark shows once its release date has come or the report card is published. Shown early, it shows as soon as its score sheet is approved.",
+    fields: [{ key: "mode", label: "Scores before release", kind: "select", options: ["Hold until the school releases them", "Show as soon as a sheet is approved"] }],
+    defaults: { mode: "Hold until the school releases them" },
+  },
+  {
     code: "student_homework",
     area: "students",
     label: "Homework hand-in",
