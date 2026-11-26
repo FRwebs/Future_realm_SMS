@@ -656,7 +656,8 @@ export function newTimetableDrawer(list: TimetableList, terms: Named[]): DrawerS
         label: "Applies to",
         kind: "select",
         value: "Every arm",
-        options: ["Every arm", "Junior Secondary only", "Senior Secondary only"],
+        // The stages this school actually runs — never a list written for another school's.
+        options: ["Every arm", ...(list.stages ?? []).filter((stage) => stage !== "Other").map((stage) => `${stage} only`)],
         required: true,
         span: 2,
       },

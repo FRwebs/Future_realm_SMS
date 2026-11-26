@@ -153,6 +153,8 @@ type AssessmentWindowRecord = {
   componentId: string;
   componentName: string;
   componentCode: string | null;
+  /** The section the component belongs to; empty for one every section shares. */
+  section?: string | null;
   maxScore: number;
   weight: number;
   opensAt: string;
@@ -859,7 +861,6 @@ const REMINDERS = ["No reminder", "On the day", "1 day before", "3 days before",
 const EVENT_TYPES = ["School event", "Holiday", "Examination", "Meeting", "Deadline", "Sports", "Religious observance"];
 const EVENT_AUDIENCES = ["Staff", "Students", "Guardians", "The public calendar"];
 const REMINDER_CHANNELS = ["In-app", "SMS", "Email"];
-const WINDOW_AUDIENCES = ["Every class", "Junior Secondary only", "Senior Secondary only"];
 
 const DAY_MS = 86_400_000;
 
@@ -1206,10 +1207,12 @@ function windowFields(
   componentLabel: string,
   termLabels: string[],
   termLabel: string,
+  /** Component label → the audience it carries: its own section, or every class. */
+  audienceOf: Record<string, string> = {},
 ): FormField[] {
   return [
     window
-      ? { label: "Component", kind: "static", value: window.componentName, hint: "A window belongs to one component" }
+      ? { label: "Component", kind: "static", value: window.section ? `${window.componentName} · ${window.section}` : window.componentName, hint: "A window belongs to one component" }
       : {
           label: "Component",
           kind: "select",
@@ -1261,13 +1264,16 @@ function windowFields(
       required: true,
       hint: "When guardians can see it — never before approval",
     },
-    {
-      label: "Applies to",
-      kind: "select",
-      value: window?.appliesTo ?? WINDOW_AUDIENCES[0],
-      options: withCurrent(WINDOW_AUDIENCES, window?.appliesTo),
-      required: true,
-    },
+    // Who a window is for is settled by the component it opens: Test 1 in Junior Secondary is for Junior Secondary, and cannot be
+    // pointed at another section's children. A component every section shares is for every class.
+    window
+      ? { label: "Applies to", kind: "static", value: window.appliesTo, hint: "Set by the component this window opens" }
+      : {
+          label: "Applies to",
+          kind: "static",
+          value: "Set by the component you choose",
+          by: { field: "Component", cases: Object.fromEntries(Object.entries(audienceOf).map(([label, audience]) => [label, { value: audience, hint: "Set by the component you choose" }])) },
+        },
     {
       label: "Remind teachers 3 days before it closes",
       kind: "toggle",
@@ -1507,7 +1513,7 @@ function windowRow(
   };
   return {
     cells: [
-      nameCell(window.componentName, `Max ${window.maxScore} · weight ${window.weight}%`, { avatar: false }),
+      nameCell(window.section ? `${window.componentName} · ${window.section}` : window.componentName, `${termName} · max ${window.maxScore} · weight ${window.weight}%`, { avatar: false }),
       text(shortDay(window.opensAt)),
       text(shortDay(window.closesAt)),
       text(shortDay(window.releaseAt)),
@@ -1528,6 +1534,7 @@ function calendarTab(
   events: CalendarRecord[],
   components: AssessmentComponentRecord[],
   windows: AssessmentWindowRecord[],
+  sectionComponents: SectionComponent[] = [],
 ): TabContent {
   const current = sessions.find((item) => item.isCurrent) ?? sessions[0];
   const terms = sessions.flatMap((item) => item.terms.map((term) => ({ term, sessionName: item.name })));
@@ -1542,21 +1549,25 @@ function calendarTab(
   );
   const componentLabelFor = (item: AssessmentComponentRecord) =>
     dupes.has(item.name) ? `${item.name} · ${item.code ?? item.id.slice(0, 4)}` : item.name;
-  const componentLabels = activeComponents.map(componentLabelFor);
+  // A window is set on a section's own component, so the choices are every section's components — not the one section whose sheet
+  // happened to be started first. A school with no section components yet falls back to the stored ones.
+  const ownChoices = sectionComponents
+    .filter((item) => item.isActive)
+    .map((item) => ({ label: `${item.name} · ${sectionLabel(item.section)}`, id: item.id, audience: sectionLabel(item.section) }));
+  const choices = ownChoices.length
+    ? ownChoices
+    : activeComponents.map((item) => ({ label: componentLabelFor(item), id: item.id, audience: "Every class" }));
+  const componentLabels = choices.map((item) => item.label);
+  const audienceOf = Object.fromEntries(choices.map((item) => [item.label, item.audience]));
   const termLabels = terms.map((item) => `${item.term.name} · ${item.sessionName}`);
   const currentTermLabel = currentTerm
     ? `${currentTerm.term.name} · ${currentTerm.sessionName}`
     : termLabels[0] ?? "";
 
-  const termWindows = currentTerm
-    ? windows.filter((item) => item.termId === currentTerm.term.id)
-    : windows;
-  // What the framework weighs in total — every component that counts this term,
-  // not just the ones that already have a window.
-  const weightTotal = activeComponents
-    .filter((item) => !item.termId || !currentTerm || item.termId === currentTerm.term.id)
-    .reduce((sum, item) => sum + (item.weight ?? 0), 0);
-
+  // Every window, whatever its term: one for another term must still be there to check, change or delete. The current term's come first.
+  const termWindows = windows
+    .slice()
+    .sort((a, b) => Number(b.termId === currentTerm?.term.id) - Number(a.termId === currentTerm?.term.id) || a.opensAt.localeCompare(b.opensAt));
   const addWindowDrawer: DrawerSpec = {
     mode: "form",
     kicker: "Assessment windows",
@@ -1573,13 +1584,14 @@ function calendarTab(
       componentLabels[0] ?? "No component yet",
       termLabels.length ? termLabels : ["No term yet"],
       currentTermLabel || "No term yet",
+      audienceOf,
     ),
     submit: {
       endpoint: `${CONFIG}/assessment-windows`,
       method: "POST",
       map: { ...WINDOW_MAP, Component: "componentId", Term: "termId" },
       encode: {
-        Component: Object.fromEntries(activeComponents.map((item) => [componentLabelFor(item), item.id])),
+        Component: Object.fromEntries(choices.map((item) => [item.label, item.id])),
         Term: Object.fromEntries(terms.map((item, index) => [termLabels[index], item.term.id])),
       },
     },
@@ -1671,7 +1683,7 @@ function calendarTab(
                 type: "table",
                 title: "Assessment windows",
                 sub: "When each component can be scored, and when the result reaches a guardian.",
-                meta: `${termWindows.length} window${termWindows.length === 1 ? "" : "s"} · weights total ${Math.round(weightTotal * 10) / 10}`,
+                meta: `${termWindows.length} window${termWindows.length === 1 ? "" : "s"} across ${new Set(termWindows.map((item) => item.termId)).size} term${new Set(termWindows.map((item) => item.termId)).size === 1 ? "" : "s"}`,
                 acts: [{ label: "Add window", primary: true, drawer: addWindowDrawer }],
                 head: ["Component", "Opens", "Closes", "Result release", "State", ""],
                 noun: "assessment window",
@@ -1684,13 +1696,13 @@ function calendarTab(
             : {
                 type: "note",
                 tone: "attention",
-                title: activeComponents.length
-                  ? `No assessment window is set${currentTerm ? ` for ${currentTerm.term.name}` : ""}`
+                title: activeComponents.length || sectionComponents.length
+                  ? "No assessment window is set"
                   : "No assessment component is configured",
-                body: activeComponents.length
+                body: activeComponents.length || sectionComponents.length
                   ? "Until a window exists, a teacher can score any component at any time. A window says when each one opens, closes and releases."
                   : "Scores are entered against components. Without them there is nothing to score into, and nothing for a window to govern.",
-                acts: activeComponents.length ? [{ label: "Add window", drawer: addWindowDrawer }] : undefined,
+                acts: activeComponents.length || sectionComponents.length ? [{ label: "Add window", drawer: addWindowDrawer }] : undefined,
               },
           events.length
             ? {
@@ -3969,12 +3981,15 @@ export async function schoolConfigurationLiveTab(
       apiGet(`${CONFIG}/sessions-terms`, observe<{ records: SessionRecord[] }>(localContracts["src/lib/modules/live/m2-school-configuration.ts#93119071"])),
       apiGet(`${CONFIG}/school-calendar`, observe<{ records: CalendarRecord[] }>(localContracts["src/lib/modules/live/m2-school-configuration.ts#8a82ebc9"])),
     ]);
-    const [components, windows] = await Promise.all([
+    const [components, windows, sectionComponents] = await Promise.all([
       apiGet("/api/v1/academics/assessments", observe<AssessmentComponentRecord[]>(localContracts["src/lib/modules/live/m2-school-configuration.ts#6f764ade"])).catch(
         () => [] as AssessmentComponentRecord[],
       ),
       apiGet(`${CONFIG}/assessment-windows`, observe<{ records: AssessmentWindowRecord[] }>(localContracts["src/lib/modules/live/m2-school-configuration.ts#c14fb29e"])).catch(
         () => ({ records: [] as AssessmentWindowRecord[] }),
+      ),
+      apiGet("/api/v1/academics/section-assessment-components", observe<SectionComponent[]>(localContracts["src/lib/modules/live/m2-school-configuration.ts#4f1dae48"])).catch(
+        () => [] as SectionComponent[],
       ),
     ]);
     return calendarTab(
@@ -3982,6 +3997,7 @@ export async function schoolConfigurationLiveTab(
       events?.records ?? [],
       components ?? [],
       windows?.records ?? [],
+      sectionComponents ?? [],
     );
   }
 

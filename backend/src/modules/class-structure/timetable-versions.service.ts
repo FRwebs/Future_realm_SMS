@@ -186,7 +186,7 @@ export class TimetableVersionsService {
     const schoolId = session.schoolId;
     await this.applyDue(schoolId);
     const term = await this.currentTerm(schoolId);
-    const [versions, live, arms, logs, builders] = await Promise.all([
+    const [versions, live, arms, logs, builders, levels] = await Promise.all([
       prisma.timetableVersion.findMany({ where: { schoolId }, orderBy: { updatedAt: "desc" }, include: { term: { select: { name: true } } } }),
       this.liveGrid(schoolId, term?.id ?? null),
       prisma.classRoom.count({ where: { schoolId, deletedAt: null, isActive: true } }),
@@ -196,8 +196,11 @@ export class TimetableVersionsService {
         take: 6,
         include: { publishedBy: { select: { firstName: true, lastName: true } } }
       }),
-      prisma.user.findMany({ where: { schoolId, deletedAt: null }, select: { id: true, firstName: true, lastName: true } })
+      prisma.user.findMany({ where: { schoolId, deletedAt: null }, select: { id: true, firstName: true, lastName: true } }),
+      prisma.classLevel.findMany({ where: { schoolId }, select: { schoolSection: true, section: true, order: true }, orderBy: { order: "asc" } })
     ]);
+    // The stages this school actually runs, in the order its classes run — what "applies to" can be narrowed to.
+    const stages = Array.from(new Set(levels.map((level) => stageOf(level))));
     const nameOf = new Map(builders.map((user) => [user.id, fullName(user)]));
     const hasRunningRow = versions.some((version) => version.state === "RUNNING" && (!term || version.termId === term.id));
     const liveArms = armsIn(live.grid).length;
@@ -245,6 +248,7 @@ export class TimetableVersionsService {
       term: term ? { id: term.id, name: term.name, session: term.academicSession.name } : null,
       versions: rows,
       totals: { arms, liveArms, clashes },
+      stages,
       publishes: logs.map((log) => {
         let detail: Record<string, unknown> = {};
         try {
@@ -457,10 +461,9 @@ export class TimetableVersionsService {
     const allowed = new Set(
       arms
         .filter((arm) => {
-          const stage = stageOf(arm.classLevel);
-          if (appliesTo === "Junior Secondary only") return stage === "Junior Secondary";
-          if (appliesTo === "Senior Secondary only") return stage === "Senior Secondary";
-          return true;
+          // "<Stage> only" narrows it to one of the stages the school runs; anything else is every arm.
+          const only = /^(.+) only$/.exec(appliesTo)?.[1];
+          return !only || stageOf(arm.classLevel) === only;
         })
         .map((arm) => arm.id)
     );

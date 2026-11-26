@@ -6,6 +6,9 @@ import type { SessionPayload } from "../../../../src/lib/auth/session-core";
 import { prisma } from "../../../../src/lib/db/prisma";
 import { policyDefinition, validatePolicyValues } from "../../../../src/lib/modules/school-policies";
 import { RolesManagementService } from "../roles-management/roles-management.service";
+import { sectionColumnKey } from "../score-results/scores.shared";
+
+const SECTION_NAME: Record<string, string> = { CRECHE: "Crèche", PRE_NURSERY: "Pre-nursery", NURSERY: "Nursery", KINDERGARTEN: "Kindergarten", PRIMARY: "Primary", JUNIOR_SECONDARY: "Junior Secondary", SENIOR_SECONDARY: "Senior Secondary" };
 
 type ConfigGroup = "General" | "Finance" | "Academics" | "Others";
 type ConfigAction = "view" | "create" | "update" | "delete" | "manage" | "export";
@@ -1197,6 +1200,8 @@ export class ConfigurationService {
         componentId: row.componentId,
         componentName: row.component.name,
         componentCode: row.component.code,
+        /** The section the component belongs to, read from its code ("PRIMARY:TEST_1:10"); empty for a component every section shares. */
+        section: SECTION_NAME[String(row.component.code ?? "").split(":")[0]] ?? null,
         maxScore: row.component.maxScore,
         weight: row.component.weight,
         opensAt: day(row.opensAt),
@@ -1237,11 +1242,26 @@ export class ConfigurationService {
   private async createAssessmentWindow(session: SessionPayload, body: Record<string, unknown>) {
     const parsed = assessmentWindowSchema.parse(body);
     const dates = this.windowDates(parsed);
-    const [term, component] = await Promise.all([
+    const [term, found] = await Promise.all([
       prisma.term.findFirst({ where: { id: parsed.termId, schoolId: session.schoolId } }),
       prisma.assessmentComponent.findFirst({ where: { id: parsed.componentId, schoolId: session.schoolId } })
     ]);
     if (!term) throw new NotFoundException("That term does not exist.");
+    // A window is set on a section's own component. The choice may be one of the school's section components (Test 1 in Junior
+    // Secondary): the stored component a sheet is scored against is found, or made, for it — so the window is bound to that
+    // section and never to another's.
+    let component = found;
+    let section: string | null = null;
+    if (!component) {
+      const own = await prisma.sectionAssessmentComponent.findFirst({ where: { id: parsed.componentId, schoolId: session.schoolId } });
+      if (own) {
+        const code = sectionColumnKey(own.section, own);
+        component =
+          (await prisma.assessmentComponent.findUnique({ where: { schoolId_code: { schoolId: session.schoolId, code } } })) ??
+          (await prisma.assessmentComponent.create({ data: { schoolId: session.schoolId, termId: null, name: own.name, code, weight: own.weight, maxScore: own.maxScore, order: own.order, isActive: true } }));
+        section = SECTION_NAME[own.section] ?? null;
+      }
+    }
     if (!component) throw new NotFoundException("That assessment component does not exist.");
     const existing = await prisma.assessmentWindow.findUnique({ where: { termId_componentId: { termId: term.id, componentId: component.id } } });
     if (existing) {
@@ -1254,7 +1274,7 @@ export class ConfigurationService {
         termId: term.id,
         componentId: component.id,
         ...dates,
-        appliesTo: parsed.appliesTo ?? "Every class",
+        appliesTo: section ?? parsed.appliesTo ?? "Every class",
         remindTeachers: parsed.remindTeachers ?? true,
         allowLateEntry: parsed.allowLateEntry ?? false,
         createdById: session.userId

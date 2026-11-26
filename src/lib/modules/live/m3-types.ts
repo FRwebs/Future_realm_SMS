@@ -205,6 +205,8 @@ export type TimetableList = {
   term: TermRef | null;
   versions: TimetableVersionRow[];
   totals: { arms: number; liveArms: number; clashes: number };
+  /** The stages the school runs, in class order. */
+  stages?: string[];
   publishes: Array<{
     id: string;
     action: string;

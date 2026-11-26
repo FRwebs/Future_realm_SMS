@@ -60,6 +60,9 @@ export type SectionName = "CRECHE" | "NURSERY" | "PRIMARY" | "JUNIOR_SECONDARY" 
  * The components the school has set for an arm's section this term. These are the columns a sheet is
  * entered under — read from School Configuration, never typed here.
  */
+/** The key a component is saved under on a sheet, and the code of the stored component an assessment window is set against. */
+export const sectionColumnKey = (section: string, row: { code: string; type: string; maxScore: number }) => `${section}:${row.type === "EXAMINATION" ? "EXAM" : row.code}:${row.maxScore}`;
+
 export async function liveFramework(schoolId: string, termId: string, section: SectionName | null): Promise<Column[]> {
   if (!section) return [];
   const rows = await prisma.sectionAssessmentComponent.findMany({ where: { schoolId, section, isActive: true, OR: [{ termId }, { termId: null }] }, orderBy: [{ order: "asc" }] });
@@ -68,7 +71,7 @@ export async function liveFramework(schoolId: string, termId: string, section: S
   return chosen.map((row) => {
     const exam = row.type === "EXAMINATION";
     return {
-      key: `${section}:${exam ? "EXAM" : row.code}:${row.maxScore}`,
+      key: sectionColumnKey(section, row),
       id: null,
       code: row.code,
       name: row.name,
