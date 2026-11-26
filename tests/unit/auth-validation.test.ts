@@ -6,13 +6,14 @@ const messages = (result: { success: boolean; error?: { issues: Array<{ path: Pr
 describe("sign-in, recovery and reset rules", () => {
   it("asks for both details when neither is given", () => {
     expect(messages(signInSchema.safeParse({ identifier: " ", password: "", trustDevice: true }))).toEqual({
-      identifier: "Enter your email address or User ID.",
+      identifier: "Enter your email address, phone number or User ID.",
       password: "Enter your password.",
     });
   });
 
-  it("accepts an email address or a numeric User ID", () => {
+  it("accepts an email address, a phone number or a numeric User ID", () => {
     expect(signInSchema.safeParse({ identifier: "482173", password: "x", trustDevice: false }).success).toBe(true);
+    expect(signInSchema.safeParse({ identifier: "+234 803 000 0202", password: "x", trustDevice: false }).data?.identifier).toBe("+234 803 000 0202");
     expect(signInSchema.safeParse({ identifier: "  a@school.ng ", password: "x", trustDevice: true }).data?.identifier).toBe("a@school.ng");
   });
 

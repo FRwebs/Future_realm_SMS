@@ -97,7 +97,7 @@ export class AuthController {
     }
 
     if (!user) {
-      throw new UnauthorizedException("Invalid email, User ID or password");
+      throw new UnauthorizedException("Invalid email, phone number, User ID or password");
     }
 
     const maxAgeSeconds = payload.trustDevice ? TRUSTED_DEVICE_MAX_AGE : SESSION_MAX_AGE;

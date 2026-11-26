@@ -5,7 +5,7 @@
   },
   "auth": {
     "validation": {
-      "identifierRequired": "Tinye adreesị ímèlì gị ma ọ bụ ID onye ọrụ gị.",
+      "identifierRequired": "Tinye adreesị ímèlì gị, nọmba ekwentị gị ma ọ bụ ID onye ọrụ gị.",
       "passwordRequired": "Tinye okwuntughe gị.",
       "codeRequired": "Tinye koodu nke nwere ọnụọgụ isii.",
       "emailRequired": "Tinye adreesị ímèlì akaụntụ gị.",
@@ -16,8 +16,8 @@
       "passwordMismatch": "Okwuntughe abụọ ahụ adịghị otu."
     },
     "signIn": {
-      "identifierLabel": "Adreesị ímèlì ma ọ bụ ID onye ọrụ",
-      "identifierPlaceholder": "you@school.com ma ọ bụ 482173",
+      "identifierLabel": "Ímèlì, nọmba ekwentị ma ọ bụ ID onye ọrụ",
+      "identifierPlaceholder": "you@school.com, 08031234567 ma ọ bụ 482173",
       "passwordLabel": "Okwuntughe",
       "passwordPlaceholder": "Okwuntughe gị",
       "forgotPassword": "Echefuru okwuntughe?",

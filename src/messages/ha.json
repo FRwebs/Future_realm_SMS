@@ -5,7 +5,7 @@
   },
   "auth": {
     "validation": {
-      "identifierRequired": "Shigar da adireshin imel ko ID ɗin mai amfani naka.",
+      "identifierRequired": "Shigar da adireshin imel, lambar waya ko ID ɗin mai amfani naka.",
       "passwordRequired": "Shigar da kalmar sirrinka.",
       "codeRequired": "Shigar da lambar lambobi 6.",
       "emailRequired": "Shigar da adireshin imel na asusunka.",
@@ -16,8 +16,8 @@
       "passwordMismatch": "Kalmomin sirri biyu ba ɗaya suke ba."
     },
     "signIn": {
-      "identifierLabel": "Adireshin imel ko ID ɗin mai amfani",
-      "identifierPlaceholder": "you@school.com ko 482173",
+      "identifierLabel": "Imel, lambar waya ko ID ɗin mai amfani",
+      "identifierPlaceholder": "you@school.com, 08031234567 ko 482173",
       "passwordLabel": "Kalmar sirri",
       "passwordPlaceholder": "Kalmar sirrinka",
       "forgotPassword": "Ka manta kalmar sirri?",

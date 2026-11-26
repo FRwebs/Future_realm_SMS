@@ -22,7 +22,7 @@ const renderForm = () => render(<NextIntlClientProvider locale="en" messages={me
 describe("the sign-in form", () => {
   it("ties every label to its field", () => {
     renderForm();
-    expect(screen.getByLabelText("Email address or User ID")).toBeInTheDocument();
+    expect(screen.getByLabelText("Email, phone number or User ID")).toBeInTheDocument();
     expect(screen.getByLabelText("Password")).toBeInTheDocument();
   });
 
@@ -30,7 +30,7 @@ describe("the sign-in form", () => {
     renderForm();
     await userEvent.click(screen.getByRole("button", { name: "Sign in" }));
 
-    expect(await screen.findByText("Enter your email address or User ID.")).toBeInTheDocument();
+    expect(await screen.findByText("Enter your email address, phone number or User ID.")).toBeInTheDocument();
     expect(screen.getByText("Enter your password.")).toBeInTheDocument();
     expect(screen.getByText("Two things are needed to sign in")).toBeInTheDocument();
     expect(screen.getByLabelText("Password")).toHaveAttribute("aria-invalid", "true");
@@ -38,7 +38,7 @@ describe("the sign-in form", () => {
 
   it("names a single gap as one thing", async () => {
     renderForm();
-    await userEvent.type(screen.getByLabelText("Email address or User ID"), "a@school.ng");
+    await userEvent.type(screen.getByLabelText("Email, phone number or User ID"), "a@school.ng");
     await userEvent.click(screen.getByRole("button", { name: "Sign in" }));
     expect(await screen.findByText("One thing is needed to sign in")).toBeInTheDocument();
   });
@@ -46,7 +46,7 @@ describe("the sign-in form", () => {
   it("shows the server's own words when the details are wrong", async () => {
     server.use(http.post("/api/v1/auth/login", () => HttpResponse.json({ ok: false, error: "Wrong email or password." }, { status: 401 })));
     renderForm();
-    await userEvent.type(screen.getByLabelText("Email address or User ID"), "a@school.ng");
+    await userEvent.type(screen.getByLabelText("Email, phone number or User ID"), "a@school.ng");
     await userEvent.type(screen.getByLabelText("Password"), "nope");
     await userEvent.click(screen.getByRole("button", { name: "Sign in" }));
     expect(await screen.findByText("Sign-in failed")).toBeInTheDocument();
@@ -65,7 +65,7 @@ describe("the sign-in form", () => {
       }),
     );
     renderForm();
-    await userEvent.type(screen.getByLabelText("Email address or User ID"), "t@school.ng");
+    await userEvent.type(screen.getByLabelText("Email, phone number or User ID"), "t@school.ng");
     await userEvent.type(screen.getByLabelText("Password"), "secret-pass");
     await userEvent.click(screen.getByRole("button", { name: "Sign in" }));
 

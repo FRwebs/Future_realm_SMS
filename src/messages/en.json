@@ -1,7 +1,7 @@
 {
   "auth": {
     "validation": {
-      "identifierRequired": "Enter your email address or User ID.",
+      "identifierRequired": "Enter your email address, phone number or User ID.",
       "passwordRequired": "Enter your password.",
       "codeRequired": "Enter the 6-digit code.",
       "emailRequired": "Enter the email address of your account.",
@@ -12,8 +12,8 @@
       "passwordMismatch": "The two passwords are not the same."
     },
     "signIn": {
-      "identifierLabel": "Email address or User ID",
-      "identifierPlaceholder": "you@school.com or 482173",
+      "identifierLabel": "Email, phone number or User ID",
+      "identifierPlaceholder": "you@school.com, 08031234567 or 482173",
       "passwordLabel": "Password",
       "passwordPlaceholder": "Your password",
       "forgotPassword": "Forgot password?",

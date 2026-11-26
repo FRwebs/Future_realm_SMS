@@ -7,6 +7,7 @@ import { verifyTotp } from "../../../../src/lib/auth/mfa";
 import { hashPassword, verifyPassword } from "../../../../src/lib/auth/password";
 import { assertPasswordNotReused, rememberPassword } from "../../../../src/lib/auth/password-history";
 import { looksLikeUserCode, normaliseUserCode } from "../../../../src/lib/auth/user-code";
+import { normalPhone, validMobile } from "../../../../src/lib/messaging/merge";
 import { sendEmail } from "../../../../src/lib/integrations/mailer";
 import { isPlatformRole } from "../../../../src/lib/auth/role-architecture";
 import { prisma } from "../../../../src/lib/db/prisma";
@@ -72,11 +73,16 @@ export class AuthService {
     // The sign-in box takes an email address or the permanent User ID issued at signup.
     const identifier = email.trim();
     const byCode = looksLikeUserCode(identifier);
-    const normalizedEmail = byCode ? normaliseUserCode(identifier) : identifier.toLowerCase();
-    const user = await prisma.user.findUnique({
-      where: byCode ? { userCode: normalizedEmail } : { email: normalizedEmail },
-      include: { school: true }
-    });
+    // A Nigerian mobile number, in any way it is written, is a sign-in too: staff and guardians are told it is their login, and many
+    // parents have no email address at all.
+    const byPhone = !byCode && !identifier.includes("@") && validMobile(identifier);
+    const normalizedEmail = byCode ? normaliseUserCode(identifier) : byPhone ? `phone:${normalPhone(identifier)}` : identifier.toLowerCase();
+    const user = byPhone
+      ? await this.userByPhone(identifier, password)
+      : await prisma.user.findUnique({
+          where: byCode ? { userCode: normalizedEmail } : { email: normalizedEmail },
+          include: { school: true }
+        });
 
     const recordAttempt = (success: boolean, reason?: string) =>
       prisma.loginAttempt.create({
@@ -234,6 +240,29 @@ export class AuthService {
       email: user.email,
       name: `${user.firstName} ${user.lastName}`
     };
+  }
+
+  /**
+   * The account a phone number belongs to: a staff member's own number, or a guardian's. A number can be on more than one account (a
+   * teacher who is also a parent, a family at two schools), so the password says which one is meant. If it fits none, the first match
+   * answers — the sign-in fails the same way a wrong password does, and says nothing about whether the number is known.
+   */
+  private async userByPhone(identifier: string, password: string) {
+    const wanted = normalPhone(identifier);
+    const tail = wanted.slice(-10);
+    const [staff, guardians] = await Promise.all([
+      prisma.user.findMany({ where: { phone: { contains: tail } }, include: { school: true }, take: 20 }),
+      prisma.guardian.findMany({ where: { phone: { contains: tail }, userId: { not: null } }, select: { userId: true }, take: 20 })
+    ]);
+    const viaGuardian = guardians.length
+      ? await prisma.user.findMany({ where: { id: { in: guardians.map((row) => row.userId as string) } }, include: { school: true } })
+      : [];
+    const seen = new Set<string>();
+    const candidates = [...staff.filter((row) => normalPhone(row.phone) === wanted), ...viaGuardian].filter((row) => (seen.has(row.id) ? false : Boolean(seen.add(row.id))));
+    const fits = candidates.filter((row) => !row.deletedAt && row.isActive && verifyPassword(password, row.passwordHash));
+    if (fits.length === 1) return fits[0];
+    if (fits.length > 1) return null;
+    return candidates[0] ?? null;
   }
 
   /** One code at a time, valid ten minutes, three tries, and never more than three codes in fifteen minutes. */

@@ -5,7 +5,7 @@
   },
   "auth": {
     "validation": {
-      "identifierRequired": "Tẹ àdírẹ́sì ímeèlì rẹ tàbí ID Olùlò rẹ.",
+      "identifierRequired": "Tẹ àdírẹ́sì ímeèlì rẹ, nọ́ńbà fóònù rẹ tàbí ID Olùlò rẹ.",
       "passwordRequired": "Tẹ ọ̀rọ̀ aṣínà rẹ.",
       "codeRequired": "Tẹ kóòdù oní-nọ́ńbà mẹ́fà náà.",
       "emailRequired": "Tẹ àdírẹ́sì ímeèlì àkọọ́lẹ̀ rẹ.",
@@ -16,8 +16,8 @@
       "passwordMismatch": "Àwọn ọ̀rọ̀ aṣínà méjèèjì kò jọra."
     },
     "signIn": {
-      "identifierLabel": "Àdírẹ́sì ímeèlì tàbí ID Olùlò",
-      "identifierPlaceholder": "you@school.com tàbí 482173",
+      "identifierLabel": "Ímeèlì, nọ́ńbà fóònù tàbí ID Olùlò",
+      "identifierPlaceholder": "you@school.com, 08031234567 tàbí 482173",
       "passwordLabel": "Ọ̀rọ̀ aṣínà",
       "passwordPlaceholder": "Ọ̀rọ̀ aṣínà rẹ",
       "forgotPassword": "Ṣé o gbàgbé ọ̀rọ̀ aṣínà?",
