@@ -337,9 +337,16 @@ export function buildBody(
   for (const [label, [key, entry]] of Object.entries(submit.nest ?? {})) {
     const raw = values[label];
     const field = allFields.find((item) => item.label === label);
-    if (typeof raw !== "string" || (field && !fieldVisible(field, values))) continue;
+    if (field && !fieldVisible(field, values)) continue;
+    const bucket = (edited[key] as Record<string, unknown> | undefined) ?? {};
+    // A file chosen for a nested field travels as the file it is, `{ name, data }`; nothing chosen sends nothing.
+    if (field?.kind === "file") {
+      const file = raw as { name?: string; data?: string } | null | undefined;
+      if (file && typeof file === "object" && file.data) { bucket[entry] = { name: file.name ?? "", data: file.data }; edited[key] = bucket; }
+      continue;
+    }
+    if (typeof raw !== "string") continue;
     const table = submit.encode?.[label];
-    const bucket = (edited[key] as Record<string, string> | undefined) ?? {};
     bucket[entry] = table && raw in table ? table[raw] : raw;
     edited[key] = bucket;
   }

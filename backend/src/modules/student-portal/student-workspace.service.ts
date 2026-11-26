@@ -1,3 +1,4 @@
+import { collectorsFor } from "../../common/collectors";
 import { randomBytes } from "node:crypto";
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
 import { z } from "zod";
@@ -138,12 +139,7 @@ export class StudentWorkspaceService {
         where: { studentId: student.id, schoolId: session.schoolId, OR: [{ endDate: null }, { endDate: { gte: new Date() } }] },
         select: { id: true }
       }),
-      prisma.authorisedCollector.findMany({
-        where: { studentId: student.id, schoolId: session.schoolId, OR: [{ until: null }, { until: { gte: new Date() } }] },
-        select: { name: true, relation: true },
-        orderBy: { createdAt: "asc" },
-        take: 4
-      })
+      collectorsFor([student.id]).then((all) => all.get(student.id) ?? [])
     ]);
     const start = term ? isoDay(term.startDate) : null;
     const end = term ? isoDay(term.endDate) : null;
@@ -163,7 +159,7 @@ export class StudentWorkspaceService {
       gender: student.gender,
       house: student.houseName ?? null,
       boarding: bed ? "Boarding" : "Day student",
-      collectors: collectors.map((row) => ({ name: row.name, relation: row.relation })),
+      collectors: collectors.slice(0, 6).map((row) => ({ name: row.name, relation: row.relation })),
       dateOfBirth: student.dateOfBirth.toISOString().slice(0, 10),
       enrolled: student.admissionDate.toISOString().slice(0, 10),
       email: student.user?.email ?? null,

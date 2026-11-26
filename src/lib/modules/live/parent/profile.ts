@@ -11,7 +11,7 @@ type Kid = {
   dob: string; gender: string; arm: string; level: string; tutor: string | null; house: string | null;
   boarding: { boarder: boolean; where: string }; enrolled: string; status: string;
   health: { bloodGroup: string | null; genotype: string | null; allergies: string | null; conditions: string | null; notes: string | null } | null;
-  collectors: Array<{ id: string; name: string; relation: string; phone: string; hasPhoto: boolean; until: string | null }>;
+  collectors: Array<{ id: string; name: string; relation: string; phone: string | null; hasPhoto: boolean; until: string | null; kind: "guardian" | "named" }>;
   guardians: Array<{ id: string; name: string; relation: string; primary: boolean; me: boolean; phone: string | null; email: string | null }>;
   documents: Array<{ id: string; label: string; fileName: string; source: string; on: string; checked: boolean; note: string | null; hasFile: boolean; size: number }>;
   pending: Pending[];
@@ -58,11 +58,12 @@ export function correctionDrawer(kids: Array<Pick<Kid, "id" | "first" | "name">>
 function personDrawer(kid: Kid): DrawerSpec {
   return {
     kicker: "Collection", title: `Someone new to collect ${kid.first}`, mode: "form",
-    sub: "The school checks them and takes their photograph before the gate will release your child. Someone new for one day only? Send a note from Requests.",
+    sub: "The school checks them before the gate will release your child. Someone new for one day only? Send a note from Requests.",
     fields: [
       { kind: "text", label: "Their full name", required: true, value: "" },
       { kind: "select", label: "Who are they to " + kid.first + "?", required: true, value: RELATIONS[0]!, options: RELATIONS },
       { kind: "text", label: "Their phone number", required: true, value: "", placeholder: "A number the gate can call" },
+      { kind: "file", label: "Their photograph", optional: true, accept: "image/png,image/jpeg,image/webp", hint: "A clear photo of their face (PNG, JPEG or WebP, up to 1.5 MB). The gate checks people against it; without one the school has to take it before they can collect." } as FormField,
     ],
     confirmTitle: "Send this to the school?",
     commitLabel: "Send the request", commitDone: "Sent to the school",
@@ -70,7 +71,7 @@ function personDrawer(kid: Kid): DrawerSpec {
     submit: {
       endpoint: "/api/v1/parent-portal/ws/profile/requests", method: "POST",
       body: { child: kid.id, what: "Add a collection person" },
-      nest: { "Their full name": ["person", "name"], ["Who are they to " + kid.first + "?"]: ["person", "relation"], "Their phone number": ["person", "phone"] },
+      nest: { "Their full name": ["person", "name"], ["Who are they to " + kid.first + "?"]: ["person", "relation"], "Their phone number": ["person", "phone"], "Their photograph": ["person", "photo"] },
     },
   };
 }
@@ -192,7 +193,9 @@ function childProfile(kid: Kid, school: Profile["school"], query: Record<string,
         items: kid.collectors.map((person): ListItem => ({
           lead: { value: initialsOf(person.name), tone: "neutral" },
           label: person.name,
-          sub: `${person.relation} · ${person.phone}${person.hasPhoto ? " · photograph on file" : " · no photograph yet"}`,
+          sub: person.kind === "guardian"
+            ? `${person.relation}${person.phone ? ` · ${person.phone}` : ""} · on ${kid.first}’s record`
+            : `${person.relation} · ${person.phone}${person.hasPhoto ? " · photograph on file" : " · no photograph yet"}`,
           pill: person.until ? `Until ${dLong(person.until)}` : "Authorised", tone: "positive",
         })),
         empty: `Nobody is on ${kid.first}’s collection list yet. Add the people who may collect them.`,

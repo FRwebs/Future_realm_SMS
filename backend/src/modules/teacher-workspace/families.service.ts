@@ -4,6 +4,7 @@ import { z } from "zod";
 
 import type { SessionPayload } from "../../../../src/lib/auth/session-core";
 import { prisma } from "../../../../src/lib/db/prisma";
+import { admitCollector, type CollectorRequest } from "../../common/collectors";
 import { CasesService } from "../attendance-management/cases.service";
 import { armName, fullName } from "../fee-management/fees.shared";
 import { deliveryOf, guardianPortal, notifyGuardian } from "../guardian-management/guardians.shared";
@@ -165,13 +166,12 @@ export class TeacherFamiliesService {
     if (row.state === "RESOLVED" || row.state === "DECLINED") throw new BadRequestException("That has already been decided.");
     const accepted = /accept/i.test(input.decision);
     if (!accepted && (input.note ?? "").length < 4) throw new BadRequestException("Say why it is declined — the family is told.");
-    const who = (row.payload ?? {}) as { name?: string; relation?: string; phone?: string; date?: string };
+    const who = (row.payload ?? {}) as CollectorRequest;
     if (accepted) {
       if (!who.name || !who.phone || !row.studentId) throw new BadRequestException("This request does not say who will collect, so there is nobody to add. Ask the family to send it again with a name and a number.");
-      const until = who.date ? new Date(`${who.date}T23:59:59.999Z`) : new Date(Date.now() + 86_400_000);
-      await prisma.authorisedCollector.create({ data: { schoolId: session.schoolId, studentId: row.studentId, guardianId: row.guardianId, name: who.name, relation: who.relation || "Named by the family", phone: who.phone, until, addedById: session.userId } });
+      await admitCollector({ schoolId: session.schoolId, studentId: row.studentId, guardianId: row.guardianId, request: who, addedById: session.userId });
     }
-    const outcome = accepted ? `Accepted · ${who.name} may collect${who.date ? ` on ${who.date} only` : " until tomorrow"}${input.note ? ` · ${input.note}` : ""}` : `Declined · ${input.note}`;
+    const outcome = accepted ? `Accepted · ${who.name} may collect${who.permanent ? " from now on" : who.date ? ` on ${who.date} only` : " until tomorrow"}${input.note ? ` · ${input.note}` : ""}` : `Declined · ${input.note}`;
     await prisma.guardianSubmission.update({ where: { id: row.id }, data: { state: accepted ? "RESOLVED" : "DECLINED", outcome, resolvedAt: new Date(), ownerUserId: row.ownerUserId ?? session.userId } });
     if (input.tell) await notifyGuardian(session.schoolId, row.guardianId, "About who collects your child", `The school has ${accepted ? "accepted" : "declined"} your request. ${outcome}`, ["In-app", "SMS"]);
     await prisma.auditLog.create({ data: { schoolId: session.schoolId, actorId: session.userId, action: AuditAction.UPDATE, entityType: "GuardianSubmission", entityId: row.id, metadata: { summary: `Collection change ${accepted ? "accepted" : "declined"}` } } });

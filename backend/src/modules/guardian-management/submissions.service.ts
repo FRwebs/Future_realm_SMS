@@ -1,3 +1,4 @@
+import { admitCollector, type CollectorRequest } from "../../common/collectors";
 import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
 import { refuseTeaching } from "../../common/teaching-scope";
 import { AuditAction, Prisma } from "@prisma/client";
@@ -126,6 +127,12 @@ export class SubmissionsService {
     if (!row) throw new NotFoundException("That submission does not exist.");
     if (row.state === "RESOLVED" || row.state === "DECLINED") throw new BadRequestException("That submission is already closed.");
     const state = input.decision.startsWith("Declin") ? "DECLINED" : input.decision.startsWith("In progress") ? "IN_PROGRESS" : "RESOLVED";
+    // Resolving a request to add someone who may collect is what adds them: closing it without that would tell the family yes and leave the gate unchanged.
+    if (state === "RESOLVED" && row.type === "Collection change") {
+      const who = (row.payload ?? {}) as CollectorRequest;
+      if (!row.studentId || !who.name || !who.phone) throw new BadRequestException("This request does not say who will collect, so there is nobody to add. Decline it, or ask the family to send it again with a name and a number.");
+      await admitCollector({ schoolId, studentId: row.studentId, guardianId: row.guardianId, request: who, addedById: session.userId });
+    }
     await prisma.guardianSubmission.update({ where: { id }, data: { state, outcome: input.outcome, resolvedAt: state === "IN_PROGRESS" ? null : new Date(), ownerUserId: row.ownerUserId ?? session.userId } });
     if (input.tell && state !== "IN_PROGRESS") await notifyGuardian(schoolId, row.guardianId, `About your ${row.type.toLowerCase()}`, `The school has ${state === "DECLINED" ? "declined" : "resolved"} your ${row.type.toLowerCase()}: ${input.outcome}`, ["In-app", "SMS"]);
     await this.audit(session, AuditAction.UPDATE, id, { summary: `Submission ${state.toLowerCase()} · ${row.type}`, outcome: input.outcome });

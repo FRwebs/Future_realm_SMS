@@ -9,6 +9,7 @@ import { categoryOfMessage } from "../../../../src/lib/messaging/family-choices"
 import { QUIET_HOURS, preferencesSchema, type Preferences } from "../../../../src/lib/preferences";
 import { ANSWERS, FORMS, answerCode, reaches, type Answer, type FormData } from "../guardian-management/forms.shared";
 import { ConfigStore } from "../staff-access/staff-access.shared";
+import { collectorsFor } from "../../common/collectors";
 import { FAMILY_LEVEL, answerKey, loadConsentTypes } from "../student-records/consent.shared";
 import { openSubmission, submissionTypes } from "../guardian-management/submission-intake";
 import { deviceName, hide, icsFor } from "../student-portal/student-workspace.service";
@@ -1573,7 +1574,7 @@ export class ParentWorkspaceService {
     const [sites, health, collectors, links, documents, open, boarding] = await Promise.all([
       prisma.school.findMany({ where: { id: { in: schoolIds } }, select: { id: true, name: true, shortName: true, city: true, state: true, curriculumPreference: true } }),
       prisma.medicalRecord.findMany({ where: { studentId: { in: ids } } }),
-      prisma.authorisedCollector.findMany({ where: { schoolId: { in: schoolIds }, studentId: { in: ids } }, orderBy: { createdAt: "asc" } }),
+      collectorsFor(ids),
       prisma.studentGuardian.findMany({
         where: { studentId: { in: ids } },
         include: { guardian: { select: { id: true, firstName: true, lastName: true, relationship: true, phone: true, email: true, safeguardingRestrictedAt: true } } },
@@ -1622,9 +1623,13 @@ export class ParentWorkspaceService {
           health: record
             ? { bloodGroup: record.bloodGroup, genotype: record.genotype, allergies: record.allergies, conditions: record.conditions, notes: record.notes }
             : null,
-          collectors: collectors
-            .filter((item) => item.studentId === student.id)
-            .map((item) => ({ id: item.id, name: item.name, relation: item.relation, phone: item.phone, hasPhoto: Boolean(item.photoFile), until: item.until ? isoDay(item.until) : null })),
+          // One list for the school, the parent and the student: the guardians who may collect, and the people the school has named.
+          // Another guardian is shown by name and relation only, as everywhere else in this portal.
+          collectors: (collectors.get(student.id) ?? []).map((item) => ({
+            id: item.id, name: item.name, relation: item.relation,
+            phone: item.kind === "guardian" && !(item.guardianId && guardianIds.includes(item.guardianId)) ? null : item.phone,
+            hasPhoto: item.hasPhoto, until: item.until, kind: item.kind,
+          })),
           guardians: links
             .filter((link) => link.studentId === student.id && !link.guardian.safeguardingRestrictedAt)
             .map((link) => {
@@ -1663,13 +1668,24 @@ export class ParentWorkspaceService {
     const { at } = await this.context(session);
     const { schoolId, guardianId } = at(student.id);
     const first = student.firstName;
-    const detail = input.what === "Add a collection person"
-      ? `Add a person who may collect ${first}: ${input.person?.name ?? ""}, ${input.person?.relation ?? ""}, ${input.person?.phone ?? ""}.${input.change ? ` ${input.change}` : ""}`
-      : `${input.what} for ${first}: ${input.change}`;
-    if (input.what === "Add a collection person" && !input.person) throw new BadRequestException("Say who should be added, and how the gate can reach them.");
-    if (input.what !== "Add a collection person" && input.change.length < 4) throw new BadRequestException("Say what it should read instead.");
+    if (input.what === "Add a collection person") {
+      if (!input.person) throw new BadRequestException("Say who should be added, and how the gate can reach them.");
+      let photo: string | undefined;
+      if (input.person.photo) {
+        if (!/^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/.test(input.person.photo.data)) throw new BadRequestException("Attach a PNG, JPEG or WebP photograph of them.");
+        photo = input.person.photo.data;
+      }
+      // Someone added for good is a collection change the school decides, like any other: when it accepts, they are on the list
+      // the school, the parent and the student all read. A photograph is asked for; without one the gate has nothing to check them against.
+      return openSubmission(schoolId, {
+        guardianId, childId: student.id, type: "Collection change", channel: "Portal", evidence: input.evidence || null,
+        detail: `Add a person who may collect ${first}, for good: ${input.person.name}, ${input.person.relation}, ${input.person.phone}${photo ? ", photograph attached" : ", no photograph yet"}.${input.change ? ` ${input.change}` : ""}`,
+        payload: { name: input.person.name, relation: input.person.relation, phone: input.person.phone, permanent: true, ...(photo ? { photo } : {}) },
+      });
+    }
+    if (input.change.length < 4) throw new BadRequestException("Say what it should read instead.");
     return openSubmission(schoolId, {
-      guardianId, childId: student.id, type: "Record correction", detail, channel: "Portal", evidence: input.evidence || null,
+      guardianId, childId: student.id, type: "Record correction", detail: `${input.what} for ${first}: ${input.change}`, channel: "Portal", evidence: input.evidence || null,
     });
   }
 
@@ -1748,6 +1764,8 @@ const accountRequestSchema = z.object({
   note: z.string().trim().max(300).optional(),
 });
 
+const MAX_DOCUMENT_CHARS = 2_200_000;
+
 const changeSchema = z.object({
   child: z.string().min(1, "Choose which child this is about."),
   what: z.string().trim().min(2, "Say what needs changing.").max(80),
@@ -1757,12 +1775,12 @@ const changeSchema = z.object({
     name: z.string().trim().min(2, "Who should be added?"),
     relation: z.string().trim().min(2, "Their relation to the child."),
     phone: z.string().trim().min(7, "A number the school can check."),
+    photo: z.object({ name: z.string().trim().max(160), data: z.string().max(MAX_DOCUMENT_CHARS, "That photograph is too large. Keep it under 1.5 MB.") }).optional(),
   }).optional(),
 });
 
 /** What a family may attach: a scan or a photo of the paper, kept as a data URL so nothing depends on a file store. */
 const DOCUMENT_TYPES = ["application/pdf", "image/png", "image/jpeg", "image/webp"];
-const MAX_DOCUMENT_CHARS = 2_200_000;
 
 const documentSchema = z.object({
   child: z.string().min(1, "Choose which child this is for."),
