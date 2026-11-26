@@ -3,7 +3,8 @@ import { assertClassReadable, assertSheetReadable, assertStudentArmReadable, ref
 
 import type { SessionPayload } from "../../../../src/lib/auth/session-core";
 import { prisma } from "../../../../src/lib/db/prisma";
-import { currentTerm, iso, longDay } from "../attendance-management/attendance.shared";
+import { attendanceRate, countedDays, tallyCounts } from "../../../../src/lib/domain/attendance-rate";
+import { currentTerm, iso, loadPolicy, longDay } from "../attendance-management/attendance.shared";
 import { type ArmData, loadAll, loadArm, loadStaffNames, studentResults } from "./arm";
 import { CREDIT_MARK, gradeOf, mean, ordinal, rank, ratingOf, round1, round2 } from "./scores.shared";
 
@@ -126,8 +127,9 @@ export class ResultsService {
     const sessionAverage = mean([...priorTerms.map((entry) => entry.average), ...(theirs?.average !== null && theirs?.average !== undefined ? [theirs.average] : [])]);
     const previous = priorTerms[priorTerms.length - 1];
     const attendance = await prisma.studentAttendance.groupBy({ by: ["status"], where: { schoolId: session.schoolId, studentId, termId: term.id, subjectId: null }, _count: { _all: true } });
-    const attTotal = attendance.reduce((sum, row) => sum + row._count._all, 0);
-    const attOk = attendance.filter((row) => row.status === "PRESENT" || row.status === "LATE").reduce((sum, row) => sum + row._count._all, 0);
+    // The school's own attendance rule: an excused day is not counted, and no counted day means no rate yet.
+    const attTally = tallyCounts(attendance.map((row) => ({ status: row.status, count: row._count._all })));
+    const attRate = attendanceRate(attTally, (await loadPolicy(session.schoolId)).lateCounts);
     const card = await prisma.reportCard.findFirst({ where: { schoolId: session.schoolId, studentId, termId: term.id }, select: { status: true, publishedAt: true } });
     const corrections = await prisma.scoreCorrection.findMany({ where: { schoolId: session.schoolId, studentId, termId: term.id }, orderBy: { createdAt: "desc" } });
 
@@ -144,7 +146,7 @@ export class ResultsService {
         return { subjectId: subject.subjectId, name: subject.name, state: subject.state, teacher: subject.teacherId ? staff.get(subject.teacherId) ?? subject.teacher : null, columns: subject.columns, cells: row?.cells ?? {}, total: row?.total ?? null, grade: row?.grade ?? null, pos: row?.pos ?? null, rating: row?.rating ?? "Not scored", scored: subject.scored, passMark: subject.passMark, counts: subject.counts };
       }),
       session: { name: term.session, terms: termsList, average: sessionAverage === null ? null : round1(sessionAverage), direction: previous && theirs?.average != null ? Math.round((theirs.average - previous.average) * 10) / 10 : null },
-      attendance: attTotal ? { pct: Math.round((attOk / attTotal) * 1000) / 10, days: attTotal } : null,
+      attendance: attRate !== null ? { pct: attRate, days: countedDays(attTally) } : null,
       card: card ? { status: card.status, published: card.publishedAt?.toISOString() ?? null } : null,
       corrections: corrections.map((entry) => ({ id: entry.id, subjectId: entry.subjectId, component: entry.componentName, from: entry.fromScore, to: entry.toScore, status: entry.status })),
       generated: longDay(new Date(iso(new Date()))), bands: arm.bands.map((band) => ({ label: band.label, min: band.min, max: band.max, remark: band.remark, gpa: band.gpa }))

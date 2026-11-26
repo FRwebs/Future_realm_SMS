@@ -11,6 +11,8 @@ import { hiddenPages, loadStudentPolicy, type StudentVisible } from "./student-p
 import { resolveGradeLabel } from "../../../../src/lib/domain/grading";
 import { formatNigeriaClassName } from "../../../../src/lib/school-options";
 import { isScoreReleased, schoolsShowingScoresEarly } from "../../common/score-release";
+import { countedDays, daysHere, tallyCounts } from "../../../../src/lib/domain/attendance-rate";
+import { loadPolicy } from "../attendance-management/attendance.shared";
 
 /**
  * The student's own workspace: what they are taught, set, marked on and told, read from the school's records as the student is entitled to
@@ -354,6 +356,8 @@ export class StudentWorkspaceService {
     const heldTerms = terms.filter((row) => classByTerm.has(row.id) || row.id === term?.id);
     return {
       current: term?.id ?? null,
+      // The school's own choice about a late day, so the page works the rate out the way the school's register does.
+      lateCounts: (await loadPolicy(session.schoolId)).lateCounts,
       terms: heldTerms.map((row) => ({ id: row.id, name: row.name, session: row.academicSession.name, start: isoDay(row.startDate), end: isoDay(row.endDate), arm: classByTerm.get(row.id) ?? armName(student.currentClass?.name, student.currentClass?.arm), days: row.schoolDays })),
       records: records.map((record) => ({
         date: isoDay(record.date), status: record.status, term: record.termId, reason: record.reason ?? null, code: record.reasonCode ?? null, by: fullName(record.markedBy), at: record.markedAt?.toISOString() ?? null
@@ -582,6 +586,7 @@ export class StudentWorkspaceService {
   /* ───────────────────────── results (what the school has published, with the arm it was in) ───────────────────────── */
 
   async cards(session: SessionPayload) {
+    const lateCounts = (await loadPolicy(session.schoolId)).lateCounts;
     await this.allow(session, "Results");
     const { student } = await this.context(session);
     const sheets = await prisma.resultSheet.findMany({
@@ -617,8 +622,10 @@ export class StudentWorkspaceService {
           slot.parts.push({ code: entry.assessmentComponent.code, name: entry.assessmentComponent.name, max: entry.maxScore, score: entry.score });
           bySubject.set(entry.subjectId, slot);
         }
-        const days = attendance[index]!.reduce((sum, row) => sum + row._count._all, 0);
-        const present = attendance[index]!.filter((row) => row.status === "PRESENT" || row.status === "LATE").reduce((sum, row) => sum + row._count._all, 0);
+        // The school's own rule: an excused day is not counted, so "present of days" agrees with the percentage everywhere else.
+        const tally = tallyCounts(attendance[index]!.map((row) => ({ status: row.status, count: row._count._all })));
+        const days = countedDays(tally);
+        const present = daysHere(tally, lateCounts);
         const card = cardFor(sheet.termId);
         return {
           id: sheet.id, term: sheet.term.name, session: sheet.term.academicSession.name, arm: armName(sheet.classRoom.name, sheet.classRoom.arm), average: Number(sheet.averageScore), grade: sheet.grade ?? "", position: sheet.position ?? null, size: sizes[index] ?? 0,

@@ -15,6 +15,8 @@ import { deviceName, hide, icsFor } from "../student-portal/student-workspace.se
 import { randomBytes } from "node:crypto";
 import { plansFeatures } from "../plans-features/plans-features.service";
 import { loadGuardianPolicy, type GuardianVisible } from "./guardian-policy";
+import { attendanceRate, countedDays, tallyMarks } from "../../../../src/lib/domain/attendance-rate";
+import { loadPolicy } from "../attendance-management/attendance.shared";
 import { readCard } from "../report-cards/published-card";
 import { isScoreReleased, schoolsShowingScoresEarly } from "../../common/score-release";
 import { linkSchool, schoolOffers } from "./school-links";
@@ -54,6 +56,13 @@ export class ParentWorkspaceService {
    * The school they signed in to leads, and for the ordinary single-school
    * family every field below is exactly what it was.
    */
+  /** Each school's choice about whether a late day counts as present, read from the same policy its register uses. */
+  private async lateCountsFor(schoolIds: string[]): Promise<(schoolId: string) => boolean> {
+    const found = await Promise.all([...new Set(schoolIds)].map(async (id) => [id, (await loadPolicy(id)).lateCounts] as const));
+    const byId = new Map(found);
+    return (id) => byId.get(id) ?? true;
+  }
+
   private async context(session: SessionPayload) {
     this.assert(session);
     const rows = await prisma.guardian.findMany({
@@ -568,6 +577,8 @@ export class ParentWorkspaceService {
     ]);
     const explainedDates = new Set(explanations.flatMap((row) => (row.dates ?? []).map((date) => `${row.studentId ?? ""}:${date}`)));
 
+    const lateOf = await this.lateCountsFor([session.schoolId]);
+    const lateCounts = lateOf(session.schoolId);
     const statFor = (id: string | null) => {
       const family = id === null;
       const mine = family ? children : children.filter((student) => student.id === id);
@@ -587,8 +598,9 @@ export class ParentWorkspaceService {
       const markedToday = marks.filter((mark) => theirIds.has(mark.studentId)).length;
       const theirTerm = termMarks.filter((mark) => theirIds.has(mark.studentId));
       const unexplained = theirTerm.filter((mark) => mark.status === "ABSENT" && !explainedDates.has(`${mark.studentId}:${isoDay(mark.date)}`)).length;
-      const present = theirTerm.filter((mark) => mark.status === "PRESENT" || mark.status === "LATE").length;
-      const pct = theirTerm.length ? `${Math.round((present / theirTerm.length) * 1000) / 10}%` : null;
+      // The school's own rule: an excused day is not counted, and a family whose days are all excused has no rate yet, not 0%.
+      const termRate = attendanceRate(tallyMarks(theirTerm.map((mark) => mark.status)), lateCounts);
+      const pct = termRate === null ? null : `${termRate}%`;
       // Each child is read under their own school's choice; the family line needs one school to show it.
       const showsAttendance = mine.some((student) => at(student.id).policy.sees.has("Attendance"));
       const showsFees = mine.some((student) => at(student.id).policy.sees.has("Fees"));
@@ -676,6 +688,8 @@ export class ParentWorkspaceService {
 
     const explained = new Set(explanations.flatMap((row) => (row.dates ?? []).map((date) => `${row.studentId ?? ""}:${date}`)));
     const today = todayLead;
+    // Whether a late day counts as being in school is each school's own choice, the same one its register uses.
+    const lateOf = await this.lateCountsFor(mine.map((student) => student.schoolId));
     const present = (status: string) => status === "PRESENT" || status === "LATE";
 
     // Only the terms this family actually has marks in, newest last.
@@ -689,6 +703,7 @@ export class ParentWorkspaceService {
       const byTerm = termsWithMarks.filter((term) => term.schoolId === student.schoolId).map((term) => {
         const days = theirs.filter((mark) => mark.termId === term.id);
         const marked = days.length;
+        const tally = tallyMarks(days.map((mark) => mark.status));
         const here = days.filter((mark) => present(mark.status)).length;
         const away = days.filter((mark) => !present(mark.status)).length;
         const late = days.filter((mark) => mark.status === "LATE").length;
@@ -702,11 +717,13 @@ export class ParentWorkspaceService {
           end: isoDay(term.endDate),
           current: Boolean(term.isCurrent),
           marked,
+          // The days that count towards the rate: an excused day is not one of them.
+          counted: countedDays(tally),
           present: here,
           away,
           late,
           unexplained,
-          pct: marked ? Math.round((here / marked) * 1000) / 10 : null,
+          pct: attendanceRate(tally, lateOf(student.schoolId)),
         };
       });
       return {

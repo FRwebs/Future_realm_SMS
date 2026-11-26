@@ -1,3 +1,4 @@
+import { attendanceRate, tallyMarks } from "@/lib/domain/attendance-rate";
 import type { CalEvent, Message } from "@/lib/modules/live/student/shared";
 import {
   askDrawer, attTone, daysBetween, dDow, dFull, dLong, dShort, dueText, greeting, handInDrawer, loadAskable, loadAssignments, loadAttendance, loadCalendar, loadCards, loadMe, loadMessages,
@@ -55,8 +56,9 @@ export async function todayPage(): Promise<StudentContent> {
   const marked = work.items.filter((item) => item.state === "marked").sort((a, b) => (b.markedAt ?? "").localeCompare(a.markedAt ?? "")).slice(0, 4);
 
   const termRecords = att.records.filter((record) => record.term === att.current && record.date <= today && record.status !== "HOLIDAY");
-  const presentDays = termRecords.filter((record) => record.status === "PRESENT" || record.status === "LATE").length;
-  const pct = termRecords.length ? (presentDays / termRecords.length) * 100 : null;
+  // The school's own rule (excused days are not counted); null, shown as nothing, when no day counts yet.
+  const termTally = tallyMarks(termRecords.map((record) => record.status));
+  const pct = attendanceRate(termTally, att.lateCounts ?? true);
 
   /* the first assessment of the term's framework that has been released, averaged over the subjects it was released for */
   const first = subjects.components[0];

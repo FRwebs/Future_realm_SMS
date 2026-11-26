@@ -4,12 +4,13 @@ import { useMemo, useState } from "react";
 
 import { LineChart } from "@/components/modules/line-chart";
 import type { LineKey, LinePoint } from "@/components/modules/line-chart";
+import { attendanceRate, countedDays, daysHere, tallyMarks } from "@/lib/domain/attendance-rate";
 import { toneOf } from "@/lib/modules/tones";
 import type { DrawerSpec, PanelTone } from "@/lib/modules/panels";
 
 type Rec = { date: string; status: string; term: string; reason: string | null; code: string | null; by: string; at: string | null };
 type Term = { id: string; name: string; session: string; start: string; end: string; arm: string };
-export type StudentAttendanceProps = { terms: Term[]; records: Rec[]; today: string; current: string | null; first: string; guardian: string | null; openDrawer?: (spec: DrawerSpec) => void };
+export type StudentAttendanceProps = { terms: Term[]; records: Rec[]; today: string; current: string | null; first: string; guardian: string | null; lateCounts?: boolean; openDrawer?: (spec: DrawerSpec) => void };
 
 type View = "Week" | "Month" | "Term" | "Year" | "All";
 const VIEWS: Array<[View, string]> = [["Week", "Week"], ["Month", "Month"], ["Term", "Term"], ["Year", "Session"], ["All", "All time"]];
@@ -34,14 +35,16 @@ const BAND_KEYS: LineKey[] = [{ label: "95% or more", tone: "positive" }, { labe
 const WEEK_KEYS: LineKey[] = [{ label: "Present", tone: "positive" }, { label: "Late", tone: "attention" }, { label: "Absent, not explained", tone: "negative" }, { label: "Away, explained", tone: "submitted" }];
 const uniq = <T,>(list: T[]) => list.filter((value, index) => list.indexOf(value) === index);
 
-function summary(days: Rec[]) {
+function summaryOf(days: Rec[], lateCounts = true) {
   const n = days.length;
-  const present = days.filter((day) => day.status === "PRESENT" || day.status === "LATE").length;
+  const tally = tallyMarks(days.map((day) => day.status));
+  const present = daysHere(tally, lateCounts);
   const away = days.filter((day) => day.status === "ABSENT" || day.status === "EXCUSED");
   const late = days.filter((day) => day.status === "LATE").length;
   let best = 0; let run = 0; let bestEnd = "";
   for (const day of days) { if (day.status === "PRESENT" || day.status === "LATE") { run += 1; if (run > best) { best = run; bestEnd = day.date; } } else run = 0; }
-  return { n, present, away, late, pct: n ? (present / n) * 100 : null, best, bestEnd };
+  // The school's own rule: an excused day is not counted, and with no counted day there is no rate yet.
+  return { n, present, away, late, pct: attendanceRate(tally, lateCounts), counted: countedDays(tally), best, bestEnd };
 }
 
 /** Mon to Fri above a day calendar, so a column is read without counting. */
@@ -69,7 +72,8 @@ function Legend({ keys }: { keys: string[] }) {
   );
 }
 
-export function StudentAttendance({ terms, records, today, current, first, guardian, openDrawer }: StudentAttendanceProps) {
+export function StudentAttendance({ terms, records, today, current, first, guardian, lateCounts = true, openDrawer }: StudentAttendanceProps) {
+  const summary = (days: Rec[]) => summaryOf(days, lateCounts);
   const past = useMemo(() => records.filter((record) => record.date <= today), [records, today]);
   const termOf = (id: string) => terms.find((term) => term.id === id);
   const sessionOf = (record: Rec) => termOf(record.term)?.session ?? "";
@@ -238,7 +242,7 @@ export function StudentAttendance({ terms, records, today, current, first, guard
       </section>
 
       <div className="grid min-w-0 gap-[14px] lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
-        <Detail view={view} cur={cur} scope={scope} today={today} terms={terms} current={current} past={past} go={go} open={open} termRows={termRows} />
+        <Detail view={view} cur={cur} scope={scope} today={today} terms={terms} current={current} past={past} go={go} open={open} termRows={termRows} lateCounts={lateCounts} />
         <section className="min-w-0 rounded-[14px] border bg-(--color-bg-surface) px-[16px] pb-[8px] pt-[14px]" style={{ borderColor: "#DEE8E2" }}>
           <h2 className="text-[12.5px] font-semibold" style={{ color: "#0D2315" }}>Days away and late arrivals</h2>
           <p className="mt-[3px] text-[10.5px]" style={{ color: "#5E6D64" }}>What happened, and who recorded it.</p>
@@ -268,10 +272,12 @@ export function StudentAttendance({ terms, records, today, current, first, guard
   );
 }
 
-function Detail({ view, cur, scope, today, terms, current, past, go, open, termRows }: {
+function Detail({ view, cur, scope, today, terms, current, past, go, open, termRows, lateCounts }: {
   view: View; cur: string; scope: Rec[]; today: string; terms: Term[]; current: string | null; past: Rec[]; go: (view: View, key?: string) => void; open: (record: Rec | undefined, date: string) => void;
-  termRows: (subset: Term[]) => Array<{ term: Term; s: ReturnType<typeof summary> }>;
+  termRows: (subset: Term[]) => Array<{ term: Term; s: ReturnType<typeof summaryOf> }>;
+  lateCounts: boolean;
 }) {
+  const summary = (days: Rec[]) => summaryOf(days, lateCounts);
   const shell = "min-w-0 rounded-[14px] border bg-(--color-bg-surface) px-[16px] pb-[14px] pt-[14px]";
   const cell = (date: string, label?: string) => {
     const rec = past.find((record) => record.date === date); const swatch = rec ? toneOf(TONE[rec.status] ?? "neutral") : null;
@@ -318,7 +324,7 @@ function Detail({ view, cur, scope, today, terms, current, past, go, open, termR
         <div className="overflow-x-auto"><table className="w-full min-w-[420px] text-left"><thead><tr style={{ color: "#5E6D64" }}>{["Week", "Dates", "Present", "Away", "Late", "Rate"].map((h) => <th key={h} className={`${head} py-[6px] pr-[8px]`}>{h}</th>)}</tr></thead><tbody>
           {weeks.map((m, i) => { const s = summary(scope.filter((record) => monday(record.date) === m)); const swatch = toneOf(toneFor(s.pct)); return (
             <tr key={m} className="cursor-pointer border-t hover:bg-[#F1F8F4]" style={{ borderColor: "#F2F7F4" }} onClick={() => go("Week", m)}>
-              <td className="py-[9px] pr-[8px] text-[11.5px] font-bold">W{weekNo(m) || weeks.length - i}</td><td className="pr-[8px] text-[11.5px]" style={{ color: "#435048" }}>{short(m)} – {short(addDays(m, 4))}</td><td className="pr-[8px] text-[11.5px] tabular-nums">{s.present} of {s.n}</td><td className="pr-[8px] text-[11.5px] tabular-nums">{s.away.length}</td><td className="pr-[8px] text-[11.5px] tabular-nums">{s.late}</td>
+              <td className="py-[9px] pr-[8px] text-[11.5px] font-bold">W{weekNo(m) || weeks.length - i}</td><td className="pr-[8px] text-[11.5px]" style={{ color: "#435048" }}>{short(m)} – {short(addDays(m, 4))}</td><td className="pr-[8px] text-[11.5px] tabular-nums">{s.present} of {s.counted}</td><td className="pr-[8px] text-[11.5px] tabular-nums">{s.away.length}</td><td className="pr-[8px] text-[11.5px] tabular-nums">{s.late}</td>
               <td><span className="rounded-full border px-[8px] py-[2px] text-[10.5px] font-semibold" style={{ background: swatch.bg, color: swatch.fg, borderColor: swatch.bd }}>{pct(s.pct)}</span></td>
             </tr>
           ); })}
@@ -337,7 +343,7 @@ function Detail({ view, cur, scope, today, terms, current, past, go, open, termR
             <td className="py-[9px] pr-[8px]"><span className="block text-[11.5px] font-semibold">{term.name}</span><span className="block text-[10px]" style={{ color: "#5E6D64" }}>{term.session}{term.id === current ? " · now" : ""}</span></td>
             <td className="pr-[8px] text-[11.5px]">{term.arm}</td>
             <td className="whitespace-nowrap pr-[8px] text-[11.5px]" style={{ color: "#435048" }}>{short(term.start)} – {short(term.end)}</td>
-            <td className="pr-[8px] text-[11.5px] tabular-nums">{s.present} of {s.n}</td><td className="pr-[8px] text-[11.5px] tabular-nums">{s.away.length}</td><td className="pr-[8px] text-[11.5px] tabular-nums">{s.late}</td>
+            <td className="pr-[8px] text-[11.5px] tabular-nums">{s.present} of {s.counted}</td><td className="pr-[8px] text-[11.5px] tabular-nums">{s.away.length}</td><td className="pr-[8px] text-[11.5px] tabular-nums">{s.late}</td>
             <td><span className="rounded-full border px-[8px] py-[2px] text-[10.5px] font-semibold" style={{ background: swatch.bg, color: swatch.fg, borderColor: swatch.bd }}>{pct(s.pct)}</span></td>
           </tr>
         ); })}

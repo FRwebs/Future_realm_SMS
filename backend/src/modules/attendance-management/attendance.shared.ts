@@ -4,6 +4,7 @@ import { Prisma } from "@prisma/client";
 import type { SessionPayload } from "../../../../src/lib/auth/session-core";
 import { activeCovers } from "../../common/teaching-scope";
 import { prisma } from "../../../../src/lib/db/prisma";
+import { attendanceRate } from "../../../../src/lib/domain/attendance-rate";
 import { RolesManagementService } from "../roles-management/roles-management.service";
 import { ConfigStore } from "../staff-access/staff-access.shared";
 import { formatDay } from "../../common/date-format";
@@ -168,11 +169,9 @@ export function add(tally: Tally, mark: string, by = 1) {
 }
 export const days = (tally: Tally) => tally.present + tally.late + tally.absent + tally.excused;
 
-/** Excused days are taken out of the count; a late day is not. Null when there is nothing to divide. */
+/** Excused days are taken out of the count; a late day is not. Null when there is nothing to divide. The rule is shared with every portal. */
 export function rate(tally: Tally, lateCounts = true): number | null {
-  const denominator = tally.present + tally.late + tally.absent;
-  if (!denominator) return null;
-  return round1(((tally.present + (lateCounts ? tally.late : 0)) / denominator) * 100);
+  return attendanceRate(tally, lateCounts);
 }
 
 export const pct = (value: number | null) => (value === null ? "—" : `${value}%`);

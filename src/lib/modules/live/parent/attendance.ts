@@ -7,7 +7,7 @@ import type { ParentContent } from "@/lib/modules/live/parent/shared";
 
 type Term = {
   id: string; label: string; short: string; session: string; start: string; end: string; current: boolean;
-  marked: number; present: number; away: number; late: number; unexplained: number; pct: number | null;
+  marked: number; counted: number; present: number; away: number; late: number; unexplained: number; pct: number | null;
 };
 type Child = {
   id: string; name: string; first: string; arm: string;
@@ -132,7 +132,7 @@ function familyAttendance(data: Attendance, school: string): ParentContent {
           const last = index > 0 ? entry.terms[index - 1]! : null;
           return {
             avatar: initialsOf(entry.name), label: entry.name, href: `/portals/parent/attendance?child=${entry.id}`,
-            sub: `${term ? `${term.present} of ${term.marked} days · ${term.away} away · ${term.late} late${last ? ` · last term ${pctText(last.pct)}` : ""}` : "No register yet"}${entry.school ? ` · ${entry.school}` : ""}`,
+            sub: `${term ? `${term.present} of ${term.counted} days · ${term.away} away · ${term.late} late${last ? ` · last term ${pctText(last.pct)}` : ""}` : "No register yet"}${entry.school ? ` · ${entry.school}` : ""}`,
             figure: pctText(term?.pct ?? null), side: term?.unexplained ? `${term.unexplained} to explain` : "All explained", tone: term?.unexplained ? "attention" : "positive",
           };
         }),
@@ -216,7 +216,7 @@ function childAttendance(entry: Child, data: Attendance, query: Record<string, s
       .map((term) => ({
         label: `${term.short} ${term.session.slice(2, 4)}`,
         v: term.pct,
-        tip: `${term.label} · ${pctText(term.pct)} · ${term.present} of ${term.marked} days`,
+        tip: `${term.label} · ${pctText(term.pct)} · ${term.present} of ${term.counted} days`,
         tone: attTone(term.pct),
         on: term.current,
       }));
@@ -237,7 +237,7 @@ function childAttendance(entry: Child, data: Attendance, query: Record<string, s
             keywords: term.label,
             cells: [
               nameCell(term.label, term.current ? "Running now" : `${dShort(term.start)} – ${dShort(term.end)}`, { avatar: false }),
-              text(`${term.present} of ${term.marked}`, { mono: true }),
+              text(`${term.present} of ${term.counted}`, { mono: true }),
               text(String(term.away), { mono: true }),
               text(String(term.late), { mono: true }),
               text(String(term.unexplained), { mono: true }),

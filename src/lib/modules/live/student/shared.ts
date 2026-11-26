@@ -30,6 +30,8 @@ export type Work = {
 export type Assignments = { items: Work[] };
 export type AttendanceData = {
   current: string | null;
+  /** Whether the school counts a late day as being in school. */
+  lateCounts?: boolean;
   terms: Array<{ id: string; name: string; session: string; start: string; end: string; arm: string; days: string[] }>;
   records: Array<{ date: string; status: string; term: string; reason: string | null; code: string | null; by: string; at: string | null }>;
   closed: Array<{ from: string; to: string; title: string }>;

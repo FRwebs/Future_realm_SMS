@@ -118,7 +118,7 @@ export async function attendancePage(): Promise<StudentContent> {
   return {
     eyebrow: `${me.name} · ${me.arm}`, title: "Attendance", desc: "The morning register decides the day. Late still counts as present. Look at any week, month, term or session, and how it has moved over time.",
     rows: data.records.length
-      ? [row("1fr", [{ type: "embed", component: "student-attendance", props: { terms: data.terms, records: data.records, today: me.today, current: data.current, first, guardian: me.guardian?.name ?? null } }])]
+      ? [row("1fr", [{ type: "embed", component: "student-attendance", props: { terms: data.terms, records: data.records, today: me.today, current: data.current, first, guardian: me.guardian?.name ?? null, lateCounts: data.lateCounts ?? true } }])]
       : [row("1fr", [{ type: "note", tone: "neutral", title: "No register has been taken for you yet", body: "Your attendance appears here the day your form master marks the first register of the term." }])],
   };
 }
