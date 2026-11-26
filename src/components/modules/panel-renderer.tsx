@@ -2895,7 +2895,8 @@ function FormPanel({
   }
 
   if (panel.type === "roster") {
-    return <AttendanceGrid panel={panel} />;
+    // One register per class and day: moving to another day shows that day's own marks, never the last one's.
+    return <AttendanceGrid key={`${panel.classId}:${panel.date}`} panel={panel} />;
   }
 
   if (panel.type === "tierChange") {
@@ -2903,8 +2904,10 @@ function FormPanel({
   }
 
   if (panel.type === "embed") return <EmbeddedPanel component={panel.component} props={panel.props} openDrawer={openDrawer} />;
-  if (panel.type === "marker") return <RegisterMarker panel={panel} openDrawer={openDrawer} />;
-  if (panel.type === "sheet") return <SheetEntry panel={panel} openDrawer={openDrawer} />;
+  // Marks are held in the component while they are typed, so a register or a score sheet for another class, day or subject — or one
+  // that has since been submitted — is a different component, started from what is stored for it.
+  if (panel.type === "marker") return <RegisterMarker key={`${panel.classId}:${panel.date}:${panel.mode}:${panel.markedAt ?? ""}`} panel={panel} openDrawer={openDrawer} />;
+  if (panel.type === "sheet") return <SheetEntry key={`${panel.classId}:${panel.subjectId}:${panel.saveEndpoint}`} panel={panel} openDrawer={openDrawer} />;
   if (panel.type === "days") return <DayStrip panel={panel} />;
 
   if (panel.type === "grid") return <GridPanelView panel={panel} openDrawer={openDrawer} />;
