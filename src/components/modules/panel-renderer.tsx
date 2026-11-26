@@ -558,14 +558,14 @@ function Cell({
         )}
         <span className="min-w-0">
           <span
-            className="block truncate text-[11.5px] font-semibold"
+            className={cn("block truncate font-semibold", dense ? "text-[11.5px]" : "text-[13px]")}
             style={{ color: INK }}
           >
             {cell.name}
           </span>
           {cell.sub ? (
             <span
-              className="mt-[1.5px] block truncate text-[10px]"
+              className={cn("block truncate", dense ? "mt-[1.5px] text-[10px]" : "mt-[3px] text-[11px]")}
               style={{ color: MUTED }}
             >
               {cell.sub}
@@ -586,7 +586,7 @@ function Cell({
         {cell.label}
       </>
     );
-    const base = cn("inline-flex items-center gap-[5px] whitespace-nowrap rounded-full border px-[9px] py-[3px] text-[10.5px] font-semibold", dense && "gap-[4px] px-[7px] text-[10px]");
+    const base = cn("inline-flex items-center gap-[5px] whitespace-nowrap rounded-full border px-[9px] py-[3px] text-[10.5px] font-semibold", dense ? "gap-[4px] px-[7px] text-[10px]" : "px-[10px] py-[3.5px] text-[11px]");
     // A pill that is also the control — the payment status you click to change.
     if (cell.href || cell.drawer) {
       return (
@@ -633,15 +633,17 @@ function Cell({
   }
 
   if (cell.kind === "action") {
-    // The mockup's action cell is plain right-aligned text, not a chip — the
-    // chip treatment belongs to list rows.
+    // A row's own action is a quiet outlined button, so the row reads as a name, its facts, and what can be done to it.
     return (
       <TriggerControl
         trigger={cell}
         label={cell.label}
         openDrawer={openDrawer}
-        className="whitespace-nowrap text-right text-[11px] font-semibold hover:underline"
-        style={{ color: "#12796A" }}
+        className={cn(
+          "inline-flex items-center whitespace-nowrap rounded-[9px] border bg-white font-semibold transition-colors hover:bg-[#F1F8F4]",
+          dense ? "px-[10px] py-[4px] text-[11px]" : "px-[14px] py-[6px] text-[12px]",
+        )}
+        style={{ color: INK, borderColor: "#DEE8E2" }}
       />
     );
   }
@@ -649,7 +651,7 @@ function Cell({
   return (
     <span
       className={cn(
-        "text-[11.5px]",
+        dense ? "text-[11.5px]" : "text-[12.5px]",
         // A short value is a figure or a label, never a sentence: keep it on one line.
         cell.text.length <= 24 && "whitespace-nowrap",
         cell.strong && "font-semibold",
@@ -1006,23 +1008,18 @@ function TableView({ panel, openDrawer, engine }: { panel: Extract<Panel, { type
         <div className="mx-[-18px] hidden min-w-0 overflow-x-auto md:block" tabIndex={0} role="region" aria-label={panel.title ? `${panel.title} — scrolls sideways` : "Table — scrolls sideways"}>
           <table className={cn("w-full border-collapse", dense ? "min-w-0" : "min-w-[640px]")}>
             <thead>
-              <tr
-                style={{
-                  background: "#F7FAF8",
-                  borderBottom: "1px solid #E6EEE9",
-                }}
-              >
+              <tr style={{ background: INK }}>
                 {panel.selectable ? (
                   <th
                     scope="col"
-                    className="w-[42px] py-[10px] pl-[18px] pr-[9px] text-left"
+                    className="w-[42px] py-[13px] pl-[18px] pr-[9px] text-left"
                   >
                     <input
                       type="checkbox"
                       checked={allVisibleSelected}
                       onChange={toggleAllVisible}
                       aria-label={`Select every ${noun} on this page`}
-                      className="h-[14.5px] w-[14.5px] accent-[#0d2315]"
+                      className="h-[14.5px] w-[14.5px] accent-[#5FD6B4]"
                     />
                   </th>
                 ) : null}
@@ -1031,12 +1028,11 @@ function TableView({ panel, openDrawer, engine }: { panel: Extract<Panel, { type
                     key={`${heading}-${index}`}
                     scope="col"
                     className={cn(
-                      "py-[10px] align-middle text-[9.5px] font-semibold uppercase leading-[1.3] tracking-wider",
-                      dense && "text-[9px] tracking-[0.03em]",
+                      "align-middle font-semibold leading-[1.3] text-white",
+                      dense ? "py-[11px] text-[10.5px]" : "py-[14px] text-[12px]",
                       aligns[index] === "right" ? "text-right" : aligns[index] === "center" ? "text-center" : "text-left",
                       edge(index),
                     )}
-                    style={{ color: MUTED }}
                   >
                     {ui(heading)}
                   </th>
@@ -1058,11 +1054,11 @@ function TableView({ panel, openDrawer, engine }: { panel: Extract<Panel, { type
                   <tr
                     key={absolute}
                     className={cn(
-                      "transition-colors duration-150 hover:bg-[#F1F8F4]",
+                      "transition-colors duration-150 hover:bg-[#F7FAF8]",
                       rowSelected && "bg-[#F1F8F4]",
                       opens && "cursor-pointer",
                     )}
-                    style={{ borderBottom: "1px solid #F2F7F4" }}
+                    style={{ borderBottom: "1px solid #EDF3EF" }}
                     onClick={
                       opens
                         ? (event) => {
@@ -1075,7 +1071,7 @@ function TableView({ panel, openDrawer, engine }: { panel: Extract<Panel, { type
                     }
                   >
                     {panel.selectable ? (
-                      <td className="py-[11px] pl-[18px] pr-[9px] align-middle">
+                      <td className={cn("pl-[18px] pr-[9px] align-middle", dense ? "py-[10px]" : "py-[16px]")}>
                         <input
                           type="checkbox"
                           checked={rowSelected}
@@ -1089,7 +1085,7 @@ function TableView({ panel, openDrawer, engine }: { panel: Extract<Panel, { type
                       <td
                         key={cellIndex}
                         className={cn(
-                          dense ? "py-[9px] align-middle" : "py-[11px] align-middle",
+                          dense ? "py-[10px] align-middle" : "py-[16px] align-middle",
                           edge(cellIndex),
                           aligns[cellIndex] === "right" && "text-right",
                           aligns[cellIndex] === "center" && "text-center",
