@@ -419,6 +419,46 @@ export class AcademicsService {
     return term;
   }
 
+  /**
+   * How many marks this term already holds — for one section's components, or for the whole school.
+   *
+   * A mark is only meaningful against the maximum, the weight and the grade bands it was entered under. Once a term has marks, changing
+   * any of them changes results that already exist, with nothing to show it happened, so the framework is locked for the rest of the term.
+   */
+  private async marksHeld(schoolId: string, section?: string) {
+    const term = await this.currentTerm(schoolId);
+    const count = await prisma.scoreEntry.count({
+      // A mark belongs to the section its child's class level sits in, however its component happens to be coded.
+      where: { schoolId, resultSheet: { termId: term.id }, ...(section ? { student: { currentClass: { classLevel: { schoolSection: section as never } } } } : {}) }
+    });
+    return { count, term: term.name };
+  }
+
+  private async assertFrameworkOpen(session: SessionPayload, what: string, section?: string) {
+    const held = await this.marksHeld(session.schoolId, section);
+    if (!held.count) return;
+    const where = section ? ` in ${section.replace(/_/g, " ").toLowerCase()}` : "";
+    throw new BadRequestException(
+      `${what} are locked: ${held.count} ${held.count === 1 ? "mark is" : "marks are"} already entered for ${held.term}${where}. Changing them now would change results that already exist, so it cannot be done in the middle of a term. Make the change for next term instead.`
+    );
+  }
+
+  /** Every change to a mark, a weight or a band is written down: who, what, and the values before and after. */
+  private async auditFramework(session: SessionPayload, action: AuditAction, entityType: string, entityId: string, change: { summary: string; before: unknown; after: unknown }) {
+    await prisma.auditLog.create({
+      data: {
+        schoolId: session.schoolId,
+        actorId: session.userId,
+        action,
+        entityType,
+        entityId,
+        oldValue: (change.before ?? undefined) as never,
+        newValue: (change.after ?? undefined) as never,
+        metadata: { summary: change.summary } as never
+      }
+    });
+  }
+
   private async permissionSet(session: SessionPayload) {
     return new Set(await this.rolesManagementService.resolveUserPermissions(session.userId, session.schoolId, session));
   }
@@ -1673,6 +1713,7 @@ export class AcademicsService {
     if (!validation.ok) {
       throw new BadRequestException("Active assessment component weights must total 100% for each school section.");
     }
+    await this.assertFrameworkOpen(session, "Assessment components", parsed.section);
 
     const existingComponent = await prisma.sectionAssessmentComponent.findFirst({
       where: {
@@ -1710,6 +1751,11 @@ export class AcademicsService {
             isActive: parsed.isActive
           }
         });
+    await this.auditFramework(session, existingComponent ? AuditAction.UPDATE : AuditAction.CREATE, "assessment-component", component.id, {
+      summary: `Assessment component ${existingComponent ? "changed" : "added"} · ${parsed.section.replace(/_/g, " ").toLowerCase()} · ${parsed.name}`,
+      before: existingComponent ? { weight: existingComponent.weight, maxScore: existingComponent.maxScore, type: existingComponent.type, isActive: existingComponent.isActive } : null,
+      after: { weight: parsed.weight, maxScore: parsed.maxScore, type: parsed.type, isActive: parsed.isActive }
+    });
 
     return component;
   }
@@ -1756,6 +1802,17 @@ export class AcademicsService {
       termId
     };
 
+    // What the set is today, so a change can be judged against it and written down afterwards.
+    const before = await prisma.sectionAssessmentComponent.findMany({ where: { ...where, isActive: true }, orderBy: { order: "asc" } });
+    const was = new Map(before.map((row) => [row.code, row]));
+    const frameChanged =
+      before.some((row) => !codes.includes(row.code)) ||
+      parsed.components.some((component) => {
+        const row = was.get(component.code.toUpperCase());
+        return !row || row.weight !== component.weight || row.maxScore !== component.maxScore || row.type !== component.type;
+      });
+    if (frameChanged) await this.assertFrameworkOpen(session, "Assessment maximums and weights", parsed.section);
+
     const written = await prisma.$transaction(async (tx) => {
       // Anything the new set does not name is retired rather than deleted:
       // scores already entered point at these rows, and deleting one would
@@ -1796,6 +1853,15 @@ export class AcademicsService {
       }
       return saved;
     });
+
+    if (frameChanged) {
+      const shape = (row: { code: string; name: string; weight: number; maxScore: number; type: string }) => ({ code: row.code, name: row.name, weight: row.weight, maxScore: row.maxScore, type: row.type });
+      await this.auditFramework(session, AuditAction.UPDATE, "assessment-component-set", `${parsed.section}:${termId ?? "all"}`, {
+        summary: `Assessment framework changed · ${parsed.section.replace(/_/g, " ").toLowerCase()}`,
+        before: before.map(shape),
+        after: written.map(shape)
+      });
+    }
 
     return { section: parsed.section, termId, components: written };
   }
@@ -1841,7 +1907,19 @@ export class AcademicsService {
       );
     }
 
+    // A name or an order can be tidied at any time; a maximum, a weight, a type or whether it counts changes what a mark means.
+    const touched = (["weight", "maxScore", "type", "isActive"] as const).filter((key) => parsed[key] !== undefined && parsed[key] !== existing[key]);
+    if (touched.length) await this.assertFrameworkOpen(session, "Assessment maximums and weights", existing.section);
+
     const updated = await prisma.sectionAssessmentComponent.update({ where: { id }, data: parsed });
+    const changed = (Object.keys(parsed) as Array<keyof typeof parsed>).filter((key) => parsed[key] !== undefined && parsed[key] !== existing[key as keyof typeof existing]);
+    if (changed.length) {
+      await this.auditFramework(session, AuditAction.UPDATE, "assessment-component", id, {
+        summary: `Assessment component changed · ${existing.section.replace(/_/g, " ").toLowerCase()} · ${existing.name}`,
+        before: Object.fromEntries(changed.map((key) => [key, existing[key as keyof typeof existing]])),
+        after: Object.fromEntries(changed.map((key) => [key, parsed[key]]))
+      });
+    }
     return updated;
   }
 
@@ -1872,7 +1950,14 @@ export class AcademicsService {
       );
     }
 
-    return prisma.sectionAssessmentComponent.update({ where: { id }, data: { isActive: false } });
+    await this.assertFrameworkOpen(session, "Assessment components", existing.section);
+    const retired = await prisma.sectionAssessmentComponent.update({ where: { id }, data: { isActive: false } });
+    await this.auditFramework(session, AuditAction.UPDATE, "assessment-component", id, {
+      summary: `Assessment component retired · ${existing.section.replace(/_/g, " ").toLowerCase()} · ${existing.name}`,
+      before: { isActive: existing.isActive },
+      after: { isActive: false }
+    });
+    return retired;
   }
 
   /**
@@ -1923,6 +2008,7 @@ export class AcademicsService {
     const scheme = await this.schemeFor(session, schemeId);
 
     this.assertContiguousBands([...scheme.bands, parsed]);
+    await this.assertFrameworkOpen(session, "Grade bands");
 
     await prisma.gradeBand.create({
       data: {
@@ -1934,6 +2020,11 @@ export class AcademicsService {
         remark: parsed.remark,
         order: parsed.order ?? scheme.bands.length + 1
       }
+    });
+    await this.auditFramework(session, AuditAction.CREATE, "grade-band", scheme.id, {
+      summary: `Grade band added · ${parsed.label}`,
+      before: null,
+      after: { label: parsed.label, minScore: parsed.minScore, maxScore: parsed.maxScore }
     });
     return this.schemeFor(session, schemeId);
   }
@@ -1952,8 +2043,14 @@ export class AcademicsService {
       maxScore: parsed.maxScore ?? band.maxScore
     };
     this.assertContiguousBands([...scheme.bands.filter((item) => item.id !== bandId), next]);
+    await this.assertFrameworkOpen(session, "Grade bands");
 
     await prisma.gradeBand.update({ where: { id: bandId }, data: parsed });
+    await this.auditFramework(session, AuditAction.UPDATE, "grade-band", bandId, {
+      summary: `Grade band changed · ${band.label}`,
+      before: { label: band.label, minScore: band.minScore, maxScore: band.maxScore },
+      after: next
+    });
     return this.schemeFor(session, schemeId);
   }
 
@@ -1965,8 +2062,14 @@ export class AcademicsService {
 
     const remaining = scheme.bands.filter((item) => item.id !== bandId);
     this.assertContiguousBands(remaining);
+    await this.assertFrameworkOpen(session, "Grade bands");
 
     await prisma.gradeBand.delete({ where: { id: bandId } });
+    await this.auditFramework(session, AuditAction.DELETE, "grade-band", bandId, {
+      summary: `Grade band removed · ${band.label}`,
+      before: { label: band.label, minScore: band.minScore, maxScore: band.maxScore },
+      after: null
+    });
     return this.schemeFor(session, schemeId);
   }
 
