@@ -1043,7 +1043,7 @@ export class ParentWorkspaceService {
         if (one && type.schoolId !== one.schoolId) return [];
         const answerFor = (studentId: string) => rows.find((item) => item.typeCode === type.code && item.guardianId === type.guardianId && item.studentId === studentId) ?? null;
         const school = many ? siteAt(type.schoolId)?.shortName?.trim() || siteAt(type.schoolId)?.name || "" : "";
-        const shared = { code: type.code, name: type.name, covers: type.covers, blocks: type.blocks, required: type.required, who: type.who, scope: type.scope, schoolId: type.schoolId, school };
+        const shared = { code: type.code, name: type.name, covers: type.covers, blocks: type.blocks, required: type.required, who: type.who, scope: type.scope, basis: type.basis, version: type.version, schoolId: type.schoolId, school };
         if (type.scope === "family") {
           const row = answerFor(FAMILY_LEVEL);
           return [{ ...shared, state: stateOf(row), on: row ? isoDay(row.recordedAt) : null, how: howOf(row), children: [] as Array<{ id: string; first: string; state: string }> }];
@@ -1087,7 +1087,8 @@ export class ParentWorkspaceService {
     // The guardian record that answers is the one this school holds for the family, and for a child that is the one linked to the child.
     const guardian = kid ? guardians.find((row) => row.id === at(kid.id).guardianId) ?? found.row : found.row;
     const studentId = type.scope === "child" && kid ? kid.id : FAMILY_LEVEL;
-    if (type.required && input.status !== "GIVEN") {
+    // Everything else can be withdrawn here as easily as it was given, and takes effect at once; only the basis for holding the record is the school's to change with the family.
+    if (type.basis && input.status !== "GIVEN") {
       throw new BadRequestException(`${type.name} is what lets the school hold ${kid ? `${kid.firstName}’s` : "your child’s"} record, so it cannot be switched off here. Ask to speak to the school if you want to change it.`);
     }
     const existing = await prisma.familyConsent.findUnique({ where: answerKey(guardian.id, type.code, studentId) });

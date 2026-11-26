@@ -8,16 +8,18 @@ export type ConsentType = {
   code: string; name: string; short: string; who: string; required: boolean; covers: string; blocks: string;
   /** "child": answered separately for each child. "family": one answer from the guardian, whatever the number of children. */
   scope: "child" | "family";
+  /** The basis on which the school holds the record at all: a parent cannot switch it off in the portal, and is pointed to the school. Every other consent can be withdrawn there as easily as it was given. */
+  basis: boolean;
   /** The wording a guardian answered: the day the school last edited this consent, or "standard" for the built-in one. */
   version: string;
 };
 
 export const CONSENT_DEFAULTS: ConsentType[] = [
-  { code: "core", name: "Core record processing", short: "Core", who: "Every guardian", required: true, covers: "Holding and processing the child's record", blocks: "Nothing can be published to this family", scope: "child", version: "standard" },
-  { code: "health", name: "Health and welfare", short: "Health", who: "Every guardian", required: true, covers: "Medical, dietary and sick-bay records", blocks: "No health note can be held", scope: "child", version: "standard" },
-  { code: "photo", name: "Photography and image use", short: "Photo", who: "Every guardian", required: false, covers: "Photographs, video and the website", blocks: "Excluded from every publication", scope: "child", version: "standard" },
-  { code: "third-party", name: "Result publication to third parties", short: "3rd party", who: "Exam candidates", required: false, covers: "WAEC, NECO, IGCSE and equivalents", blocks: "Entries cannot be forwarded", scope: "child", version: "standard" },
-  { code: "channels", name: "Notification channels", short: "Channels", who: "Every guardian", required: true, covers: "SMS, email and WhatsApp", blocks: "Only emergency broadcasts reach them", scope: "family", version: "standard" }
+  { code: "core", name: "Core record processing", short: "Core", who: "Every guardian", required: true, covers: "Holding and processing the child's record", blocks: "Nothing can be published to this family", scope: "child", basis: true, version: "standard" },
+  { code: "health", name: "Health and welfare", short: "Health", who: "Every guardian", required: true, covers: "Medical, dietary and sick-bay records", blocks: "No health note can be held", scope: "child", basis: false, version: "standard" },
+  { code: "photo", name: "Photography and image use", short: "Photo", who: "Every guardian", required: false, covers: "Photographs, video and the website", blocks: "Excluded from every publication", scope: "child", basis: false, version: "standard" },
+  { code: "third-party", name: "Result publication to third parties", short: "3rd party", who: "Exam candidates", required: false, covers: "WAEC, NECO, IGCSE and equivalents", blocks: "Entries cannot be forwarded", scope: "child", basis: false, version: "standard" },
+  { code: "channels", name: "Notification channels", short: "Channels", who: "Every guardian", required: true, covers: "SMS, email and WhatsApp", blocks: "Only emergency broadcasts reach them", scope: "family", basis: false, version: "standard" }
 ];
 
 export async function loadConsentTypes(schoolId: string): Promise<ConsentType[]> {
@@ -35,6 +37,8 @@ export async function loadConsentTypes(schoolId: string): Promise<ConsentType[]>
       blocks: String(data.blocks ?? ""),
       // A school's own consent is answered per child unless it says otherwise; only notification channels belong to the guardian.
       scope: data.scope === "family" || (data.scope === undefined && (row.code ?? row.id) === "channels") ? "family" : "child",
+      // Only the consent that lets the school hold the record at all is the school's to change; the school may mark another the same way.
+      basis: data.basis === undefined ? (row.code ?? row.id) === "core" : Boolean(data.basis),
       version: row.updatedAt.toISOString().slice(0, 10)
     };
   });

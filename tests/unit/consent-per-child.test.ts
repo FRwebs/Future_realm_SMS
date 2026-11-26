@@ -26,4 +26,8 @@ describe("a consent belongs to the child it was given for", () => {
   it("does not call a family with no children covered", () => {
     expect(familyAnswer([], 0)).toBe("NOT_GIVEN");
   });
+
+  it("lets a parent withdraw every consent except the one the record rests on", () => {
+    expect(CONSENT_DEFAULTS.filter((type) => type.basis).map((type) => type.code)).toEqual(["core"]);
+  });
 });

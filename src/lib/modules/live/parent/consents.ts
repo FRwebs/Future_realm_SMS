@@ -9,6 +9,8 @@ type Consent = {
   code: string; name: string; covers: string; blocks: string; required: boolean; who: string;
   /** "child": answered for one child at a time. "family": the guardian's own, held once. */
   scope: "child" | "family";
+  /** The basis for holding the record: the one consent a parent changes by talking to the school. */
+  basis: boolean; version: string;
   state: "Given" | "Withdrawn" | "Declined" | "Not recorded" | "Differs by child"; on: string | null; how: string | null;
   /** Whole-family view only: what each child's own answer is. */
   children: Array<{ id: string; first: string; state: string }>;
@@ -33,7 +35,14 @@ function decide(consent: Consent, status: "GIVEN" | "WITHDRAWN" | "NOT_GIVEN", s
     sub: (status === "GIVEN"
       ? `${school} may use this: ${consent.covers.charAt(0).toLowerCase()}${consent.covers.slice(1)}.`
       : `${consent.blocks || "The school will stop"}. You can change your mind at any time.`) + (consent.scope === "child" ? ` This does not change what you have said for your other children.` : ""),
-    commitLabel: verb, commitNote: "Recorded at once, with your name, the time and the wording you answered.",
+    // What the consent is and which wording is being answered, in the dialog itself — a yes or no is only informed if it can be read there.
+    facts: [
+      ["What it covers", consent.covers || consent.name],
+      ["If it is not given", consent.blocks || "The school will not use it"],
+      ["Who it is for", consent.scope === "child" ? child.first : "You, for the whole family"],
+      ["Wording", consent.version === "standard" ? "The school’s standard notice" : `The school’s notice of ${dLong(consent.version)}`],
+    ],
+    commitLabel: verb, commitNote: status === "GIVEN" ? "Recorded at once, with your name, the time and the wording above. You can withdraw it here at any time." : "Takes effect at once, with your name and the time. You can give it again here at any time.",
     commitDone: status === "GIVEN" ? "Consent given" : status === "NOT_GIVEN" ? "Consent declined" : "Consent withdrawn",
     commitDoneBody: "It is on the school’s consent register now.",
     submit: { endpoint: `${PW}/consents`, method: "POST", body: { code: consent.code, status, ...(consent.scope === "child" ? { student: child.id } : {}) } },
@@ -41,8 +50,8 @@ function decide(consent: Consent, status: "GIVEN" | "WITHDRAWN" | "NOT_GIVEN", s
 }
 
 function actions(consent: Consent, school: string, child: { id: string; first: string }): TableCellKind[] {
-  if (consent.required && consent.state === "Given") return [{ kind: "text", text: "" }, { kind: "action", label: "Talk to the school", href: "/portals/parent/requests" }];
-  if (consent.required) return [{ kind: "action", label: "Talk to the school", href: "/portals/parent/requests" }, { kind: "action", label: "Give", drawer: decide(consent, "GIVEN", school, child) }];
+  if (consent.basis && consent.state === "Given") return [{ kind: "text", text: "" }, { kind: "action", label: "Talk to the school", href: "/portals/parent/requests" }];
+  if (consent.basis) return [{ kind: "action", label: "Talk to the school", href: "/portals/parent/requests" }, { kind: "action", label: "Give", drawer: decide(consent, "GIVEN", school, child) }];
   if (consent.state === "Given") return [{ kind: "text", text: "" }, { kind: "action", label: "Withdraw", drawer: decide(consent, "WITHDRAWN", school, child) }];
   if (consent.state === "Not recorded") return [{ kind: "action", label: "Decline", drawer: decide(consent, "NOT_GIVEN", school, child) }, { kind: "action", label: "Give", drawer: decide(consent, "GIVEN", school, child) }];
   return [{ kind: "text", text: "" }, { kind: "action", label: "Give", drawer: decide(consent, "GIVEN", school, child) }];
