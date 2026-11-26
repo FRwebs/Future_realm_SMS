@@ -34,7 +34,7 @@ export type RemarkPage = {
   summary: { average: number | null; band: string; pos: number | null; outOf: number; grade: string | null; armAverage: number | null; best: { name: string; total: number | null } | null; weakest: { name: string; total: number | null } | null; passed: number; subjects: number; blocked: boolean; blockedBy: string[]; state: string };
   attendance: { pct: number | null; absent: number; days: number };
   subjects: Array<{ name: string; total: number | null; grade: string | null; pos: number | null; classAvg: number | null; standing: string; state: string }>;
-  teacher: { state: string; text: string; by: string | null; role: string; when: string; onBehalf: boolean; ownerId: string | null };
+  teacher: { state: string; text: string; by: string | null; role: string; when: string; onBehalf: boolean; ownerId: string | null; tone?: string | null; flags?: string[] };
   mine: { state: string; text: string; tone: string; flags: string[]; by: string | null };
   suggestion: string;
   tones: string[];

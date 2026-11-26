@@ -2601,7 +2601,7 @@ function FormPanel({
     }
   }
 
-  async function save() {
+  async function save(extra?: { body?: Record<string, unknown>; done?: string }) {
     if (!submit) return;
     if (unanswered.length) {
       setTried(true);
@@ -2614,7 +2614,9 @@ function FormPanel({
     // The same rule a drawer's form follows, so a form on the page and the same form in a drawer
     // post the same thing: an emptied box travels as "" to clear the value, a field with no value
     // at all is left out, a hidden field never travels, and `encode`/`nest` mean what they mean there.
-    const payload = buildBody(submit, panel.fields, values, "");
+    // A button of its own (Save draft, Submit) adds what makes it that button — `final: false`, `final: true` — to the same fields.
+    const payload = { ...buildBody(submit, panel.fields, values, ""), ...(extra?.body ?? {}) };
+    const doneText = extra?.done ?? submit.done;
 
     try {
       const response = await fetch(submit.endpoint, {
@@ -2641,10 +2643,10 @@ function FormPanel({
         }));
       }
       setConfirm(null);
-      setState({ kind: "saved", message: submit.done });
+      setState({ kind: "saved", message: doneText });
       if (submit.refreshAfter) {
         try {
-          window.sessionStorage.setItem(savedKey, JSON.stringify({ message: submit.done, at: Date.now() }));
+          window.sessionStorage.setItem(savedKey, JSON.stringify({ message: doneText, at: Date.now() }));
         } catch {
           // Storage can be blocked; the page still redraws, it just does not repeat the word.
         }
@@ -2739,6 +2741,22 @@ function FormPanel({
                     : "border bg-white px-[14px] py-[8px] text-[#435048]",
                 );
 
+                // A button that saves in its own way — Save draft beside Submit — posts the same fields with its own body.
+                if (act.submitBody && submit) {
+                  return (
+                    <button
+                      key={act.label}
+                      type="button"
+                      onClick={() => void save({ body: act.submitBody, done: act.submitDone })}
+                      disabled={state.kind === "saving"}
+                      className={className}
+                      style={act.primary ? undefined : { borderColor: CARD_BORDER }}
+                    >
+                      {state.kind === "saving" ? "Saving…" : act.label}
+                    </button>
+                  );
+                }
+
                 // The primary action of a wired form saves it, rather than
                 // opening a drawer that describes a save that never happens.
                 if (act.primary && submit) {
@@ -2747,7 +2765,7 @@ function FormPanel({
                     return (
                       <span key={act.label} className="flex flex-wrap gap-2">
                         <button type="button" onClick={() => setConfirm(null)} disabled={state.kind === "saving"} className="inline-flex items-center rounded-[9px] border bg-white px-[14px] py-[8px] text-[11.5px] font-semibold text-[#435048]" style={{ borderColor: CARD_BORDER }}>Change something</button>
-                        <button type="button" onClick={save} disabled={state.kind === "saving" || !confirm.canSend} className={className}>
+                        <button type="button" onClick={() => void save()} disabled={state.kind === "saving" || !confirm.canSend} className={className}>
                           {state.kind === "saving" ? "Sending…" : (submit.preview.confirmLabel ?? "Send it")}
                         </button>
                       </span>
@@ -2757,7 +2775,7 @@ function FormPanel({
                     <button
                       key={act.label}
                       type="button"
-                      onClick={submit.preview ? review : save}
+                      onClick={submit.preview ? review : () => void save()}
                       disabled={state.kind === "saving"}
                       className={className}
                     >

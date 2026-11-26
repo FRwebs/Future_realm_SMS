@@ -368,6 +368,10 @@ export type TableFilter = {
 export type PanelAction = {
   label: string;
   primary?: boolean;
+  /** On a form: what this button adds to the body it saves with — a form with Save draft and Submit saves the same fields twice over, once as `final: false`, once as `final: true`. */
+  submitBody?: Record<string, unknown>;
+  /** On a form: what to say once this button's save has gone through, where it differs from the form's own. */
+  submitDone?: string;
   /** SVG path for the header's primary button. Defaults to a plus. */
   icon?: string;
   /** What the phone's floating button says, when the header's label is too long for a button — "Mark register", not "Mark JSS 2 Gold · 9 children". */

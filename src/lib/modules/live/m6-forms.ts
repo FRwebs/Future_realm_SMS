@@ -47,8 +47,8 @@ export function formMasterDrawer(p: RemarkPage): DrawerSpec {
     fields: [
       fixed("This term", p.summary.average === null ? "No result yet" : `${p.summary.average} average · position ${p.summary.pos ?? "—"} · grade ${p.summary.grade ?? "—"}`, { hint: `Band: ${p.summary.band} · best ${p.summary.best?.name ?? "—"} · weakest ${p.summary.weakest?.name ?? "—"}` }),
       area("Remark", { span: 2, required: true, value: p.teacher.text || p.suggestion, hint: "The suggestion for this band is pre-filled. A family reads this sentence more carefully than the numbers." }),
-      choice("Tone", p.tones, { span: 2, value: p.mine.tone }),
-      checks("Also flag to the school", p.flagOptions, [], { span: 2 }),
+      choice("Tone", p.tones, { span: 2, value: p.teacher.tone ?? p.mine.tone }),
+      checks("Also flag to the school", p.flagOptions, p.teacher.flags ?? [], { span: 2 }),
       choice("Save as", ["Final · ready for the card", "Draft · I will come back to it"], { span: 2, value: "Final · ready for the card" }),
     ],
     submit: { endpoint: RC + "/remarks", method: "POST", body: { student: p.student.id, author: "FORM_MASTER" }, map: { Remark: "text", Tone: "tone", "Also flag to the school": "flags", "Save as": "final" }, encode: { "Save as": { "Final · ready for the card": "true", "Draft · I will come back to it": "false" } } },
@@ -70,9 +70,19 @@ export function formMasterForm(p: RemarkPage): Extract<Panel, { type: "form" }> 
     tag: p.teacher.state === "Submitted" ? "Written" : p.teacher.state, tagTone: p.teacher.state === "Submitted" ? "positive" : p.teacher.state === "Draft" ? "progress" : "attention",
     sub: "One paragraph, in your own words. It is the sentence a family reads most carefully.",
     meta: "Saving needs a connection",
-    fields: drawer.fields ?? [],
-    submit: { ...drawer.submit!, method: "POST", map: drawer.submit!.map ?? {}, done: "Remark saved", refreshAfter: true },
-    formNote: "Nothing reaches a family until the Principal publishes the card.",
+    // Saved with two buttons, not a "Save as" box: a draft stays with the form master, a submitted remark goes onto the card.
+    fields: (drawer.fields ?? []).filter((field) => field.label !== "Save as"),
+    submit: {
+      ...drawer.submit!, method: "POST",
+      map: Object.fromEntries(Object.entries(drawer.submit!.map ?? {}).filter(([label]) => label !== "Save as")),
+      encode: Object.fromEntries(Object.entries(drawer.submit!.encode ?? {}).filter(([label]) => label !== "Save as")),
+      done: "Remark saved", refreshAfter: true,
+    },
+    actions: [
+      { label: "Save draft", submitBody: { final: false }, submitDone: "Draft saved. It is not on the card yet." },
+      { label: "Submit the remark", primary: true, submitBody: { final: true }, submitDone: "Remark submitted. It is on the card." },
+    ],
+    formNote: "A draft stays with you. Nothing reaches a family until the Principal publishes the card.",
   };
 }
 
