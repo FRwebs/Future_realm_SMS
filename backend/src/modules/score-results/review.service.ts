@@ -30,6 +30,14 @@ export const REVERSIBLE_HOURS = 48;
 
 const sheetKey = (classId: string, subjectId: string) => `${classId}:${subjectId}`;
 
+/** The children on a sheet who are blank or part-entered: a sheet is not final while any of them is. */
+const unscored = (rows: Array<{ name: string; complete: boolean }>) => rows.filter((row) => !row.complete).map((row) => row.name);
+
+const describeGaps = (names: string[]) => {
+  const shown = names.slice(0, 5).join(", ") + (names.length > 5 ? ` and ${names.length - 5} more` : "");
+  return `${names.length} ${names.length === 1 ? "child has" : "children have"} marks missing or part-entered: ${shown}.`;
+};
+
 @Injectable()
 export class ReviewService {
   constructor(private readonly access: Access) {}
@@ -204,6 +212,10 @@ export class ReviewService {
     if (kind === "approve" && this.enteredBy(session, subject)) throw new BadRequestException("You entered or submitted this sheet, so you cannot approve it. Route it to someone else — the rule is enforced at the moment of approval, not afterwards.");
     if (kind !== "approve" && (input.reason ?? "").length < 8) throw new BadRequestException(kind === "decline" ? "Say exactly what is wrong — the teacher reads it word for word and has nothing else to go on." : "Name what has to change — the teacher works from this and nothing else.");
     if (kind === "approve" && subject.openFlags) throw new BadRequestException(`${subject.openFlags} verification ${subject.openFlags === 1 ? "flag has" : "flags have"} no outcome recorded. Record what was found for each before approving.`);
+    if (kind === "approve") {
+      const gaps = unscored(subject.rows);
+      if (gaps.length) throw new BadRequestException(`${describeGaps(gaps)} Each child must be scored, or marked absent, before the sheet can be approved — send it back for rework to complete it.`);
+    }
     const stamp = new Date();
     const sheet = subject.sheet;
     if (kind === "approve") {
@@ -265,6 +277,11 @@ export class ReviewService {
         }
         if (subject.openFlags) {
           skipped.push(`${subject.name} · ${arm.room.name}: ${subject.openFlags} open ${subject.openFlags === 1 ? "flag" : "flags"}`);
+          continue;
+        }
+        const gaps = unscored(subject.rows);
+        if (gaps.length) {
+          skipped.push(`${subject.name} · ${arm.room.name}: ${describeGaps(gaps)}`);
           continue;
         }
         await prisma.scoreSheet.update({ where: { id: subject.sheet.id }, data: { status: "APPROVED", decidedById: session.userId, decidedAt: new Date() } });

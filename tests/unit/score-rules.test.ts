@@ -20,9 +20,10 @@ describe("a child's row", () => {
     expect(row.complete).toBe(false);
   });
 
-  it("never scores an absence as zero", () => {
+  it("never scores an absence as zero: the total is worked out over what was sat", () => {
+    // 38 of the 50 sat, scaled to the sheet's 60 → 45.6, not 38.
     const row = totalOf(columns, { A: 8, T: ABSENT, E: 30 });
-    expect(row.total).toBe(38);
+    expect(row.total).toBe(45.6);
     expect(row.absent).toBe(1);
     expect(row.complete).toBe(true);
   });

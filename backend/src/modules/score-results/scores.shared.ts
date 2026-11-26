@@ -146,12 +146,19 @@ export function rank(items: Array<{ id: string; value: number }>): Map<string, n
 
 export type CellValue = number | typeof ABSENT | null;
 
-/** A child's row on a sheet: what is entered against each column, and what it adds up to. */
+/**
+ * A child's row on a sheet: what is entered against each column, and what it adds up to.
+ *
+ * An absence is not a zero. A child absent for one assessment is judged on the assessments they sat: the marks entered are scaled up
+ * to the full marks of the sheet (70 of 90 sat → 77.78 of 100), so being away costs them nothing and gains them nothing. A blank is a
+ * mark not yet entered; it stays out of the total and the row is not complete until it is filled or the child is marked absent.
+ */
 export function totalOf(columns: Column[], cells: Record<string, CellValue>): { total: number | null; blank: number; absent: number; entered: number; complete: boolean } {
   let total = 0;
   let blank = 0;
   let absent = 0;
   let entered = 0;
+  let sat = 0;
   for (const column of columns) {
     const value = cells[column.key];
     if (value === undefined || value === null) blank += 1;
@@ -159,9 +166,12 @@ export function totalOf(columns: Column[], cells: Record<string, CellValue>): { 
     else {
       total += value;
       entered += 1;
+      sat += column.max;
     }
   }
-  return { total: entered ? round2(total) : null, blank, absent, entered, complete: blank === 0 && columns.length > 0 };
+  const full = columns.reduce((sum, column) => sum + column.max, 0);
+  const scaled = absent > 0 && entered > 0 && sat > 0 && full > sat ? total * (full / sat) : total;
+  return { total: entered ? round2(scaled) : null, blank, absent, entered, complete: blank === 0 && columns.length > 0 };
 }
 
 /* ───────────────────────── verification ───────────────────────── */
