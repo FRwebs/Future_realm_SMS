@@ -183,7 +183,7 @@ export function decideChangeDrawer(item: ChangeItem): DrawerSpec {
     ["Why", item.reason ?? "—"],
     ["Evidence", item.evidence ?? "None attached"],
   ];
-  if (item.ownRequest) {
+  if (item.ownRequest && !item.selfDecidable) {
     return { mode: "view", kicker: "Changes · yours", title: `${item.field} · ${item.student}`, sub: "You asked for this, so someone else has to decide it.", tone: "attention", facts, readOnly: true, readOnlyNote: "Whoever asked for a change cannot also decide it — the Proprietor or another approver will." };
   }
   return {

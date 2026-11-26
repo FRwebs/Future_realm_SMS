@@ -1,4 +1,4 @@
-import { assertSubmission } from "../approvals/hub.shared";
+import { anotherDecider, assertSubmission, loadHolders, loadRoutes } from "../approvals/hub.shared";
 import { ruleFor } from "../approvals/standing-rules";
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
 import { AuditAction, Prisma } from "@prisma/client";
@@ -113,6 +113,7 @@ export class ChangesService {
       .filter((group) => group.length > 1)
       .map((group) => ({ ids: group.map((student) => student.id), label: `${fullName(group[0])} · ${group.map((student) => student.admissionNumber).join(" and ")}`, sub: group.every((student) => student.guardians[0]?.guardian.phone === group[0].guardians[0]?.guardian.phone) ? "Same name, same date of birth, same guardian phone." : "Same name, same date of birth, different guardian phone." }));
 
+    const onlyAuthority = await this.onlyAuthority(schoolId, session.userId);
     const itemRow = (row: (typeof pending)[number]) => ({
       id: row.id,
       studentId: row.studentId,
@@ -126,6 +127,8 @@ export class ChangesService {
       by: who(row.requestedById),
       byId: row.requestedById,
       ownRequest: row.requestedById === session.userId,
+      /** Their own request, and nobody else in the school could decide it: so they may. */
+      selfDecidable: row.requestedById === session.userId && onlyAuthority,
       age: daysSince(row.createdAt),
       hours: Math.max(1, Math.round((Date.now() - row.createdAt.getTime()) / 3_600_000)),
       at: row.createdAt.toISOString()
@@ -185,7 +188,9 @@ export class ChangesService {
     const request = await prisma.studentChangeRequest.findFirst({ where: { id, schoolId }, include: { student: true } });
     if (!request) throw new NotFoundException("That request does not exist.");
     if (request.status !== "PENDING") throw new BadRequestException("That request has already been decided.");
-    if (request.requestedById === session.userId) throw new ForbiddenException("Whoever asked for a change cannot also decide it.");
+    // Whoever asked cannot also decide — unless nobody else in the school could, when refusing would leave it undecidable for good.
+    const selfDecided = request.requestedById === session.userId;
+    if (selfDecided && !(await this.onlyAuthority(schoolId, session.userId))) throw new ForbiddenException("Whoever asked for a change cannot also decide it.");
     if (input.decision === "decline" && !input.note) throw new BadRequestException("Say why it is declined — they need to know what to fix.");
 
     if (input.decision === "approve") {
@@ -193,8 +198,15 @@ export class ChangesService {
       await prisma.student.update({ where: { id: request.studentId }, data });
     }
     await prisma.studentChangeRequest.update({ where: { id }, data: { status: input.decision === "approve" ? "APPROVED" : "DECLINED", decidedById: session.userId, decidedAt: new Date(), decisionNote: input.note || null } });
-    await this.audit(session, input.decision === "approve" ? AuditAction.APPROVE : AuditAction.REJECT, "Student", request.studentId, { summary: `Record change ${input.decision === "approve" ? "approved" : "declined"} · ${request.field}`, before: request.before, after: request.after, note: input.note });
+    await this.audit(session, input.decision === "approve" ? AuditAction.APPROVE : AuditAction.REJECT, "Student", request.studentId, { summary: `Record change ${input.decision === "approve" ? "approved" : "declined"} · ${request.field}`, before: request.before, after: request.after, note: input.note, ...(selfDecided ? { decidedByRequester: "Nobody else in the school holds the authority to decide it" } : {}) });
     return { id, decision: input.decision };
+  }
+
+  /** Is this person the only one in the school who could decide a record change? */
+  private async onlyAuthority(schoolId: string, personId: string) {
+    const [routes, holders] = await Promise.all([loadRoutes(schoolId), loadHolders(schoolId)]);
+    const route = routes.find((entry) => entry.type === "RECORD_CHANGE");
+    return Boolean(route) && !anotherDecider(holders, route!, 1, personId);
   }
 
   private async apply(studentId: string, field: Field, after: string, schoolId: string): Promise<Prisma.StudentUpdateInput> {

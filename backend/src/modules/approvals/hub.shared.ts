@@ -1,5 +1,6 @@
 import { BadRequestException, ForbiddenException } from "@nestjs/common";
 import type { SessionPayload } from "../../../../src/lib/auth/session-core";
+import { prisma } from "../../../../src/lib/db/prisma";
 import { ConfigStore } from "../staff-access/staff-access.shared";
 
 /**
@@ -98,6 +99,36 @@ export function mayDecide(session: Pick<SessionPayload, "role">, route: Route, s
   if (OWNERS.has(session.role)) return true;
   const label = step === 2 && route.second ? route.second : route.approver;
   return (ROLES_OF[label] ?? []).includes(session.role);
+}
+
+/* ───────────────────────── a vacant role is never a dead end ───────────────────────── */
+
+export type Holder = { id: string; role: string };
+
+/** Everyone in the school who holds a role any route can name, or owns the school's decisions. */
+export async function loadHolders(schoolId: string): Promise<Holder[]> {
+  const roles = Array.from(new Set([...OWNERS, ...Object.values(ROLES_OF).flat()]));
+  return prisma.user.findMany({ where: { schoolId, isActive: true, deletedAt: null, role: { in: roles as never[] } }, select: { id: true, role: true } }).then((rows) => rows.map((row) => ({ id: row.id, role: String(row.role) })));
+}
+
+const labelAt = (route: Route, step: 1 | 2) => (step === 2 && route.second ? route.second : route.approver);
+
+/** Is anyone in the school holding the role this step of the route names? */
+export const roleIsHeld = (holders: Holder[], label: string) => holders.some((holder) => (ROLES_OF[label] ?? []).includes(holder.role));
+
+/**
+ * Who a decision is really waiting on. A route that names a role nobody holds — a school with no Principal — waits on the
+ * owner, and says so, rather than naming a person who does not exist.
+ */
+export function waitingOn(holders: Holder[], route: Route, step: 1 | 2): string {
+  const label = labelAt(route, step);
+  return roleIsHeld(holders, label) ? label : "Proprietor";
+}
+
+/** Could anyone other than this person decide it? If not, they are the school's only authority and may decide their own. */
+export function anotherDecider(holders: Holder[], route: Route, step: 1 | 2, personId: string): boolean {
+  const roles = new Set([...OWNERS, ...(ROLES_OF[labelAt(route, step)] ?? [])]);
+  return holders.some((holder) => holder.id !== personId && roles.has(holder.role));
 }
 
 /** Never negative: a record whose decision is stamped before its request was raised took no time, not less than none. */

@@ -133,7 +133,9 @@ export class SubmissionsService {
       if (!row.studentId || !who.name || !who.phone) throw new BadRequestException("This request does not say who will collect, so there is nobody to add. Decline it, or ask the family to send it again with a name and a number.");
       await admitCollector({ schoolId, studentId: row.studentId, guardianId: row.guardianId, request: who, addedById: session.userId });
     }
-    await prisma.guardianSubmission.update({ where: { id }, data: { state, outcome: input.outcome, resolvedAt: state === "IN_PROGRESS" ? null : new Date(), ownerUserId: row.ownerUserId ?? session.userId } });
+    // Whoever closes it is who had it, so the family reads a name and never "not yet with anyone" beside a closed request.
+    const closer = row.ownerUserId ? null : await prisma.user.findUnique({ where: { id: session.userId }, select: { firstName: true, lastName: true, role: true } });
+    await prisma.guardianSubmission.update({ where: { id }, data: { state, outcome: input.outcome, resolvedAt: state === "IN_PROGRESS" ? null : new Date(), ownerUserId: row.ownerUserId ?? session.userId, ...(closer ? { ownerName: fullName(closer), ownerRole: String(closer.role).toLowerCase().split("_").map((word) => word.charAt(0).toUpperCase() + word.slice(1)).join(" ") } : {}) } });
     if (input.tell && state !== "IN_PROGRESS") await notifyGuardian(schoolId, row.guardianId, `About your ${row.type.toLowerCase()}`, `The school has ${state === "DECLINED" ? "declined" : "resolved"} your ${row.type.toLowerCase()}: ${input.outcome}`, ["In-app", "SMS"]);
     await this.audit(session, AuditAction.UPDATE, id, { summary: `Submission ${state.toLowerCase()} · ${row.type}`, outcome: input.outcome });
     return { id, state };

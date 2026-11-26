@@ -15,7 +15,7 @@ import { LeaveService } from "../staff-access/leave.service";
 import { ConfigStore } from "../staff-access/staff-access.shared";
 import { ChangesService } from "../student-records/changes.service";
 import { ApprovalsService } from "./approvals.service";
-import { APPROVER_LABELS, ENFORCED, ESCALATE_TO, labelOfRole, loadRoutes, mayDecide, NOTIFY, OVERSIGHT, OWNERS, parseKey, ROLES_OF, ROUTE_DEFAULTS, WHO_MAY_SUBMIT, daysBetween, type Decided, type Item, type Route, type RouteType } from "./hub.shared";
+import { anotherDecider, APPROVER_LABELS, ENFORCED, loadHolders, waitingOn, type Holder, ESCALATE_TO, labelOfRole, loadRoutes, mayDecide, NOTIFY, OVERSIGHT, OWNERS, parseKey, ROLES_OF, ROUTE_DEFAULTS, WHO_MAY_SUBMIT, daysBetween, type Decided, type Item, type Route, type RouteType } from "./hub.shared";
 import { CommunicationCenterService } from "../communications/communication-center.service";
 import { contextOf, loadDecided, loadPending } from "./hub.sources";
 import { RULE_FIELDS, type StandingRule } from "./standing-rules";
@@ -73,8 +73,9 @@ export class HubService {
 
   /* ───────────────────────── what a person may decide ───────────────────────── */
 
-  private canDecide(session: SessionPayload, item: Item, route: Route, dept: { sheets: Set<string>; users: Set<string> } | null = null): boolean {
-    if (item.requester?.id === session.userId) return false;
+  private canDecide(session: SessionPayload, item: Item, route: Route, dept: { sheets: Set<string>; users: Set<string> } | null = null, holders: Holder[] = []): boolean {
+    // Whoever asked cannot decide — unless they are the only person in the school with the authority, when refusing would strand it for good.
+    if (item.requester?.id === session.userId) return mayDecide(session, route, item.step) && !anotherDecider(holders, route, item.step, session.userId);
     // A head of department decides what their own department submits: its score sheets, and the first stage of its staff's leave.
     if (dept) {
       if (item.type === "SCORE_SHEET" && item.ref.classId && item.ref.subjectId && dept.sheets.has(`${item.ref.classId}:${item.ref.subjectId}`)) return true;
@@ -88,7 +89,7 @@ export class HubService {
   }
 
   private async frame(session: SessionPayload) {
-    const [routes, pending] = await Promise.all([loadRoutes(session.schoolId), loadPending(session.schoolId)]);
+    const [routes, pending, holders] = await Promise.all([loadRoutes(session.schoolId), loadPending(session.schoolId), loadHolders(session.schoolId)]);
     const byType = new Map(routes.map((route) => [route.type, route]));
     const scope = await teachingScope(session);
     const dept = scope?.departmentId ? { sheets: scope.department, users: new Set((await prisma.staffProfile.findMany({ where: { schoolId: session.schoolId, departmentId: scope.departmentId }, select: { userId: true } })).map((row) => row.userId)) } : null;
@@ -105,11 +106,12 @@ export class HubService {
         escalatesIn: Math.ceil((dueAt - now) / DAY),
         overdue: dueAt < now,
         escalated: escalated.has(item.key),
-        mine: this.canDecide(session, item, route, dept),
+        holders,
+        mine: this.canDecide(session, item, route, dept, holders),
         raisedByMe: item.requester?.id === session.userId,
       };
     });
-    return { routes, byType, views, dept };
+    return { routes, byType, views, dept, holders };
   }
 
   private present(view: Awaited<ReturnType<HubService["frame"]>>["views"][number]) {
@@ -121,7 +123,7 @@ export class HubService {
       title: item.title,
       summary: item.summary,
       requester: item.requester ? { name: item.requester.name, role: labelOfRole(item.requester.role) } : null,
-      approver: item.step === 2 && route.second ? route.second : route.approver,
+      approver: waitingOn(view.holders, route, item.step),
       second: route.second,
       state: view.escalated ? "Escalated" : item.state,
       age: view.age,
@@ -190,7 +192,7 @@ export class HubService {
       waiting: mine.map((view) => this.present(view)),
       list: shown.map((view) => this.present(view)),
       raised: [
-        ...raised.map((view) => ({ key: view.item.key, title: view.item.title, age: view.age, state: view.escalated ? "Escalated" : view.item.state, line: `Waiting on the ${view.item.step === 2 && view.route.second ? view.route.second : view.route.approver} · ${view.age} ${view.age === 1 ? "day" : "days"}${view.overdue ? " · past its period" : ` · escalates in ${Math.max(view.escalatesIn, 0)}`}` })),
+        ...raised.map((view) => ({ key: view.item.key, title: view.item.title, age: view.age, state: view.escalated ? "Escalated" : view.item.state, line: `Waiting on the ${waitingOn(view.holders, view.route, view.item.step)} · ${view.age} ${view.age === 1 ? "day" : "days"}${view.overdue ? " · past its period" : ` · escalates in ${Math.max(view.escalatesIn, 0)}`}` })),
         ...mineDecided.map((entry) => ({ key: entry.key, title: entry.title, age: null as number | null, state: entry.outcome, line: `${entry.outcome} by ${entry.decidedByName ?? "the system"}${entry.note ? ` — “${entry.note}”` : ""}` })),
       ],
       types: routes.map((route) => ({ type: route.type, name: route.name })),
@@ -267,11 +269,11 @@ export class HubService {
   async decide(session: SessionPayload, key: string, body: unknown) {
     const input = decideSchema.parse(body);
     const { source, id } = parseKey(key);
-    const { byType, views, dept } = await this.frame(session);
+    const { byType, views, dept, holders } = await this.frame(session);
     const view = views.find((entry) => entry.item.key === key);
     if (!view) throw new BadRequestException("That decision is no longer waiting — somebody else has already decided it.");
     const route = byType.get(view.item.type) as Route;
-    if (!this.canDecide(session, view.item, route, dept)) {
+    if (!this.canDecide(session, view.item, route, dept, holders)) {
       if (view.item.requester?.id === session.userId) throw new ForbiddenException("You raised this yourself, so someone else must decide it.");
       throw new ForbiddenException(`This sits with the ${view.item.step === 2 && route.second ? route.second : route.approver}, not with you.`);
     }

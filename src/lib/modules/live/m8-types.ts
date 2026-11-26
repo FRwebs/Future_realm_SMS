@@ -185,6 +185,8 @@ export type ChangeItem = {
   by: { name: string; role: string };
   byId: string | null;
   ownRequest: boolean;
+  /** Their own request, and nobody else in the school could decide it. */
+  selfDecidable?: boolean;
   age: number;
   hours: number;
   at: string;

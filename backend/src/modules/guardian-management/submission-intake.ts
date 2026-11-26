@@ -51,10 +51,12 @@ export async function openSubmission(schoolId: string, input: Intake) {
       if (teacher) owner = await prisma.user.findFirst({ where: { id: teacher }, select: { id: true, firstName: true, lastName: true, role: true } });
     }
     if (!owner && roles.length) owner = await prisma.user.findFirst({ where: { schoolId, isActive: true, role: { in: roles as never[] } }, select: { id: true, firstName: true, lastName: true, role: true } });
+    // A role the school has not filled is not a dead end: it falls to the owner, who is then the one the family is told has it.
+    if (!owner) owner = await prisma.user.findFirst({ where: { schoolId, isActive: true, deletedAt: null, role: { in: ["PROPRIETOR", "SCHOOL_OWNER"] as never[] } }, orderBy: { createdAt: "asc" }, select: { id: true, firstName: true, lastName: true, role: true } });
   }
   const created = await prisma.guardianSubmission.create({
     data: {
-      schoolId, guardianId: guardian.id, studentId: input.childId || null, type: type.name, detail: input.detail, state: owner ? "ASSIGNED" : "NEW", ownerUserId: owner?.id, ownerName: owner ? fullName(owner) : null, ownerRole: type.reviewer,
+      schoolId, guardianId: guardian.id, studentId: input.childId || null, type: type.name, detail: input.detail, state: owner ? "ASSIGNED" : "NEW", ownerUserId: owner?.id, ownerName: owner ? fullName(owner) : null, ownerRole: owner && !(REVIEWER_ROLES[type.reviewer] ?? []).includes(String(owner.role)) && type.reviewer !== "Form master" ? "Proprietor" : type.reviewer,
       channel: input.channel, evidence: input.evidence || null, dates: input.dates ?? [], payload: input.payload, deliveryId: input.deliveryId || null,
     },
   });
