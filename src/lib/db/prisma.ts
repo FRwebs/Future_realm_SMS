@@ -125,6 +125,37 @@ if (!global.__prismaCtxStamp__) {
   });
 }
 
+/**
+ * Every entry in the audit log says where it was made. The API holds the address and device of the request it is answering (see
+ * backend/common/request-origin); an entry written with no address of its own takes them, so no writer has to remember to.
+ */
+declare global {
+  var __auditOrigin__: (() => { ip?: string; device?: string } | undefined) | undefined;
+  var __prismaAuditOrigin__: boolean | undefined;
+}
+if (!global.__prismaAuditOrigin__) {
+  global.__prismaAuditOrigin__ = true;
+  prisma.$use(async (params, next) => {
+    if (params.model === "AuditLog" && (params.action === "create" || params.action === "createMany")) {
+      const from = globalThis.__auditOrigin__?.();
+      if (from?.ip || from?.device) {
+        const stamp = (row: Record<string, unknown>) => {
+          if (from.ip && !row.ipAddress) row.ipAddress = from.ip;
+          if (from.device) {
+            const meta = row.metadata;
+            if (meta === undefined || meta === null) row.metadata = { device: from.device };
+            else if (typeof meta === "object" && !Array.isArray(meta) && !("device" in (meta as object))) row.metadata = { ...(meta as object), device: from.device };
+          }
+        };
+        const data = (params.args as { data?: unknown } | undefined)?.data;
+        if (Array.isArray(data)) data.forEach((row) => stamp(row as Record<string, unknown>));
+        else if (data && typeof data === "object") stamp(data as Record<string, unknown>);
+      }
+    }
+    return next(params);
+  });
+}
+
 if (process.env.NODE_ENV !== "production") {
   global.__prisma__ = prisma;
 }

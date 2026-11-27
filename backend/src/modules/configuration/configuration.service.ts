@@ -5,6 +5,7 @@ import { z } from "zod";
 import type { SessionPayload } from "../../../../src/lib/auth/session-core";
 import { prisma } from "../../../../src/lib/db/prisma";
 import { policyDefinition, validatePolicyValues } from "../../../../src/lib/modules/school-policies";
+import { changeOf, reasonOf } from "../../common/audit-diff";
 import { RolesManagementService } from "../roles-management/roles-management.service";
 import { sectionColumnKey } from "../score-results/scores.shared";
 
@@ -252,7 +253,11 @@ export class ConfigurationService {
     }
   }
 
-  private async audit(session: SessionPayload, action: AuditAction, entityType: string, entityId: string, metadata?: Prisma.InputJsonValue) {
+  /**
+   * One entry in the audit log: who, what, when, from where (stamped from the request), why, and — for a change — what it was and what it is
+   * now. `change` is what `changeOf` made of the record before and after; the reason is what the person typed when the form asked for one.
+   */
+  private async audit(session: SessionPayload, action: AuditAction, entityType: string, entityId: string, metadata?: Prisma.InputJsonValue, change?: { old: Prisma.InputJsonObject; new: Prisma.InputJsonObject } | null) {
     await prisma.auditLog.create({
       data: {
         schoolId: session.schoolId,
@@ -260,9 +265,16 @@ export class ConfigurationService {
         action,
         entityType,
         entityId,
-        metadata
+        metadata,
+        ...(change ? { oldValue: change.old, newValue: change.new } : {})
       }
     });
+  }
+
+  /** The metadata every change carries: what the record is called, and why it was changed. */
+  private about(name: string, body?: unknown, extra: Record<string, Prisma.InputJsonValue> = {}): Prisma.InputJsonObject {
+    const reason = reasonOf(body);
+    return { name, ...(reason ? { reason } : {}), ...extra };
   }
 
   async overview(session: SessionPayload) {
@@ -807,7 +819,7 @@ export class ConfigurationService {
           activateOnOpen: makeCurrent ? false : parsed.activateOnOpen
         }
       });
-      await this.audit(session, AuditAction.UPDATE, "Term", id, { name: updated.name });
+      await this.audit(session, AuditAction.UPDATE, "Term", id, this.about(updated.name, body), changeOf(term, updated));
       return updated;
     }
     const academicSession = await prisma.academicSession.findFirst({ where: { id, schoolId: session.schoolId } });
@@ -822,7 +834,7 @@ export class ConfigurationService {
         isCurrent: makeCurrent
       }
     });
-    await this.audit(session, AuditAction.UPDATE, "AcademicSession", id, { name: updated.name });
+    await this.audit(session, AuditAction.UPDATE, "AcademicSession", id, this.about(updated.name, body), changeOf(academicSession, updated));
     return updated;
   }
 
@@ -844,8 +856,8 @@ export class ConfigurationService {
     await this.audit(session, AuditAction.UPDATE, "Term", term.id, {
       name: term.name,
       change: "made the active term",
-      reason: typeof body.reason === "string" ? body.reason : undefined
-    });
+      reason: reasonOf(body)
+    }, { old: { isCurrent: false }, new: { isCurrent: true } });
     return { id: term.id };
   }
 
@@ -928,7 +940,7 @@ export class ConfigurationService {
       }
     });
     await this.recordBrandingVersion(session, before, updated);
-    await this.audit(session, AuditAction.SETTINGS_UPDATE, "School", session.schoolId, { name: updated.name });
+    await this.audit(session, AuditAction.SETTINGS_UPDATE, "School", session.schoolId, this.about(updated.name, body), changeOf(before, updated));
     return updated;
   }
 
@@ -1004,7 +1016,7 @@ export class ConfigurationService {
     const existing = await prisma.classLevel.findFirst({ where: { id, schoolId: session.schoolId } });
     if (!existing) throw new NotFoundException("Class level not found.");
     const updated = await prisma.classLevel.update({ where: { id }, data: parsed });
-    await this.audit(session, AuditAction.UPDATE, "ClassLevel", id, { name: updated.name });
+    await this.audit(session, AuditAction.UPDATE, "ClassLevel", id, this.about(updated.name, body), changeOf(existing, updated));
     return updated;
   }
 
@@ -1089,7 +1101,7 @@ export class ConfigurationService {
         reminderChannels: parsed.reminderChannels
       }
     });
-    await this.audit(session, AuditAction.UPDATE, "CalendarEvent", id, { title: updated.title });
+    await this.audit(session, AuditAction.UPDATE, "CalendarEvent", id, this.about(updated.title, body), changeOf(existing, updated));
     return updated;
   }
 
@@ -1113,7 +1125,7 @@ export class ConfigurationService {
     const existing = await prisma.subject.findFirst({ where: { id, schoolId: session.schoolId } });
     if (!existing) throw new NotFoundException("Subject not found.");
     const updated = await prisma.subject.update({ where: { id }, data: { ...parsed, departmentId: parsed.departmentId || undefined, trackSpecific: parsed.trackSpecific || undefined } });
-    await this.audit(session, AuditAction.UPDATE, "Subject", id, { code: updated.code });
+    await this.audit(session, AuditAction.UPDATE, "Subject", id, this.about(updated.name, body, { code: updated.code }), changeOf(existing, updated));
     return updated;
   }
 
@@ -1166,7 +1178,7 @@ export class ConfigurationService {
       }
     });
     if (updated.isDefault) await this.clearOtherDefaults(session.schoolId, resource, id);
-    await this.audit(session, AuditAction.UPDATE, "ConfigurationItem", id, { resource, name: updated.name });
+    await this.audit(session, AuditAction.UPDATE, "ConfigurationItem", id, this.about(updated.name, body, { resource }), changeOf(existing, updated));
     return updated;
   }
 
@@ -1305,7 +1317,7 @@ export class ConfigurationService {
         ...(reopening ? { reopenedAt: new Date(), reopenedReason: parsed.reopenReason } : {})
       }
     });
-    await this.audit(session, AuditAction.UPDATE, "AssessmentWindow", id, { reopened: reopening, reason: parsed.reopenReason });
+    await this.audit(session, AuditAction.UPDATE, "AssessmentWindow", id, { reopened: reopening, reason: parsed.reopenReason ?? reasonOf(body) ?? null }, changeOf(existing, updated));
     return updated;
   }
 
@@ -1354,7 +1366,10 @@ export class ConfigurationService {
       values: values as Prisma.InputJsonObject,
       reason: reason || undefined,
       previous: (existing?.data ?? null) as Prisma.InputJsonValue
-    });
+    }, changeOf(
+      { values: ((existing?.data as { values?: unknown } | null)?.values ?? null) },
+      { values }
+    ));
     return saved;
   }
 

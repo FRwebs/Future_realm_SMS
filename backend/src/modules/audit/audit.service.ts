@@ -26,6 +26,9 @@ export type AuditEntryView = {
   actorEmail: string | null;
   ipAddress: string | null;
   metadata: unknown;
+  /** For a change: the fields that changed, as they were and as they are now. */
+  oldValue: unknown;
+  newValue: unknown;
   createdAt: string;
 };
 
@@ -73,6 +76,8 @@ export class AuditService {
           entityId: true,
           ipAddress: true,
           metadata: true,
+          oldValue: true,
+          newValue: true,
           createdAt: true,
           actor: {
             select: { firstName: true, lastName: true, preferredName: true, role: true, email: true },
@@ -105,6 +110,8 @@ export class AuditService {
       actorEmail: row.actor?.email ?? null,
       ipAddress: row.ipAddress ?? null,
       metadata: row.metadata ?? null,
+      oldValue: row.oldValue ?? null,
+      newValue: row.newValue ?? null,
       createdAt: row.createdAt.toISOString(),
     }));
 

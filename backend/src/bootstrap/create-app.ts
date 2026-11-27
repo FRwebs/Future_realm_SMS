@@ -11,6 +11,7 @@ import { AppModule } from "../app.module";
 import { ApiExceptionFilter } from "../common/api-exception.filter";
 import { CtxStampInterceptor } from "../common/ctx-stamp.interceptor";
 import { dateFormatContext } from "../common/date-format";
+import { requestOrigin } from "../common/request-origin";
 import { enrichOpenApiDocument } from "../common/openapi-docs";
 import { SecretStripInterceptor } from "../common/secret-strip.interceptor";
 
@@ -53,6 +54,7 @@ async function configureNestApp(app: INestApplication) {
   (app as NestExpressApplication).useBodyParser("json", { limit: "3mb" });
   app.use(cookieParser());
   app.use(dateFormatContext);
+  app.use(requestOrigin);
   app.setGlobalPrefix("api");
   app.useGlobalPipes(
     new ValidationPipe({

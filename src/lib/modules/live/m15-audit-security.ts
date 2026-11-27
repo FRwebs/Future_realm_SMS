@@ -33,6 +33,9 @@ type AuditEntry = {
   actorEmail: string | null;
   ipAddress: string | null;
   metadata: unknown;
+  /** For a change: the fields that changed, as they were and as they are now. */
+  oldValue?: unknown;
+  newValue?: unknown;
   createdAt: string;
 };
 
@@ -56,7 +59,8 @@ const SENSITIVE = new Set([
 ]);
 
 function readable(value: string): string {
-  const words = value.replace(/_/g, " ").toLowerCase().trim();
+  // `startDate` reads "Start date", `SETTINGS_UPDATE` reads "Settings update".
+  const words = value.replace(/([a-z])([A-Z])/g, "$1 $2").replace(/_/g, " ").toLowerCase().trim();
   return words.charAt(0).toUpperCase() + words.slice(1);
 }
 
@@ -79,24 +83,46 @@ function whenLabel(iso: string | null): string {
   });
 }
 
+/** A value as a person would read it in a "was → now" line: dates as dates, yes/no, nothing as a dash. */
+function shown(value: unknown): string {
+  if (value === null || value === undefined || value === "") return "—";
+  if (typeof value === "boolean") return value ? "Yes" : "No";
+  if (typeof value === "string" && /^\d{4}-\d{2}-\d{2}(T[\d:.]+Z?)?$/.test(value)) {
+    const date = new Date(value);
+    if (!Number.isNaN(date.getTime())) return date.toLocaleDateString("en-NG", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
+  }
+  if (typeof value === "object") {
+    const text = JSON.stringify(value);
+    return text.length > 140 ? `${text.slice(0, 137)}…` : text;
+  }
+  return String(value);
+}
+
+/** Who, what, when, where, why — and, for a change, each field as it was and as it is now. */
 function entryFacts(entry: AuditEntry): PanelFact[] {
-  const meta =
-    entry.metadata && typeof entry.metadata === "object"
-      ? Object.entries(entry.metadata as Record<string, unknown>)
-          .slice(0, 6)
-          .map(([key, value]) => [readable(key), String(value)] as [string, string])
-      : [];
+  const meta = entry.metadata && typeof entry.metadata === "object" && !Array.isArray(entry.metadata) ? (entry.metadata as Record<string, unknown>) : {};
+  const was = entry.oldValue && typeof entry.oldValue === "object" ? (entry.oldValue as Record<string, unknown>) : {};
+  const now = entry.newValue && typeof entry.newValue === "object" ? (entry.newValue as Record<string, unknown>) : {};
+  const changes = Object.keys(now).map((key) => [readable(key), `${shown(was[key])} → ${shown(now[key])}`, "Was → now"] as PanelFact);
+  // What the entry says beyond the lines above, in the words it was written with.
+  const rest = Object.entries(meta)
+    .filter(([key]) => !["reason", "device", "name"].includes(key))
+    .slice(0, 6)
+    .map(([key, value]) => [readable(key), shown(value)] as PanelFact);
+  const where = [entry.ipAddress, typeof meta.device === "string" ? meta.device : null].filter(Boolean).join(" · ");
 
   return [
     ["Action", readable(entry.action)],
     ["Record type", entry.entityType],
-    ["Record", entry.entityId ?? "—"],
+    ["Record", typeof meta.name === "string" && meta.name ? `${meta.name}` : entry.entityId ?? "—", typeof meta.name === "string" && entry.entityId ? entry.entityId : undefined] as PanelFact,
     ["Who", entry.actor ?? "system"],
     ["Role", entry.actorRole ? readable(entry.actorRole) : "—"],
     ["Email", entry.actorEmail ?? "—"],
-    ["From", entry.ipAddress ?? "not recorded"],
+    ["From", where || "not recorded"],
     ["When", whenLabel(entry.createdAt)],
-    ...meta,
+    ["Why", typeof meta.reason === "string" && meta.reason ? meta.reason : "No reason recorded"],
+    ...changes,
+    ...rest,
   ];
 }
 
