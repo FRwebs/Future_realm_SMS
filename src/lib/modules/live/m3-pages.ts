@@ -257,7 +257,8 @@ export async function armPage(armId: string): Promise<(TabContent & { heading: s
             meta: master?.staffNo ? `Staff number ${master.staffNo}${master.since ? ` · at this school since ${since(master.since)}` : ""}` : undefined,
             per: 2,
             acts: [
-              { label: "Message them", href: "/communication-center/compose" },
+              // To that one teacher, not to every family: the compose page is opened on them alone, in-app first.
+              { label: "Message them", href: master ? `/communication-center/compose?to=Staff&staff=${encodeURIComponent(master.id)}&who=${encodeURIComponent(master.name)}` : "/communication-center/compose?to=Staff" },
               { label: "Change form master", drawer: edit },
               ...(master ? [{ label: "Open their staff record", primary: true, href: "/staff-access/directory" }] : []),
             ],

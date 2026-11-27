@@ -169,9 +169,17 @@ function channelLabel(channel: string): string {
 
 /* ───────────────────────── Compose ───────────────────────── */
 
-function composeTab(audiences: Audience[], to: string): TabContent {
-  const chosen = audiences.find((item) => item.key === to) ?? audiences[2] ?? audiences[0];
+/** A send to named members of staff alone, rather than to everyone in the audience it belongs to. */
+type DirectTo = { staffIds: string[]; who: string };
+
+function composeTab(audiences: Audience[], to: string, direct: DirectTo | null = null): TabContent {
+  const base = audiences.find((item) => item.key === to) ?? audiences[2] ?? audiences[0];
+  // "Message them": the audience is that one person, not the staff list they belong to.
+  const chosen: Audience = direct && base.key === "Staff"
+    ? { ...base, matched: direct.staffIds.length, unreachable: 0, reach: direct.staffIds.length, credits: 0, naira: 0, description: `${direct.who} alone — nobody else is written to.` }
+    : base;
   const staffTo = chosen.key === "Staff";
+  const alone = Boolean(direct) && staffTo;
   const oneTo = chosen.key === "One person" || chosen.key === "Selected people";
 
   const tiles: TileItem[] = audiences.map((item) => ({
@@ -271,7 +279,9 @@ function composeTab(audiences: Audience[], to: string): TabContent {
                   ? "Filter the staff list by role, department or account state."
                   : "Filters with a live count — saved as criteria, never as a frozen list.",
                 meta: `${chosen.matched} matched · ${chosen.unreachable} cannot be reached${chosen.noConsent ? ` · ${chosen.noConsent} not agreed to notifications` : ""} · ${chosen.reach} will receive`,
-                fields: staffTo
+                fields: alone
+                  ? [{ label: "Recipient", kind: "static", value: direct!.who, hint: "Only this person is written to — not the staff list, and not any family." }]
+                  : staffTo
                   ? [
                       { label: "Teaching or not", kind: "select", value: "Everyone", options: ["Everyone", "Teaching staff only", "Non-teaching staff only"] },
                       { label: "Account state", kind: "select", value: "Any", options: ["Any", "Active", "Never activated", "Dormant"] },
@@ -326,7 +336,8 @@ function composeTab(audiences: Audience[], to: string): TabContent {
               {
                 label: "Channel",
                 kind: "choice",
-                value: "SMS · ₦3.80 each",
+                // Staff are written to in-app first; the cost line is for the paid channels.
+                value: staffTo ? "In-app · free" : "SMS · ₦3.80 each",
                 options: ["In-app · free", "SMS · ₦3.80 each", "Email", "Rich messaging"],
               },
               {
@@ -359,6 +370,7 @@ function composeTab(audiences: Audience[], to: string): TabContent {
               endpoint: `${BASE}/campaigns?to=${encodeURIComponent(chosen.key)}`,
               method: "POST",
               // The channel the person picked is the channel that is used — it travels with the send, never assumed to be SMS.
+              ...(alone ? { body: { staffIds: direct!.staffIds } } : {}),
               map: { "Name this send": "name", Channel: "channel", Message: "body", "Only families who consented to notifications": "requireConsent" },
               encode: { Channel: { "In-app · free": "IN_APP", "SMS · ₦3.80 each": "SMS", Email: "EMAIL", "Rich messaging": "WHATSAPP" } },
               // The first press asks what it would reach and cost; only the second sends.
@@ -766,7 +778,9 @@ export async function communicationCenterLiveTab(
 ): Promise<TabContent | undefined> {
   if (tabSlug === "compose") {
     const audiences = await apiGet(`${BASE}/audience`, observe<Audience[]>(localContracts["src/lib/modules/live/m12-communication-center.ts#cba35da2"]));
-    return composeTab(audiences ?? [], query?.to ?? "Guardians");
+    const who = query?.who?.trim();
+    const direct = query?.to === "Staff" && query.staff ? { staffIds: query.staff.split(",").filter(Boolean).slice(0, 50), who: who || "That member of staff" } : null;
+    return composeTab(audiences ?? [], query?.to ?? "Guardians", direct);
   }
 
   if (tabSlug === "sent") {

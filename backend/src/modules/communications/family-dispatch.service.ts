@@ -161,10 +161,11 @@ export class FamilyDispatchService {
   }
 
   /** What a send to staff would reach and cost, worked out exactly as `dispatchStaff` will, without writing anything. */
-  async planStaff(schoolId: string, channel: Channel, body: string) {
+  async planStaff(schoolId: string, channel: Channel, body: string, only?: string[]) {
     const bad = unknownFields(body);
     if (bad.length) throw new BadRequestException(`${bad.map((name) => `{${name}}`).join(", ")} ${bad.length === 1 ? "is not a merge field" : "are not merge fields"} — use {Guardian}, {Child} or {Class}.`);
-    const people = await prisma.staffProfile.findMany({ where: { schoolId }, take: 500, include: { user: { select: { firstName: true, lastName: true, phone: true, email: true, accountStatus: true } } } });
+    // Named people only when the send is to them alone ("Message them" on a form master); otherwise every member of staff.
+    const people = await prisma.staffProfile.findMany({ where: { schoolId, ...(only?.length ? { userId: { in: only } } : {}) }, take: 500, include: { user: { select: { firstName: true, lastName: true, phone: true, email: true, accountStatus: true } } } });
     const rows = people.map((person) => {
       const active = person.user.accountStatus === "ACTIVE";
       const reach = active ? reachOf(channel, { phone: person.user.phone, email: person.user.email, canSms: true, canEmail: true }) : ({ ok: false } as const);
@@ -187,7 +188,8 @@ export class FamilyDispatchService {
     const channel = campaign.channel as Channel;
     const sms = channel === "SMS";
     const email = channel === "EMAIL";
-    const people = await prisma.staffProfile.findMany({ where: { schoolId: campaign.schoolId }, take: 500, include: { user: { select: { id: true, firstName: true, lastName: true, phone: true, email: true, accountStatus: true } } } });
+    const only = ((campaign.audience ?? {}) as { staffIds?: string[] }).staffIds;
+    const people = await prisma.staffProfile.findMany({ where: { schoolId: campaign.schoolId, ...(only?.length ? { userId: { in: only } } : {}) }, take: 500, include: { user: { select: { id: true, firstName: true, lastName: true, phone: true, email: true, accountStatus: true } } } });
     const unbadged = bad(campaign.body);
     if (unbadged) throw new BadRequestException(unbadged);
     const rows = people.map((person) => {

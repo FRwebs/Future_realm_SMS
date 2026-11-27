@@ -35,6 +35,8 @@ const composeSchema = z.object({
   audience: z.enum(["One person", "Selected people", "Guardians", "Staff", "Everyone"]).optional(),
   // Only families who have agreed to notifications are written to, unless the school switches that off — which is for an emergency.
   requireConsent: z.coerce.boolean().default(true),
+  // A send to named members of staff alone (the "Message them" on a form master's card), instead of every member of staff.
+  staffIds: z.array(z.string().min(1)).max(50).optional(),
   channel: z.nativeEnum(NotificationChannel).default(NotificationChannel.SMS),
   body: z.string().trim().min(8, "A message needs something in it."),
   scheduledAt: z.string().datetime().optional(),
@@ -384,8 +386,11 @@ export class CommunicationCenterService {
     const snapshots = await this.audience(session, audienceKey);
     const snapshot = snapshots.find((item) => item.key === audienceKey);
     if (!snapshot) throw new BadRequestException("That audience is not one this school can send to.");
+    // Named staff are not an audience of the school's staff list: it is those people, and only them.
+    const direct = audienceKey === "Staff" && parsed.staffIds?.length ? parsed.staffIds : null;
+    const directPlan = direct ? await this.dispatcher.planStaff(session.schoolId, parsed.channel as Channel, parsed.body, direct) : null;
     // With the consent rule off (an emergency) the families who have not agreed are in the audience again.
-    const audienceReach = parsed.requireConsent ? snapshot.reach : snapshot.reach + snapshot.noConsent;
+    const audienceReach = directPlan ? directPlan.reach : parsed.requireConsent ? snapshot.reach : snapshot.reach + snapshot.noConsent;
     if (audienceReach === 0) {
       throw new BadRequestException(
         parsed.requireConsent && snapshot.noConsent > 0
@@ -416,7 +421,7 @@ export class CommunicationCenterService {
         name: parsed.name,
         channel: parsed.channel,
         audienceLabel: audienceKey,
-        audience: { key: audienceKey, consent: parsed.requireConsent } as Prisma.InputJsonObject,
+        audience: { key: audienceKey, consent: parsed.requireConsent, ...(direct ? { staffIds: direct } : {}) } as Prisma.InputJsonObject,
         body: parsed.body,
         status: needsApproval
           ? MessageCampaignStatus.AWAITING_APPROVAL
@@ -490,7 +495,7 @@ export class CommunicationCenterService {
       noConsent += plan.noConsent;
     }
     if (toStaff || everyone) {
-      const staff = await this.dispatcher.planStaff(session.schoolId, channel, parsed.body);
+      const staff = await this.dispatcher.planStaff(session.schoolId, channel, parsed.body, toStaff && parsed.staffIds?.length ? parsed.staffIds : undefined);
       reach += staff.reach;
       credits += staff.credits;
       left += staff.left;
