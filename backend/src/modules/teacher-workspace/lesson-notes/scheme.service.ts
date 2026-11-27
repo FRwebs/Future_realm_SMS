@@ -369,6 +369,20 @@ export class TeacherSchemeService {
     };
   }
 
+  /** One standard outline, week by week, so the page can lay it out for the teacher to adjust before anything is added. */
+  async outline(session: SessionPayload, entryId: string) {
+    const entry = await this.catalogue.entry(session.schoolId, entryId);
+    if (!entry) throw new NotFoundException("That outline is no longer in the catalogue.");
+    return {
+      id: entry.id,
+      label: `${entry.curriculum} · ${entry.subject} · ${entry.stage}`,
+      source: entry.source ?? entry.curriculum,
+      weeks: [...entry.topics]
+        .sort((a, b) => a.week - b.week)
+        .map((topic) => ({ week: topic.week, topic: topic.topic, subtopics: topic.subtopics ?? [], assessment: topic.assessment ?? null })),
+    };
+  }
+
   async addSubject(session: SessionPayload, body: unknown) {
     const input = addSchema.parse(body);
     const { me, terms, groups } = await this.ctx(session);

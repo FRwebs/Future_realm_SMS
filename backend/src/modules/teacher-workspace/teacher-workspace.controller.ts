@@ -291,6 +291,11 @@ export class TeacherWorkspaceController {
     return ok(this.scheme.addOptions(session));
   }
 
+  @Get("curriculum/add/outline/:entryId")
+  addSubjectOutline(@CurrentSession() session: SessionPayload, @Param("entryId") entryId: string) {
+    return ok(this.scheme.outline(session, entryId));
+  }
+
   @Post("curriculum/add")
   @UseGuards(CsrfGuard)
   addSubject(@CurrentSession() session: SessionPayload, @Body() body: unknown) {

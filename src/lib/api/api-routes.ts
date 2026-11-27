@@ -584,6 +584,7 @@ export const API_ROUTES = [
   "GET /api/v1/teacher-workspace/curriculum",
   "GET /api/v1/teacher-workspace/curriculum/{subjectId}",
   "GET /api/v1/teacher-workspace/curriculum/add/options",
+  "GET /api/v1/teacher-workspace/curriculum/add/outline/{entryId}",
   "GET /api/v1/teacher-workspace/day",
   "GET /api/v1/teacher-workspace/employment/appraisal",
   "GET /api/v1/teacher-workspace/employment/assignments",
