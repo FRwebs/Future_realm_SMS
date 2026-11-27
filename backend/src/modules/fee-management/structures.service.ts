@@ -5,6 +5,7 @@ import { z } from "zod";
 import type { SessionPayload } from "../../../../src/lib/auth/session-core";
 import { prisma } from "../../../../src/lib/db/prisma";
 import { toMoney } from "../../../../src/lib/domain/finance";
+import { SMS_NAIRA } from "../communications/family-dispatch.service";
 import { ConfigStore } from "../staff-access/staff-access.shared";
 import { currentTerm, num } from "./fees.shared";
 
@@ -500,6 +501,65 @@ export class StructuresService {
     };
   }
 
+  /**
+   * Who publishing would tell, by which channel, and what that costs. One guardian is told for each family, the way `publish` does it.
+   * An SMS is one credit; the school pays for it as the carrier accepts it, so the cost is known before anything goes.
+   */
+  private async notifyPlan(schoolId: string, structure: StructureRow, channels: string[]) {
+    const students = await this.studentsFor(schoolId, structure);
+    const existing = new Set((await prisma.invoice.findMany({ where: { schoolId, feeStructureId: structure.id, status: { not: "VOID" } }, select: { studentId: true } })).map((invoice) => invoice.studentId));
+    const told = new Map<string, (typeof students)[number]["guardians"][number]["guardian"]>();
+    let invoices = 0;
+    for (const student of students) {
+      if (existing.has(student.id)) continue;
+      invoices += 1;
+      const guardian = student.guardians.find((link) => link.isPrimary)?.guardian ?? student.guardians[0]?.guardian;
+      if (guardian && !told.has(guardian.id)) told.set(guardian.id, guardian);
+    }
+    const wants = (pattern: RegExp) => channels.some((channel) => pattern.test(channel));
+    let sms = 0;
+    let email = 0;
+    let inApp = 0;
+    for (const guardian of told.values()) {
+      if (wants(/In-app/i) && guardian.userId) inApp += 1;
+      if (wants(/SMS/i) && guardian.canReceiveSms && guardian.phone) sms += 1;
+      if (wants(/Email/i) && guardian.canReceiveEmail && guardian.email) email += 1;
+    }
+    return { invoices, families: told.size, sms, email, inApp };
+  }
+
+  /** What publishing would do and cost before it can be confirmed: the review step's answer. It writes and sends nothing. */
+  async previewPublish(session: SessionPayload, id: string, body: unknown) {
+    const input = z.object({ notify: z.array(z.string()).default(["In-app"]) }).parse(body);
+    const schoolId = session.schoolId;
+    const structure = await this.structureOrThrow(schoolId, id);
+    const plan = await this.notifyPlan(schoolId, structure, input.notify);
+    const wallet = await prisma.notificationWallet.findUnique({ where: { schoolId } });
+    const balance = wallet?.smsBalance ?? 0;
+    const naira = Math.round(plan.sms * SMS_NAIRA * 100) / 100;
+    const money = (value: number) => `₦${value.toLocaleString("en-NG", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    const enough = plan.sms === 0 || balance >= plan.sms;
+    const facts: Array<[string, string, string]> = [
+      ["Invoices", String(plan.invoices), "Each becomes money owed the moment this is published"],
+      ["Families told", String(plan.families), "One guardian for each family"],
+      ["In-app", plan.inApp ? String(plan.inApp) : "None", "Free"],
+      ["Email", plan.email ? String(plan.email) : "None", "Free"],
+      ["SMS", plan.sms ? `${plan.sms} credits` : "None", plan.sms ? `One credit for each family reached · ${money(SMS_NAIRA)} a credit` : "No SMS is sent"],
+      ["Cost", money(naira), plan.sms ? "Taken from the SMS balance as each message is accepted" : "Nothing is charged"],
+      ...(plan.sms ? ([["SMS balance now", `${balance} credits`, ""], ["SMS balance after", `${enough ? balance - plan.sms : balance} credits`, enough ? "" : "Not enough — see below"]] as Array<[string, string, string]>) : []),
+    ];
+    return {
+      facts,
+      canSend: enough,
+      invoices: plan.invoices,
+      credits: plan.sms,
+      naira,
+      balanceBefore: balance,
+      balanceAfter: enough ? balance - plan.sms : balance,
+      note: enough ? "Nothing has been billed or sent yet." : `Telling the families by SMS needs ${plan.sms} credits and the school has ${balance}. Untick SMS to tell them in-app and by email only, or ask the office to top up.`,
+    };
+  }
+
   async publish(session: SessionPayload, id: string, body: unknown) {
     const input = z.object({ applyRules: z.coerce.boolean().default(true), notify: z.array(z.string()).default(["In-app"]), dueOn: z.string().optional() }).parse(body);
     const schoolId = session.schoolId;
@@ -507,6 +567,12 @@ export class StructuresService {
     if (stateOf(structure) === "Archived") throw new ForbiddenException("An archived structure cannot be published.");
     const preview = await this.preview(session, id);
     if (!preview.mapped && structure.kind !== "Concession") throw new BadRequestException("Map at least one class to this structure first — publishing bills the classes mapped to it.");
+    // The same answer the review step gave: a publish whose SMS the school cannot pay for does not start, rather than billing and then holding the messages.
+    const expected = await this.notifyPlan(schoolId, structure, input.notify);
+    if (expected.sms) {
+      const wallet = await prisma.notificationWallet.findUnique({ where: { schoolId } });
+      if ((wallet?.smsBalance ?? 0) < expected.sms) throw new BadRequestException(`Telling the families by SMS needs ${expected.sms} credits and the school has ${wallet?.smsBalance ?? 0}. Untick SMS to tell them in-app and by email only, or ask the office to top up.`);
+    }
     const term = structure.termId ? await prisma.term.findUnique({ where: { id: structure.termId } }) : await currentTerm(schoolId);
     const dueOn = input.dueOn ? new Date(input.dueOn) : structure.dueDate ?? new Date(Date.now() + 14 * 86_400_000);
     const students = await this.studentsFor(schoolId, structure);

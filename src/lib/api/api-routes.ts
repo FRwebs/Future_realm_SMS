@@ -1057,6 +1057,7 @@ export const API_ROUTES = [
   "POST /api/v1/fee-management/structures/{id}/levels",
   "POST /api/v1/fee-management/structures/{id}/levels/{levelId}/unmap",
   "POST /api/v1/fee-management/structures/{id}/publish",
+  "POST /api/v1/fee-management/structures/{id}/publish/preview",
   "POST /api/v1/fee-management/structures/duplicate",
   "POST /api/v1/fee-management/structures/raise",
   "POST /api/v1/fee-management/structures/rules",

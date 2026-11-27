@@ -198,6 +198,14 @@ export class FeeManagementController {
     return this.structures.ok(this.structures.publish(session, id, body), "Structure published.");
   }
 
+  /** What publishing would reach and cost. It bills nothing and sends nothing. */
+  @Post("structures/:id/publish/preview")
+  @UseGuards(SessionGuard, CsrfGuard, PermissionsGuard)
+  @RequirePermission("fee-management.structures.approve")
+  previewPublishCost(@CurrentSession() session: SessionPayload, @Param("id") id: string, @Body() body: Record<string, unknown>) {
+    return this.structures.ok(this.structures.previewPublish(session, id, body));
+  }
+
   @Post("structures/:id/delete")
   @UseGuards(SessionGuard, CsrfGuard, PermissionsGuard)
   @RequirePermission("fee-management.structures.delete")

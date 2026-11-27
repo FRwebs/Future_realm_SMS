@@ -441,7 +441,7 @@ export function publishDrawer(preview: PublishPreview): DrawerSpec {
     commitLabel: "Publish and bill",
     commitDone: "Structure published",
     commitDoneBody: "Invoices have been generated and guardians notified. Anything the adjustment rules could not apply by themselves is listed in the result.",
-    reviewNote: "Publishing is the moment a structure becomes money owed. It cannot be undone by deleting — a mistaken invoice is voided, with a reason.",
+    reviewNote: "Publishing is the moment a structure becomes money owed. It cannot be undone by deleting — a mistaken invoice is voided, with a reason. Who is told, and what the SMS cost, is shown below.",
     steps: [
       {
         title: "Review the structure",
@@ -463,7 +463,8 @@ export function publishDrawer(preview: PublishPreview): DrawerSpec {
         ],
       },
     ],
-    submit: { endpoint: `${FEES}/structures/${preview.id}/publish`, method: "POST", map: { "Apply adjustment rules automatically": "applyRules", "Invoices fall due on": "dueOn", "Notify guardians by": "notify" } },
+    // The review step says how many families are told, by what, and what the SMS cost — before any invoice is raised.
+    submit: { endpoint: `${FEES}/structures/${preview.id}/publish`, method: "POST", map: { "Apply adjustment rules automatically": "applyRules", "Invoices fall due on": "dueOn", "Notify guardians by": "notify" }, preview: { endpoint: `${FEES}/structures/${preview.id}/publish/preview` } },
   };
 }
 
