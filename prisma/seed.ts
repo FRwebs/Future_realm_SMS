@@ -1479,8 +1479,6 @@ async function main() {
   await prisma.platformSetting.create({
     data: {
       maintenanceMode: false,
-      platformAnnouncement:
-        "Welcome to FutureRealm SMS. Review term data and pending approvals before publishing reports.",
       defaultGradingScale: [
         { grade: "A", min: 70, max: 100, remark: "Excellent" },
         { grade: "B", min: 60, max: 69, remark: "Very good" },
