@@ -34,7 +34,10 @@ const startDrawer = (days: number): DrawerSpec => ({
   submit: { endpoint: "/api/v1/onboarding/trial/start", method: "POST" },
 });
 
-export type SampleStatus = { loaded: false } | { loaded: true; students: number; days: number; subjects: number };
+export type SampleStatus = { loaded: false } | { loaded: true; students: number; days: number; subjects: number; /** The sample class, so it can be looked at on its own page. */ classId?: string | null };
+
+/** Where the sample class can be looked at: its own page, since it is kept out of every real list and total. */
+export const lookAtSample = (sample: Extract<SampleStatus, { loaded: true }>) => (sample.classId ? [{ label: "Look at the sample class", href: `/class-timetable/classes/${sample.classId}` }] : []);
 
 export const loadSample = () => apiGet("/api/v1/onboarding/sample", observe<SampleStatus>(localContracts["src/lib/modules/live/m1-trial.ts#d2d7395b"])).catch(() => ({ loaded: false }) as SampleStatus);
 
@@ -59,7 +62,7 @@ export const clearSampleDrawer = (sample: Extract<SampleStatus, { loaded: true }
 export async function sampleRow(): Promise<PanelRow | null> {
   const sample = await loadSample();
   if (!sample.loaded) return null;
-  return { cols: "1fr", panels: [{ type: "note", tone: "neutral", icon: "M12 8.2v4.6M12 16h.02M12 3.6 21 19.4H3z", title: "You are looking at a sample class", body: `${sample.students} sample students, a term of attendance, scored subjects and published report cards, so you can see the product working before you enter your own. None of it is real, and no message can be sent to it.`, acts: [{ label: "Remove the sample class", drawer: clearSampleDrawer(sample) }] }] };
+  return { cols: "1fr", panels: [{ type: "note", tone: "neutral", icon: "M12 8.2v4.6M12 16h.02M12 3.6 21 19.4H3z", title: "You are looking at a sample class", body: `${sample.students} sample students, a term of attendance, scored subjects and published report cards, so you can see the product working before you enter your own. None of it is real, no message can be sent to it, and it is not counted in any of your figures.`, acts: [...lookAtSample(sample), { label: "Remove the sample class", drawer: clearSampleDrawer(sample) }] }] };
 }
 
 export async function trialRow(): Promise<PanelRow | null> {

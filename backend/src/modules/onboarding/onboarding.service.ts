@@ -807,8 +807,8 @@ export class OnboardingService {
 
   /** Is the sample class still there? */
   async sampleStatus(session: SessionPayload) {
-    const manifest = await new ConfigStore(session.schoolId, "sample-data").get<{ students: number; days: number; subjects: number }>("manifest");
-    return manifest ? { loaded: true, students: manifest.data.students, days: manifest.data.days, subjects: manifest.data.subjects } : { loaded: false };
+    const manifest = await new ConfigStore(session.schoolId, "sample-data").get<{ classId?: string; students: number; days: number; subjects: number }>("manifest");
+    return manifest ? { loaded: true, students: manifest.data.students, days: manifest.data.days, subjects: manifest.data.subjects, classId: manifest.data.classId ?? null } : { loaded: false };
   }
 
   async clearSample(session: SessionPayload) {

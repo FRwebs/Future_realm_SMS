@@ -246,6 +246,7 @@ export class ProvisioningService implements OnApplicationBootstrap, OnModuleDest
 
     await new ConfigStore(schoolId, "sample-data").put("manifest", "Sample class", { classId: room.id, levelId: room.classLevelId, studentIds: students.map((student) => student.id), termId: ctx.term.id, students: students.length, days: days.length, subjects: subjects.length });
     await prisma.school.update({ where: { id: schoolId }, data: { sampleDataLoadedAt: stamp } });
+    globalThis.__forgetSample__?.(); // the sample is now listed: the next read leaves it out of the real figures
     return { key: "sample", label: "Sample demo class loaded", detail: `${students.length} students · ${days.length} school days marked · ${subjects.length} subjects scored · ${students.length} report cards — remove it any time` };
   }
 
@@ -270,6 +271,7 @@ export class ProvisioningService implements OnApplicationBootstrap, OnModuleDest
       await tx.school.update({ where: { id: schoolId }, data: { sampleDataClearedAt: new Date() } });
     });
     await new ConfigStore(schoolId, "sample-data").remove("manifest");
+    globalThis.__forgetSample__?.();
     await prisma.auditLog.create({ data: { schoolId, actorId, action: AuditAction.DELETE, entityType: "SampleData", entityId: classId, metadata: { summary: `Sample class removed · ${item.data.students} students`, removed: studentIds.length } as never } });
     return { removed: item.data.students };
   }

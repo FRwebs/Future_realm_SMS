@@ -1,6 +1,6 @@
 import { admissionPrefixFor } from "@/lib/domain/admission-number";
 import { agreementBlocks } from "@/lib/domain/agreement-text";
-import { clearSampleDrawer, loadSample, type SampleStatus } from "@/lib/modules/live/m1-trial";
+import { clearSampleDrawer, loadSample, lookAtSample, type SampleStatus } from "@/lib/modules/live/m1-trial";
 import { apiGet, observe } from "@/lib/api/server";
 import { localContracts } from "@/lib/api/local-contracts.zod";
 import {
@@ -880,8 +880,8 @@ function profileTab(school: SchoolRecord, branding: BrandingVersion[], sample: S
                 type: "note" as const,
                 tone: "neutral" as const,
                 title: "A sample class is loaded",
-                body: `${sample.students} sample students, with a term of attendance, scores and report cards. Everything it made is listed, so it can be removed whole without touching what you have added.`,
-                acts: [{ label: "Remove the sample class", drawer: clearSampleDrawer(sample) }],
+                body: `${sample.students} sample students, with a term of attendance, scores and report cards. It is not counted in any of your figures, and everything it made is listed, so it can be removed whole without touching what you have added.`,
+                acts: [...lookAtSample(sample), { label: "Remove the sample class", drawer: clearSampleDrawer(sample) }],
               }
             : {
                 type: "note" as const,

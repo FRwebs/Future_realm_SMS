@@ -1,6 +1,7 @@
 import { PrismaClient } from "@prisma/client";
 
 import { bumpCtxVersion, changesWhoSomeoneIs } from "../cache/ctx-version";
+import { installSampleFilter } from "./sample-filter";
 
 declare global {
   var __prisma__: PrismaClient | undefined;
@@ -155,6 +156,9 @@ if (!global.__prismaAuditOrigin__) {
     return next(params);
   });
 }
+
+// The sample class is never counted among the school's real figures (see ./sample-filter).
+installSampleFilter(prisma);
 
 if (process.env.NODE_ENV !== "production") {
   global.__prisma__ = prisma;
