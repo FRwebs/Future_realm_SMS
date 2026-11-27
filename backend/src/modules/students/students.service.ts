@@ -2,6 +2,7 @@ import { nextAdmissionNumber } from "../student-records/records.shared";
 import { Injectable } from "@nestjs/common";
 import { Prisma } from "@prisma/client";
 import { z } from "zod";
+import { checkContacts, emailText, phoneText } from "../../common/contact-check";
 
 import { prisma } from "../../../../src/lib/db/prisma";
 import {
@@ -28,8 +29,8 @@ export const createStudentSchema = z.object({
   gender: z.enum(["MALE", "FEMALE", "OTHER"]).default("MALE"),
   dateOfBirth: z.string().min(1),
   guardianName: z.string().min(3),
-  guardianPhone: z.string().min(10),
-  guardianEmail: z.string().email().optional().or(z.literal("")),
+  guardianPhone: phoneText().min(1),
+  guardianEmail: emailText().optional(),
   guardianRelationship: z.string().min(3).default("Parent"),
   className: nigeriaClassInputSchema,
   stateOfOrigin: z.string().optional().or(z.literal("")),
@@ -367,6 +368,7 @@ export class StudentsService {
 
   async createStudent(schoolId: string, payload: unknown) {
     const parsed = createStudentSchema.parse(payload);
+    await checkContacts(schoolId, [{ field: "Guardian", phone: parsed.guardianPhone, email: parsed.guardianEmail }]);
     const className = formatNigeriaClassName(parsed.className);
 
     const [currentClass, currentSession] = await Promise.all([

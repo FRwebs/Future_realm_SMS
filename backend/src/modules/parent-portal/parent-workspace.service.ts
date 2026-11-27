@@ -4,6 +4,7 @@ import { prisma } from "../../../../src/lib/db/prisma";
 import type { SessionPayload } from "../../../../src/lib/auth/session-core";
 import type { Prisma } from "@prisma/client";
 import { z } from "zod";
+import { checkContacts, emailText, phoneText } from "../../common/contact-check";
 
 import { categoryOfMessage } from "../../../../src/lib/messaging/family-choices";
 import { QUIET_HOURS, preferencesSchema, type Preferences } from "../../../../src/lib/preferences";
@@ -1494,6 +1495,7 @@ export class ParentWorkspaceService {
    */
   async requestAccount(session: SessionPayload, body: unknown) {
     const input = accountRequestSchema.parse(body);
+    await checkContacts(session.schoolId, [{ field: "Your mobile", phone: input.phone, email: input.email }]);
     const { rows } = await this.context(session);
     // Each school keeps its own contact list and its own copy of the record, and each rings its own
     // number in an emergency — so this goes to all of them, not only the one they signed in to.
@@ -1759,8 +1761,8 @@ const reportSchema = z.object({
 
 const accountRequestSchema = z.object({
   kind: z.enum(["contact", "copy"]),
-  phone: z.string().trim().max(40).optional(),
-  email: z.string().trim().max(120).optional(),
+  phone: phoneText().max(40).optional(),
+  email: emailText().max(120).optional(),
   address: z.string().trim().max(200).optional(),
   note: z.string().trim().max(300).optional(),
 });
@@ -1775,7 +1777,7 @@ const changeSchema = z.object({
   person: z.object({
     name: z.string().trim().min(2, "Who should be added?"),
     relation: z.string().trim().min(2, "Their relation to the child."),
-    phone: z.string().trim().min(7, "A number the school can check."),
+    phone: phoneText().min(1, "A number the school can check."),
     photo: z.object({ name: z.string().trim().max(160), data: z.string().max(MAX_DOCUMENT_CHARS, "That photograph is too large. Keep it under 1.5 MB.") }).optional(),
   }).optional(),
 });

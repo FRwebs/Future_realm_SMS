@@ -3,6 +3,8 @@ import { createHash, randomBytes } from "crypto";
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
 import { AuditAction, Prisma, UserRole } from "@prisma/client";
 import { z } from "zod";
+import { checkContacts, emailText, phoneRuleFor, phoneText } from "../../common/contact-check";
+import { emailProblem, phoneProblem } from "../../../../src/lib/domain/contact";
 
 import { hashPassword } from "../../../../src/lib/auth/password";
 import { canAssignRole, canManageRole, getStaffTypeForRole, isPlatformRole, isSchoolStaffRole } from "../../../../src/lib/auth/role-architecture";
@@ -52,13 +54,13 @@ const onboardSchema = z.object({
   title: z.string().optional(),
   name: z.string().trim().min(3, "Give their full name."),
   gender: z.string().optional(),
-  phone: z.string().trim().min(6, "Their mobile number is their login."),
-  email: z.string().trim().email("A work email is needed for the activation link."),
+  phone: phoneText().min(1, "Their mobile number is their login."),
+  email: emailText().min(3, "A work email is needed for the activation link."),
   staffNo: z.string().trim().optional(),
   nationality: z.string().optional(),
   address: z.string().optional(),
   kin: z.string().optional(),
-  kinPhone: z.string().optional(),
+  kinPhone: phoneText().optional(),
   role: z.string().min(1, "Choose a role."),
   department: z.string().optional(),
   employment: z.string().default("Full time"),
@@ -112,8 +114,8 @@ const offboardSchema = z.object({
 });
 
 const updateSchema = z.object({
-  phone: z.string().trim().optional(),
-  email: z.string().trim().email().optional(),
+  phone: phoneText().optional(),
+  email: emailText().optional(),
   designation: z.string().trim().optional(),
   department: z.string().trim().optional(),
   employmentType: z.string().trim().optional(),
@@ -272,6 +274,7 @@ export class StaffAccessService {
         })
       : null;
     const held = groups.filter((group) => group.data.holders?.includes(user.id)).map((group) => group.name);
+    const rule = await phoneRuleFor(schoolId);
 
     return {
       id: profile.id,
@@ -279,6 +282,9 @@ export class StaffAccessService {
       name: fullName(user),
       email: user.email,
       phone: user.phone,
+      /** What is wrong with the number or address already on file, if anything — they were typed before the rule existed. */
+      phoneProblem: phoneProblem(user.phone, rule),
+      emailProblem: emailProblem(user.email),
       staffNo: profile.employeeNo,
       designation: profile.designation,
       role: templateName(user.role),
@@ -434,6 +440,7 @@ export class StaffAccessService {
   async onboard(session: SessionPayload, body: unknown) {
     const input = onboardSchema.parse(body);
     const schoolId = session.schoolId;
+    await checkContacts(schoolId, [{ field: "Mobile", phone: input.phone, email: input.email }, { field: "Next of kin's number", phone: input.kinPhone }]);
     const role = ROLE_CHOICES[input.role];
     if (!role) throw new BadRequestException("That role is not offered.");
     if (!isPlatformRole(session.role as never) && !canAssignRole(session.role as never, role as never)) {
@@ -564,6 +571,7 @@ export class StaffAccessService {
 
   async update(session: SessionPayload, staffId: string, body: unknown) {
     const input = updateSchema.parse(body);
+    await checkContacts(session.schoolId, [{ field: "Mobile", phone: input.phone, email: input.email }]);
     const profile = await this.profileOrThrow(session.schoolId, staffId);
     await this.assertCanManage(session, profile.user, "edit the record of");
     if (input.email && input.email.toLowerCase() !== profile.user.email) {

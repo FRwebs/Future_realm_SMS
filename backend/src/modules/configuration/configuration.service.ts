@@ -1,6 +1,7 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
 import { AuditAction, Prisma, SchoolCategory, SchoolSection } from "@prisma/client";
 import { z } from "zod";
+import { checkContacts, emailText, phoneText } from "../../common/contact-check";
 
 import type { SessionPayload } from "../../../../src/lib/auth/session-core";
 import { prisma } from "../../../../src/lib/db/prisma";
@@ -117,7 +118,7 @@ const schoolSchema = z.object({
   attendancePattern: stringList,
   stagesOperated: stringList,
   foundedYear: z.union([z.coerce.number().int().min(1800).max(2100), z.literal("")]).optional(),
-  mainPhone: z.string().trim().max(40).optional().or(z.literal("")),
+  mainPhone: phoneText("line").max(40).optional(),
   postalCode: z.string().trim().max(20).optional().or(z.literal("")),
   cacNumber: z.string().trim().max(80).optional().or(z.literal("")),
   ministryApprovalNumber: z.string().trim().max(80).optional().or(z.literal("")),
@@ -138,8 +139,8 @@ const schoolSchema = z.object({
   state: z.string().trim().optional().or(z.literal("")),
   country: z.string().trim().optional().or(z.literal("")),
   ownerName: z.string().trim().optional().or(z.literal("")),
-  ownerEmail: z.string().trim().email().optional().or(z.literal("")),
-  ownerPhone: z.string().trim().optional().or(z.literal("")),
+  ownerEmail: emailText().optional(),
+  ownerPhone: phoneText().optional(),
   timezone: z.string().trim().default("Africa/Lagos"),
   primaryColor: z.string().trim().regex(/^#[0-9a-fA-F]{6}$/, "Write the colour as a hex code, like #0D2315.").optional().or(z.literal("")),
   secondaryColor: z.string().trim().regex(/^#[0-9a-fA-F]{6}$/, "Write the colour as a hex code, like #12796A.").optional().or(z.literal(""))
@@ -885,6 +886,7 @@ export class ConfigurationService {
 
   private async updateSchool(session: SessionPayload, body: Record<string, unknown>) {
     const parsed = schoolSchema.parse(body);
+    await checkContacts(session.schoolId, [{ field: "School phone", phone: parsed.mainPhone, kind: "line" }, { field: "Owner's mobile", phone: parsed.ownerPhone, email: parsed.ownerEmail }]);
 
     // A PATCH patches. Previously every optional field was written on every
     // save, so a caller that sent only the name silently nulled the address,

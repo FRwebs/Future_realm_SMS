@@ -2,6 +2,7 @@ import { BadRequestException, Injectable } from "@nestjs/common";
 import { refuseTeaching } from "../../common/teaching-scope";
 import { AuditAction, Prisma } from "@prisma/client";
 import { z } from "zod";
+import { checkContacts, emailText, phoneText } from "../../common/contact-check";
 import { FAMILY_LEVEL, answerKey, loadConsentTypes } from "./consent.shared";
 
 import type { SessionPayload } from "../../../../src/lib/auth/session-core";
@@ -60,8 +61,8 @@ const enrolSchema = z.object({
   guardianId: z.union([z.string(), z.array(z.string())]).optional(),
   guardianName: z.string().optional(),
   relation: z.string().default("Mother"),
-  phone: z.string().optional(),
-  email: z.string().optional(),
+  phone: phoneText().optional(),
+  email: emailText().optional(),
   consent: z.array(z.string()).default([])
 });
 
@@ -194,6 +195,7 @@ export class RegistryService {
   async enrol(session: SessionPayload, body: unknown) {
     const input = enrolSchema.parse(body);
     const schoolId = session.schoolId;
+    await checkContacts(schoolId, [{ field: "Guardian", phone: input.phone, email: input.email }]);
     if (!input.consent.some((entry) => entry.startsWith("Core record processing"))) {
       throw new BadRequestException("Core record processing cannot be waived — it is the basis for holding the record.");
     }

@@ -3,6 +3,7 @@ import { BadRequestException, Injectable, NotFoundException } from "@nestjs/comm
 import { ApplicationStatus, Prisma } from "@prisma/client";
 import { addDays, differenceInCalendarDays } from "date-fns";
 import { z } from "zod";
+import { checkContacts, emailText, phoneText } from "../../common/contact-check";
 
 import { prisma } from "../../../../src/lib/db/prisma";
 import {
@@ -33,11 +34,11 @@ export const admissionSchema = z.object({
   lastName: z.string().min(2),
   middleName: z.string().optional().or(z.literal("")),
   guardianName: z.string().min(3),
-  guardianPhone: z.string().min(10),
-  guardianEmail: z.string().email().optional().or(z.literal("")),
+  guardianPhone: phoneText().min(1),
+  guardianEmail: emailText().optional(),
   address: z.string().optional().or(z.literal("")),
   emergencyContactName: z.string().optional().or(z.literal("")),
-  emergencyContactPhone: z.string().optional().or(z.literal("")),
+  emergencyContactPhone: phoneText().optional(),
   previousSchool: z.string().optional().or(z.literal("")),
   medicalNotes: z.string().optional().or(z.literal("")),
   desiredClass: nigeriaClassInputSchema,
@@ -662,6 +663,7 @@ export class AdmissionsService {
 
   async createApplication(schoolId: string, actorId: string | undefined, payload: unknown) {
     const parsed = admissionSchema.parse(payload);
+    await checkContacts(schoolId, [{ field: "Guardian", phone: parsed.guardianPhone, email: parsed.guardianEmail }, { field: "Emergency contact", phone: parsed.emergencyContactPhone }]);
     const desiredClassName = formatNigeriaClassName(parsed.desiredClass);
     const status: AdmissionStatus = parsed.draft ? "DRAFT" : "SUBMITTED";
 

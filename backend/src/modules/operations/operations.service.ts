@@ -1,6 +1,7 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
 import { AuditAction, LeaveStatus, Prisma } from "@prisma/client";
 import { z } from "zod";
+import { phoneText } from "../../common/contact-check";
 
 import type { SessionPayload } from "../../../../src/lib/auth/session-core";
 import { prisma } from "../../../../src/lib/db/prisma";
@@ -34,7 +35,7 @@ const healthSchema = z.object({
 
 const visitorSchema = z.object({
   visitorName: z.string().min(2),
-  phone: z.string().optional(),
+  phone: phoneText("line").optional(),
   purpose: z.string().min(2),
   hostName: z.string().optional(),
   hostUserId: z.string().optional(),
@@ -136,7 +137,7 @@ const vehicleSchema = z.object({
   model: z.string().optional(),
   capacity: z.coerce.number().int().min(1),
   driverName: z.string().optional(),
-  driverPhone: z.string().optional(),
+  driverPhone: phoneText().optional(),
   status: z.string().default("ACTIVE")
 });
 

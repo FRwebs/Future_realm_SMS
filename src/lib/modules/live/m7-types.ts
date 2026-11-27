@@ -174,6 +174,9 @@ export type StaffRecord = {
   name: string;
   email: string;
   phone: string | null;
+  /** What is wrong with the number already on file, in words; null when it is fine. */
+  phoneProblem?: string | null;
+  emailProblem?: string | null;
   staffNo: string;
   designation: string;
   role: string;

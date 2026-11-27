@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
 import { ApplicationStatus, AuditAction, Prisma } from "@prisma/client";
 import { z } from "zod";
+import { checkContacts, emailText, phoneText } from "../../common/contact-check";
 
 import type { SessionPayload } from "../../../../src/lib/auth/session-core";
 import { prisma } from "../../../../src/lib/db/prisma";
@@ -75,10 +76,10 @@ const createSchema = z.object({
   previousSchool: z.string().optional(),
   guardianName: z.string().trim().min(3, "Give the guardian's name."),
   relation: z.string().default("Mother"),
-  phone: z.string().trim().min(10, "An application with no contact cannot be progressed."),
-  email: z.string().optional(),
+  phone: phoneText().min(1, "An application with no contact cannot be progressed."),
+  email: emailText().optional(),
   secondName: z.string().optional(),
-  secondPhone: z.string().optional(),
+  secondPhone: phoneText().optional(),
   address: z.string().optional(),
   source: z.string().default("Website"),
   sibling: z.string().default("No"),
@@ -342,6 +343,7 @@ export class AdmissionsBoardService {
 
   async create(session: SessionPayload, body: unknown) {
     const input = createSchema.parse(body);
+    await checkContacts(session.schoolId, [{ field: "Mobile", phone: input.phone, email: input.email }, { field: "Second number", phone: input.secondPhone }]);
     const { first, last } = splitName(input.name);
     const dob = new Date(input.dob);
     if (Number.isNaN(dob.getTime())) throw new BadRequestException("That is not a date of birth.");
@@ -513,7 +515,8 @@ export class AdmissionsBoardService {
   }
 
   async editContact(session: SessionPayload, id: string, body: unknown) {
-    const input = z.object({ name: z.string().trim().min(3), relation: z.string().optional(), phone: z.string().trim().min(10), email: z.string().optional(), secondName: z.string().optional(), secondPhone: z.string().optional(), address: z.string().optional() }).parse(body);
+    const input = z.object({ name: z.string().trim().min(3), relation: z.string().optional(), phone: phoneText().min(1), email: emailText().optional(), secondName: z.string().optional(), secondPhone: phoneText().optional(), address: z.string().optional() }).parse(body);
+    await checkContacts(session.schoolId, [{ field: "Mobile", phone: input.phone, email: input.email }, { field: "Second number", phone: input.secondPhone }]);
     const row = await prisma.admissionApplication.findFirst({ where: { id, schoolId: session.schoolId } });
     if (!row) throw new NotFoundException("That application does not exist.");
     await prisma.admissionApplication.update({ where: { id }, data: { guardianName: input.name, guardianPhone: input.phone, guardianEmail: input.email || null, emergencyContactName: input.secondName || null, emergencyContactPhone: input.secondPhone || null, address: input.address || null } });

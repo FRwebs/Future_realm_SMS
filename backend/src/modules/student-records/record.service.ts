@@ -2,6 +2,7 @@ import { BadRequestException, ForbiddenException, Injectable, NotFoundException 
 import { assertStudentArmReadable, teachingScope } from "../../common/teaching-scope";
 import { AuditAction, Prisma } from "@prisma/client";
 import { z } from "zod";
+import { checkContacts, emailText, phoneText } from "../../common/contact-check";
 
 import type { SessionPayload } from "../../../../src/lib/auth/session-core";
 import { randomInt } from "node:crypto";
@@ -54,7 +55,7 @@ const noteSchema = z.object({
 const collectorSchema = z.object({
   name: z.string().trim().min(3, "Give the collector's full name."),
   relation: z.string().min(1),
-  phone: z.string().trim().min(10, "Give a mobile number."),
+  phone: phoneText().min(1, "Give a mobile number."),
   photo: z.string().trim().min(3, "A collector with no photograph on file cannot collect."),
   applies: z.string().default("This child only"),
   until: z.string().optional(),
@@ -74,8 +75,8 @@ const mapSchema = z.object({
   name: z.string().optional(),
   relation: z.string().default("Mother"),
   order: z.string().default("Primary contact"),
-  phone: z.string().optional(),
-  email: z.string().optional(),
+  phone: phoneText().optional(),
+  email: emailText().optional(),
   address: z.string().optional(),
   occupation: z.string().optional(),
   language: z.string().optional(),
@@ -544,6 +545,7 @@ export class RecordService {
   async addCollector(session: SessionPayload, id: string, body: unknown) {
     const input = collectorSchema.parse(body);
     const schoolId = session.schoolId;
+    await checkContacts(schoolId, [{ field: "Collector", phone: input.phone }]);
     await this.studentOrThrow(schoolId, id);
     const everyChild = input.applies.startsWith("Every");
     const links = everyChild ? await prisma.studentGuardian.findMany({ where: { guardianId: { in: (await prisma.studentGuardian.findMany({ where: { studentId: id }, select: { guardianId: true } })).map((row) => row.guardianId) } }, select: { studentId: true } }) : [{ studentId: id }];
@@ -569,6 +571,7 @@ export class RecordService {
   async mapGuardian(session: SessionPayload, id: string, body: unknown) {
     const input = mapSchema.parse(body);
     const schoolId = session.schoolId;
+    await checkContacts(schoolId, [{ field: "Guardian", phone: input.phone, email: input.email }]);
     const student = await this.studentOrThrow(schoolId, id);
     const existing = Array.isArray(input.guardian) ? input.guardian[0] : input.guardian;
     const primary = input.order.startsWith("Primary");

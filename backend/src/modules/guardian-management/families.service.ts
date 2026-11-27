@@ -10,6 +10,7 @@ import { FAMILY_LEVEL, familyAnswer, loadConsentTypes } from "../student-records
 import { armName, currentTerm, daysSince, feeStateOf, gradeBands, gradeOf, initials, num, relevantInvoice, stateOf } from "../student-records/records.shared";
 import { RELATIONS, VISIBILITY, deliveryOf, fullName, guardianPortal, normalPhone, notifyGuardian, validMobile } from "./guardians.shared";
 import { formatDay } from "../../common/date-format";
+import { checkContacts, emailText, phoneText } from "../../common/contact-check";
 
 /**
  * A family is not a row per child. Four children in three arms is ONE family, one login and one
@@ -23,10 +24,10 @@ const addSchema = z.object({
   name: z.string().trim().min(3, "Give the guardian's full name."),
   relation: z.string().default("Mother"),
   order: z.string().default("Primary contact"),
-  phone: z.string().trim().min(10, "A guardian needs a mobile number — it is their login."),
-  email: z.string().optional(),
+  phone: phoneText().min(1, "A guardian needs a mobile number — it is their login."),
+  email: emailText().optional(),
   secondName: z.string().optional(),
-  secondPhone: z.string().optional(),
+  secondPhone: phoneText().optional(),
   address: z.string().optional(),
   occupation: z.string().optional(),
   language: z.string().default("English"),
@@ -41,10 +42,10 @@ const contactSchema = z.object({
   name: z.string().trim().min(3),
   relation: z.string().optional(),
   order: z.string().optional(),
-  phone: z.string().trim().min(10, "A wrong digit here silences a family — give the number in full."),
-  email: z.string().optional(),
+  phone: phoneText().min(1, "A wrong digit here silences a family — give the number in full."),
+  email: emailText().optional(),
   secondName: z.string().optional(),
-  secondPhone: z.string().optional(),
+  secondPhone: phoneText().optional(),
   address: z.string().optional(),
   occupation: z.string().optional(),
   language: z.string().optional(),
@@ -349,10 +350,9 @@ export class FamiliesService {
   async add(session: SessionPayload, body: unknown) {
     const input = addSchema.parse(body);
     const schoolId = session.schoolId;
-    const phone = normalPhone(input.phone);
+    await checkContacts(schoolId, [{ field: "Mobile", phone: input.phone, email: input.email }, { field: "Second number", phone: input.secondPhone }]);
     const clash = await prisma.guardian.findFirst({ where: { schoolId, mergedIntoId: null, phone: input.phone.trim() } });
     if (clash) throw new BadRequestException(`${input.phone.trim()} is already ${fullName(clash)}'s number. If this is the same family, link the child from the child's own record — that keeps one login.`);
-    if (!validMobile(phone)) throw new BadRequestException("That does not look like a Nigerian mobile number.");
     const students = await prisma.student.findMany({ where: { schoolId, id: { in: input.children } }, select: { id: true } });
     if (students.length !== input.children.length) throw new BadRequestException("One of those children is not in this school.");
     const [first, ...rest] = input.name.split(/\s+/);
@@ -384,6 +384,7 @@ export class FamiliesService {
   async editContact(session: SessionPayload, id: string, body: unknown) {
     const input = contactSchema.parse(body);
     const schoolId = session.schoolId;
+    await checkContacts(schoolId, [{ field: "Mobile", phone: input.phone, email: input.email }, { field: "Second number", phone: input.secondPhone }]);
     const guardian = await prisma.guardian.findFirst({ where: { id, schoolId } });
     if (!guardian) throw new NotFoundException("That family does not exist.");
     if (input.phone.trim() !== guardian.phone) {
