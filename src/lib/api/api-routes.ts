@@ -1164,6 +1164,7 @@ export const API_ROUTES = [
   "POST /api/v1/report-cards/remarks",
   "POST /api/v1/report-cards/remarks/band",
   "POST /api/v1/report-cards/send",
+  "POST /api/v1/report-cards/send/preview",
   "POST /api/v1/report-cards/unpublish",
   "POST /api/v1/report-cards/withhold",
   "POST /api/v1/scheme-of-work",

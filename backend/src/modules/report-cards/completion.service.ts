@@ -7,6 +7,7 @@ import type { SessionPayload } from "../../../../src/lib/auth/session-core";
 import { prisma } from "../../../../src/lib/db/prisma";
 import { fullName } from "../attendance-management/attendance.shared";
 import { notifyGuardian } from "../guardian-management/guardians.shared";
+import { SMS_NAIRA } from "../communications/family-dispatch.service";
 import { type ArmData, loadAll, loadArm, loadStaffNames } from "../score-results/arm";
 import { syncResultSheets } from "../score-results/sync";
 import { portalOf } from "../student-records/records.shared";
@@ -284,11 +285,111 @@ export class CompletionService {
     return { href: `/print/cards?${params.toString()}`, hrefLabel: "Open the print run", cards: count, drafts, fields: [["Cards", String(count)], ["Drafts", drafts ? `${drafts} watermarked DRAFT — never handed out by mistake` : "None — every card is final"]] };
   }
 
+  /** The channels a send really uses: in-app always, and what the person ticked (WhatsApp goes as the SMS it is today). */
+  private channelsOf(channels: string[]) {
+    return Array.from(new Set(["In-app", ...channels.flatMap((channel) => (/sms|whatsapp/i.test(channel) ? ["SMS"] : /email/i.test(channel) ? ["Email"] : []))]));
+  }
+
+  /**
+   * Who a send of report cards would write to, and what it would cost — worked out the way `send` does it, and written nowhere.
+   * An SMS is one credit to each guardian it reaches; the school pays for it when the carrier takes it, so the cost is known before.
+   */
+  private async sendPlan(schoolId: string, term: Awaited<ReturnType<CardService["term"]>>, input: z.infer<typeof sendSchema>, willPublish: boolean) {
+    const arms = await this.targets(schoolId, term, input);
+    const only = new Set(input.students);
+    const channelSet = this.channelsOf(input.channels);
+    const policy = willPublish ? await loadPolicy(schoolId) : null;
+    let cards = 0;
+    let unreached = 0;
+    let waiting = 0;
+    const guardianIds = new Set<string>();
+    const targetsOf = new Map<string, string[]>();
+    for (const arm of arms) {
+      const owing = policy?.withholdForDebt ? await owingStudents(schoolId, term.id, arm.students.map((student) => student.id)) : undefined;
+      const children = (await childCards(schoolId, term.id, arm, owing, policy ?? undefined)).filter((card) => !only.size || only.has(card.id));
+      for (const child of children) {
+        // A card goes only once it is out: already, or because this send publishes it too.
+        const goes = child.published || (willPublish && child.state === "Ready" && !child.owes);
+        if (!goes) { if (child.state !== "Withheld") waiting += 1; continue; }
+        const links = await prisma.studentGuardian.findMany({ where: { studentId: child.id }, select: { isPrimary: true, guardianId: true } });
+        const targets = /primary/i.test(input.recipients) ? links.filter((link) => link.isPrimary).slice(0, 1) : links;
+        targetsOf.set(child.id, (targets.length ? targets : links.slice(0, 1)).map((link) => link.guardianId));
+        cards += 1;
+      }
+    }
+    for (const ids of targetsOf.values()) for (const id of ids) guardianIds.add(id);
+    const people = await prisma.guardian.findMany({ where: { schoolId, id: { in: [...guardianIds] } }, select: { id: true, userId: true, phone: true, email: true, canReceiveSms: true, canReceiveEmail: true } });
+    const byId = new Map(people.map((person) => [person.id, person]));
+    let sms = 0;
+    let email = 0;
+    let inApp = 0;
+    const reachedGuardians = new Set<string>();
+    for (const [, ids] of targetsOf) {
+      let reached = false;
+      for (const id of ids) {
+        const person = byId.get(id);
+        if (!person) continue;
+        const via: string[] = [];
+        if (channelSet.includes("In-app") && person.userId) via.push("In-app");
+        if (channelSet.includes("SMS") && person.canReceiveSms && person.phone) via.push("SMS");
+        if (channelSet.includes("Email") && person.canReceiveEmail && person.email) via.push("Email");
+        if (!via.length) continue;
+        reached = true;
+        reachedGuardians.add(id);
+        if (via.includes("SMS")) sms += 1;
+        if (via.includes("Email")) email += 1;
+        if (via.includes("In-app")) inApp += 1;
+      }
+      if (!reached) unreached += 1;
+    }
+    return { cards, guardians: reachedGuardians.size, sms, email, inApp, unreached, waiting };
+  }
+
+  /** What sending the cards would do and cost, before anything goes: the review step's answer. It changes nothing. */
+  async previewSend(session: SessionPayload, body: unknown) {
+    const input = sendSchema.parse(body);
+    const schoolId = session.schoolId;
+    if (!input.channels.length) throw new BadRequestException("Choose at least one channel.");
+    const term = await this.cards.term(schoolId);
+    const plan = await this.sendPlan(schoolId, term, input, input.publish);
+    if (!plan.cards) throw new BadRequestException("No published card in that scope. Publish them first, or tick “Also publish to the portals now”.");
+    const wallet = await prisma.notificationWallet.findUnique({ where: { schoolId } });
+    const balance = wallet?.smsBalance ?? 0;
+    const naira = Math.round(plan.sms * SMS_NAIRA * 100) / 100;
+    const money = (value: number) => `₦${value.toLocaleString("en-NG", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    const enough = plan.sms === 0 || balance >= plan.sms;
+    const facts: Array<[string, string, string]> = [
+      ["Cards", String(plan.cards), plan.waiting ? `${plan.waiting} more are not published or not final, so they are left out` : "Every published card in the scope"],
+      ["Guardians written to", String(plan.guardians), plan.unreached ? `${plan.unreached} ${plan.unreached === 1 ? "child has" : "children have"} no guardian who can be reached on these channels` : "Every card has a guardian who can be reached"],
+      ["In-app", plan.inApp ? String(plan.inApp) : "None", "Free"],
+      ["Email", plan.email ? String(plan.email) : "None", "Free"],
+      ["SMS", plan.sms ? `${plan.sms} credits` : "None", plan.sms ? `One credit for each guardian reached · ${money(SMS_NAIRA)} a credit` : "No SMS is sent"],
+      ["Cost", money(naira), plan.sms ? "Taken from the SMS balance as each message is accepted" : "Nothing is charged"],
+      ...(plan.sms ? ([["SMS balance now", `${balance} credits`, ""], ["SMS balance after", `${enough ? balance - plan.sms : balance} credits`, enough ? "" : "Not enough — see below"]] as Array<[string, string, string]>) : []),
+    ];
+    return {
+      facts,
+      canSend: enough,
+      cards: plan.cards,
+      credits: plan.sms,
+      naira,
+      balanceBefore: balance,
+      balanceAfter: enough ? balance - plan.sms : balance,
+      note: enough ? "Nothing has been sent or charged yet. It cannot be recalled once it leaves." : `This needs ${plan.sms} SMS credits and the school has ${balance}. Untick SMS to send by email and in-app only, or ask the office to top up.`,
+    };
+  }
+
   async send(session: SessionPayload, body: unknown) {
     const input = sendSchema.parse(body);
     const schoolId = session.schoolId;
     const term = await this.cards.term(schoolId);
     if (!input.channels.length) throw new BadRequestException("Choose at least one channel.");
+    // The same answer the review step gave: a send the school cannot pay for does not start, rather than going out and being held.
+    const expected = await this.sendPlan(schoolId, term, input, input.publish);
+    if (expected.sms) {
+      const wallet = await prisma.notificationWallet.findUnique({ where: { schoolId } });
+      if ((wallet?.smsBalance ?? 0) < expected.sms) throw new BadRequestException(`This needs ${expected.sms} SMS credits and the school has ${wallet?.smsBalance ?? 0}. Untick SMS to send by email and in-app only, or ask the office to top up.`);
+    }
     if (input.publish) {
       try {
         await this.publish(session, body);
@@ -299,7 +400,7 @@ export class CompletionService {
     }
     const arms = await this.targets(schoolId, term, input);
     const only = new Set(input.students);
-    const channelSet = Array.from(new Set(["In-app", ...input.channels.flatMap((channel) => (/sms|whatsapp/i.test(channel) ? ["SMS"] : /email/i.test(channel) ? ["Email"] : []))]));
+    const channelSet = this.channelsOf(input.channels);
     let cardsSent = 0;
     let guardians = 0;
     let credits = 0;

@@ -534,6 +534,8 @@ function DrawerPanel({
   const [reviewing, setReviewing] = useState(false);
   const [tried, setTried] = useState(false);
   const router = useRouter();
+  /** What a send would do and cost, asked for when the review step opens — before anything is written or charged. */
+  const [outlook, setOutlook] = useState<{ state: "asking" | "ready" | "refused"; facts: PanelFact[]; canSend: boolean; note: string } | null>(null);
 
   /** Each field's value as the modal opened, so a change can name what it replaces. */
   const before = useMemo(() => {
@@ -645,6 +647,23 @@ function DrawerPanel({
   const noun = String(spec.remove?.noun ?? spec.title)
     .replace(/^(add|create|new|edit)\s+(an?\s+)?/i, "")
     .toLowerCase();
+
+  const outlookEndpoint = spec.submit?.preview?.endpoint;
+  useEffect(() => {
+    if (!reviewing || !outlookEndpoint || !spec.submit) {
+      setOutlook(null);
+      return;
+    }
+    let cancelled = false;
+    setOutlook({ state: "asking", facts: [], canSend: false, note: "Working out who this reaches and what it costs…" });
+    sendJsonForData<{ facts?: PanelFact[]; canSend?: boolean; note?: string }>(outlookEndpoint, "POST", buildBody(spec.submit, allFields, values, reason))
+      .then((answer) => { if (!cancelled) setOutlook({ state: "ready", facts: answer?.facts ?? [], canSend: answer?.canSend !== false, note: answer?.note ?? "" }); })
+      .catch((cause) => { if (!cancelled) setOutlook({ state: "refused", facts: [], canSend: false, note: cause instanceof Error ? cause.message : "That could not be worked out." }); });
+    return () => { cancelled = true; };
+    // The answer is for the values the review step opened with; it is asked again only when that step is opened again.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [reviewing, outlookEndpoint]);
+  const outlookBlocks = Boolean(outlookEndpoint) && reviewing && (!outlook || outlook.state !== "ready" || !outlook.canSend);
 
   async function commit() {
     setConfirm(null);
@@ -973,6 +992,17 @@ function DrawerPanel({
                     </div>
                   ))}
                 </dl>
+                {outlook ? (
+                  <div className="grid gap-[9px]" aria-live="polite">
+                    {outlook.state === "ready" ? <FactRows facts={outlook.facts} /> : null}
+                    <p
+                      className="rounded-[11px] border px-[13px] py-[10px] text-pretty text-[11.5px] leading-[1.5]"
+                      style={outlook.state === "refused" || !outlook.canSend ? { background: "#FBEFEF", borderColor: "#F0D4D4", color: "#8F2D2D" } : { background: "#F4F7F5", borderColor: "#E4EDE8", color: MUTED }}
+                    >
+                      {outlook.note}
+                    </p>
+                  </div>
+                ) : null}
               </>
             ) : null}
 
@@ -1124,7 +1154,7 @@ function DrawerPanel({
                     if (staged) setConfirm("save"); else void commit();
                   }}
                   hidden={!onLastStep || (staged && !reviewing)}
-                  disabled={pending}
+                  disabled={pending || outlookBlocks}
                   className="whitespace-nowrap rounded-[9px] px-[17px] py-[10px] text-[11.5px] font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
                   style={{
                     background: INK,

@@ -118,6 +118,14 @@ export class ReportCardsController {
     return ok(this.completion.send(session, body), "Cards sent.");
   }
 
+  /** What sending would reach and cost. It sends nothing and takes nothing. */
+  @Post("send/preview")
+  @UseGuards(SessionGuard, CsrfGuard, PermissionsGuard)
+  @RequirePermission("report-cards.completion.edit")
+  previewSend(@CurrentSession() session: SessionPayload, @Body() body: Record<string, unknown>) {
+    return ok(this.completion.previewSend(session, body));
+  }
+
   @Get("completion/:classId")
   @RequirePermission("report-cards.completion.view")
   armPage(@CurrentSession() session: SessionPayload, @Param("classId") classId: string) {

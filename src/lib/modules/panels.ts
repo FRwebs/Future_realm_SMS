@@ -79,6 +79,12 @@ export type DrawerSubmit = {
    * takes "who covers each of these" as a record. `encode` still applies to each value.
    */
   nest?: Record<string, [key: string, entry: string]>;
+  /**
+   * A send that costs something shows what it would do before it can be confirmed. On the review step the drawer asks this endpoint
+   * (with the same body the save would carry) and shows its answer — `{ facts: [label, value, hint][], canSend, note }` — and the
+   * confirm button stays shut while it cannot go. The endpoint changes nothing.
+   */
+  preview?: { endpoint: string };
   /** Set this and the drawer asks for a reason, sent under this key. */
   reasonKey?: string;
   reasonLabel?: string;

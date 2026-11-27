@@ -148,7 +148,7 @@ export function sendDrawer(o: { label: string; ready: number; total: number; sco
   return {
     mode: "form", kicker: o.label, title: "Send cards to guardians", sub: "Only published cards can be sent.",
     commitLabel: "Send them", commitDone: "Cards sent", commitDoneBody: "Every guardian on the list has been written to, by the channels you chose.",
-    reviewNote: "This is a send outside the app, so it costs credits and cannot be recalled once it leaves.",
+    reviewNote: "This is a send outside the app. It cannot be recalled once it leaves, and SMS takes credits — what it reaches and costs is shown below before you confirm.",
     fields: [
       fixed("Scope", `${o.label} · ${plural(o.ready, "card")} ready`, { hint: skipped ? `${skipped} children are skipped — their card is not final` : "Every card here is final" }),
       checks("Channels", ["SMS with a portal link · 1 credit each", "Email with a link · free", "WhatsApp · 1 credit each", "Printed copy for collection · free"], ["SMS with a portal link · 1 credit each", "Email with a link · free"], { span: 2, required: true, hint: "The in-app portal is always used. SMS and email are queued, not yet delivered." }),
@@ -156,7 +156,8 @@ export function sendDrawer(o: { label: string; ready: number; total: number; sco
       area("Message", { span: 2, required: true, value: `Dear parent, your child's ${o.term} report card is now available. You can open it in the parent portal. — ${o.school || "the school"}` }),
       toggle("Also publish to the portals now", true, "Published to the student and guardian portal", "Send only — do not publish", { span: 2 }),
     ],
-    submit: { endpoint: `${RC}/send`, method: "POST", body: o.scope as Record<string, unknown>, map: { Channels: "channels", Recipients: "recipients", Message: "message", "Also publish to the portals now": "publish" } },
+    // The review step asks what it would reach and cost — credits, naira, the balance before and after — before anything leaves.
+    submit: { endpoint: `${RC}/send`, method: "POST", body: o.scope as Record<string, unknown>, map: { Channels: "channels", Recipients: "recipients", Message: "message", "Also publish to the portals now": "publish" }, preview: { endpoint: `${RC}/send/preview` } },
   };
 }
 
