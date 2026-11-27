@@ -10,6 +10,8 @@ import { plansFeatures } from "../plans-features/plans-features.service";
 import { armName, fullName } from "../fee-management/fees.shared";
 
 export const SMS_NAIRA = 3.8;
+/** Why a family was left out of a send that needs the guardian's agreement. Shown beside them, and counted before the cost. */
+export const NO_CONSENT = "Has not agreed to notifications";
 const bad = (body: string) => { const names = unknownFields(body); return names.length ? `${names.map((name) => `{${name}}`).join(", ")} ${names.length === 1 ? "is not a merge field" : "are not merge fields"} — use {Guardian}, {Child} or {Class}.` : null; };
 
 export type Family = {
@@ -19,6 +21,8 @@ export type Family = {
   kids?: Array<{ first: string; arm: string }>;
   /** What this family chose to hear by SMS and email; null when they never chose. */
   choices?: FamilyChoices;
+  /** Whether the guardian has agreed to the school's notification channels (the consent every non-emergency send needs). */
+  consented?: boolean;
 };
 export type PlannedRow = Family & { text: string; segments: number; reachable: boolean; reason: string | null };
 
@@ -44,10 +48,12 @@ export class FamilyDispatchService {
     });
     const accounts = await prisma.user.findMany({ where: { id: { in: rows.map((guardian) => guardian.userId).filter((id): id is string => Boolean(id)) } }, select: { id: true, preferences: true } });
     const chosen = new Map(accounts.map((account) => [account.id, account.preferences as FamilyChoices]));
+    // Agreeing to be written to is the guardian's own, once, whatever the number of children: the notification-channels consent.
+    const agreed = new Set((await prisma.familyConsent.findMany({ where: { guardianId: { in: rows.map((guardian) => guardian.id) }, typeCode: "channels", status: "GIVEN", studentId: "" }, select: { guardianId: true } })).map((row) => row.guardianId));
     return rows.map((guardian) => {
       const kids = guardian.students.filter((link) => link.student.status === "ACTIVE");
       return {
-        id: guardian.id, name: fullName(guardian), phone: guardian.phone, email: guardian.email, canSms: guardian.canReceiveSms, canEmail: guardian.canReceiveEmail, canWhatsApp: guardian.userId ? whatsappChosen(chosen.get(guardian.userId)) : false, userId: guardian.userId, language: guardian.language, choices: guardian.userId ? chosen.get(guardian.userId) ?? null : null,
+        id: guardian.id, name: fullName(guardian), phone: guardian.phone, email: guardian.email, canSms: guardian.canReceiveSms, canEmail: guardian.canReceiveEmail, canWhatsApp: guardian.userId ? whatsappChosen(chosen.get(guardian.userId)) : false, userId: guardian.userId, language: guardian.language, choices: guardian.userId ? chosen.get(guardian.userId) ?? null : null, consented: agreed.has(guardian.id),
         kids: kids.map((link) => ({ first: link.student.firstName, arm: link.student.currentClass ? armName(link.student.currentClass) : "" })),
         children: kids.map((link) => link.student.firstName), arms: [...new Set(kids.map((link) => (link.student.currentClass ? armName(link.student.currentClass) : "")).filter(Boolean))],
       };
@@ -55,7 +61,7 @@ export class FamilyDispatchService {
   }
 
   /** What each family would read and what it would cost, before anything is sent. */
-  plan(channel: Channel, body: string, families: Family[], name = ""): { rows: PlannedRow[]; credits: number; reach: number } {
+  plan(channel: Channel, body: string, families: Family[], name = "", options: { requireConsent?: boolean } = {}): { rows: PlannedRow[]; credits: number; reach: number; noConsent: number } {
     const bad = unknownFields(body);
     if (bad.length) throw new BadRequestException(`${bad.map((name) => `{${name}}`).join(", ")} ${bad.length === 1 ? "is not a merge field" : "are not merge fields"} — use {Guardian}, {Child} or {Class}.`);
     // A family that asked for one message per child is written to child by child: the same words, each with that child's own name and class.
@@ -67,12 +73,14 @@ export class FamilyDispatchService {
     const rows = addressed.map((family) => {
       const text = mergeBody(body, { Guardian: family.name, Child: joinNames(family.children) || "your child", Class: joinNames(family.arms) || "your child’s class" });
       const contact = reachOf(channel, { phone: family.phone, email: family.email, canSms: family.canSms, canEmail: family.canEmail, canWhatsApp: family.canWhatsApp });
+      // Without the guardian's agreement to be written to, nothing but an emergency goes — and it is left out here, before the count and the cost.
+      const consent = options.requireConsent && !family.consented ? ({ ok: false, reason: NO_CONSENT } as const) : null;
       // A family's own choice about what to hear by SMS or email comes after whether they can be reached at all.
-      const reach = contact.ok ? familyAllows(family.choices, channel, `${name} ${body}`) : contact;
+      const reach = consent ?? (contact.ok ? familyAllows(family.choices, channel, `${name} ${body}`) : contact);
       return { ...family, text, segments: channel === "SMS" ? smsSegments(text) : channel === "WHATSAPP" && reach.ok ? 1 : 0, reachable: reach.ok, reason: reach.ok ? null : reach.reason };
     });
     const reached = rows.filter((row) => row.reachable);
-    return { rows, credits: reached.reduce((sum, row) => sum + row.segments, 0), reach: reached.length };
+    return { rows, credits: reached.reduce((sum, row) => sum + row.segments, 0), reach: reached.length, noConsent: rows.filter((row) => row.reason === NO_CONSENT).length };
   }
 
   /** The words a family reads as the title of a message: the first line, trimmed. */
@@ -86,12 +94,12 @@ export class FamilyDispatchService {
     const campaign = await prisma.messageCampaign.findUnique({ where: { id: campaignId } });
     if (!campaign) throw new NotFoundException("That send is not in this school's list.");
     if (campaign.status === MessageCampaignStatus.SENT) return { reach: campaign.recipientCount, credits: campaign.creditsUsed, already: true };
-    const audience = (campaign.audience ?? {}) as { guardianIds?: string[]; acknowledge?: boolean };
+    const audience = (campaign.audience ?? {}) as { guardianIds?: string[]; acknowledge?: boolean; consent?: boolean };
     const channel = campaign.channel as Channel;
     const families = await this.families(campaign.schoolId, audience.guardianIds);
     if (!families.length) throw new BadRequestException("Nobody is on record for that audience, so there is nothing to send.");
-    const planned = this.plan(channel, campaign.body, families, campaign.name);
-    if (!planned.reach) throw new BadRequestException("Nobody in that audience can be reached on this channel, so there is nothing to send. Fix the contact details first.");
+    const planned = this.plan(channel, campaign.body, families, campaign.name, { requireConsent: audience.consent === true });
+    if (!planned.reach) throw new BadRequestException(planned.noConsent === families.length ? "No family in that audience has agreed to notifications, so there is nothing to send. Ask them for consent first (Parents & Guardians > Consent), or switch the consent rule off for an emergency." : "Nobody in that audience can be reached on this channel, so there is nothing to send. Fix the contact details first.");
     const school = await prisma.school.findUnique({ where: { id: campaign.schoolId }, select: { name: true } });
     const stamp = new Date();
     const sms = channel === "SMS";

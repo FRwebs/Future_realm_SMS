@@ -33,6 +33,8 @@ const UNREACHABLE_PHONE = "\u2014";
 const composeSchema = z.object({
   name: z.string().trim().min(3, "Give the send a name somebody will recognise later."),
   audience: z.enum(["One person", "Selected people", "Guardians", "Staff", "Everyone"]).optional(),
+  // Only families who have agreed to notifications are written to, unless the school switches that off — which is for an emergency.
+  requireConsent: z.coerce.boolean().default(true),
   channel: z.nativeEnum(NotificationChannel).default(NotificationChannel.SMS),
   body: z.string().trim().min(8, "A message needs something in it."),
   scheduledAt: z.string().datetime().optional(),
@@ -195,6 +197,8 @@ export type AudienceSnapshot = {
   key: string;
   matched: number;
   unreachable: number;
+  /** Families left out because the guardian has not agreed to notifications (counted before the cost). */
+  noConsent: number;
   reach: number;
   credits: number;
   naira: number;
@@ -241,26 +245,31 @@ export class CommunicationCenterService {
   async audience(session: SessionPayload, key = "Guardians"): Promise<AudienceSnapshot[]> {
     const schoolId = session.schoolId;
 
-    const [guardians, guardiansNoPhone, staff, staffInactive] = await Promise.all([
+    const [guardians, guardiansNoPhone, staff, staffInactive, agreed] = await Promise.all([
       prisma.guardian.count({ where: { schoolId } }),
       // Guardian.phone is a non-null column, so "no number" shows up as an empty
       // string or the em dash the registry writes when there is nothing on file.
       prisma.guardian.count({ where: { schoolId, OR: [{ phone: "" }, { phone: UNREACHABLE_PHONE }] } }),
       prisma.staffProfile.count({ where: { schoolId } }),
       prisma.staffProfile.count({ where: { schoolId, user: { accountStatus: { not: "ACTIVE" } } } }),
+      // A guardian has one answer on notification channels, whatever the number of children.
+      prisma.familyConsent.count({ where: { schoolId, typeCode: "channels", status: "GIVEN", studentId: "" } }),
     ]);
+    const noConsent = Math.max(0, guardians - Math.min(guardians, agreed));
 
     const make = (
       name: string,
       matched: number,
       unreachable: number,
       description: string,
+      excluded = 0,
     ): AudienceSnapshot => {
-      const reach = Math.max(0, matched - unreachable);
+      const reach = Math.max(0, matched - unreachable - excluded);
       return {
         key: name,
         matched,
         unreachable,
+        noConsent: excluded,
         reach,
         credits: reach,
         naira: Math.round(reach * SMS_NAIRA * 100) / 100,
@@ -271,13 +280,14 @@ export class CommunicationCenterService {
     const all: AudienceSnapshot[] = [
       make("One person", 1, 0, "A single guardian or staff member, by name."),
       make("Selected people", 0, 0, "A handful you pick by hand."),
-      make("Guardians", guardians, guardiansNoPhone, "Every family, or a filtered group of them."),
+      make("Guardians", guardians, guardiansNoPhone, "Every family, or a filtered group of them.", noConsent),
       make("Staff", staff, staffInactive, "Teaching and non-teaching staff."),
       make(
         "Everyone",
         guardians + staff,
         guardiansNoPhone + staffInactive,
         "Every guardian and every staff member at once.",
+        noConsent,
       ),
     ];
 
@@ -374,9 +384,13 @@ export class CommunicationCenterService {
     const snapshots = await this.audience(session, audienceKey);
     const snapshot = snapshots.find((item) => item.key === audienceKey);
     if (!snapshot) throw new BadRequestException("That audience is not one this school can send to.");
-    if (snapshot.reach === 0) {
+    // With the consent rule off (an emergency) the families who have not agreed are in the audience again.
+    const audienceReach = parsed.requireConsent ? snapshot.reach : snapshot.reach + snapshot.noConsent;
+    if (audienceReach === 0) {
       throw new BadRequestException(
-        "Nobody in that audience can be reached, so there is nothing to send. Fix the contact details first.",
+        parsed.requireConsent && snapshot.noConsent > 0
+          ? "No family in that audience has agreed to notifications, so there is nothing to send. Ask them for consent first (Parents & Guardians > Consent), or switch the consent rule off for an emergency."
+          : "Nobody in that audience can be reached, so there is nothing to send. Fix the contact details first.",
       );
     }
 
@@ -386,10 +400,10 @@ export class CommunicationCenterService {
     const toStaff = audienceKey === "Staff";
     // WhatsApp is opt-in, so who it reaches is not who has a phone: it is the families that chose it, for this kind of message. That number —
     // not the size of the audience — is what the approval threshold and the Sent tab have to be told.
-    let reach = snapshot.reach;
+    let reach = audienceReach;
     if (parsed.channel === NotificationChannel.WHATSAPP) {
       if (toStaff) throw new BadRequestException("Staff are not written to on WhatsApp. Choose SMS, email or in-app.");
-      reach = this.dispatcher.plan("WHATSAPP", parsed.body, await this.dispatcher.families(session.schoolId), parsed.name).reach;
+      reach = this.dispatcher.plan("WHATSAPP", parsed.body, await this.dispatcher.families(session.schoolId), parsed.name, { requireConsent: parsed.requireConsent }).reach;
       if (reach === 0) throw new BadRequestException("No family has chosen WhatsApp for this kind of message, so there is nothing to send. Families switch it on under Notifications in their portal.");
     }
     const threshold = await this.threshold(session.schoolId);
@@ -402,7 +416,7 @@ export class CommunicationCenterService {
         name: parsed.name,
         channel: parsed.channel,
         audienceLabel: audienceKey,
-        audience: { key: audienceKey } as Prisma.InputJsonObject,
+        audience: { key: audienceKey, consent: parsed.requireConsent } as Prisma.InputJsonObject,
         body: parsed.body,
         status: needsApproval
           ? MessageCampaignStatus.AWAITING_APPROVAL
@@ -438,6 +452,7 @@ export class CommunicationCenterService {
       status,
       reach,
       unreachable: snapshot.unreachable,
+      noConsent: parsed.requireConsent ? snapshot.noConsent : 0,
       credits,
       threshold: Number.isFinite(threshold) ? threshold : null,
       needsApproval,
@@ -466,11 +481,13 @@ export class CommunicationCenterService {
     let reach = 0;
     let credits = 0;
     let left = 0;
+    let noConsent = 0;
     if (!toStaff) {
-      const plan = this.dispatcher.plan(channel, parsed.body, await this.dispatcher.families(session.schoolId), parsed.name);
+      const plan = this.dispatcher.plan(channel, parsed.body, await this.dispatcher.families(session.schoolId), parsed.name, { requireConsent: parsed.requireConsent });
       reach += plan.reach;
       credits += plan.credits;
       left += plan.rows.length - plan.reach;
+      noConsent += plan.noConsent;
     }
     if (toStaff || everyone) {
       const staff = await this.dispatcher.planStaff(session.schoolId, channel, parsed.body);
@@ -478,7 +495,13 @@ export class CommunicationCenterService {
       credits += staff.credits;
       left += staff.left;
     }
-    if (reach === 0) throw new BadRequestException("Nobody in that audience can be reached on this channel, so there is nothing to send. Fix the contact details first, or choose another channel.");
+    if (reach === 0) {
+      throw new BadRequestException(
+        parsed.requireConsent && noConsent > 0
+          ? "No family in that audience has agreed to notifications, so there is nothing to send. Ask them for consent first (Parents & Guardians > Consent), or switch the consent rule off for an emergency."
+          : "Nobody in that audience can be reached on this channel, so there is nothing to send. Fix the contact details first, or choose another channel.",
+      );
+    }
 
     const whatsapp = parsed.channel === NotificationChannel.WHATSAPP;
     const wallet = await prisma.notificationWallet.findUnique({ where: { schoolId: session.schoolId } });
@@ -494,7 +517,8 @@ export class CommunicationCenterService {
 
     const facts: Array<[string, string, string]> = [
       ["Channel", channelName[parsed.channel] ?? parsed.channel, parsed.channel === NotificationChannel.IN_APP ? "Free — it reaches the portal and the app" : ""],
-      ["Reaches", `${reach} ${reach === 1 ? "person" : "people"}`, left ? `${left} left out — no contact on this channel, or they have chosen not to receive it` : "Everyone in the audience"],
+      ["Reaches", `${reach} ${reach === 1 ? "person" : "people"}`, left ? `${left} left out — ${noConsent ? `${noConsent} ${noConsent === 1 ? "has" : "have"} not agreed to notifications; ` : ""}${left - noConsent > 0 ? "no contact on this channel, or they chose not to receive it" : ""}`.replace(/; $/, "") : "Everyone in the audience"],
+      ...(parsed.requireConsent ? [] : ([["Consent", "Not required for this send", "Only for an emergency — families who never agreed to notifications are written to"]] as Array<[string, string, string]>)),
       ["Credits", credits ? String(credits) : "None", credits ? `One per ${whatsapp ? "message" : "SMS segment"}` : "This channel uses no credits"],
       ["Cost", credits ? money(naira) : "₦0.00", credits ? `At ${money(pricePer)} a credit` : "Nothing is charged"],
       ...(credits ? ([["Balance now", `${balance} ${unit}`, ""], ["Balance after", `${enough ? balance - credits : balance} ${unit}`, enough ? "" : "Not enough — see below"]] as Array<[string, string, string]>) : []),

@@ -678,6 +678,16 @@ async function recordStudentAccountConsents() {
     skipDuplicates: true,
   });
   console.log(`[seed] Student account consent recorded for ${links.length} student–guardian links.`);
+
+  // Guardians with a portal account have agreed to be written to, so a demo send reaches them: every non-emergency message needs it.
+  const guardians = await prisma.guardian.findMany({ where: { userId: { not: null } }, select: { id: true, schoolId: true } });
+  if (guardians.length) {
+    await prisma.familyConsent.createMany({
+      data: guardians.map((guardian) => ({ schoolId: guardian.schoolId, guardianId: guardian.id, studentId: "", typeCode: "channels", status: "GIVEN", means: "IN_PERSON", noticeVersion: "standard" })),
+      skipDuplicates: true,
+    });
+    console.log(`[seed] Notification consent recorded for ${guardians.length} guardians.`);
+  }
 }
 
 async function resetStudentPortalPasswords({

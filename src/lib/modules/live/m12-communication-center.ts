@@ -29,6 +29,8 @@ type Audience = {
   key: string;
   matched: number;
   unreachable: number;
+  /** Families left out because the guardian has not agreed to notifications. */
+  noConsent?: number;
   reach: number;
   credits: number;
   naira: number;
@@ -215,7 +217,7 @@ function composeTab(audiences: Audience[], to: string): TabContent {
             tone: chosen.reach > 500 ? "attention" : "progress",
             icon: ICON.coins,
             title: `This send will reach ${chosen.reach} ${chosen.reach === 1 ? "person" : "people"} and cost ${chosen.credits} SMS credits · ${naira(chosen.naira)}`,
-            body: `${chosen.matched} match, ${chosen.unreachable} cannot be reached and are excluded before this count, so ${chosen.reach} will actually receive it. The number you approve is the number that gets delivered — never an optimistic one.`,
+            body: `${chosen.matched} match, ${chosen.unreachable} cannot be reached${chosen.noConsent ? ` and ${chosen.noConsent} have not agreed to notifications` : ""} and are excluded before this count, so ${chosen.reach} will actually receive it. The number you approve is the number that gets delivered — never an optimistic one.`,
             acts: [
               ...(chosen.unreachable
                 ? [
@@ -268,7 +270,7 @@ function composeTab(audiences: Audience[], to: string): TabContent {
                 sub: staffTo
                   ? "Filter the staff list by role, department or account state."
                   : "Filters with a live count — saved as criteria, never as a frozen list.",
-                meta: `${chosen.matched} matched · ${chosen.unreachable} cannot be reached · ${chosen.reach} will receive`,
+                meta: `${chosen.matched} matched · ${chosen.unreachable} cannot be reached${chosen.noConsent ? ` · ${chosen.noConsent} not agreed to notifications` : ""} · ${chosen.reach} will receive`,
                 fields: staffTo
                   ? [
                       { label: "Teaching or not", kind: "select", value: "Everyone", options: ["Everyone", "Teaching staff only", "Non-teaching staff only"] },
@@ -290,6 +292,12 @@ function composeTab(audiences: Audience[], to: string): TabContent {
                         on: true,
                         onLabel: "Consent required",
                         offLabel: "Ignore consent · emergencies only",
+                      },
+                      {
+                        label: "Have not agreed to notifications",
+                        kind: "static",
+                        value: `${chosen.noConsent ?? 0} left out before the count`,
+                        hint: "Only an emergency goes to a family that has not agreed. Switch the rule off above for one.",
                       },
                       {
                         label: "Cannot be reached",
@@ -351,7 +359,7 @@ function composeTab(audiences: Audience[], to: string): TabContent {
               endpoint: `${BASE}/campaigns?to=${encodeURIComponent(chosen.key)}`,
               method: "POST",
               // The channel the person picked is the channel that is used — it travels with the send, never assumed to be SMS.
-              map: { "Name this send": "name", Channel: "channel", Message: "body" },
+              map: { "Name this send": "name", Channel: "channel", Message: "body", "Only families who consented to notifications": "requireConsent" },
               encode: { Channel: { "In-app · free": "IN_APP", "SMS · ₦3.80 each": "SMS", Email: "EMAIL", "Rich messaging": "WHATSAPP" } },
               // The first press asks what it would reach and cost; only the second sends.
               preview: { endpoint: `${BASE}/campaigns/preview?to=${encodeURIComponent(chosen.key)}`, confirmLabel: "Send it" },
