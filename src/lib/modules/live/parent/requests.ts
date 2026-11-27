@@ -15,6 +15,10 @@ type Requests = {
   today: string; items: Item[]; typical: number | null;
   types: Array<{ name: string; days: number; reviewer: string; accepted: boolean }>;
   children: Array<{ id: string; first: string; name: string }>;
+  /** The concerns this parent raised about a child's safety: received or closed, and never what the school did about them. */
+  concerns?: Array<{ id: string; child: string | null; urgent: boolean; closed: boolean; opened: string }>;
+  /** The school's own number, so a worried parent can ring at once. */
+  schoolPhone?: string | null;
   /** Named only when the family is at more than one school. */
   schools?: Array<{ id: string; name: string }>;
 };
@@ -63,6 +67,16 @@ export async function requestsPage(child: string, query: Record<string, string |
           items: startItems(data, one?.id),
         },
       ]),
+      ...(data.concerns?.length
+        ? [row("1fr", [{
+            type: "list" as const, title: "Concerns you raised", sub: "Held privately by the safeguarding lead and the Principal. Nobody else can read them.",
+            items: data.concerns.map((concern): ListItem => ({
+              label: `A concern about ${concern.child ?? "your child"}`,
+              sub: `Sent ${dShort(concern.opened)}${concern.urgent ? " · marked urgent" : ""}`,
+              pill: concern.closed ? "Closed" : "With the safeguarding lead", tone: concern.closed ? "neutral" : "progress",
+            })),
+          }])]
+        : []),
     ],
   };
 }
@@ -110,19 +124,50 @@ const KINDS: Array<{ type: string; label: string; sub: string; need: "child" | "
 
 function startItems(data: Requests, chosen?: string): ListItem[] {
   const kids = data.children;
-  const items: ListItem[] = KINDS.map((kind): ListItem => {
+  // First, and always on offer: a worried parent should not have to read past seven other types to find it.
+  const items: ListItem[] = [{
+    label: "A concern about my child’s safety or wellbeing",
+    sub: `Goes privately to the safeguarding lead and the Principal — not to the form master.${data.schoolPhone ? ` In danger now? Call the school on ${data.schoolPhone}.` : ""}`,
+    viewLabel: "Start", drawer: concernDrawer(data, chosen),
+  }];
+  items.push(...KINDS.map((kind): ListItem => {
     const type = data.types.find((entry) => entry.name === kind.type);
     if (!type?.accepted) return { label: kind.label, sub: "Not offered here — the school handles this in person.", pill: "In person", tone: "neutral" };
     const reply = type.days ? ` Answer within ${type.days} school ${type.days === 1 ? "day" : "days"}.` : "";
     const drawer = kind.type === "Record correction" ? correctionDrawer(kids, kids.find((entry) => entry.id === chosen)) : askDrawer(kind.type, data, chosen);
     return { label: kind.label, sub: `${kind.sub}${reply}`, viewLabel: "Start", drawer };
-  });
+  }));
   items.push(
     { label: "Update your contact details", sub: "A new phone number, email or home address.", viewLabel: "Start", href: "/portals/parent/account" },
     { label: "Give or withdraw a consent", sub: "Photography, health data, sharing results. Recorded at once.", viewLabel: "Start", href: "/portals/parent/consents" },
     { label: "Withdrawal or transfer notice", sub: "Your child is leaving the school. The school handles this in person.", pill: "In person", tone: "neutral" },
   );
   return items;
+}
+
+/**
+ * A concern about a child's safety or wellbeing. Not a request: no form master, no office, no clock a family could watch run — it goes to the
+ * safeguarding lead and the Principal, and the school's number is on the form and on the answer.
+ */
+function concernDrawer(data: Requests, chosen?: string): DrawerSpec {
+  const kids = data.children;
+  const phone = data.schoolPhone;
+  return {
+    kicker: "Requests", title: "A concern about my child’s safety or wellbeing", mode: "form",
+    sub: `Only the safeguarding lead and the Principal can read this — not the form master, not the school office.${phone ? ` If a child is in danger now, call the school on ${phone}.` : ""}`,
+    fields: [
+      { kind: "select", label: "Who is it about?", required: true, value: kids.find((entry) => entry.id === chosen)?.name ?? kids[0]?.name ?? "", options: kids.map((entry) => entry.name) },
+      { kind: "area", label: "What is worrying you?", required: true, value: "", placeholder: "Your own words — what you have seen or been told, and when. You do not need to be sure." },
+      { kind: "choice", label: "Is anyone in danger right now?", value: "No", options: ["No", "Yes"], hint: phone ? `If yes, call the school on ${phone} as well — do not wait for a reply.` : "If yes, call the school as well — do not wait for a reply." },
+    ],
+    confirmTitle: "Send this to the safeguarding lead?", commitLabel: "Send it privately", commitDone: "Sent privately",
+    commitDoneBody: "The safeguarding lead and the Principal have been told. Nobody else can read it.",
+    submit: {
+      endpoint: `${PW}/concerns`, method: "POST",
+      map: { "Who is it about?": "child", "What is worrying you?": "detail", "Is anyone in danger right now?": "urgent" },
+      encode: { "Who is it about?": Object.fromEntries(kids.map((entry) => [entry.name, entry.id])), "Is anyone in danger right now?": { No: "false", Yes: "true" } },
+    },
+  };
 }
 
 /** One form for the asks that are only words: a child, and what you would like to say. */

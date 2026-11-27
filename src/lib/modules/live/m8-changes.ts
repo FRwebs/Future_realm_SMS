@@ -68,7 +68,7 @@ export async function safeguardingRows(): Promise<import("@/lib/modules/panels")
   const v = await apiGet(`${SR}/safeguarding`, observe<Concerns>(localContracts["src/lib/modules/live/m8-changes.ts#8d57f908"])).catch(() => null);
   if (!v || !v.canRead) return [];
   const decide = (row: Concerns["rows"][number]): import("@/lib/modules/panels").DrawerSpec => ({
-    mode: "form", kicker: `${row.child} · ${row.arm}`, title: "Record what was done", sub: "Visible to the safeguarding lead alone. The person who raised it is told it was received — never what you decide.",
+    mode: "form", kicker: `${row.child} · ${row.arm}`, title: "Record what was done", sub: "Visible to the safeguarding lead and the Principal alone. The person who raised it is told it was received — never what you decide.",
     facts: [["Raised by", `${row.raisedBy}`, dayLabel(row.at)], ["What they said", row.summary, row.urgent ? "Marked urgent: someone may be in immediate danger" : ""]],
     commitLabel: "Record it", commitDone: "Recorded", commitDoneBody: "It is on the separate safeguarding audit stream.",
     fields: [

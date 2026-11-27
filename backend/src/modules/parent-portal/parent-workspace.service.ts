@@ -11,6 +11,7 @@ import { QUIET_HOURS, preferencesSchema, type Preferences } from "../../../../sr
 import { ANSWERS, FORMS, answerCode, reaches, type Answer, type FormData } from "../guardian-management/forms.shared";
 import { ConfigStore } from "../staff-access/staff-access.shared";
 import { collectorsFor } from "../../common/collectors";
+import { safeguardingLeads } from "../../common/safeguarding-leads";
 import { FAMILY_LEVEL, answerKey, loadConsentTypes } from "../student-records/consent.shared";
 import { openSubmission, submissionTypes } from "../guardian-management/submission-intake";
 import { deviceName, hide, icsFor } from "../student-portal/student-workspace.service";
@@ -1120,7 +1121,7 @@ export class ParentWorkspaceService {
    * ones the school's records actually hold — sent, with whom, and closed — never a story filled in around them.
    */
   async requests(session: SessionPayload, scope: string) {
-    const { guardianIds, schoolIds, children, siteAt, many, todayLead, todayAt } = await this.context(session);
+    const { guardian, guardianIds, schoolIds, children, siteAt, many, todayLead, todayAt } = await this.context(session);
     // Each school sets its own answer times for its own kinds of request; where they differ, the slower one is the honest promise.
     const perSchool = await Promise.all(schoolIds.map((id) => submissionTypes(id)));
     const types = [...new Map(perSchool.flat().map((type) => [type.name, type])).values()].map((type) => ({
@@ -1138,6 +1139,9 @@ export class ParentWorkspaceService {
     });
     const target = new Map(types.map((type) => [type.name, type.target]));
     const today = todayLead;
+    // A concern about a child's safety is not a request: it goes to the safeguarding lead alone, so it is listed here only as a line saying it was received.
+    const concernRows = await prisma.safeguardingConcern.findMany({ where: { raisedById: session.userId, schoolId: { in: schoolIds } }, orderBy: { createdAt: "desc" }, take: 20, select: { id: true, studentId: true, urgent: true, status: true, createdAt: true } });
+    const concernKids = new Map(children.map((student) => [student.id, student.firstName]));
     const items = rows.map((row) => {
       const open = row.state !== "RESOLVED" && row.state !== "DECLINED";
       const withdrawn = row.state === "DECLINED" && /^withdrawn by/i.test(row.outcome ?? "");
@@ -1160,10 +1164,62 @@ export class ParentWorkspaceService {
       : null;
     return {
       today, items, typical,
+      /** The concerns this parent has raised about a child's safety — received or closed, and nothing of what the school did, which is not theirs to see. */
+      concerns: concernRows.map((row) => ({ id: row.id, child: concernKids.get(row.studentId) ?? null, urgent: row.urgent, closed: row.status === "CLOSED", opened: isoDay(row.createdAt) })),
+      /** The school's own number, so a worried parent can ring at once. Where the family is at several schools it is each child's own school's. */
+      schoolPhone: siteAt(guardian.schoolId)?.mainPhone ?? null,
       /** Which schools a request about no child in particular can be sent to: named only when the family is at more than one. */
       schools: many ? schoolIds.map((id) => ({ id, name: siteAt(id)?.shortName?.trim() || siteAt(id)?.name || "" })) : [],
       types: types.map((type) => ({ name: type.name, days: type.target, reviewer: type.reviewer, accepted: type.accepted })),
       children: children.map((student) => ({ id: student.id, first: student.firstName, name: [student.firstName, student.middleName, student.lastName].filter(Boolean).join(" "), school: many ? siteAt(student.schoolId)?.shortName?.trim() || siteAt(student.schoolId)?.name || "" : "" })),
+    };
+  }
+
+  /**
+   * A parent's concern about a child's safety or wellbeing.
+   *
+   * It is not a request and does not go through the form master or the office: it is held by the safeguarding lead and the Principal,
+   * told in-app at once, and nobody else can read it. The family is handed the school's phone number in the answer — a worried parent
+   * should never have to find it.
+   */
+  async raiseConcern(session: SessionPayload, body: unknown) {
+    const input = z.object({
+      child: z.string().min(1, "Choose which child this is about."),
+      detail: z.string().trim().min(10, "Say what is worrying you, in your own words."),
+      urgent: z.coerce.boolean().default(false),
+    }).parse(body);
+    const { children, siteAt, guardian } = await this.context(session);
+    const child = children.find((student) => student.id === input.child);
+    if (!child) throw new NotFoundException("That child is not one of yours.");
+    const created = await prisma.safeguardingConcern.create({
+      data: { schoolId: child.schoolId, studentId: child.id, raisedById: session.userId, summary: input.detail, urgent: input.urgent },
+    });
+    const leads = (await safeguardingLeads(child.schoolId)).filter((id) => id !== session.userId);
+    // The people told are told who and how urgent, never what was written: they read that where only they can.
+    for (const userId of leads) {
+      await prisma.notificationLog.create({
+        data: {
+          schoolId: child.schoolId, userId, channel: "IN_APP",
+          title: input.urgent ? "URGENT · a parent has raised a safeguarding concern" : "A parent has raised a safeguarding concern",
+          body: `${child.firstName} ${child.lastName} · from ${guardian.firstName} ${guardian.lastName}. Open Student Records › Safeguarding to read it.`,
+          status: "QUEUED", sentAt: new Date(),
+        },
+      });
+    }
+    await prisma.auditLog.create({ data: { schoolId: child.schoolId, actorId: session.userId, action: "CREATE", entityType: "SafeguardingConcern", entityId: created.id, metadata: { summary: `Safeguarding concern raised by a parent${input.urgent ? " · urgent" : ""}`, leadsTold: leads.length } } });
+    const school = siteAt(child.schoolId);
+    const phone = school?.mainPhone?.trim() || null;
+    return {
+      id: created.id,
+      told: leads.length,
+      fields: [
+        ["Who has it", "The safeguarding lead and the Principal"],
+        ["Who does not", "Not the form master, and not the school office"],
+        ["The school's phone", phone ?? "Not on file — ask at the school gate"],
+      ],
+      note: input.urgent
+        ? `If a child is in danger now, do not wait for a reply: call the school${phone ? ` on ${phone}` : ""}, or the emergency services.`
+        : `You do not need to do anything else. If anything changes, or a child is in danger now, call the school${phone ? ` on ${phone}` : ""}.`,
     };
   }
 

@@ -195,6 +195,12 @@ export class ParentWorkspaceController {
     return { ok: true, data: await this.workspace.revokeSession(session, id, request.sessionTokenHash) };
   }
 
+  /** A concern about a child's safety or wellbeing: private to the safeguarding lead and the Principal. */
+  @Post("concerns")
+  async raiseConcern(@CurrentSession() session: SessionPayload, @Body() body: unknown) {
+    return { ok: true, data: await this.workspace.raiseConcern(session, body) };
+  }
+
   /** A request to change contact details, or for a copy of what the school holds. */
   @Post("account/requests")
   async requestAccount(@CurrentSession() session: SessionPayload, @Body() body: unknown) {

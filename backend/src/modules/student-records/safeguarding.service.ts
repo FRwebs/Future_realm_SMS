@@ -4,24 +4,21 @@ import { z } from "zod";
 
 import type { SessionPayload } from "../../../../src/lib/auth/session-core";
 import { prisma } from "../../../../src/lib/db/prisma";
+import { safeguardingLeads } from "../../common/safeguarding-leads";
 import { armName, fullName } from "./records.shared";
 
-const COUNSELLORS = ["GUIDANCE_COUNSELOR", "GUIDANCE_COUNSELLOR"] as const;
-const FALLBACK = ["PRINCIPAL", "HEAD_TEACHER"] as const;
 const decideSchema = z.object({ status: z.enum(["ACKNOWLEDGED", "ACTION_TAKEN", "CLOSED"]), note: z.string().trim().min(5, "Say what was done — the audit stream keeps it.") });
 
 /**
- * Safeguarding concerns: raised by anyone who works with the child, read by the safeguarding lead alone. The lead is the school's
- * counsellor; where a school has none, the Principal holds it, so a concern never lands on nobody. The reader is told only the
+ * Safeguarding concerns: raised by anyone who works with the child — or by the child's own parent — and read by the safeguarding lead
+ * and the Principal alone. The lead is the school's counsellor; a school with none still has the Principal, so a concern never lands on nobody. The reader is told only the
  * child, who raised it and what they said; every action is written to a separate audit stream.
  */
 @Injectable()
 export class SafeguardingService {
-  /** Who is told, and who may read: counsellors, or — with none — the Principal (and head teacher). */
-  async leads(schoolId: string): Promise<string[]> {
-    const counsellors = await prisma.user.findMany({ where: { schoolId, role: { in: [...COUNSELLORS] }, isActive: true, deletedAt: null }, select: { id: true } });
-    if (counsellors.length) return counsellors.map((user) => user.id);
-    return (await prisma.user.findMany({ where: { schoolId, role: { in: [...FALLBACK] }, isActive: true, deletedAt: null }, select: { id: true } })).map((user) => user.id);
+  /** Who is told, and who may read: the counsellor and the Principal (and head teacher). */
+  leads(schoolId: string): Promise<string[]> {
+    return safeguardingLeads(schoolId);
   }
 
   async canRead(session: Pick<SessionPayload, "userId" | "schoolId">) {
@@ -47,7 +44,7 @@ export class SafeguardingService {
   }
 
   async decide(session: SessionPayload, id: string, body: unknown) {
-    if (!(await this.canRead(session))) throw new ForbiddenException("Safeguarding concerns are held by the safeguarding lead alone.");
+    if (!(await this.canRead(session))) throw new ForbiddenException("Safeguarding concerns are held by the safeguarding lead and the Principal alone.");
     const input = decideSchema.parse(body);
     const concern = await prisma.safeguardingConcern.findFirst({ where: { id, schoolId: session.schoolId } });
     if (!concern) throw new NotFoundException("That concern is not on this school’s record.");
