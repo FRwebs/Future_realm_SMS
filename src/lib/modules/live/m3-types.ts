@@ -102,7 +102,8 @@ export type Teaching = {
   teachers: TeacherLoad[];
   invalidCombinations: InvalidCombination[];
   subjectCount: number;
-  catalogue: Array<{ id: string; name: string; code: string; category: string; department: string | null }>;
+  /** `offers` says which classes the subject is for ("Primary 1–3"): the same name is kept for each section. */
+  catalogue: Array<{ id: string; name: string; code: string; category: string; department: string | null; section?: string | null; offers?: string }>;
 };
 
 export type CoverageCheck = {

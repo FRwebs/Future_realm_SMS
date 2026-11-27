@@ -1,3 +1,4 @@
+import { refuseWrongSubject } from "./class-structure.service";
 import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
 import { AuditAction, Prisma, UserRole } from "@prisma/client";
 import { z } from "zod";
@@ -149,8 +150,9 @@ export class ClassStructureExtrasService {
     const subject = await prisma.subject.findFirst({ where: { id: parsed.subjectId, schoolId, deletedAt: null } });
     if (!subject) throw new NotFoundException("That subject is not in the catalogue.");
     if (parsed.teacherId) await this.assertTeacher(schoolId, parsed.teacherId);
-    const arms = await prisma.classRoom.findMany({ where: { id: { in: parsed.classIds }, schoolId, deletedAt: null } });
+    const arms = await prisma.classRoom.findMany({ where: { id: { in: parsed.classIds }, schoolId, deletedAt: null }, include: { classLevel: true } });
     if (arms.length !== new Set(parsed.classIds).size) throw new BadRequestException("One of those arms does not exist.");
+    refuseWrongSubject(subject, arms);
     let added = 0;
     for (const arm of arms) {
       const found = await prisma.classSubject.findFirst({ where: { schoolId, classId: arm.id, subjectId: subject.id } });

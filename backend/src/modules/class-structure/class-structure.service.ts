@@ -1,3 +1,4 @@
+import { describeOffer, offeredAtLevel } from "../../../../src/lib/domain/subject-offering";
 import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
 import { AuditAction, Prisma, SchoolCategory, SchoolSection, UserRole } from "@prisma/client";
 import { z } from "zod";
@@ -37,6 +38,16 @@ const stageSections: Record<string, { category: SchoolCategory; section: SchoolS
   "Junior Secondary": { category: SchoolCategory.SECONDARY, section: SchoolSection.JUNIOR_SECONDARY },
   "Senior Secondary": { category: SchoolCategory.SECONDARY, section: SchoolSection.SENIOR_SECONDARY }
 };
+
+/** A subject can only be attached to the classes it is for: the same name is used in other sections, and choosing the wrong one by name is easy. */
+export function refuseWrongSubject(subject: { name: string; code: string; section: SchoolSection | null; applicableClassLevels: Prisma.JsonValue }, arms: Array<{ name: string; arm: string | null; classLevel: { name: string; schoolSection: SchoolSection | null } | null }>) {
+  const wrong = arms.filter((arm) => !offeredAtLevel(subject, arm.classLevel ?? { name: arm.name }));
+  if (!wrong.length) return;
+  const offer = describeOffer(subject);
+  throw new BadRequestException(
+    `${subject.name} (${subject.code}) is for ${offer || "another section"}, so it cannot be attached to ${wrong.map((arm) => armDisplayName(arm.name, arm.arm)).join(", ")}. A subject of the same name is kept for each section — choose the one for this class.`
+  );
+}
 
 export function stageOf(level: { schoolSection: SchoolSection | null; section: SchoolCategory }): string {
   switch (level.schoolSection) {
@@ -730,7 +741,7 @@ export class ClassStructureService {
       }),
       prisma.subject.findMany({
         where: { schoolId, deletedAt: null },
-        select: { id: true, name: true, code: true, isCore: true, department: { select: { name: true } } },
+        select: { id: true, name: true, code: true, isCore: true, section: true, applicableClassLevels: true, department: { select: { name: true } } },
         orderBy: { name: "asc" }
       })
     ]);
@@ -845,7 +856,10 @@ export class ClassStructureService {
         name: subject.name,
         code: subject.code,
         category: subject.isCore ? "Core" : "Elective",
-        department: subject.department?.name ?? null
+        department: subject.department?.name ?? null,
+        // Several subjects share a name across sections; these are what tell them apart.
+        section: subject.section,
+        offers: describeOffer(subject)
       }))
     };
   }
@@ -857,8 +871,9 @@ export class ClassStructureService {
     await this.assertTeacher(schoolId, parsed.teacherId);
     const subject = await prisma.subject.findFirst({ where: { id: parsed.subjectId, schoolId, deletedAt: null } });
     if (!subject) throw new NotFoundException("That subject is not in the catalogue.");
-    const arms = await prisma.classRoom.findMany({ where: { id: { in: parsed.classIds }, schoolId, deletedAt: null } });
+    const arms = await prisma.classRoom.findMany({ where: { id: { in: parsed.classIds }, schoolId, deletedAt: null }, include: { classLevel: true } });
     if (arms.length !== new Set(parsed.classIds).size) throw new BadRequestException("One of those arms does not exist.");
+    refuseWrongSubject(subject, arms);
 
     const periods = parsed.periodsPerWeek ?? subject.periodsPerWeek;
     const teaching = await this.teaching(session);

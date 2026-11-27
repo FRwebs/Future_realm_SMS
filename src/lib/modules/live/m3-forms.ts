@@ -362,7 +362,9 @@ export function mapSubjectDrawer(
   preset: { teacherId?: string; subjectId?: string; armIds?: string[]; title?: string } = {},
 ): DrawerSpec {
   const teachers = teacherChoices(teaching.teachers);
-  const subjects: Named[] = teaching.catalogue.map((subject) => ({ id: subject.id, label: subject.name }));
+  // Several subjects share a name — English Studies for Lower Primary, Upper Primary and Junior Secondary — so each is shown with its
+  // code and the classes it is for. A name alone is how the wrong one gets attached.
+  const subjects: Named[] = teaching.catalogue.map((subject) => ({ id: subject.id, label: [subject.name, subject.code, subject.offers].filter(Boolean).join(" · ") }));
   const armPairs = armChoices(arms);
   const teacher = preset.teacherId ? teachers.find((item) => item.id === preset.teacherId) : undefined;
   const subject = preset.subjectId ? subjects.find((item) => item.id === preset.subjectId) : undefined;
@@ -897,7 +899,7 @@ export function registerSubjectsDrawer(
   arms: Array<Pick<ArmRow, "id" | "name" | "roll" | "capacity">>,
   armIds: string[] = [],
 ): DrawerSpec {
-  const subjects: Named[] = teaching.catalogue.map((subject) => ({ id: subject.id, label: `${subject.name} · ${subject.code}` }));
+  const subjects: Named[] = teaching.catalogue.map((subject) => ({ id: subject.id, label: [subject.name, subject.code, subject.offers].filter(Boolean).join(" · ") }));
   const teachers = teacherChoices(teaching.teachers);
   const armPairs = armChoices(arms);
   const NOT_YET = "Not assigned yet";
