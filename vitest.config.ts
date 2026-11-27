@@ -30,7 +30,7 @@ export default defineConfig({
       "tests/e2e/**",
       // Worktrees the desktop app creates hold full copies of this repo, so
       // without this every test is collected twice — once from a stale copy.
-      "**/.claude/worktrees/**"
+      "**/worktrees/**"
     ],
     // What the unit tests cover of the code they are about. Pages, stories and generated files are left out of the sum: pages are driven by
     // the browser tests, and a number that counts them says nothing about the logic.
