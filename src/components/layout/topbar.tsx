@@ -623,7 +623,7 @@ function ParentSwitcher({ chrome }: { chrome: ParentChrome }) {
 const ALL_SWATCH: [string, string, string] = ["#E6F2EC", "#12796A", "#CFE4DB"];
 
 /** The parent pages that are about the parent, where the switcher gives way to their own name. */
-const PARENT_ACCOUNT_PAGES = ["prefs", "account", "sync"];
+const PARENT_ACCOUNT_PAGES = ["prefs", "account", "privacy", "sync"];
 
 /**
  * The lesson running now, and the one after it.

@@ -4,6 +4,7 @@ import { calendarPage } from "@/lib/modules/live/parent/calendar";
 import { consentsPage } from "@/lib/modules/live/parent/consents";
 import { feesPage } from "@/lib/modules/live/parent/fees";
 import { prefsPage } from "@/lib/modules/live/parent/prefs";
+import { privacyPage } from "@/lib/modules/live/parent/privacy";
 import { profilePage } from "@/lib/modules/live/parent/profile";
 import { learningPage } from "@/lib/modules/live/parent/learning";
 import { meetingsPage } from "@/lib/modules/live/parent/meetings";
@@ -38,6 +39,7 @@ const BUILDERS: Partial<Record<string, (child: string, query: Record<string, str
   profile: (child, query) => profilePage(child, query),
   account: (_child, query) => accountPage(query),
   prefs: () => prefsPage(),
+  privacy: () => privacyPage(),
 };
 
 export const parentPageSlugs = (): string[] => parentPages.map((page) => page.slug);

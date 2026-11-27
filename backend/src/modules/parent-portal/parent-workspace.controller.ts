@@ -7,6 +7,7 @@ import { CurrentSession } from "../../auth/current-session.decorator";
 import { RolesGuard } from "../../auth/roles.guard";
 import { Roles } from "../../auth/roles.decorator";
 import { SessionGuard } from "../../auth/session.guard";
+import { ParentPrivacyService } from "./parent-privacy.service";
 import { ParentWorkspaceService } from "./parent-workspace.service";
 
 /**
@@ -21,7 +22,23 @@ import { ParentWorkspaceService } from "./parent-workspace.service";
 @UseGuards(SessionGuard, RolesGuard)
 @Roles("PARENT")
 export class ParentWorkspaceController {
-  constructor(private readonly workspace: ParentWorkspaceService) {}
+  constructor(private readonly workspace: ParentWorkspaceService, private readonly privacy: ParentPrivacyService) {}
+
+  /** What the school and the software hold about this family, why, for how long and where — read from the school's own records. */
+  @Get("privacy")
+  async privacyNotice(@CurrentSession() session: SessionPayload) {
+    return { ok: true, data: await this.privacy.notice(session) };
+  }
+
+  /** This parent's own data as a file, at once — not a request someone at the school has to fill in. */
+  @Get("account/download")
+  async downloadMine(@CurrentSession() session: SessionPayload, @Res({ passthrough: true }) response: Response) {
+    const file = await this.privacy.download(session);
+    response.setHeader("Content-Type", "application/json; charset=utf-8");
+    response.setHeader("Content-Disposition", `attachment; filename="my-data-${file.generatedAt.slice(0, 10)}.json"`);
+    response.setHeader("Cache-Control", "no-store");
+    return JSON.stringify(file, null, 2);
+  }
 
   @Get("me")
   async me(@CurrentSession() session: SessionPayload) {

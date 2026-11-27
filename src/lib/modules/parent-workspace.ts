@@ -1,7 +1,7 @@
 import type { TeacherRail } from "@/lib/navigation/workflows";
 
 /**
- * A parent's own workspace: thirteen pages in six groups, in the order a parent
+ * A parent's own workspace: fourteen pages in six groups, in the order a parent
  * reads them — their children first, then what the school is telling them, then
  * money, then anything they owe the school an answer to.
  *
@@ -24,6 +24,7 @@ export const parentPages = [
   { slug: "requests", label: "Requests", icon: "M8.5 3.5h7v3h-7zM6.5 5H5v15.5h14V5h-1.5M8.5 11.5h7M8.5 15.5h4.5" },
   { slug: "prefs", label: "Notifications", icon: "M12 3.5A5.5 5.5 0 0 0 6.5 9v3.2L5 15.5h14l-1.5-3.3V9A5.5 5.5 0 0 0 12 3.5zM10 18.5a2 2 0 0 0 4 0" },
   { slug: "account", label: "Account and security", icon: "M4.5 10.5h15V20h-15zM8 10.5V7.5a4 4 0 0 1 8 0v3M12 14v2.5" },
+  { slug: "privacy", label: "Privacy and your data", icon: "M12 3.2 19 6v6c0 4-3 7.4-7 8.3-4-.9-7-4.3-7-8.3V6zM12 10.5a1.6 1.6 0 1 0 0 3.2 1.6 1.6 0 0 0 0-3.2M12 13.7v2" },
   // The phone's own page: the mobile mockup has it, the desktop one does not, so it is in the phone's More sheet and never in the rail.
   { slug: "sync", label: "Sync and this phone", icon: "M20 11.5a8 8 0 0 0-13.7-5L4 8.8M4 12.5a8 8 0 0 0 13.7 5l2.3-2.3M4 4.5v4.3h4.3M19.7 19.5v-4.3h-4.3" },
 ] as const;
@@ -34,7 +35,7 @@ export type ParentPageSlug = (typeof parentPages)[number]["slug"];
 export const childScopedPages: ParentPageSlug[] = ["profile", "attendance", "learning", "results", "consents"];
 
 /** Pages the switcher is hidden on, because they are about the parent rather than a child. */
-export const familyOnlyPages: ParentPageSlug[] = ["prefs", "account", "sync"];
+export const familyOnlyPages: ParentPageSlug[] = ["prefs", "account", "privacy", "sync"];
 
 export const parentHref = (slug: string, child?: string) => {
   const base = slug === "overview" ? "/portals/parent" : `/portals/parent/${slug}`;
@@ -94,7 +95,7 @@ export function parentNavigation(sees: string[], child?: string, firstName?: str
       section("School updates", ["messages", "calendar", "meetings"], sees, child, firstName),
       section("Payments", ["fees"], sees, child, firstName),
       section("Forms and requests", ["consents", "requests"], sees, child, firstName),
-      section("Settings", ["prefs", "account"], sees, child, firstName),
+      section("Settings", ["prefs", "account", "privacy"], sees, child, firstName),
     ].filter((group) => group.items.length),
   };
 }

@@ -11,7 +11,7 @@ import type { SessionUser } from "@/lib/domain/types";
 import type { ParentChrome } from "@/lib/api/parent-workspace";
 
 /** The pages that are about the parent, not a child: no child chips, and the bar names the page by who it covers. */
-const ABOUT_PARENT = ["prefs", "account", "sync"];
+const ABOUT_PARENT = ["prefs", "account", "privacy", "sync"];
 const HOME = "/portals/parent/overview";
 
 /** What this phone knows about its own connection. A parent has no offline outbox, so this is the connection and the time the page was read. */

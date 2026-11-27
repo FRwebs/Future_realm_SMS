@@ -36,7 +36,7 @@ const GROUPS: Array<{ title: string; pages: string[] }> = [
   { title: "Your children", pages: ["learning", "profile"] },
   { title: "From the school", pages: ["messages", "calendar", "meetings"] },
   { title: "Forms and requests", pages: ["consents", "requests"] },
-  { title: "Settings", pages: ["prefs", "account", "sync"] },
+  { title: "Settings", pages: ["prefs", "account", "privacy", "sync"] },
 ];
 
 const slugOf = (item: TabBarItem) => item.id.replace(/^p_/, "");

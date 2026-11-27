@@ -812,6 +812,7 @@ export const NAV_REGISTRY: NavigationRegistryItem[] = [
       ["requests", "Requests", 133],
       ["prefs", "Notifications", 134],
       ["account", "Account and security", 135],
+      ["privacy", "Privacy and your data", 136],
     ] as const
   ).map(([slug, label, order]) => ({
     id: `parent_${slug}`,

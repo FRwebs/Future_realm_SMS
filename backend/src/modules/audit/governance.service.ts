@@ -1,3 +1,4 @@
+import { STANDARD_RETENTION } from "../../common/retention-schedule";
 import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
 import {
   AuditAction,
@@ -138,22 +139,6 @@ const STANDARD_RETURNS: Array<{
     covers: "Fees billed, collected and outstanding; waivers and write-offs; subscription costs",
     ownerRole: "Bursar",
   },
-];
-
-/** What the mockup's retention schedule holds, and the basis for each. */
-const STANDARD_RETENTION: Array<{
-  dataClass: string;
-  years: number | null;
-  untilAge: number | null;
-  basis: string;
-}> = [
-  { dataClass: "Student academic record", years: null, untilAge: null, basis: "Legitimate interest · a transcript may be requested decades later" },
-  { dataClass: "Attendance records", years: 7, untilAge: null, basis: "Education authority requirement" },
-  { dataClass: "Financial records", years: 7, untilAge: null, basis: "Tax and audit requirement" },
-  { dataClass: "Health and welfare notes", years: null, untilAge: 25, basis: "Explicit consent · sensitive category" },
-  { dataClass: "Safeguarding records", years: null, untilAge: 25, basis: "Legal obligation · sensitive category" },
-  { dataClass: "Message and delivery logs", years: 2, untilAge: null, basis: "Legitimate interest · dispute resolution" },
-  { dataClass: "Audit log", years: 10, untilAge: null, basis: "Legal obligation · immutable" },
 ];
 
 @Injectable()
