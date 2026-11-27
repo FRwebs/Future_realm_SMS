@@ -26,7 +26,7 @@
       "serverWaking": "The server is starting up after a quiet spell — this can take up to a minute. You can sign in now; it will go through as soon as the server is ready.",
       "serverUnreachable": "The server has not answered yet. You can still try to sign in; if it fails, wait a moment and try again.",
       "secureAccess": "SECURE ACCESS",
-      "mfaNotice": "Multi-factor authentication is required for Principal, Proprietor and Bursar accounts. You'll be asked for a one-time code sent to your email after this step.",
+      "mfaNotice": "Multi-factor authentication is required for School Owner, Principal, Proprietor and Bursar accounts. You'll be asked for a one-time code sent to your email after this step.",
       "newHere": "New to FutureRealm?",
       "createAccount": "Create an account",
       "accountsFromSchool": "Parents and students receive their accounts from their school.",

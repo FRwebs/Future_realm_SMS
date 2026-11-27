@@ -1,3 +1,4 @@
+import { twoStepFor } from "../../common/two-step";
 import { assertPasswordNotReused, rememberPassword } from "../../../../src/lib/auth/password-history";
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
 import { AuditAction, Gender, Prisma } from "@prisma/client";
@@ -274,6 +275,8 @@ export class ProfileService {
       emailVerifiedAt: user.emailVerifiedAt?.toISOString(),
       mfaEnabled: user.mfaEnabled,
       mfaEnrolledAt: user.mfaEnrolledAt?.toISOString(),
+      /** Is a second step required of this person, and does a code actually reach them by email. */
+      twoStep: twoStepFor(String(user.role)),
       createdAt: user.createdAt.toISOString(),
       school: {
         ...user.school,

@@ -1,3 +1,4 @@
+import { EMAIL_MFA_ROLES, emailMfaWorks } from "../../common/two-step";
 import { STUDENT_ACCOUNT_REFUSAL, studentAccountAllowed } from "../../common/student-account";
 import { createHash, randomBytes } from "crypto";
 
@@ -28,8 +29,6 @@ export class MfaRequiredError extends Error {
   }
 }
 
-/** The people who run the platform, and Principal, Proprietor and Bursar accounts, move money and publish results, so they confirm each sign-in with a code sent to their email. */
-const EMAIL_MFA_ROLES = new Set(["SCHOOL_OWNER", "PROPRIETOR", "PRINCIPAL", "BURSAR", "PLATFORM_OWNER", "PLATFORM_ADMIN", "SUPER_ADMIN", "FINANCE_MANAGER", "SUPPORT_AGENT", "SALES_MANAGER", "DEVELOPER"]);
 const MFA_CODE_TTL_MINUTES = 10;
 const MFA_MAX_ATTEMPTS = 3;
 const MFA_MAX_CODES = 3;
@@ -42,9 +41,6 @@ const maskEmail = (email: string) => {
   const [name, domain] = email.split("@");
   return `${name.slice(0, 2)}${"•".repeat(Math.max(1, Math.min(6, name.length - 2)))}@${domain}`;
 };
-
-/** Without a mail server the code cannot reach anyone, so requiring it would lock every leader out. AUTH_EMAIL_MFA=on forces it regardless. */
-const emailMfaWorks = () => process.env.AUTH_EMAIL_MFA === "on" || (process.env.AUTH_EMAIL_MFA !== "off" && Boolean(process.env.SMTP_HOST));
 
 /**
  * The back office asks for a code at every sign-in and says there is no way past it, so an account

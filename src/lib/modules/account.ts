@@ -15,6 +15,8 @@ export type MyProfile = {
   phone?: string | null;
   alternateEmail?: string | null;
   mfaEnabled?: boolean | null;
+  /** Is a second step required of this person at sign-in, and does a code actually reach them by email. */
+  twoStep?: { required: boolean; byEmail: boolean } | null;
   /** The language chosen for the product (en, yo, ha, ig), if one has been. */
   locale?: string | null;
   /** How the product opens and behaves for this person. */
@@ -98,6 +100,38 @@ function accessFacts(role: Role): PanelFact[] {
     ],
     ["Where it is set", "Staff & Access · Permissions", "You cannot widen your own access from here"],
   ];
+}
+
+/**
+ * What My account says of a person's own sign-in protection — the truth of it, not one sentence for everybody. A leader is asked for a code
+ * by email at each sign-in; where the school's server cannot send one, they are let in with a password alone, and are told so, and told what
+ * to do about it.
+ */
+function twoFactorNote(profile: MyProfile): Panel {
+  const acts = [{ label: "Enable two-factor", href: "/account/security" }, { label: "Why this matters", href: "/audit-security/monitoring" }];
+  if (profile.mfaEnabled) {
+    return { type: "note", tone: "positive", title: "Two-factor authentication is on", body: "Your authenticator app confirms each sign-in, as well as your password.", acts: [{ label: "Manage two-factor", href: "/account/security" }] };
+  }
+  const step = profile.twoStep;
+  if (step?.required && step.byEmail) {
+    return {
+      type: "note", tone: "positive", title: "A code confirms every sign-in",
+      body: "Your role needs a second step, so a one-time code is sent to your email each time you sign in. An authenticator app is stronger still, and works if the email is slow.",
+      acts: [{ label: "Add an authenticator app", href: "/account/security" }],
+    };
+  }
+  if (step?.required) {
+    return {
+      type: "note", tone: "attention", title: "Your role needs a second step, but none is protecting you yet",
+      body: "This school's server cannot send email codes, so you are being let in with a password alone. You can approve results, waivers and record changes: turn on an authenticator app now so a second step is asked of you.",
+      acts,
+    };
+  }
+  return {
+    type: "note", tone: "attention", title: "Two-factor authentication is not enabled on your account",
+    body: "You can approve results, waivers and record changes. An account that can do those things should need a second factor to sign in.",
+    acts,
+  };
 }
 
 function profileTab(session: SessionUser, schoolName: string, profile: MyProfile): TabContent {
@@ -260,18 +294,7 @@ function profileTab(session: SessionUser, schoolName: string, profile: MyProfile
           ],
         },
       ]),
-      row("1fr", [
-        {
-          type: "note",
-          tone: "attention",
-          title: "Two-factor authentication is not enabled on your account",
-          body: "You can approve results, waivers and record changes. An account that can do those things should need a second factor to sign in.",
-          acts: [
-            { label: "Enable two-factor", href: "/account/security" },
-            { label: "Why this matters", href: "/audit-security/monitoring" },
-          ],
-        },
-      ]),
+      row("1fr", [twoFactorNote(profile)]),
     ],
   };
 }
