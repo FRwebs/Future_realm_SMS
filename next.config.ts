@@ -20,6 +20,9 @@ const securityHeaders = [
 
 const nextConfig: NextConfig = {
   typedRoutes: true,
+  // The image build runs `tsc` in CI and in the pre-push hook already; type-checking again inside `next build` needs more than Node's default
+  // 2 GB heap now that the project has grown, which kills the production build. Every other build (local, CI) still checks.
+  typescript: { ignoreBuildErrors: process.env.SKIP_BUILD_TYPECHECK === "1" },
   // The React Compiler memoises components and hooks automatically. A component it cannot prove safe to memoise is left exactly as written,
   // so this only ever removes needless re-renders; the browser tests run against it as they do against everything else.
   reactCompiler: true,

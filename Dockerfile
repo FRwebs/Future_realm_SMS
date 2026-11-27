@@ -13,6 +13,8 @@ FROM base AS builder
 # the build sees an empty NEST_API_URL and bakes zero rewrites into the image.
 ARG NEST_API_URL
 ENV NEST_API_URL=$NEST_API_URL
+# Types are checked by CI and the pre-push hook; checking them again here runs the build out of memory (see next.config.ts).
+ENV SKIP_BUILD_TYPECHECK=1
 COPY . .
 RUN npm run prisma:generate && npm run build:web
 
