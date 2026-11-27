@@ -165,6 +165,8 @@ export class ClassStructureExtrasService {
       });
       added += 1;
     }
+    // Offering a subject is what opens it for registration.
+    if (!subject.registrationOpen) await prisma.subject.update({ where: { id: subject.id }, data: { registrationOpen: true } });
     await this.audit(session, AuditAction.CREATE, "ClassSubject", subject.id, {
       summary: `${subject.name} offered to ${added} arm${added === 1 ? "" : "s"}`,
       arms: arms.map((arm) => armDisplayName(arm.name, arm.arm))

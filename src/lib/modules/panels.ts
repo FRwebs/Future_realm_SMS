@@ -158,6 +158,11 @@ export type DrawerSpec = {
   commitNote?: string;
   commitDone?: string;
   commitDoneBody?: string;
+  /**
+   * How to take back what this just wrote, when the write can really be reversed. `{id}` is filled from the id the server answered with.
+   * Left out, the done sheet offers no Undo — a button that did nothing would be a lie.
+   */
+  undo?: { endpoint: string; method?: "POST" | "DELETE"; label?: string };
   /** Omit and the drawer confirms without sending — a dry run, not a decision. */
   submit?: DrawerSubmit;
   /** What the sheet asks before it writes, when the title does not make a sentence of its own — "Send this to the school?". */

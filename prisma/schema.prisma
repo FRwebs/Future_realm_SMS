@@ -2122,6 +2122,10 @@ model Subject {
   religionSpecific              Boolean                        @default(false)
   trackSpecific                 String?
   tradeSubject                  Boolean                        @default(false)
+  /// The rule group students choose within, as the school words it ("Trade · pick exactly 1"). Empty when the subject is not part of a choice.
+  choiceGroup                   String?
+  /// False when the subject exists but students cannot be registered for it until the term it opens in.
+  registrationOpen              Boolean                        @default(true)
   status                        String                         @default("ACTIVE")
   deletedAt                     DateTime?
   classSubjects                 ClassSubject[]

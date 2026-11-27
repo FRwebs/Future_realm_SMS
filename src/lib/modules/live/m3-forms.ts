@@ -477,22 +477,28 @@ export function addSubjectDrawer(teaching: Teaching, overview: Overview): Drawer
   const teachers = teacherChoices(teaching.teachers);
   const levels: Named[] = overview.classes.filter((level) => level.arms > 0).map((level) => ({ id: level.id, label: level.name }));
   const NOT_YET = "Not assigned yet";
+  const NO_GROUP = "None";
+  const GROUPS = [NO_GROUP, "Trade · pick exactly 1", "Language · pick at least 1"];
+  // A school's own groups come first once it has named them, so the same wording is used the next time.
+  const named = Array.from(new Set((teaching.catalogue ?? []).map((subject) => subject.choiceGroup).filter((group): group is string => Boolean(group))));
+  const groups = [NO_GROUP, ...named, ...GROUPS.filter((group) => group !== NO_GROUP && !named.includes(group))];
   return {
     mode: "form",
     kicker: "Subjects",
     title: "Add subject",
     commitLabel: "Create subject",
     commitDone: "Subject created",
-    commitDoneBody: "It is offered to every arm of the classes you ticked. Nobody is named to teach it until you say who.",
+    commitDoneBody: "It is live in the list straight away, and the change is in the audit log under your name.",
     reviewNote: "A new subject can be offered to any arm as soon as it exists.",
+    undo: { endpoint: `${API}/teaching/subject/{id}/undo` },
     fields: [
       { label: "Subject name", kind: "text", placeholder: "Data Processing", required: true, span: 2 },
       { label: "Code", kind: "text", placeholder: "DPR", required: true, hint: "Shown on report cards and broadsheets" },
       {
         label: "Category",
         kind: "select",
-        value: "Core",
-        options: ["Core", "Elective", "Science", "Commercial", "Arts", "Language", "Trade", "Co-curricular"],
+        options: ["Select…", "Core", "Elective", "Science", "Commercial", "Arts", "Language", "Trade", "Co-curricular"],
+        value: "Select…",
         required: true,
       },
       { label: "Offer to", kind: "checks", options: labels(levels), checked: levels.slice(0, 1).map((item) => item.label), span: 2, required: true, row: true },
@@ -504,15 +510,16 @@ export function addSubjectDrawer(teaching: Teaching, overview: Overview): Drawer
         span: 2,
         hint: "Optional — leave it unassigned and the catalogue will flag it until someone is named.",
       },
-      { label: "Periods a week", kind: "text", value: "3", required: true },
-      { label: "Counts to the average", kind: "toggle", on: true, onLabel: "Counts", offLabel: "Does not count" },
+      { label: "Counts to the average", kind: "choice", options: ["Yes", "No"], value: "Yes", span: 2 },
       {
         label: "Choice group",
-        kind: "static",
-        value: "Not recorded yet",
+        kind: "select",
+        value: NO_GROUP,
+        options: groups,
         span: 2,
-        hint: "Registration rules cannot be enforced from here, because which choice group a subject belongs to is not stored.",
+        hint: "Recorded with the subject and counted on this page. Registration does not enforce it yet.",
       },
+      { label: "Available for registration this term", kind: "toggle", on: true, onLabel: "Available now", offLabel: "From next term" },
     ],
     submit: {
       endpoint: `${API}/teaching/subject`,
@@ -523,10 +530,16 @@ export function addSubjectDrawer(teaching: Teaching, overview: Overview): Drawer
         Category: "category",
         "Offer to": "levelIds",
         Teacher: "teacherId",
-        "Periods a week": "periodsPerWeek",
         "Counts to the average": "countsToAverage",
+        "Choice group": "choiceGroup",
+        "Available for registration this term": "registrationOpen",
       },
-      encode: { "Offer to": pair(levels), Teacher: { ...pair(teachers), [NOT_YET]: "" } },
+      encode: {
+        "Offer to": pair(levels),
+        Teacher: { ...pair(teachers), [NOT_YET]: "" },
+        "Counts to the average": { Yes: "true", No: "false" },
+        "Choice group": { [NO_GROUP]: "" },
+      },
     },
   };
 }

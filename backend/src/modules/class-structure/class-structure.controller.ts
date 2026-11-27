@@ -255,6 +255,14 @@ export class ClassStructureController {
     return this.service.ok(this.service.addSubject(session, body), "Subject added.");
   }
 
+  /** Takes back a subject just created: withdrawn from the catalogue and from every arm, so long as nothing has been recorded against it. */
+  @Post("teaching/subject/:subjectId/undo")
+  @UseGuards(SessionGuard, CsrfGuard, PermissionsGuard)
+  @RequirePermission("subjects.create")
+  undoSubject(@CurrentSession() session: SessionPayload, @Param("subjectId") subjectId: string) {
+    return this.service.ok(this.service.undoSubject(session, subjectId), "Subject withdrawn.");
+  }
+
   @Patch("teaching/:mappingId")
   @UseGuards(SessionGuard, CsrfGuard, PermissionsGuard)
   @RequirePermission("subjects.assign")

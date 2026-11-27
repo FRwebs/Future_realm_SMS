@@ -102,8 +102,10 @@ export type Teaching = {
   teachers: TeacherLoad[];
   invalidCombinations: InvalidCombination[];
   subjectCount: number;
+  /** How many groups students choose within — the distinct choice groups the catalogue names. */
+  choiceGroupCount?: number;
   /** `offers` says which classes the subject is for ("Primary 1–3"): the same name is kept for each section. */
-  catalogue: Array<{ id: string; name: string; code: string; category: string; department: string | null; section?: string | null; offers?: string }>;
+  catalogue: Array<{ id: string; name: string; code: string; category: string; department: string | null; section?: string | null; offers?: string; choiceGroup?: string | null; registrationOpen?: boolean }>;
 };
 
 export type CoverageCheck = {

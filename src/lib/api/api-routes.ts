@@ -1026,6 +1026,7 @@ export const API_ROUTES = [
   "POST /api/v1/class-structure/teaching/map",
   "POST /api/v1/class-structure/teaching/offer",
   "POST /api/v1/class-structure/teaching/subject",
+  "POST /api/v1/class-structure/teaching/subject/{subjectId}/undo",
   "POST /api/v1/class-structure/timetables",
   "POST /api/v1/class-structure/timetables/{id}/publish",
   "POST /api/v1/class-structure/timetables/{id}/unschedule",

@@ -132,7 +132,11 @@ const addSubjectSchema = z.object({
   levelIds: z.array(z.string()).min(1, "Offer it to at least one class."),
   teacherId: z.string().optional().or(z.literal("")),
   countsToAverage: z.coerce.boolean().optional(),
-  periodsPerWeek: z.coerce.number().int().min(1).max(40).optional()
+  periodsPerWeek: z.coerce.number().int().min(1).max(40).optional(),
+  /** The choice group the subject belongs to, as the school words it. "None" or empty means it is not part of a choice. */
+  choiceGroup: z.string().trim().max(80).optional().or(z.literal("")),
+  /** False holds the subject in the catalogue without offering it to any arm until registration opens. */
+  registrationOpen: z.coerce.boolean().optional()
 });
 
 /**
@@ -741,7 +745,7 @@ export class ClassStructureService {
       }),
       prisma.subject.findMany({
         where: { schoolId, deletedAt: null },
-        select: { id: true, name: true, code: true, isCore: true, section: true, applicableClassLevels: true, department: { select: { name: true } } },
+        select: { id: true, name: true, code: true, isCore: true, section: true, applicableClassLevels: true, choiceGroup: true, registrationOpen: true, department: { select: { name: true } } },
         orderBy: { name: "asc" }
       })
     ]);
@@ -789,7 +793,8 @@ export class ClassStructureService {
         periods,
         takers,
         countsToAverage: row.countsToAverage,
-        daysUnassigned: row.teacherId ? 0 : daysBetween(termStart ?? row.assignedAt, now),
+        // Counted from when the term began, or from when the subject was offered here if that was later: a subject made today has not been unstaffed for months.
+        daysUnassigned: row.teacherId ? 0 : daysBetween(termStart && termStart > row.assignedAt ? termStart : row.assignedAt, now),
         compulsory: row.subject.isCore,
         scores: scores.get(`${row.classId}|${row.subjectId}`) ?? { state: row.teacherId ? "Not started" : "Unassigned", average: null, students: 0 }
       };
@@ -851,10 +856,14 @@ export class ClassStructureService {
       teachers: teacherRows,
       invalidCombinations: invalid,
       subjectCount: catalogue.length,
+      /** How many groups of subjects students choose within — the distinct choice groups the catalogue names. */
+      choiceGroupCount: new Set(catalogue.map((subject) => subject.choiceGroup).filter((group): group is string => Boolean(group))).size,
       catalogue: catalogue.map((subject) => ({
         id: subject.id,
         name: subject.name,
         code: subject.code,
+        choiceGroup: subject.choiceGroup,
+        registrationOpen: subject.registrationOpen,
         category: subject.isCore ? "Core" : "Elective",
         department: subject.department?.name ?? null,
         // Several subjects share a name across sections; these are what tell them apart.
@@ -995,11 +1004,15 @@ export class ClassStructureService {
     });
     const category = parsed.category;
     const stream = ["Science", "Commercial", "Arts"].includes(category) ? category.toUpperCase() : null;
+    const open = parsed.registrationOpen ?? true;
+    const group = parsed.choiceGroup && parsed.choiceGroup !== "None" ? parsed.choiceGroup : null;
     const created = await prisma.$transaction(async (tx) => {
       const subject = await tx.subject.create({
         data: {
           schoolId,
           name: parsed.name,
+          choiceGroup: group,
+          registrationOpen: open,
           code: parsed.code.toUpperCase(),
           isCore: category === "Core",
           isOptional: category !== "Core",
@@ -1008,7 +1021,8 @@ export class ClassStructureService {
           periodsPerWeek: parsed.periodsPerWeek ?? 3
         }
       });
-      if (arms.length) {
+      // Registration not yet open: the subject is in the catalogue but is offered to no arm until someone offers it.
+      if (arms.length && open) {
         await tx.classSubject.createMany({
           data: arms.map((arm) => ({
             schoolId,
@@ -1023,8 +1037,31 @@ export class ClassStructureService {
       }
       return subject;
     });
-    await this.audit(session, AuditAction.CREATE, "Subject", created.id, { name: created.name, arms: arms.length });
-    return { id: created.id, arms: arms.length };
+    await this.audit(session, AuditAction.CREATE, "Subject", created.id, { name: created.name, arms: open ? arms.length : 0, choiceGroup: group, registrationOpen: open });
+    return { id: created.id, arms: open ? arms.length : 0 };
+  }
+
+  /**
+   * Takes back a subject that was just created. A subject nobody has scored, timetabled or taught leaves the catalogue and every arm;
+   * one with anything recorded against it stays, because removing it would take that record with it.
+   */
+  async undoSubject(session: SessionPayload, subjectId: string) {
+    const schoolId = session.schoolId;
+    const subject = await prisma.subject.findFirst({ where: { id: subjectId, schoolId, deletedAt: null } });
+    if (!subject) throw new NotFoundException("That subject is not in the catalogue.");
+    const [scores, timetable, taught] = await Promise.all([
+      prisma.scoreEntry.count({ where: { subjectId } }),
+      prisma.timetableEntry.count({ where: { subjectId } }),
+      prisma.classSubject.count({ where: { subjectId, schoolId, teacherId: { not: null } } })
+    ]);
+    if (scores || timetable) throw new BadRequestException(`${subject.name} already has scores or timetable periods against it, so it cannot be taken back. Remove it from the arms that offer it instead.`);
+    if (taught) throw new BadRequestException(`${subject.name} has a teacher named in ${taught} arm${taught === 1 ? "" : "s"}. Unassign them first, or remove it from those arms.`);
+    await prisma.$transaction([
+      prisma.classSubject.updateMany({ where: { subjectId, schoolId }, data: { isActive: false } }),
+      prisma.subject.update({ where: { id: subjectId }, data: { deletedAt: new Date(), isActive: false, status: "ARCHIVED" } })
+    ]);
+    await this.audit(session, AuditAction.DELETE, "Subject", subjectId, { summary: `${subject.name} taken back right after it was created` });
+    return { id: subjectId };
   }
 
   /* ───────────────────────────── arm page ───────────────────────────── */

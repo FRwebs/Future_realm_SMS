@@ -451,7 +451,6 @@ function subjectsTab(teaching: Teaching, overview: Overview): TabContent {
     primary: { label: "Register subjects", drawer: register },
     launchers: [
       { label: "Add a subject", drawer: addSubject },
-      { label: "Map a subject to a teacher", drawer: mapAny },
     ],
     rows: [
       {
@@ -462,7 +461,7 @@ function subjectsTab(teaching: Teaching, overview: Overview): TabContent {
             per: 4,
             cards: [
               { label: "Subjects in catalogue", value: String(teaching.subjectCount), },
-              { label: "Choice groups", value: "—", },
+              { label: "Choice groups", value: String(teaching.choiceGroupCount ?? 0), },
               {
                 label: "Invalid combinations",
                 value: String(invalid.length),

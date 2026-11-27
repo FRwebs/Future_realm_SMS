@@ -18,6 +18,9 @@ import { focusOnMount, useFocusTrap } from "@/lib/ui/focus";
 import { apiRaw } from "@/lib/api/client";
 import { readDevicePreferences } from "@/lib/preferences";
 
+/** A select that still reads "Select…" has not been answered. */
+const PLACEHOLDER = /^(select|choose)\s*…?\.{0,3}$/i;
+
 export function FactRows({ facts }: { facts: PanelFact[] }) {
   return (
     <div className="overflow-hidden rounded-[12px] border" style={{ borderColor: "#E6EEE9" }}>
@@ -185,15 +188,15 @@ export function ConfirmSheet({
         : { bg: "#EBF1FA", fg: "#2A5A96", button: INK };
 
   return (
-    <div className="absolute inset-0 z-10 flex items-center justify-center px-6" style={{ background: "rgba(13,35,21,0.42)" }}>
+    <div className="absolute inset-0 z-10 flex items-center justify-center px-6" style={{ background: "rgba(247,250,248,0.94)" }}>
       <div
         role="alertdialog"
         aria-label={title}
-        className="w-full max-w-[380px] rounded-[16px] bg-white px-[20px] py-[18px]"
-        style={{ boxShadow: "0 30px 60px -28px rgba(13,35,21,0.6)" }}
+        className="w-full max-w-[322px] rounded-[14px] border bg-white px-[18px] pb-[14px] pt-[18px] text-center"
+        style={{ borderColor: "#DEE8E2", boxShadow: "0 18px 40px -16px rgba(13,35,21,0.32)" }}
       >
         <span
-          className="mb-[11px] flex h-[34px] w-[34px] items-center justify-center rounded-[11px]"
+          className="mx-auto mb-[11px] flex h-[34px] w-[34px] items-center justify-center rounded-[11px]"
           style={{ background: palette.bg }}
           aria-hidden
         >
@@ -207,19 +210,19 @@ export function ConfirmSheet({
             )}
           </svg>
         </span>
-        <p className="text-[14px] font-bold leading-[1.3]" style={{ color: INK }}>
+        <p className="text-pretty text-[14.5px] font-extrabold leading-[1.3]" style={{ color: INK }}>
           {ui(title)}
         </p>
-        <p className="mt-[5px] text-pretty text-[11.5px] leading-[1.55]" style={{ color: "#5C6A62" }}>
+        <p className="mt-[6px] text-pretty text-[11px] leading-[1.55]" style={{ color: MUTED }}>
           {ui(body)}
         </p>
-        <div className="mt-[16px] flex flex-wrap items-center justify-end gap-2">
+        <div className="mt-[15px] flex gap-2">
           <button
             type="button"
             ref={focusOnMount}
             onClick={onCancel}
-            className="whitespace-nowrap rounded-[9px] border bg-white px-[14px] py-[9px] text-[11.5px] font-semibold"
-            style={{ borderColor: "#CFDDD5", color: "#435048" }}
+            className="flex flex-1 items-center justify-center whitespace-nowrap rounded-[9px] border bg-white px-[12px] py-[9px] text-[11.5px] font-semibold"
+            style={{ borderColor: "#DEE8E2", color: "#435048" }}
           >
             {ui(cancel)}
           </button>
@@ -227,8 +230,8 @@ export function ConfirmSheet({
             type="button"
             onClick={onConfirm}
             disabled={pending}
-            className="whitespace-nowrap rounded-[9px] px-[15px] py-[10px] text-[11.5px] font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
-            style={{ background: palette.button }}
+            className="flex flex-1 items-center justify-center whitespace-nowrap rounded-[9px] px-[12px] py-[10px] text-[11.5px] font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
+            style={{ background: palette.button, boxShadow: "0 7px 16px -9px rgba(13,35,21,0.6)" }}
           >
             {pending ? ui("Working…") : ui(ok)}
           </button>
@@ -278,6 +281,8 @@ export function describe(field: FormField, value: unknown): string {
     const chosen = (value as string[] | undefined) ?? [];
     return chosen.length ? chosen.map((item) => field.options.find((option) => option.value === item)?.label ?? item).join(", ") : "Nobody";
   }
+  // A switch that was labelled "Available now" / "From next term" reads back in those words, as it did on the form.
+  if (field.kind === "toggle" && typeof value === "boolean") return value ? (field.onLabel ?? "Yes") : (field.offLabel ?? "No");
   return asText(value);
 }
 
@@ -370,7 +375,87 @@ export function withSeeds(allFields: FormField[], current: Record<string, unknow
   return updated;
 }
 
-export type CommitResult = { queued?: boolean; links?: Array<{ name: string; link: string }>; warnings?: string[]; link?: string; name?: string; fields?: Array<[string, string]>; checkoutUrl?: string; note?: string; gateway?: string; href?: string; hrefLabel?: string };
+/**
+ * What a plain save says once it is saved: a small sheet on its own, with the mark, what happened, the first answers read back, and the
+ * way out. The form that was being filled in is gone by now — it has done its job.
+ */
+function SuccessSheet({
+  title,
+  body,
+  lines,
+  undo,
+  onUndo,
+  undoing,
+  error,
+  onDone,
+}: {
+  title: string;
+  body?: string;
+  lines?: PanelFact[];
+  undo?: string;
+  onUndo?: () => void;
+  undoing?: boolean;
+  error?: string | null;
+  onDone: () => void;
+}) {
+  const ui = useUiText();
+  const panel = useFocusTrap<HTMLDivElement>();
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => { if (event.key === "Escape") onDone(); };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [onDone]);
+  return createPortal(
+    <div className="fixed inset-0 z-54 flex items-center justify-center p-6" role="dialog" aria-modal="true" aria-label={title}>
+      <button type="button" aria-label="Close" title="Close" onClick={onDone} className="fixed inset-0 cursor-default" style={{ background: "rgba(13,35,21,0.5)" }} />
+      <div
+        ref={panel}
+        tabIndex={-1}
+        className="relative w-full max-w-[372px] rounded-[18px] bg-white px-[22px] pb-[18px] pt-[24px] text-center outline-hidden"
+        style={{ boxShadow: "0 40px 80px -30px rgba(13,35,21,0.6)" }}
+      >
+        <span className="mx-auto mb-[13px] flex h-[44px] w-[44px] items-center justify-center rounded-full border" style={{ background: "#EAF6F0", borderColor: "#CFE4DB" }} aria-hidden>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#17714F" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+            <path d="m5 12.5 4.5 4.5 9-10" />
+          </svg>
+        </span>
+        <p className="text-pretty text-[16px] font-bold leading-[1.3]" style={{ color: INK }}>{ui(title)}</p>
+        {body ? <p className="mt-[6px] text-pretty text-[11.5px] leading-[1.55]" style={{ color: MUTED }}>{ui(body)}</p> : null}
+        {lines?.length ? (
+          <div className="mt-[14px] text-left">
+            <FactRows facts={lines.map(([label, value]) => [label, value])} />
+          </div>
+        ) : null}
+        {error ? <p className="mt-[12px] text-pretty text-[11.5px] font-semibold leading-normal" style={{ color: "#A32B2B" }}>{error}</p> : null}
+        <div className="mt-[17px] flex gap-2">
+          {undo && onUndo ? (
+            <button
+              type="button"
+              onClick={onUndo}
+              disabled={undoing}
+              className="flex flex-1 items-center justify-center whitespace-nowrap rounded-[9px] border bg-white px-[12px] py-[10px] text-[11.5px] font-semibold disabled:opacity-60"
+              style={{ borderColor: "#CFDDD5", color: "#435048" }}
+            >
+              {undoing ? ui("Working…") : ui(undo)}
+            </button>
+          ) : null}
+          <button
+            type="button"
+            ref={focusOnMount}
+            onClick={onDone}
+            className="flex flex-1 items-center justify-center whitespace-nowrap rounded-[9px] px-[12px] py-[10px] text-[11.5px] font-semibold text-white"
+            style={{ background: INK, boxShadow: "0 7px 16px -9px rgba(13,35,21,0.6)" }}
+          >
+            {ui("Done")}
+          </button>
+        </div>
+      </div>
+    </div>,
+    document.body,
+  );
+}
+
+export type CommitResult = { id?: string; queued?: boolean; links?: Array<{ name: string; link: string }>; warnings?: string[]; link?: string; name?: string; fields?: Array<[string, string]>; checkoutUrl?: string; note?: string; gateway?: string; href?: string; hrefLabel?: string };
 
 /** What a committed form says: what happened, what the server handed back, and where to go next. */
 export function CommitDone({
@@ -519,6 +604,7 @@ function DrawerPanel({
   const [error, setError] = useState<string | null>(null);
   const [reason, setReason] = useState("");
   const [doneKind, setDoneKind] = useState<"saved" | "deleted">("saved");
+  const [undoing, setUndoing] = useState(false);
   /** What the server handed back that the person needs to see: links to share, warnings to read. */
   const [result, setResult] = useState<CommitResult | null>(null);
   const [confirm, setConfirm] = useState<ConfirmKind | null>(null);
@@ -605,6 +691,7 @@ function DrawerPanel({
     if (!field.required) return false;
     const value = values[field.label];
     if (Array.isArray(value)) return value.length === 0;
+    if (field.kind === "select" && PLACEHOLDER.test(String(value ?? "").trim())) return true;
     return value === undefined || value === null || String(value).trim() === "";
   });
 
@@ -760,6 +847,45 @@ function DrawerPanel({
       ? (spec.remove?.doneBody ?? "It is gone from every list. The deletion is in the audit log under your name.")
       : spec.commitDoneBody;
 
+  /**
+   * A plain save — nothing to pay, nothing held on the device, nowhere to be sent on to — is told in the small sheet on its own.
+   * Anything with more to say (a payment link, a queued write, a page to open) keeps the fuller panel below.
+   */
+  // The teacher's, the parent's and the student's phone designs tell a save their own way; everyone else gets the sheet.
+  const sheetKind = phoneKind === null || phoneKind === "admin";
+  const plainDone =
+    committed && sheetKind && !error && !result?.queued && !result?.checkoutUrl && !result?.href && !result?.fields?.length && !result?.note &&
+    !result?.links?.length && !result?.warnings?.length && !result?.link && !spec.next;
+  async function undo() {
+    if (!spec.undo) return;
+    const target = spec.undo.endpoint.replace("{id}", encodeURIComponent(result?.id ?? ""));
+    setUndoing(true);
+    setError(null);
+    try {
+      await sendJson(target, spec.undo.method ?? "POST", {});
+      router.refresh();
+      onClose();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "That could not be taken back.");
+    } finally {
+      setUndoing(false);
+    }
+  }
+  if (plainDone || (committed && sheetKind && error && spec.undo)) {
+    return (
+      <SuccessSheet
+        title={doneTitle}
+        body={doneBody}
+        lines={doneKind === "saved" && staged ? doneLines : undefined}
+        undo={spec.undo && result?.id && doneKind === "saved" ? (spec.undo.label ?? "Undo this") : undefined}
+        onUndo={undo}
+        undoing={undoing}
+        error={error}
+        onDone={onClose}
+      />
+    );
+  }
+
   return createPortal(
     <div
       className={phone ? "fixed inset-0 z-42 flex items-stretch justify-center overflow-y-auto p-0 md:items-center md:px-6 md:py-8" : "fixed inset-0 z-42 flex items-center justify-center overflow-y-auto px-6 py-8"}
@@ -855,7 +981,7 @@ function DrawerPanel({
               {staged && !committed ? (
                 <div className="mt-[11px] flex flex-wrap items-center gap-[7px]">
                   {[
-                    { label: ui(isEdit ? "Edit the values" : "Fill it in"), on: !reviewing, done: reviewing, mark: reviewing ? "✓" : "1" },
+                    { label: ui(isEdit ? "Edit the values" : "Fill in the details"), on: !reviewing, done: reviewing, mark: reviewing ? "✓" : "1" },
                     { label: ui("Check and confirm"), on: reviewing, done: false, mark: "2" },
                   ].map((pill) => (
                     <span
@@ -961,37 +1087,20 @@ function DrawerPanel({
             {staged && reviewing && !committed ? (
               <>
                 <div
-                  className="rounded-[12px] border px-[13px] py-[11px]"
+                  className="flex items-start gap-[10px] rounded-[12px] border px-[13px] py-[12px]"
                   style={{ background: "#EBF1FA", borderColor: "#DCE7F5" }}
                 >
-                  <p className="text-pretty text-[11px] leading-[1.55]" style={{ color: "#2A5A96" }}>
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#2A5A96" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" className="mt-px flex-none" aria-hidden>
+                    <path d="M12 20.5a8.5 8.5 0 1 0 0-17 8.5 8.5 0 0 0 0 17M12 8h.01M11 12h1v4.5h1" />
+                  </svg>
+                  <p className="text-pretty text-[11px] leading-[1.5]" style={{ color: "#2A5A96" }}>
                     {spec.reviewNote ??
                       (isEdit
                         ? "These are the values that will be written. Both the previous and the new value stay on the record."
                         : "This is exactly what will be created. Go back to change anything.")}
                   </p>
                 </div>
-                <dl className="grid gap-[9px]">
-                  {changeFacts.map(([label, value, hint]) => (
-                    <div
-                      key={label}
-                      className="grid gap-[2px] rounded-[11px] border px-[13px] py-[10px]"
-                      style={{ borderColor: "#E4EDE8", background: hint ? "#FBFDFC" : "transparent" }}
-                    >
-                      <dt className="text-[10px] font-semibold uppercase tracking-[0.07em]" style={{ color: MUTED }}>
-                        {label}
-                      </dt>
-                      <dd className="text-pretty text-[12px] font-semibold leading-[1.45]" style={{ color: INK }}>
-                        {value}
-                      </dd>
-                      {hint ? (
-                        <dd className="text-[10.5px] leading-[1.45]" style={{ color: "#8A6410" }}>
-                          {hint}
-                        </dd>
-                      ) : null}
-                    </div>
-                  ))}
-                </dl>
+                <FactRows facts={changeFacts} />
                 {outlook ? (
                   <div className="grid gap-[9px]" aria-live="polite">
                     {outlook.state === "ready" ? <FactRows facts={outlook.facts} /> : null}
