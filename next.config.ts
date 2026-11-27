@@ -26,6 +26,9 @@ const nextConfig: NextConfig = {
   // The React Compiler memoises components and hooks automatically. A component it cannot prove safe to memoise is left exactly as written,
   // so this only ever removes needless re-renders; the browser tests run against it as they do against everything else.
   reactCompiler: true,
+  // `next build` starts one worker per CPU it can see. A build host that shows dozens of CPUs but a few GB of memory (Render's) runs out of
+  // memory while collecting page data, so the image build sets NEXT_BUILD_CPUS to a small number. Unset, Next decides as before.
+  ...(Number(process.env.NEXT_BUILD_CPUS) > 0 ? { experimental: { cpus: Number(process.env.NEXT_BUILD_CPUS) } } : {}),
   allowedDevOrigins: ["127.0.0.1", "localhost"],
   async headers() {
     return [

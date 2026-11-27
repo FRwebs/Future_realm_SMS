@@ -15,6 +15,7 @@ ARG NEST_API_URL
 ENV NEST_API_URL=$NEST_API_URL
 # Types are checked by CI and the pre-push hook; checking them again here runs the build out of memory (see next.config.ts).
 ENV SKIP_BUILD_TYPECHECK=1
+ENV NEXT_BUILD_CPUS=2
 COPY . .
 RUN npm run prisma:generate && npm run build:web
 
