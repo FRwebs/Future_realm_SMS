@@ -20,6 +20,9 @@ type RegistersView = {
   cutoff: string;
   clock: string;
   medianSeconds: number | null;
+  /** How the school takes attendance, and — when that means a lesson has no register of its own — why, in words. */
+  mode?: "daily" | "period" | "hybrid";
+  modeNote?: string | null;
   registers: Array<{ kind: "daily" | "period"; classId: string; arm: string; subjectId: string | null; periodNumber: number | null; what: string; roll: number; state: "Marked" | "In progress" | "Not started" | "Not due"; markedAt: string | null; at: string | null; pastCutoff: boolean }>;
 };
 
@@ -190,14 +193,14 @@ function markTab(v: RegistersView, me: TeacherWorkspaceView, held: Set<string>):
           ]
         : undefined,
       head: ["Arm", "Register", "Roll", "Why it is yours", "State", "Note", ""], rows: tableRows, noRowOpen: true,
-      empty: v.schoolDay ? "No register is yours today. Daily registers belong to form masters; period registers appear on the days you teach." : "Today is not a school day in this term — there is no register to take.",
+      empty: !v.schoolDay ? "Today is not a school day in this term — there is no register to take." : v.modeNote ? `No register is yours today. ${v.modeNote}` : "No register is yours today. Daily registers belong to form masters; period registers appear on the days you teach a published period.",
     }]), show: "desktop" as const },
     // The phone reads the same registers as rows: an icon for the kind of register, who it is yours as, and how many children are in it.
     {
       ...row("1fr", [{
         type: "list", title: "Your registers today", tag: open.length ? `${open.length} to mark` : undefined, tagTone: "attention",
         sub: "A daily register and a period register are different records.",
-        empty: v.schoolDay ? "No register is yours today. Daily registers belong to form masters; period registers appear on the days you teach." : "Today is not a school day in this term — there is no register to take.",
+        empty: !v.schoolDay ? "Today is not a school day in this term — there is no register to take." : v.modeNote ? `No register is yours today. ${v.modeNote}` : "No register is yours today. Daily registers belong to form masters; period registers appear on the days you teach a published period.",
         items: v.registers.map((entry) => ({
           icon: REG, label: `${entry.arm} · ${entry.what}`, pill: entry.state, tone: stateTone(entry.state), side: `${entry.roll} ${entry.roll === 1 ? "child" : "children"}`,
           sub: `${entry.kind === "daily" ? (me.persona === "early-years" ? "Class Teacher" : "Form Master") : "Subject Teacher"} · ${entry.kind === "daily" ? "report cards are built from it" : `never overwrites the daily figure${entry.at ? ` · ${entry.state === "Marked" ? `marked ${entry.markedAt ?? ""}` : `starts ${entry.at}`}` : ""}`}`,

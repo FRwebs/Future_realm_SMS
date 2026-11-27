@@ -4,6 +4,7 @@ import { z } from "zod";
 
 import type { SessionPayload } from "../../../../src/lib/auth/session-core";
 import { prisma } from "../../../../src/lib/db/prisma";
+import { attendanceModeOf, noPeriodRegisterBecause, takesPeriodRegister } from "../../common/attendance-mode";
 import { activeCovers } from "../../common/teaching-scope";
 import { REASONS, dayOf, iso, isSchoolDay, lagosClock, longDay, loadPolicy, today, type Mark } from "../attendance-management/attendance.shared";
 import { armName, fullName } from "../fee-management/fees.shared";
@@ -40,6 +41,13 @@ export class PeriodRegistersService {
     return row;
   }
 
+  /** A school that takes attendance daily has no period registers: the question is refused, not left to a hidden page. */
+  private async assertPeriodMode(schoolId: string, classLevelId: string) {
+    const mode = await attendanceModeOf(schoolId);
+    const level = await prisma.classLevel.findFirst({ where: { id: classLevelId }, select: { name: true, schoolSection: true } });
+    if (level && !takesPeriodRegister(mode, level)) throw new BadRequestException(noPeriodRegisterBecause(mode) ?? "This class has no period register.");
+  }
+
   /** The period (and its times) this subject-arm has on a day, from the published timetable. */
   private async slot(schoolId: string, termId: string, classId: string, subjectId: string, teacherId: string, date: Date, periodNumber: number) {
     return prisma.timetableEntry.findFirst({ where: { schoolId, termId, classId, subjectId, teacherId, isPublished: true, dayOfWeek: date.getUTCDay(), periodNumber } });
@@ -52,6 +60,9 @@ export class PeriodRegistersService {
     const now = today();
     const date = dateText ? dayOf(dateText) : now;
     const slot = await this.slot(schoolId, term.id, classId, subjectId, row.teacherId ?? session.userId, date, periodNumber);
+    const mode = await attendanceModeOf(schoolId);
+    const level = await prisma.classLevel.findFirst({ where: { id: row.classRoom.classLevelId }, select: { name: true, schoolSection: true } });
+    const refused = level && !takesPeriodRegister(mode, level) ? noPeriodRegisterBecause(mode) : null;
     const [roster, daily, existing, register] = await Promise.all([
       prisma.student.findMany({ where: { schoolId, currentClassId: classId, status: "ACTIVE" }, select: { id: true, firstName: true, lastName: true, admissionNumber: true }, orderBy: [{ lastName: "asc" }, { firstName: "asc" }] }),
       prisma.studentAttendance.findMany({ where: { schoolId, classId, date, subjectId: null }, select: { studentId: true, status: true, reason: true, reasonCode: true } }),
@@ -62,8 +73,9 @@ export class PeriodRegistersService {
     const saved = new Map(existing.map((entry) => [entry.studentId, entry]));
     const draft = (register?.status === "DRAFT" ? (register.draft ?? {}) : {}) as Record<string, { status?: string; reason?: string; reasonCode?: string }>;
     const submitted = register?.status === "SUBMITTED";
-    let whyNot: string | null = null;
-    if (date.getTime() !== now.getTime()) whyNot = date > now ? "A register cannot be taken for a day that has not happened." : "A period register closes at midnight. A correction needs the form master or the office.";
+    let whyNot: string | null = refused;
+    if (whyNot) { /* the school's own rule decides first */ }
+    else if (date.getTime() !== now.getTime()) whyNot = date > now ? "A register cannot be taken for a day that has not happened." : "A period register closes at midnight. A correction needs the form master or the office.";
     else if (!isSchoolDay(term, date)) whyNot = `${longDay(date)} is not a school day in ${term.name}.`;
     else if (!slot) whyNot = "This subject has no published period for you on this day, so there is no period register to take.";
     return {
@@ -93,7 +105,8 @@ export class PeriodRegistersService {
     const input = draftSchema.parse(body);
     const schoolId = session.schoolId;
     const term = await this.term(schoolId);
-    await this.assertTeaches(session, classId, subjectId);
+    const owned = await this.assertTeaches(session, classId, subjectId);
+    await this.assertPeriodMode(session.schoolId, owned.classRoom.classLevelId);
     const date = dayOf(input.date);
     if (date.getTime() !== today().getTime()) throw new BadRequestException("A period register is taken on the day of the period.");
     const existing = await prisma.periodRegister.findUnique({ where: { classId_date_periodNumber: { classId, date, periodNumber } } });
@@ -113,6 +126,7 @@ export class PeriodRegistersService {
     const schoolId = session.schoolId;
     const term = await this.term(schoolId);
     const row = await this.assertTeaches(session, classId, subjectId);
+    await this.assertPeriodMode(schoolId, row.classRoom.classLevelId);
     const date = dayOf(input.date);
     if (date.getTime() !== today().getTime()) throw new BadRequestException("A period register is taken on the day of the period.");
     if (!isSchoolDay(term, date)) throw new BadRequestException(`${longDay(date)} is not a school day in ${term.name}.`);
@@ -174,10 +188,11 @@ export class PeriodRegistersService {
     const date = today(now);
     const clock = lagosClock(now) ?? "00:00";
     const policy = await loadPolicy(schoolId);
+    const mode = await attendanceModeOf(schoolId);
     const schoolDay = isSchoolDay(term, date);
-    const [dailyRows, entries, periodRows] = await Promise.all([
+    const [dailyRows, allEntries, periodRows] = await Promise.all([
       me.formArms.length ? prisma.attendanceRegister.findMany({ where: { classId: { in: me.formArms.map((arm) => arm.id) }, date }, select: { classId: true, status: true, submittedAt: true } }) : Promise.resolve([]),
-      schoolDay ? prisma.timetableEntry.findMany({ where: { schoolId, termId: term.id, teacherId: session.userId, isPublished: true, subjectId: { not: null }, dayOfWeek: date.getUTCDay() }, include: { classRoom: true, subject: true }, orderBy: { periodNumber: "asc" } }) : Promise.resolve([]),
+      schoolDay ? prisma.timetableEntry.findMany({ where: { schoolId, termId: term.id, teacherId: session.userId, isPublished: true, subjectId: { not: null }, dayOfWeek: date.getUTCDay() }, include: { classRoom: { include: { classLevel: { select: { name: true, schoolSection: true } } } }, subject: true }, orderBy: { periodNumber: "asc" } }) : Promise.resolve([]),
       prisma.periodRegister.findMany({ where: { schoolId, markedById: session.userId, date }, select: { classId: true, periodNumber: true, status: true, submittedAt: true, inPeriod: true } })
     ]);
     const daily = me.formArms.map((arm) => {
@@ -185,6 +200,8 @@ export class PeriodRegistersService {
       const state = row?.status === "SUBMITTED" ? "Marked" : row?.status === "DRAFT" ? "In progress" : "Not started";
       return { kind: "daily" as const, classId: arm.id, arm: arm.name, subjectId: null as string | null, periodNumber: null as number | null, what: "Daily register", roll: arm.roll, state, markedAt: lagosClock(row?.submittedAt ?? null), at: null as string | null, pastCutoff: schoolDay && state !== "Marked" && clock > policy.markCutoff };
     });
+    // Only the lessons the school's mode asks a register for: Daily asks for none, Hybrid only for its senior classes.
+    const entries = allEntries.filter((entry) => takesPeriodRegister(mode, entry.classRoom.classLevel));
     const periods = entries.map((entry) => {
       const row = periodRows.find((candidate) => candidate.classId === entry.classId && candidate.periodNumber === entry.periodNumber);
       const state = row?.status === "SUBMITTED" ? "Marked" : row?.status === "DRAFT" ? "In progress" : clock < entry.startsAt ? "Not due" : "Not started";
@@ -192,6 +209,6 @@ export class PeriodRegistersService {
     });
     const rolls = await prisma.student.groupBy({ by: ["currentClassId"], where: { schoolId, status: "ACTIVE", currentClassId: { in: periods.map((entry) => entry.classId) } }, _count: { _all: true } });
     for (const period of periods) period.roll = rolls.find((entry) => entry.currentClassId === period.classId)?._count._all ?? 0;
-    return { date: iso(date), schoolDay, cutoff: policy.markCutoff, clock, registers: [...daily, ...periods] };
+    return { date: iso(date), schoolDay, cutoff: policy.markCutoff, clock, mode, modeNote: noPeriodRegisterBecause(mode), registers: [...daily, ...periods] };
   }
 }

@@ -9,6 +9,7 @@ import { TeacherStudentQuestionsService } from "./student-questions.service";
 import { TeacherStudentWorkService } from "./student-work.service";
 import { TeacherWorkspaceService } from "./workspace.service";
 import { formatDay } from "../../common/date-format";
+import { attendanceModeOf, takesPeriodRegister } from "../../common/attendance-mode";
 
 const DOW_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
@@ -97,11 +98,14 @@ export class MyDayService {
 
     /* periods: today's timetable for this person */
     const entries = schoolDay
-      ? await prisma.timetableEntry.findMany({ where: { schoolId, teacherId: session.userId, termId: term.id, dayOfWeek: dow }, include: { classRoom: true, subject: true }, orderBy: { periodNumber: "asc" } })
+      // Only the published timetable is this person's day. A draft, or a row the system laid out for an arm that has no published timetable, is not.
+      ? await prisma.timetableEntry.findMany({ where: { schoolId, teacherId: session.userId, termId: term.id, dayOfWeek: dow, isPublished: true }, include: { classRoom: { include: { classLevel: { select: { name: true, schoolSection: true } } } }, subject: true }, orderBy: { periodNumber: "asc" } })
       : [];
+    const mode = await attendanceModeOf(schoolId);
     const periods = entries.map((entry) => ({
       from: entry.startsAt, to: entry.endsAt, what: `${entry.subject?.name ?? entry.slotType} · ${armName(entry.classRoom)}`, where: entry.venue ?? "—",
-      note: entry.notes ?? (entry.slotType === "lesson" ? "Period register" : entry.slotType),
+      // "Period register" only where the school's mode asks one of this lesson — the same rule the Attendance tab lists them by.
+      note: entry.notes ?? (entry.slotType === "lesson" && entry.subjectId && takesPeriodRegister(mode, entry.classRoom.classLevel) ? "Period register" : entry.slotType),
       state: clock >= entry.endsAt ? "done" : clock >= entry.startsAt ? "now" : "later"
     }));
     const next = periods.find((period) => period.state === "later");
