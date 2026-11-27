@@ -1,3 +1,4 @@
+import { DPA_ACCEPTERS, acceptDpa, agreementOf } from "../../common/dpa";
 import { Body, Controller, Delete, Get, Param, Patch, Post, Query, UseGuards } from "@nestjs/common";
 import { ApiTags } from "@nestjs/swagger";
 
@@ -19,6 +20,19 @@ export class ConfigurationController {
     return this.configurationService.ok(this.configurationService.overview(session));
   }
 
+
+  /** The data processing agreement as it stands for this school: the version in force, its words, and who accepted what and when. Declared before `:resource`. */
+  @Get("data-processing-agreement")
+  agreement(@CurrentSession() session: SessionPayload) {
+    return this.configurationService.ok(agreementOf(session.schoolId).then((agreement) => ({ ...agreement, canAccept: DPA_ACCEPTERS.has(session.role) })));
+  }
+
+  /** The school accepts the version in force. Only its owner can. */
+  @Post("data-processing-agreement/accept")
+  @UseGuards(SessionGuard, CsrfGuard)
+  acceptAgreement(@CurrentSession() session: SessionPayload) {
+    return this.configurationService.ok(acceptDpa(session), "Agreement accepted.");
+  }
 
   /** Declared before `:resource` so it is not read as a resource key. */
   @Get("branding-versions")

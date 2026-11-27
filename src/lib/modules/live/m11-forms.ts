@@ -204,7 +204,7 @@ export function agreementReadDrawer(a: Account): DrawerSpec {
     sub: a.agreement.status === "SIGNED" ? "Accepted." : "Not yet accepted.",
     facts: [["Status", a.agreement.status === "SIGNED" ? "Accepted" : "Pending"], ["Version", a.agreement.version ?? "Not recorded"], ["Accepted on", a.agreement.acceptedAt ? day(a.agreement.acceptedAt) : "Not recorded", a.agreement.by ?? "The acceptance record was made before versions were kept"], ["Hosting", a.agreement.hosting ?? "As set out in the agreement"], ["Retention on closure", `${a.agreement.retentionDays} days, then permanent deletion`, a.agreement.retentionDefault ? "The platform default" : "Agreed for this school"]],
     readOnly: true,
-    readOnlyNote: "The full legal text is issued by Future Realm with the agreement — ask your Account Manager for a copy.",
+    readOnlyNote: "The full text of the version in force is under School Configuration › Profile › Data processing agreement, where it can be read, printed and accepted.",
   };
 }
 

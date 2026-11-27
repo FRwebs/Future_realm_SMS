@@ -6650,6 +6650,8 @@ model DpaVersion {
   version       String   @unique
   effectiveFrom DateTime
   summary       String?
+  /// The agreement's full text, in the words the school accepts. Empty means the platform's standard wording for that version.
+  body          String?
   isCurrent     Boolean  @default(false)
   createdById   String?
   createdAt     DateTime @default(now())

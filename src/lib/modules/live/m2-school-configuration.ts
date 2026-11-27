@@ -1,4 +1,5 @@
 import { admissionPrefixFor } from "@/lib/domain/admission-number";
+import { agreementBlocks } from "@/lib/domain/agreement-text";
 import { clearSampleDrawer, loadSample, type SampleStatus } from "@/lib/modules/live/m1-trial";
 import { apiGet, observe } from "@/lib/api/server";
 import { localContracts } from "@/lib/api/local-contracts.zod";
@@ -663,41 +664,83 @@ function brandingHistoryDrawer(branding: BrandingVersion[]) {
   };
 }
 
-function agreementFacts(school: SchoolRecord): PanelFact[] {
-  const signed = /signed|accepted/i.test(school.dpaStatus ?? "");
+/** The agreement as the school stands to it: what is in force, what the school accepted, by whom and when. */
+type Agreement = {
+  status: "SIGNED" | "PENDING"; version: string | null; acceptedAt: string | null; by: string | null; byRole: string | null;
+  current: { version: string; effectiveFrom: string; summary: string | null; body: string; standard: boolean } | null;
+  outdated: boolean; hosting: string | null; controller: string; processor: string; canAccept: boolean;
+  dpo: { name: string | null; email: string | null } | null;
+};
+
+const agreementDay = (iso: string) => formatDay(new Date(iso), { day: "numeric", month: "long", year: "numeric", timeZone: "Africa/Lagos" });
+
+function agreementFacts(school: SchoolRecord, a: Agreement | null): PanelFact[] {
+  if (!a) return [["The agreement", "Could not be read", "Try again in a moment — nothing has been changed"]];
+  const signed = a.status === "SIGNED";
   return [
-    ["Version", signed ? "Not recorded" : "Not accepted", signed ? "The status is on file; its version is not" : "No version has been accepted"],
-    ["Accepted on", "Not recorded"],
-    ["Accepting officer", "Not recorded"],
-    ["Data controller", school.name],
-    ["Processor", "FutureRealm"],
-    ["Hosting country", "Not recorded"],
+    ["Version", signed ? (a.version ?? "Signed before versions were kept") : "Not accepted", a.outdated && a.current ? `Version ${a.current.version} is in force — accept it again` : signed ? "" : a.current ? `Version ${a.current.version} is ready to accept` : "No version has been accepted"],
+    ["Accepted on", a.acceptedAt ? agreementDay(a.acceptedAt) : signed ? "Not recorded" : "Not yet accepted"],
+    ["Accepting officer", a.by ? `${a.by}${a.byRole ? ` · ${a.byRole}` : ""}` : signed ? "Not recorded" : "Not yet accepted"],
+    ["Data controller", school.name, "Decides what is held, and why"],
+    ["Processor", a.processor, "Holds the records on the school's behalf"],
+    ["Hosting country", a.hosting ?? "Not recorded", a.hosting ? "" : "Not set on the school's account"],
   ];
 }
 
-function agreementDrawer(school: SchoolRecord) {
-  const signed = /signed|accepted/i.test(school.dpaStatus ?? "");
+function acceptDrawer(a: Agreement): DrawerSpec {
   return {
-    kicker: "Data processing",
-    title: "Data processing agreement",
-    sub: signed ? "The school's status on file." : "Nothing has been accepted yet.",
-    readOnly: true,
-    readOnlyNote:
-      "The product records whether the agreement is signed. It does not store the agreement's text, its version or who accepted it, so none of that is shown here as though it were.",
-    facts: [
-      ["Status on file", signed ? "Signed" : "Pending", `Recorded as ${school.dpaStatus ?? "PENDING"}`],
-      ...agreementFacts(school).slice(3),
-    ] as PanelFact[],
+    mode: "commit", tone: "progress", kicker: "Data processing", title: `Accept version ${a.current?.version ?? ""} of the agreement?`,
+    sub: "Your school is the controller of its pupils' data, and FutureRealm the processor. Accepting records your name, this version and the time.",
+    confirmTitle: "Accept the agreement?",
+    commitLabel: "I have read it — accept", commitDone: "Agreement accepted", commitDoneBody: "Your name, the version and the time are on the school's record.",
+    submit: { endpoint: `${CONFIG}/data-processing-agreement/accept`, method: "POST" },
   };
 }
 
-function profileTab(school: SchoolRecord, branding: BrandingVersion[], sample: SampleStatus = { loaded: false }): TabContent {
+function agreementDrawer(school: SchoolRecord, a: Agreement | null): DrawerSpec {
+  if (!a?.current) {
+    return { mode: "view", readOnly: true, kicker: "Data processing", title: "Data processing agreement", sub: "The text could not be read just now.", facts: agreementFacts(school, a) };
+  }
+  const signed = a.status === "SIGNED";
+  return {
+    mode: "document",
+    kicker: "Data processing",
+    title: "Data processing agreement",
+    doc: {
+      heading: "Data processing agreement",
+      state: a.outdated ? { label: "Newer version", tone: "attention" } : signed ? { label: "Accepted", tone: "positive" } : { label: "Not accepted", tone: "attention" },
+      meta: `Version ${a.current.version} · in force from ${agreementDay(a.current.effectiveFrom)}`,
+      letterhead: { name: a.processor },
+      kicker: "DATA PROCESSING AGREEMENT",
+      title: `Version ${a.current.version}`,
+      ref: a.current.summary ?? undefined,
+      idents: [
+        ["Controller", school.name],
+        ["Processor", a.processor],
+        ["Version in force", a.current.version],
+        ["In force from", agreementDay(a.current.effectiveFrom)],
+        ["Accepted version", signed ? (a.version ?? "Not recorded") : "None yet"],
+        ["Accepted on", a.acceptedAt ? agreementDay(a.acceptedAt) : "Not yet accepted"],
+        ["Accepted by", a.by ? `${a.by}${a.byRole ? ` · ${a.byRole}` : ""}` : "Not yet accepted"],
+        ["Hosting country", a.hosting ?? "Not recorded"],
+      ],
+      blocks: agreementBlocks(a.current.body),
+      footNote: a.current.standard ? "This is the platform's standard wording for the version. Have your own adviser read it before you accept." : "Have your own adviser read it before you accept.",
+      acts: [
+        ...(a.canAccept && (!signed || a.outdated) ? [{ label: `Accept version ${a.current.version}`, drawer: acceptDrawer(a), primary: true }] : []),
+        { label: "Print", print: true },
+      ],
+    },
+  };
+}
+
+function profileTab(school: SchoolRecord, branding: BrandingVersion[], sample: SampleStatus = { loaded: false }, agreement: Agreement | null = null): TabContent {
   const place = [school.address, school.city, school.state].filter(Boolean).join(", ");
   const stages = stagesOf(school);
   const pattern = patternOf(school);
   const inForce = branding.find((version) => version.status === "APPLIED") ?? branding[0] ?? null;
   const version = inForce ? branding.length - branding.indexOf(inForce) : 0;
-  const signed = /signed|accepted/i.test(school.dpaStatus ?? "");
+  const signed = agreement ? agreement.status === "SIGNED" && !agreement.outdated : /signed|accepted/i.test(school.dpaStatus ?? "");
   const principal = school.principalName
     ? `${school.principalName}${school.principalPhone ? ` · ${school.principalPhone}` : ""}`
     : "None appointed";
@@ -822,12 +865,15 @@ function profileTab(school: SchoolRecord, branding: BrandingVersion[], sample: S
           {
             type: "facts",
             title: "Data processing agreement",
-            tag: signed ? "Signed" : "Not accepted",
+            tag: agreement?.outdated ? "Newer version" : signed ? "Accepted" : "Not accepted",
             tagTone: signed ? "positive" : "attention",
-            sub: "The full text is readable here.",
+            sub: "The full text is readable here, with the version, who accepted it and when.",
             per: 2,
-            acts: [{ label: "Read full text", drawer: agreementDrawer(school) }],
-            facts: agreementFacts(school),
+            acts: [
+              ...(agreement?.canAccept && agreement.current && (agreement.status !== "SIGNED" || agreement.outdated) ? [{ label: `Accept version ${agreement.current.version}`, primary: true, drawer: acceptDrawer(agreement) }] : []),
+              { label: "Read full text", drawer: agreementDrawer(school, agreement) },
+            ],
+            facts: agreementFacts(school, agreement),
           },
           sample.loaded
             ? {
@@ -4011,7 +4057,8 @@ export async function schoolConfigurationLiveTab(
     const branding = await apiGet("/api/v1/configuration/branding-versions", observe<BrandingVersion[]>(localContracts["src/lib/modules/live/m2-school-configuration.ts#2cd86bec"])).catch(
       () => [] as BrandingVersion[],
     );
-    return profileTab(payload.record, branding ?? [], await loadSample());
+    const agreement = await apiGet(`${CONFIG}/data-processing-agreement`, observe<Agreement>(localContracts["src/lib/modules/live/m2-school-configuration.ts#a6d7f1c2"])).catch(() => null);
+    return profileTab(payload.record, branding ?? [], await loadSample(), agreement);
   }
 
   if (tabSlug === "calendar") {

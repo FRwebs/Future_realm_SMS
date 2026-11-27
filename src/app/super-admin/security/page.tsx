@@ -604,6 +604,7 @@ async function ComplianceTab({ incidents, privacy, overview }: { incidents: Secu
                 { name: "version", label: "Version", required: true, placeholder: dpa.current ? `Now ${dpa.current} — e.g. ${(Number(dpa.current) + 0.1).toFixed(1)}` : "e.g. 4.0" },
                 { name: "effectiveFrom", label: "Effective from", type: "date", note: "Blank means today." },
                 { name: "summary", label: "What changed", type: "textarea" },
+                { name: "body", label: "The agreement's text", type: "textarea", note: "What a school reads before it accepts. Leave it empty to use the standard wording." },
                 { name: "notifySchools", label: "Tell schools that are behind", type: "switch", on: true, note: "Notify their owners in the app" }
               ]}
             />

@@ -9,6 +9,7 @@ import { verifyPassword } from "../../../../src/lib/auth/password";
 import type { SessionPayload } from "../../../../src/lib/auth/session-core";
 import { prisma } from "../../../../src/lib/db/prisma";
 import { fullName } from "../student-records/records.shared";
+import { acceptDpa, dpaInForce } from "../../common/dpa";
 import { OWNERS, json, schoolOf, tierOf } from "./billing.shared";
 
 /**
@@ -72,12 +73,12 @@ export class AccountService {
       prisma.accountClosureRequest.findMany({ where: { schoolId }, orderBy: { createdAt: "desc" }, take: 3 }),
       this.counts(schoolId)
     ]);
-    const inForce = await prisma.dpaVersion.findFirst({ where: { isCurrent: true }, select: { version: true } });
+    const inForce = await dpaInForce();
     const open = transfers.find((row) => !["EXECUTED", "FROZEN"].includes(row.status)) ?? null;
     const delivered = exportRows.find((row) => row.downloadedAt) ?? null;
     return {
       school: { name: school.name, ownerName: school.ownerName, ownerEmail: school.ownerEmail, country: school.country },
-      agreement: { status: school.dpaStatus, version: school.dpaVersion, current: inForce?.version ?? null, acceptedAt: school.dpaAcceptedAt?.toISOString() ?? null, by: accepter ? `${fullName(accepter)} · ${String(accepter.role).replace(/_/g, " ").toLowerCase()}` : null, hosting: sub?.hosting ?? null, retentionDays: sub?.retentionDays ?? 90, retentionDefault: sub?.retentionDays === null || sub?.retentionDays === undefined, dpo: sub?.dpoName ? { name: sub.dpoName, email: sub.dpoEmail } : null },
+      agreement: { status: school.dpaStatus, version: school.dpaVersion, current: inForce?.version ?? null, text: inForce?.body ?? null, effectiveFrom: inForce?.effectiveFrom ?? null, acceptedAt: school.dpaAcceptedAt?.toISOString() ?? null, by: accepter ? `${fullName(accepter)} · ${String(accepter.role).replace(/_/g, " ").toLowerCase()}` : null, hosting: sub?.hosting ?? null, retentionDays: sub?.retentionDays ?? 90, retentionDefault: sub?.retentionDays === null || sub?.retentionDays === undefined, dpo: sub?.dpoName ? { name: sub.dpoName, email: sub.dpoEmail } : null },
       contacts: { billing: sub?.billingContact ?? school.ownerName, billingEmail: sub?.billingEmail ?? school.ownerEmail, school: sub?.schoolContact ?? (principal ? `${fullName(principal)} · Principal` : null), manager: manager ? fullName(manager) : null, managerEmail: manager?.email ?? null, productOnly: sub?.productOnly ?? true },
       address: { subdomain: school.subdomain, issued: school.createdAt.toISOString() },
       tier: tierOf(school),
@@ -112,13 +113,9 @@ export class AccountService {
 
   async acceptAgreement(session: SessionPayload, body: unknown) {
     this.owner(session);
-    const input = agreementSchema.parse(body);
+    agreementSchema.parse(body);
     // The version a school accepts is the one in force, not whatever the browser says it read.
-    const inForce = await prisma.dpaVersion.findFirst({ where: { isCurrent: true } });
-    if (inForce) input.version = inForce.version;
-    await prisma.school.update({ where: { id: session.schoolId }, data: { dpaStatus: "SIGNED", dpaVersion: input.version, dpaAcceptedAt: new Date(), dpaAcceptedById: session.userId } });
-    await this.audit(session, AuditAction.SETTINGS_UPDATE, "School", session.schoolId, { summary: `Data processing agreement accepted · version ${input.version}` });
-    return { version: input.version };
+    return acceptDpa(session);
   }
 
   async savePreferences(session: SessionPayload, body: unknown) {

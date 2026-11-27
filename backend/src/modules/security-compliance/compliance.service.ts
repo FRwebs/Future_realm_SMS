@@ -1,3 +1,4 @@
+import { ensureDpaVersion } from "../../common/dpa";
 import { BadRequestException, Injectable, NotFoundException, OnModuleDestroy, OnModuleInit, Logger } from "@nestjs/common";
 import { AuditAction, Prisma } from "@prisma/client";
 import { z } from "zod";
@@ -69,6 +70,8 @@ const retentionSchema = z.object({ retentionDays: z.coerce.number().int().min(0)
 const dpaSchema = z.object({
   version: z.string().trim().min(1).max(20),
   summary: z.string().trim().max(1000).optional(),
+  /** The agreement's own words. Left empty, the platform's standard wording is read for this version. */
+  body: z.string().trim().max(40000).optional(),
   effectiveFrom: z.preprocess((v) => (v === "" || v == null ? undefined : v), z.coerce.date().optional()),
   notifySchools: z.preprocess((v) => v === true || v === "true", z.boolean()).default(true)
 });
@@ -128,7 +131,7 @@ export class ComplianceService implements OnModuleInit, OnModuleDestroy {
     const [obligations, rules, versions] = await Promise.all([prisma.complianceObligation.count(), prisma.retentionRule.count(), prisma.dpaVersion.count()]);
     if (!obligations) await prisma.complianceObligation.createMany({ data: OBLIGATIONS.map((row) => ({ ...row })), skipDuplicates: true });
     if (!rules) await prisma.retentionRule.createMany({ data: RETENTION_DEFAULTS.map((row) => ({ ...row })), skipDuplicates: true });
-    if (!versions) await prisma.dpaVersion.create({ data: { version: "4.0", effectiveFrom: new Date("2026-01-01T00:00:00Z"), summary: "The agreement every school has been offered since launch.", isCurrent: true } });
+    if (!versions) await ensureDpaVersion();
   }
 
   /* ───────────────────────── the compliance picture ───────────────────────── */
@@ -270,7 +273,7 @@ export class ComplianceService implements OnModuleInit, OnModuleDestroy {
     if (await prisma.dpaVersion.findUnique({ where: { version: input.version } })) throw new BadRequestException(`Version ${input.version} already exists.`);
     const created = await prisma.$transaction(async (tx) => {
       await tx.dpaVersion.updateMany({ data: { isCurrent: false } });
-      return tx.dpaVersion.create({ data: { version: input.version, summary: input.summary || null, effectiveFrom: input.effectiveFrom ?? new Date(), isCurrent: true, createdById: session.userId } });
+      return tx.dpaVersion.create({ data: { version: input.version, summary: input.summary || null, body: input.body || null, effectiveFrom: input.effectiveFrom ?? new Date(), isCurrent: true, createdById: session.userId } });
     });
     let told = 0;
     if (input.notifySchools) {
