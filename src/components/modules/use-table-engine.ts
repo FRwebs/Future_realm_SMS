@@ -1,5 +1,6 @@
 "use client";
 
+import { TABLE_PAGE_SIZE } from "@/lib/modules/table-size";
 import {
   columnFilteringFeature,
   createFilteredRowModel,
@@ -133,8 +134,8 @@ export type TableEngine = ReturnType<typeof useRowsTable> & {
 };
 
 /** A table whose rows are all here. */
-/** Rows per page, for every table. The mockup pages at twelve and so does this. */
-export const TABLE_PAGE_SIZE = 12;
+/** Rows per page, for every table (kept in table-size.ts because the server reads it too). */
+export { TABLE_PAGE_SIZE };
 
 export function useLocalTable(rows: TableRow[], filters: TableFilter[] | undefined, per: number | undefined, selectable: boolean): TableEngine {
   const [query, setQuery] = useState("");

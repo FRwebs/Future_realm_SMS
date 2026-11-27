@@ -1,4 +1,4 @@
-import { TABLE_PAGE_SIZE } from "@/components/modules/use-table-engine";
+import { TABLE_PAGE_SIZE } from "@/lib/modules/table-size";
 import type { PanelRow, TableRow, TableWindow } from "@/lib/modules/panels";
 import { narrowRows } from "@/lib/modules/table-query";
 
